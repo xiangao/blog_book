@@ -1,0 +1,115 @@
+---
+title: "Weights in OLS in causal inference"
+date: "2025-01-16"
+---
+
+
+# Unit level weights for OLS
+
+Chad Hazlett and Tanvi Shinkre's paper "Demystifying and avoiding the OLS “weighting problem”:
+Unmodeled heterogeneity and straightforward solutions" has demystified OLS weights for me.
+
+When we have unconfoundedness, that is, we assume there is no unobserved confounders, we usually run a linear regression of $Y$ on $D$ and $X$, where $D$ is the treatment variable and $X$ is the covariates.  We know in fact the unconfoundedness acutally is only true for each level of $X$.  If $X$ is low dimentional and discrete, then it's possible to stratify and basially calculate the ATE with g-formula.  However, usually we just do a linear regression 
+$$ Y = \alpha + \beta D + \gamma X + \epsilon$$
+and claim we have controlled for $X$, especially when $X$ is high-dimentional or continuous.  At least we claim it's a linear approximation of the truth.  But, how bad is it?
+
+Suppose we are interested in the ATE of $D$ on $Y$.  Say we have discrete variables $X$.  Under unconfoundedness, the ATE is 
+
+$$
+\begin{align}
+ \tau_{ATE} &= \sum E[Y(1) - Y(0) | X = x] P(X = x) \\
+            &= \sum (E[Y|D=1, X=x]- E[Y|D=0, X=x]) P(X=x) \\
+            &= \sum DIM_x P(X=x) \\
+\end{align}
+$$
+
+This is basically the g-formula, or regression adjustment formula.  We compute the DIM (difference in means) between treated and control for each strata $X=x$, then the weighted average is the ATE, with $\hat P(X=x)$ as weights.
+
+If we have high dimentional $X$, we usually do 
+$$ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon $$
+
+We would hope $\delta_{reg}$ is close to $\delta_{ATE}$, but we are not sure.
+
+OLS coefficients are: 
+
+$$ \hat \beta = (Z'Z)^{-1} Z'y $$
+
+Here I use $Z$ to represent all regressors.  Each coefficient is a weighted sum of the outcome, 
+
+$$ \hat \tau_{reg} = \sum \omega_i Y_i $$
+
+By FWL theorem, 
+
+$$ \hat \tau_{reg} = \frac{\sum Y_i (D_i - \hat d(X_i)) }{\sum (D_i - \hat d(X_i))^2} $$
+
+Here $\hat d(X_i) = \hat p(D_i=1|X_i)$ which is the predicted value of linear regression of $D$ on $X$.  The numerator is the covariance between $Y$ and residualized $D$, the denominator is the variance of the residualized $D$.  Note that the original FWL would have residualized $Y$ here, but it turns out it works the same with the original $Y$.
+
+Therefore the weights are 
+
+$$ 
+\begin{align}
+\omega_i &= \frac{D_i - \hat d(X_i)}{\sum (D_i - \hat d(X_i))^2} \\
+\end{align}
+$$
+
+
+Note for the denominator, it's a constant, basically to scale the sum of weights to be 1.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $\hat d(X_i)$.  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probabilty of being treated, the lower weight; for the control, the higher probability of being treated, the higher weight.  
+
+If these weights are the same as the IPW weights, then we'll get $\tau_{reg}=\tau_{ATE}$.  However, they are usually different.  
+
+Another way to write this as weighted difference in means:
+
+$$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i $$
+
+where $\tilde \omega_i = D_i \omega_i + (1-D_i) \omega_i$
+
+Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) > 1$ will cause the weight to be negative if it's a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  Likewise for control units with $\hat d(X_i) < 0$.  
+
+The worst thing is that we don't know which observations have negative weights, unless we look further and actually run a regression of $D$ on $X$.  If we do that, we are doing similar things as in IPW or matching.  If we simply do a linear regression, it's like a black box.  We have no idea how bad some negative weights are.  We are relying on extrapolation with regression model like this.  Even if there is no matched units, we are extrapolating based on linearity.  
+
+Therefore, $\hat \tau_{reg}$ is another weighted average of the outcome, which is different from the $\tau_{ATE}$, potentially.  In addition, for $\tau_{ATE}$, we can calculate the difference in means for that strata, given we have observations from both treated and controls.  In the case of linear regression, we might have units that should not be included in the calculation and we don't know about it.
+
+#  Strata level weights
+
+Angrist 1998 has the strata-wise weights for OLS:
+
+$$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(X_i) (1-\hat d(X_i)) \hat P(X_i=x)}{\sum_x  \hat d(X_i) (1-\hat d(X_i)) \hat P(X_i=x)} $$
+
+this shows that different from ATE, these weights are $\hat d(X_i) (1-\hat d(X_i)) \hat P(X_i=x)$.  The stratas are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.  
+
+If there is no treatment effect heterogeneity, then it does not matter how you weight.  When there is treatment effect heterogeneity, this estimator could be very different from ATE.  
+
+Hazlett and Shinkre show that Angrist's estimator is a special case of a general case.  It is only valid when the probability of treatment is linear in X.  When you have discrete X and have a saturated model in X, then it's linear in X.  Hazlett and Shrikre showed a more general formula for the weights, but here we assume Angrist's formula is correct, basically assuming linearity in modeling probability of treatment.
+
+
+# Recommended estimation approaches
+
+Under no effect heterogeneity and linearity of $Y$ on $D$ and $X$, namely, $E[Y|X, D]= \beta_0 + \beta_1 X + \beta_2 D$,  there is no problem with a regression of $Y$ on $D$ and $X$.  
+
+If this is not true, then we'll need to be more flexible on the specification to make OLS estimators close to ATE.
+
+Hazlett and Shinkre suggested relaxing the assumption to seperate linearity.  Basically allowing different intercepts for $Y(0)$ and $Y(1)$.  
+
+If that is true, then the following estimators are unbiased:  interaction, imputation, g-compuation, and stratification.  
+
+Interaction estimator is the Lin (2013) estimator, basically running a regression of $Y$ on $D$, $\tilde X$, and $D*\tilde X$.  $\tilde X$ is the demeaned $X$.  The coefficient of $D$ is the ATE.  
+
+Imputation is to run seperate regressions for treatment and control group, then use the results to predict outcomes for the other group.  The ATE is the difference in the predicted outcomes.  It turns out the imputation estimator is the same as the interaction estimator.
+
+Stratification and g-computation work when $X$ is discrete.  Bascially get the difference in means for each strata and weight by the probability of strata.  
+
+The above mentioned estimators all depend on the linearity assumption.  If that is not the case, then we can use matching, such as "mean balancing" matching.
+
+Nonparametric estimation is another option if the linearity assumption fails.
+
+
+
+
+
+
+
+
+
+
+
+

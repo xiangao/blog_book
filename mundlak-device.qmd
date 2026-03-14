@@ -1,0 +1,309 @@
+---
+title: "Mundlak device in fixed effect models"
+date: "2021-10-23"
+---
+
+
+
+
+# TWFE
+
+Two-way fixed effect model has been widely used, especially in difference-in-difference situation, when we have a panel data with pre and post data.  The basic setup is:
+
+$$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$
+
+with $X$ has $k$ variables, $t$ has $T$ periods, and $i$ has $N$ units.  
+
+For a linear model, we know we can put in $k$ unit dummies and $T$ time dummies to estimate the model.  When we have a lot of dummies, this becomes inefficient, sometimes infeasible.  When we have nonlinear models, such as Poisson, or logit, then this becomes even more difficult.  
+
+# TWM
+
+The recent Wooldrige paper (https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) showed that two-way Mundlak regression (TWM) can be useful, not only in the common event time situation, but also in staggered TWFE situation.  But in this post I'll only talk about common event time sitation (which is the case that all treated units get treated at the same period, and stay treated afterwards).  The staggered situation (treated units get treated at different periods) will be a different post.
+
+The idea of Mundlak (1978) is the following.
+
+In the one-way fixed effect case,
+
+$$ y_{it} = x_{it} \beta + c_i + u_{it} $$
+
+Mundlak models $c_i$ as a function of the mean of $x_{it}$ for each unit:
+
+$$ c_i = \bar x_i \theta + \eta_i $$
+
+Then 
+
+$$ y_{it} = x_{it} \beta + \bar x_i \theta + \eta_i + u_{it} $$
+
+This $\eta_i + u_{it}$ becomes the composite error term.  This becomes a model including $\bar x_i$'s, which are additional $k$ variables, instead of including a set of unit dummies.  This model can be estimated by either Pooled OLS (POLS), or random effect.  The estimated coefficients $\beta$ are identical.  The standard errors are the same too, after clustering on units. In other words, if we include means of $x$'s as controls, then POLS and random effect models are identical. 
+
+The by-product of this equation is that if $\theta = 0$, then $c_i$ is uncorrelated with $x_{it}$; therefore a random effect is good.  Otherwise we should do fixed effect.  This is similar to a Hausman test (equivalent?).
+
+Here is an example:
+
+```{r}
+#| label: setup
+#| include: false
+
+library(Statamarkdown)
+stataexe <- find_stata()
+#stataexe <- "/usr/local/bin/stata"
+knitr::opts_chunk$set(engine.path=list(stata=stataexe))
+```
+
+```{stata}
+*| label: stata1
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+clear
+webuse nlswork
+xtset idcode year
+drop if union==.
+drop if age==.
+bysort idcode: egen mean_age=mean(age)
+bysort idcode: egen mean_union=mean(union)
+xtreg ln_wage age union, fe cluster(idcode)
+reg ln_wage age union mean_age mean_union, cluster(idcode)
+xtreg ln_wage age union mean_age mean_union, re cluster(idcode)
+```
+
+Clearly we see in the these three models, the coefficients and standard errors on age and union are the same.
+
+What Wooldridge (2021) shows is that this (Mundlak) works for two-way fixed effect too.
+
+That is, for the TWFE,
+$$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$
+it's equivalent to estimate
+
+$$ y_{it} = X_{it} \beta + X_{i \cdot} \lambda + X_{\cdot t} \theta + u_{it} $$
+
+where $X_{i \cdot}$ is the unit specific averages over time, and $X_{\cdot t}$ is the time specific averages over units.  This is basically some kind of control function approach.  That is, from FWL theorem, these two models are equivalent.  See Wooldridge 2021 for proof.
+
+Wooldrige calls this POLS of regressing $y_{it}$ on regressors $X_{it}$ and two sets of addtional controls $X_{i \cdot}$ and $X_{\cdot t}$ Two-way Mundlak (TWM) model.  
+
+One advantage of TWM is that it has potentially huge cut on the number of regressors, if you use the dummy variable approach for the TWFE.  
+
+The other advantage is that you can actually include time-invariant or unit-invariant variables in the regression and the $\beta$'s remain unchanged.  We all know that in TWFE model you cannot include those time-invariant or unit-invariant variables in the model.
+
+We can see in the following example of POLS (which is TWM), we add in "race" which is unit-invariant.  It can be estimated in TWM, but would not be estimatible in TWFE.  Notice that coefficients on age and union remain unchanged.  This is basically to say that race is orthogonal to the surface of all the $X$'s and the means of $X$'s.  We did not add in time invariant variables, but that would be the same story.  
+
+
+```{stata}
+*| label: stata2
+*| echo: true
+*| cache: true
+
+
+reg ln_wage age union mean_age mean_union i.race, cluster(idcode)
+
+```
+
+# Applications of TWM to DID in common treatment timing
+
+There is an extension of Mundlak device that if $x_{it}$ can be seen as an interaction between a time-invariant variable and an unit-invariant variable,
+
+$$ x_{itj} = z_{ij} * m_{tj} $$
+
+Then 
+
+$$ \bar x_{i \cdot j} = z_{ij} \bar m_j $$
+$$ \bar x_{\cdot t j} = \bar z_{j}  m_{tj} $$
+
+In other words, the two averages of $x$ are constant times $z_{ij}$ and constant times $m_{tj}$ respectively.  By Mundlak, we can just include $z_{ij}$ and $m_{tj}$ as control in addtional to $x_{it}$ to get the same estimates as TWFE.  This makes things much easier, as we'll see later.
+
+Wooldridge 2021 goes on showing that TWM works in common treatment time, and also in staggered timing setting, as long as we allow flexible interactions of treatment cohorts and treatment periods.  It's truely remarkable that he showed that TWM can be so powerful!  In this post I am going to just use simulation to show TWM in common treatment timing; staggered timing setting will be another post.  All the codes are based on Wooldridge's do files he shared in his dropbox.
+
+In a common timing setting, treatment comes in at one time, all the treated units are treated at the same time.  There is the parallel trend assumption that assumes that the treatment group and control group have the same trend before treatment.  Also there is no anticipation assumption.
+
+
+$$ y_{it} = w_{it} \beta + c_i + f_t + u_{it} $$
+
+where $w_{it}$ is the treatment indicator, with $T$ periods and treatment happens at $t=q$.
+
+$$ w_{it} = d_i \cdot p_t $$
+
+where $d_i$ is the treatment group dummy, and $p_t$ is the post treatment dummy.  
+
+$$ \bar w_{i \cdot} = d_i \cdot \bar p $$
+$$ \bar w_{ \cdot t} = \bar d \cdot  p_t $$
+
+Therefore, we just need to include $d_i$ and $p_t$ as controls in the regression to be the same estimator as TWFE, by the spirit of Mundlak.
+
+That is, instead of doing TWFE, we can do TWM by regressing $y$ on $w$, $d_i$ and $p_t$.
+
+Moreover, in a TWM, we can include any time-invariant or unit-invariant controls, or both and have no effect on $\beta$.  
+
+We can also allow the effect to change across time post treatment by doing
+
+$$y_{it} = \alpha + \beta_q (w_{it} \cdot f_q) + \dots + \beta_T (w_{it} \cdot f_T) + \eta d_i + \theta_q f_q + \dots + \theta_T f_T + e_{it} $$
+
+In the TWM, we allow effects change from $t=q$ to $t=T$, by interacting $w_{it}$ and $f_t$, which is an dummy for time $t$.  Very flexible, yet easy to do, given everything is linear.
+
+Even more, if we have another variable, $x_i$, say gender, which is time-invariant, we can allow the effect to be different across gender, across time!
+
+Now I use Wooldridge's code to run on a simulated data set.
+```{stata}
+*| label: stata3
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+clear
+set obs 100
+set seed 1234567
+gen id = _n
+gen w1 = rnormal()
+gen w2 = rnormal()
+expand 4
+bysort id: gen year=2011+_n
+gen post=(year>2013)
+gen d=(id>50)
+gen w=d*post
+gen x1 = rnormal() + w1 + 2*w2
+gen u = rnormal()
+
+gen f2014=(year==2014)
+gen f2015=(year==2015)
+
+gen y1 = 1 +2*x1 + 3*w1  + u
+# let's allow each year's treatment effect being different.  ATT for post period would be roughly 3, because of balanced panel.
+gen logy = y1 + 2.5*d*f2014 + 3.5*d*f2015
+
+xtset id year
+tab year w
+```
+
+In this data set, we have 100 units, four years (2012 to 2015).  Half units are treated, treatment happens on 2014.  Treatment dummy $d$, $w$ is $d * post$.  Treatment effect is 2.5 in year 2014, and 3.5 in year 2015.  If we estimate ATT for the entire post treatment period, we should expect to see ATT about 3, given the balanced panel.
+
+All the following code are from Wooldridge.  I just used it on the simulated data.
+
+The difficulty is that we have to be careful and mindful about what we want to estimate, then come up with the correct code for all those interaction terms.
+
+```{stata}
+*| label: stata4
+*| echo: true
+*| cache: true
+
+
+* Basic DID regression. Only need the post-treatment dummy but including
+* all time dummies is harmless (and necessary for heterogeneous trends).
+* Standard errors change a little because of different degrees-of-freedom.
+
+reg logy c.d#c.post d post, vce(cluster id)
+reg logy w d post, vce(cluster id)
+reg logy w d f2014 f2015, vce(cluster id)
+reg logy w d i.year, vce(cluster id)
+
+* Using fixed effects is equivalent:
+
+xtreg logy w i.year, fe vce(cluster id)
+xtreg logy w post, fe vce(cluster id)
+
+* So is RE with d included:
+xtreg logy w d post, re vce(cluster id)
+
+* Allow a separate effect in each of the treated time periods:
+* It is the ATT for each treated period:
+
+xtreg logy c.w#c.f2014 c.w#c.f2015 i.year, fe vce(cluster id)
+xtreg logy c.d#c.f2014 c.d#c.f2015 i.year, fe vce(cluster id)
+
+* POLS version:
+
+reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, vce(cluster id)
+lincom (c.w#c.f2014 + c.w#c.f2015)/2
+
+* RE still gives same estimates:
+
+xtreg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, re vce(cluster id)
+
+* Putting in time-constant controls in the levels and even interacted with d
+* does not change the estimates. It does boost the R-squared and
+* slightly changes the standard errors:
+
+reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015 x1 c.d#c.x1, vce(cluster id)
+reg logy c.w#c.f2014 c.w#c.f2015 d i.year x1 c.d#c.x1, vce(cluster id)
+
+* Now add covariate interacted with everything:
+
+sum x1 if d
+gen x1_dm_1 = x1 - r(mean)
+
+xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1,  fe vce(cluster id)
+
+reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)
+
+reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1, vce(cluster id)
+
+* Now use margins to account for the sampling error in the mean of x1. It is
+* important to have w defined as the time-varying treatment variable.
+* In practice, it seems to have little effect:
+
+reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1 c.w#c.f2015#c.x1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)
+margins, dydx(w) at(f2014 = 1 f2015 = 0) subpop(if d == 1) vce(uncond)
+margins, dydx(w) at(f2014 = 0 f2015 = 1) subpop(if d == 1) vce(uncond)
+
+* Apply Callaway & Sant'Anna (2021):
+
+gen first_treat = 0
+replace first_treat = 2014 if d
+csdid logy x1, ivar(id) time(year) gvar(first_treat)
+
+* Show imputation is equivalent to POLS/ETWFE:
+
+reg logy i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1 if w == 0
+predict tetilda, resid
+sum tetilda if (d & f2014)
+sum tetilda if (d & f2015)
+
+* Regression produces same ATT estimates, but use the full pooled regression for
+* valid standard errors:
+
+reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons
+
+* Now test parallel trends. First, unconditionally.
+
+xtdidreg (logy) (w), group(id) time(year)
+* estat trendplots
+estat ptrends
+
+* With two control periods, same as the following:
+
+sort id year
+reg D.logy d if year <= 2013, vce(robust)
+
+* Test/correct for common trends in a general equation:
+
+gen t = year - 2011
+
+xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 c.d#c.t,  fe vce(cluster id)
+
+reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t, vce(cluster id)
+
+* Allow the trend to also vary with x1:
+
+reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, vce(cluster id)
+test c.d#c.t c.d#c.t#c.x1
+
+* Imputation. Note that the estimates on c.d#c.t and c.d#c.t#c.x1
+* are the same as full regression with all data, as is the joint
+* F statistic:
+
+drop tetilda
+
+reg logy i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 if w == 0, vce(cluster id)
+test c.d#c.t c.d#c.t#c.x1
+
+predict tetilda, resid
+sum tetilda if (d & f2014)
+sum tetilda if (d & f2015)
+
+* Again, can use regression to obtain the estimates but not the standard errors:
+
+reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons
+```
+
+
+

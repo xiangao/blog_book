@@ -1,0 +1,107 @@
+---
+title: "Power analysis with list experiment"
+date: "2024-04-20"
+---
+
+
+This post is based on Ulrich, et al 2012.  
+
+# List experiment
+
+List experiment is also called item count technique (ICT), which was developed by Miller 1984, also called unmatched count technique, the unmatched block design, or the block total response.  This technique requires two groups of respondents. First, a control group with $n_c$ respondents receives a list of $k$ neutral questions. The probability of answering the neutral question $N_i$ with “yes” is $\pi_i (i = 1, . . ., k)$. Second, an experimental group with $n_e$ respondents receives the same set of questions as the control group plus the sensitive question of interest. In each group, the respondent is asked to indicate the total count of “yes” responses. Because each item is a binary variable, the expected number of total “yes” responses is $\mu_c=\sum_{i=1}^k \pi_i$ for the control group and $\mu_e=\sum_{i=1}^k \pi_i + \pi_S$ for the experimental group. Therefore, the difference $\hat \mu_e - \hat \mu_c$ between the observed means of the two groups provides an estimate of $\pi_S$, that is,
+$$ \hat \pi_S = \hat \mu_e - \hat \mu_c .$$
+
+
+# Power analysis
+
+## Define power
+
+Suppose $\pi_s$ is the proportion of the population that has the sensitive attribute, or the proportion of the population that would answer the sensitive question with “yes”, such as the proportion of people who have committed a crime.  The null hypothesis $H0$ is that $\pi_s=0$, and the alternative hypothesis $H1$ is that $\pi_s>0$.  
+
+The expected mean and the sampling variance of $\hat \pi_s$ under the null hypothesis H0 are denoted $\mu_0$ and $\sigma_0^2$, respectively. Likewise, let $\mu_1$ and $\sigma_1^2$ be the mean and the variance under the alternative hypothesis H1 that $\pi_s$ has a specific value that is greater than zero, for instance, $H1 : \pi_s = 0.05$
+
+statistical power P(“H1”|H1) of a test represents the probability of rejecting $H0$ in favor of $H1$ given that $H1$ is true.
+
+On a general level, this probability is computed as, 
+$$ \begin{align} 
+P(“H_1”|H_1) &= P(\hat \pi_s > c_{1-\alpha}) \\
+&= P(\frac{\hat \pi_s - \mu_1}{\sigma_1} > \frac{c_{1-\alpha} - \mu_1}{\sigma_1})\\
+&= P(Z > \frac{c_{1-\alpha} - \mu_1}{\sigma_1}) \\
+&= 1 - \Phi( \frac{c_{1-\alpha} - \mu_1}{\sigma_1}) \\
+&= \Phi( \frac{\mu_1-c_{1-\alpha} }{\sigma_1}) \\
+&= \Phi( \frac{\mu_1-\mu_0 + z_\alpha \sigma_0 }{\sigma_1}) \\
+\end{align} $$
+
+Consider a special case, $\mu_0=0$, $\mu_1=1$,  $\sigma_0=\sigma_1=1$, and $z_\alpha=-1.64$, then the power is 0.26.  This is the one side power.  If we consider two sided power, then the power is .168, since $z_{\alpha/2}=-1.96$.
+
+## Power for list experiment
+
+Under H1, the sampling variance of $\hat \pi_s$ is
+
+$$ \sigma_1^2 = \frac{\pi_s (1-\pi_s)}{n_c} + (\frac{1}{n_e} + \frac{1}{n_c}) \sum_{i=1}^k \pi_i (1-\pi_i) $$
+where $\pi_i$ is the probability of answering the neutral question $N_i$ with “yes”.
+
+Under H0, the sampling variance of $\hat \pi_s$ is
+$$ \sigma_0^2 = (\frac{1}{n_e} + \frac{1}{n_c}) \sum_{i=1}^k \pi_i (1-\pi_i) $$
+
+Assuming $n_e=n_c=n$, then the power is
+
+$$ P("H_1"|H_1) = \Phi( \frac{\pi_s + z_\alpha \sqrt{\frac{2}{n} \sum_{i=1}^k \pi_i (1-\pi_i)}}{\sqrt(\frac{\pi_s(1-\pi_s)}{n} + \frac{2}{n} \sum_{i=1}^k \pi_i (1-\pi_i))}) $$
+
+For example, when you have $\pi_s=.1$, $n=500$, $k=4$, $\pi_i=.1$, then the power is
+
+```{r}
+
+num=.1+qnorm(.05)*sqrt((1/250)*(4*.1*.9))
+denom=sqrt((.1*.9/500+(1/250)*4*.1*.9))
+pnorm(num/denom)
+```
+
+
+## Sample size for list experiment
+
+
+Assuming $n_e=n_c$, 
+
+$$ a_1 = \sqrt(2 \pi_s (1-\pi_s) + 4 \sum_{i=1}^k \pi_i (1-\pi_i)) $$
+
+$$ a_0 = 2 \sqrt( \sum_{i=1}^k \pi_i (1-\pi_i)) $$
+
+Sample size needed for a power of $1-\beta$ is
+$$ n = (\frac{(z_{1-\beta}) a_1 - z_\alpha a_0}{\mu_1-\mu_0})^2$$  
+
+where $\beta$ is type 2 error,  $\alpha$ is type 1 error.  
+
+Let's look at an example:  suppose the proportion of the population that would answer the sensitive question with “yes” is 0.1.  The probability of answering the neutral question $N_i$ with “yes” is 0.1.  The type 1 error is 0.05, and the type 2 error is 0.2.  Suppose we have 4 neutral questions.  What is the sample size needed?
+
+```{r}
+
+a1=sqrt(2*.1*.9+4*4*.1*.9)
+a0=2*sqrt(4*.1*.9)
+n=((qnorm(.8)*a1-qnorm(.05)*a0)/.1)^2
+n
+```
+
+
+Suppose probability of answering the neutral question $N_i$ with “yes” is .3.
+
+```{r}
+
+a1=sqrt(2*.1*.9+4*4*.3*.7)
+a0=2*sqrt(4*.3*.7)
+n=((qnorm(.8)*a1-qnorm(.05)*a0)/.1)^2
+n
+```
+
+Suppose the probability of answering the sensitive question with “yes” is .05.
+
+
+```{r}
+
+a1=sqrt(2*.1*.9+4*4*.3*.7)
+a0=2*sqrt(4*.3*.7)
+n=((qnorm(.8)*a1-qnorm(.05)*a0)/.05)^2
+n
+```
+
+

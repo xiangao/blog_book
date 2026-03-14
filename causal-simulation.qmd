@@ -1,0 +1,339 @@
+---
+title: "Causal simulation"
+date: "2025-09-13"
+---
+
+
+
+Evans, R. J., & Didelez, V. (2024). "Parameterizing and simulating from causal models" is about simulating from a causal model.  I found that interesting.
+
+The usual causal inference is to have a observational data, then assume causal structure, then estimate the parameters.  This paper is about the opposite:  Suppose we have a causal model, what kind of distribution would generate it?
+
+Suppose we are interested in joint distribution $p(x,a,y)$, $x$ is covariates, $a$ is treatment, $y$ is outcome.
+
+
+$$ 
+\begin{align}
+p(x,a,y) &= p(x,a)p(y|x,a) \\
+         &= p(x,a)p_a(y|x) \\
+         &= p(x,a)\frac{p_a(x,y)}{p_a(x)} \\
+         &= p(x,a)\frac{p_a(x)p_a(y)c(x,y|a)}{p_a(x)} \\
+         &= p(x,a)p_a(y)c(x,y|a)
+\end{align}
+$$
+
+Basically the joint distribution of $(x,a,y)$ can be factorized into the marginal distribution of $(x,a)$, the conditional distribution of $y$ given $x$ and $a$, and the copula $c(x,y|a)$.  The copula is a function that captures the dependence between $x$ and $y$ given $a$.  $(x,a)$ is the "past", which can be specified.  $p_a(y)$ is the "marginal structure model" which can be specified.  The copula model can also be specified.
+
+About copula:  copula is a function can link joint distribution to marginal distributions.  
+
+$$ p(x,y) = f(x)g(y)c(F(x),G(y)) $$
+
+where $F(x)$ and $G(y)$ are the marginal distributions of $x$ and $y$, respectively, and $c$ is the copula function that captures the dependence between $x$ and $y$.  The copula function is a multivariate distribution with uniform marginals.  It can be used to generate joint distributions from marginal distributions.
+
+Here $x$, $a$ and $y$ can all be vectors.
+
+# examples
+
+What do we use this for?  We can use this to simulate data from a causal model, and then fit different models to the simulated data.  This allows to compare the performance of different models.  
+
+## example 1
+
+Suppose we have a causal graph like this:
+
+```{r}
+#| label: dag1
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: false
+
+library(ggplot2)
+library(ggdag)
+
+g <- dagify(
+  Y ~ A,
+  Y ~ X,
+  A ~ X,
+  exposure = "A",
+  outcome = "Y",
+  coords = list(x = c(A = 1,  X = 2 , Y = 3),
+                y = c(A = 1,  X = 2, Y = 1))
+)
+
+ggdag(g) + 
+  theme_dag() 
+```
+
+We need to specify $P(y|do(a)) = \sum_x P(x) P(y|x,a)$, where $P(x)$ is the marginal distribution of $x$, and $P(y|x,a)$ is the conditional distribution of $y$ given $x$ and $a$.  This is the "marginal structural model" (Robins, 2000).  Also the "g-formula".  
+
+We also need to specify $P(x,a)$, the "past".
+
+Finally we need to specify the copula $c(x,y|a)$, which captures the dependence between $x$ and $y$ given $a$. Depending on different situations, different copula can be used.
+
+In the "causl" package example, we specify:
+$$ X \sim N(0,1) $$
+$$ A | X=x  \sim N(x/2, 1) $$
+$$ Y | do(A=a) \sim N({(a-1)/2}, 1) $$
+and Gaussian copula with correlation $\rho = 2 expit(1)-1$.
+
+```{r}
+#| label: sim0
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+library(causl)
+# formulae corresponding to covariates, treatments, outcomes and the dependence
+forms <- list(X ~ 1, A ~ X, Y ~ A, ~ 1)
+# vector of model families (3=gamma/exponential, 1=normal/Gaussian)
+fam <- c(1, 1, 1, 1)
+# list of parameters, including 'beta' (regression params) and 'phi' dispersion
+pars <- list(X = list(beta=0, phi=1),   
+             A = list(beta=c(0,0.5), phi=1),
+             Y = list(beta=c(-0.5,0.5), phi=1),
+             cop = list(beta=1))
+
+## now create a `causl_model` object
+cm <- causl_model(formulas=forms, family=fam, pars=pars,method="inversion")
+
+# now simulate 1000 observations
+set.seed(123456)
+data <- rfrugal(n=1000, causl_model=cm)
+head(data)
+```
+
+In this example, first we specify the structure of the model using a list of formulas.  The first formula is for the covariates, the second for the treatments, the third for the outcomes, and the fourth for the dependence structure (copula).  Note that outcome $Y$ only depends on $A$ in this interventional distribution.
+
+Then we specify the families of the random variables.  Here we use exponential distribution for $X$, normal distribution for $A$ and $Y$, and Gaussian copula for the dependence structure.
+
+Finally we specify the parameters of the model, including regression coefficients and dispersion parameters.  For example, $Y \sim A$ has two coefficients, intercept -.5 and slope .5.  
+
+The `causl_model` object is then created using these components.
+
+In this simple example, if we run a regression with $A$, $X$ in the model, on the simulated data, we would get the correct effect back:
+
+```{r}
+#| label: sim1
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+lm1 <- lm(Y ~ A*X, data=data)
+summary(lm1)
+```
+
+We can also use MLE:
+
+```{r}
+#| label: sim2
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+out <- fit_causl(data, formulas = list(X ~ 1, Y ~ A, ~ 1), family = c(1, 1, 1))
+out
+```
+
+## Plasmode simulation
+
+In reality, we have a data set and we have a causal model.  We want to simulate data from the causal model, but we want the simulated data to have the same distribution as the original data.  This is called "plasmode simulation".  For example, we don't want to use the real outcome variable.  In stead, we simulate X's from the original data, Then simulate Y and A from the causal model.  We can then test which method works better in estimating the causal effect of $A$ on $Y$.
+
+```{r}
+#| label: plasmode
+#| echo: false
+
+library(aciccomp2016)
+library(dplyr)
+(dat <- as_tibble(input_2016)) # show 10 rows of first few variables
+
+```
+
+```{r}
+#| label: sim3
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+
+# Model for the causal effect of smoking on birthweight
+forms <- list(list(),
+              list(A ~ x_1 + x_3 + x_4),
+              list(Y ~ A),
+              list(~ 1))
+# fams <- list(integer(0), 5, 1, 1)
+fams <- list(integer(0), "binomial", "gaussian", 1)
+pars <- list(A = list(beta=c(-1.5,0.03,0.02,0.05)),
+             Y = list(beta=c(3200, -500), phi=400^2),
+             cop = list(beta=-1))
+
+cm2 <- causl_model(formulas=forms, family=fams, pars=pars, dat = dat)
+ 
+set.seed(123456)
+data2 <- rfrugal(causl_model=cm2)
+head(data2)
+
+# we can also use rfrugalParam(), which is older version of rfrugal().
+#datAY <- rfrugalParam(formulas=forms, family=fams, pars=pars, dat=dat)
+
+```
+
+In this specification, we have a binary treatment $A$ and a continuous outcome $Y$.  The covariates are $x_1$, $x_3$ and $x_4$.  The copula is a Gaussian copula with correlation -1.  We can then simulate the data.
+
+# a more complicated model
+
+Let's simulate a more complicated model:
+```{r}
+#| label: dag2
+#| include: true
+#| warning: false
+#| cache: false
+#| message: false
+#| echo: true
+
+library(ggplot2)
+library(ggdag)
+
+g <- dagify(
+  A1 ~ L1,
+  L2 ~ L1,
+  L2 ~ A1,
+  A2 ~ A1,
+  A2 ~ L2,
+  Y ~ A2,
+  Y ~ L2,
+  Y ~ A1,
+  exposure = "A2",
+  outcome = "Y",
+  coords = list(x = c(L1 = 1,  L2 = 2, Y = 3, A1 = 1.5, A2 = 2.5),
+                y = c(L1 = 1,  L2 = 1, Y = 1, A1 = 1.5, A2 = 1.5))
+)
+
+ggdag(g) + 
+  theme_dag() 
+```
+Let's see how to write a causal model:
+
+```{r}
+#| label: sim4
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+# formulae corresponding to covariates, treatments, outcomes and the dependence
+forms <- list(list(L1  ~ 1, L2 ~ L1*A1),   # covariates
+              list(A1 ~ L1, A2 ~ L2*A1), # treatments
+              Y ~ A1*A2*L2,             # outcome
+              ~ 1)
+
+# vector of model families (3=gamma/exponential, 1=normal/Gaussian)
+
+fams <- list(c(1, 1), c(5,5), 1, 1)
+pars <- list(L1 = list(beta=0, phi=1),
+             L2 = list(beta=c(0.3,0.5,-0.2,-0.1), phi=1),
+             A1 = list(beta=c(-0.3,0.4), phi=1),
+             A2 = list(beta=c(0.5,0.3,0.1,0), phi=1),
+             Y = list(beta=c(0,1,2,0.5,1,0.2,0,0.8), phi=1), 
+             cop = list(beta = 0.5))
+
+# we can use rfrugalParam() to simulate data from the model, or rfrugal().
+#dat <- rfrugalParam(n=1e4, formulas=forms, family = fams, pars=pars)
+#head(dat)
+
+cm3 <- causl_model(formulas=forms, family=fams, pars=pars)
+ 
+set.seed(123456)
+data3 <- rfrugal(n=1e4,causl_model=cm3)
+head(data3)
+
+
+```
+
+If we have the correct specification for the outcome model, we'll get it right by linear model:
+
+```{r}
+#| label: sim5
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+m1 <- glm(Y ~ A1*A2*L2, data = data3)
+summary(m1)
+
+library(marginaleffects)
+avg_comparisons(
+    model = m1,
+    variables = "A2")
+```
+
+So the ATE is 2.5.
+
+Let's use "lmtp" package to estimate the treatment effect of $A_2$ on $Y$.
+```{r}
+#| label: lmtp
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+
+library(lmtp)
+
+d1 <- function(data, trt) {
+  rep(1, nrow(data))
+}
+A <- "A2"
+Y <- "Y"
+W <- c("L1", "L2", "A1")
+
+set.seed(34465)
+
+treat <- lmtp_tmle(
+  data = data3, 
+  trt = "A2", 
+  outcome = "Y", 
+  baseline = W, 
+  outcome_type = "continuous", 
+  shift = d1, 
+  folds = 1, 
+  learners_trt = "SL.glm", 
+  learners_outcome = "SL.glm"
+)
+
+print(treat)
+
+d2 <- function(data, trt) {
+  rep(0, nrow(data))
+}
+control <- lmtp_tmle(
+  data = data3, 
+  trt = "A2", 
+  outcome = "Y", 
+  baseline = W, 
+  outcome_type = "continuous", 
+  shift = d2, 
+  folds = 1, 
+  learners_trt = "SL.glm", 
+  learners_outcome = "SL.glm"
+)
+
+print(control)
+
+lmtp_contrast(treat, ref = control)
+
+```
+
+

@@ -1,0 +1,143 @@
+---
+title: "Endogeneity with censored variable"
+date: "2024-04-20"
+---
+
+
+# Bunching for the outcome variable
+
+Recently I read this paper, Caetano et al (2020)  https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3699644.  It's about bunching.  
+
+
+Bunching is a phenomenon where we see a mass point in the distribution of some variable.  For example, Saez (2010) studies a mass point in the distribution of earned income at the kink point of the tax schedule.  This is because people bunch at the kink point to take advantage of the tax break.
+
+Bunching is similar to regression discontinuity.  In this blog, https://blogs.worldbank.org/en/impactevaluations/ready-set-bunch, 
+"As noted by Kleven (2016), regression discontinuity (RD) is a close cousin of bunching estimators. In regression discontinuity, we maintain the assumption that there is no such “manipulation” as described above. Bunching relaxes this assumption — instead, we estimate the fraction of manipulators by estimating what densities of individuals would have been without manipulation, that is the “manipulation-free counterfactual”. With both the observed and manipulation-free counterfactual distributions of individuals estimated, it may be possible to compare the two distributions to recover the fraction of individuals who manipulated."
+
+The main idea is to compare the bunching with the counterfactual distribution without bunching to estimate elasticities, for example, how people react to tax rate.
+
+# Bunching for the treatment variable
+
+## A test of endogeneity
+
+Caetano (2015) showed that, if the distribution of $T_i$ has bunching at $T_i = \bar t$, it is
+possible to test the exogeneity of $T_i$ . When one compares the outcome of observations at
+the bunching point and those around it, the treatment itself is very similar. Therefore,
+there cannot be more than a marginal difference in the outcome that is due to treatment
+variation, since the treatment hardly varies.
+
+Caetano (2015)'s estimation can be done in a two step process: 
+
+(1) estimate $E[Y_i | T_i = \bar T, X_i ]$ non-parametrically 
+
+(2) do a local linear regression $E[Y_i | T_i = \bar T, X_i ] -Y_i$  onto $T_i$ at $\bar T$, using only observations such that $T_i > \bar T$. 
+
+The approach is known as the Discontinuity Test.
+
+## Dummy test
+
+Caetano and Maheshri (2018) proposed a simpler test, which is simply regressring $Y_i$ on $T_i$ , $X_i$ and a dummy variable for $T_i > \bar T$.  The coefficient of the dummy variable is the test statistic.  If the coefficient is significant, which is to say there is a discontinuity on outcome, then $T_i$ is endogenous.
+
+This is simpler, but with linear functional form assumption.
+
+The logic of the endogeneity test is that around the bunching point, the treatment is very similar, so the outcome should be similar.  If there is a discontinuity in the outcome, then it has to be one of two reasons.  One is that treatment has discontinuous effect on outcome around the bunching point.  Usually we can reasonably rule out that possibility.  Second is that there is an unobserved variable that is causing both the treatment and the outcome.  That unobserved variable has a discontinuous effect on the outcome.  If that's the case, then the treatment is endogenous.
+
+## Treatment effect estimation
+
+Caetano et al (2020) proposed a method to estimate the treatment effect when there is bunching.  It seems to me there is no reason that we cannot use it for the censoring situation.  There are a lot of situations that we have censored treatment variable, when we study continuous treatment variable.
+
+Suppose we have 
+$$ Y = \beta T + Z \gamma + \delta \eta + \epsilon $$
+
+where $T$ is the treatment variable, $\eta$ is the unobserved variable that is causing both the treatment and the outcome, $Z$ is the control variables, and $\epsilon$ is the error term.  We only observe $Y, T, Z$.  
+
+Supppose $T^*$ is the latent variable that is censored at $T^* = 0$.  We observe $T = max(T**, 0)$.  We assume that $T^*$ is continuous over its support.
+
+$$ T^* = Z \pi + \eta $$
+
+From the two equations, we can derive:
+
+$$ E[Y | T, Z] = (\beta + \delta)T + Z (\gamma - \pi \delta)  + \delta E[T^*  | T^* \le 0, Z] 1(T=0) $$
+or 
+
+$$ E[Y | T, Z] = \beta T + Z (\gamma - \pi \delta)  + \delta (T + E[T^*  | T^* \le 0, Z] 1(T=0)) $$
+
+Therefore we can "correct" for endogeneity by simply including an additional term $\delta (T + E[T^*  | T^* \le 0, Z] 1(T=0))$ in the regression.  
+
+However, the prediction of $\delta (T + E[T^*  | T^* \le 0, Z] 1(T=0))$ is out of sample.  We have to make some additional assumptions for the distribution of $T^*$.  For example, we can assume that $T^*$ is normally distributed. Or, we can assume it is symmetric.  Then we can use the right tail to estimate the left tail.
+
+# Simulation
+
+Let's do a simulation to see how it works.
+
+```{r}
+
+library(MASS)
+library(ggplot2)
+library(dplyr)
+# set seed
+set.seed(123)
+# number of observations
+n=1000
+# generate Z and make it dataframe
+Z=as.data.frame(mvrnorm(n=n, mu=c(0,0), Sigma=matrix(c(1,0.5,0.5,1),2,2)))
+data <- Z
+names(data) <- c("Z1", "Z2")
+# generate eta
+# eta is normally distributed
+data$eta=rnorm(n, 1,1)
+# generate T*
+# T* is normally distributed
+# Here I generate Y as a function of T*, we can also do a function of T.
+data <- data %>%
+  mutate(T_star=Z1 + 2*Z2 + 1.5*eta) %>%
+  mutate(T=ifelse(T_star>0, T_star, 0)) %>%
+  mutate(Y=2*T_star + 0.5*Z1 + 0.5*Z2 + 2*eta + rnorm(n, 0, 1))
+
+# regress Y on T, Z1, Z2
+lm1 <- lm(Y ~ T + Z1 + Z2, data=data)
+summary(lm1)
+
+```
+
+Without including $eta$, the effect estimate is biased.  Let's do a dummy test.
+
+```{r}
+
+lm2 <- lm(Y ~ T + Z1 + Z2 + I(T>0), data=data)
+summary(lm2)
+```
+
+It shows that the dummy variable is significant.  It means that $T$ is endogenous.  
+
+## Correcting for endogeneity
+
+Now let's assume $T^*$ is symmetrically distributed.  It is left censored.  We assume it is less than half censored.  So the median remains the same for $T^*$ and $T$.  We can use the right tail to estimate the left tail.  Suppose there is a point at left tail $x$, then the corresponding point at the right tail is $2 M -x$, where $M$ is the median of $T^*$.  
+
+```{r}
+
+M <- median(data$T)
+data2 <- data %>%
+  filter(T>2*M)
+
+lm3 <- lm(Y ~ T + Z1 + Z2, data=data2)
+
+# here I create an extra term for the correction
+# when T is 0, it is T, otherwise, it's 2M - the prediction from the right tail.
+data <- data %>%
+  mutate(extra=if_else(T>0,T,2*M-predict(lm3, newdata=data %>% mutate(T=2*M -T))))
+
+lm4 <- lm(Y ~ T + Z1 + Z2 + extra, data=data)
+summary(lm4)
+
+```
+
+It does not seem to get the answer right 100%.  But it's better than the model without the correction term. 
+
+# Conclusion
+
+We are making assumptions for the distribution of the continuous treatment variable.  Symmetry is the minimum assumption.  We can make other parametric assumptions on the distribution of $T^*$.  This is a trade-off between making distribution assumptions and ignoring endogeneity.  The good news is that we don't need an instrument.  We are using the censoring part of the treatment variable to deal with endogeneity.
+
+
+
+

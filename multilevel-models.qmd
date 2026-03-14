@@ -1,0 +1,159 @@
+---
+title: "Doing the same multi-level model with R and stata"
+date: "2023-10-26"
+---
+
+
+This post is a demo for doing the same multi-level models with R and stata.  R's multilevel models are mostly done with lme4 and nlme.  Stata's multilevel models are mostly done with mixed and menl.  The two packages are not exactly the same.  For example, mixed does not allow complicated structure for the residual.  That's why we need menl.  Likewise, in R lme4's "lmer" does not allow this specification.  We have to use nlme.  But it's good to know how to do the same thing in both packages.
+
+For example, we want to do a consensus emergence model (CEM) as described in Lang et al. 2012(https://core.ac.uk/download/pdf/158346339.pdf).  The CEM model is basically a growth model with the residual being a exponential function of the time variable.  We want to do the same thing in both R and stata.
+
+We start with simpler models.
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Stata and R syntax comparison for the same three level model
+
+We run a three level model specified in stata with mixed and menl.   In R with nlme and lme4.  This is a random intercept model.  Only intercept is varying for each unit at each level.  In this data set supposedly state is nested within region.  There are situations that levels are not nested, then we need to specify cross effect models.  We do not discuss that here.  What bothers me is that nlme's lme function takes the first level as higher level.  So I have to put region before state.  Otherwise, it seems like it treated regions nested within states?  
+
+There are different ways to specify this model in nlme.  I show two ways here (including lme2 which is commented out). 
+
+## Stata
+
+```{r}
+#| include: false
+
+library(Statamarkdown)
+stataexe <- find_stata()
+#stataexe <- "/usr/local/bin/stata"
+knitr::opts_chunk$set(engine.path=list(stata=stataexe))
+```
+
+```{stata}
+*| label: stata1
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+* let's see how to use menl
+webuse productivity
+* to replicate mixed with menl
+mixed gsp || region: || state:
+menl gsp = {b1:},  define(b1: U1[region] UU1[region>state])
+
+
+```
+
+## R
+
+These two R packages return same results.  Note that lmer reports variance, while lme reports standard deviation.
+
+```{r}
+#| label: r1
+#| echo: true
+#| cache: true
+#| collectcode: true
+
+
+library(tidyverse)
+library(haven)
+library(dplyr)
+library(readxl)
+library(nlme)
+library(lme4)
+data <- read_dta('https://www.stata-press.com/data/r18/productivity.dta')
+# lme4 for three level model
+lmer1 <- lmer(gsp ~ 1 + (1|region) + (1|state), data=data)
+summary(lmer1)
+lme1 <- lme(gsp ~ 1, random= list( region=~1, state=~1), data=data)
+#or
+#lme1 <- lme(gsp ~ 1, random= list(region = pdSymm(~1), state=pdSymm(~1)), data=data)
+#but
+#lme1 <- lme(gsp ~ 1, random= list( state=~1, region=~1), data=data)
+#would be a different result!
+#The other way to specify:
+#lme2 <- lme(gsp ~ 1, random= ~ 1 | region/state, data=data)
+summary(lme1)
+
+```
+
+# A growth model in R and stata
+
+We implement a growth model in R and stata.  The results are somewhat different.  The results may not be that reliable given that the year slope random component is tiny.  
+
+## Stata
+```{stata}
+*| label: stata2
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+* same growth model with mixed and menl
+webuse productivity
+mixed gsp year || region: year|| state:
+menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region>state])
+
+```
+
+## R
+
+```{r}
+#| label: r2
+#| echo: true
+#| cache: true
+#| collectcode: true
+
+# lme4 for three level model, growth model
+lmer_growth1 <- lmer(gsp ~ 1 + year + (1|region: year) + (1|region) +  (1|state), data=data,  REML=FALSE)
+summary(lmer_growth1)
+# nlme for three level model, growth model
+#lme_growth1<-lme(gsp ~ year, random = list(region=pdSymm(~year), state=pdIdent(~1)),data=data, method="ML")
+lme_growth1<-lme(gsp ~ year, random = list(region=~year, state=~1),data=data, method="ML")
+summary(lme_growth1)
+```
+
+
+# cem in R and stata
+
+"CEM" is a growth model with the residual being a exponential function of the time variable.  
+
+## stata
+
+This mode has some convergence problem.  I still use it for demonstration purpose.
+
+```{stata}
+*| label: stata3
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+webuse productivity, clear
+
+* this replicates the results from R
+menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region>state]) resvariance(exponential year) nolog
+
+
+```
+
+## R
+
+As in stata, it has some convergence problem.  So the results can differ somewhat between R and stata.
+
+```{r}
+#| label: cem1
+
+lme_growth1<-lme(gsp ~ year, random = list(region=pdSymm(~year), state=pdIdent(~1)),data=data, method="ML")
+lme_growth2<-update(lme_growth1,weights=varExp( form = ~ year), method="ML", control = lmeControl(opt = "optim"))
+summary(lme_growth2)
+delta1<-lme_growth2$modelStruct$varStruct
+delta1
+
+```
+

@@ -1,0 +1,287 @@
+---
+title: "Chow test and more"
+date: "2022-04-06"
+---
+
+
+
+# Chow test
+
+Comparing coefficients across regressions is common.  Chow test is one of them.  If you'd like to compare coefficients of regressions for two subsets, that's the original Chow test.    
+
+The idea is to interact the subset indicator with all the covariates or only the covariate you are interested (treatment).  If you only interact the dummy with the treatment variable, then you are assuming all other covariates have the same effect across the two subsets.  This may or may not be reasonable.
+
+This post is inspired by Austin Nicholas (https://www.stata.com/statalist/archive/2009-11/msg01485.html).  The case with overlapping samples is all from his code.
+
+Let's see a simple example:
+
+```{r}
+#| label: setup
+#| include: false
+
+library(Statamarkdown)
+stataexe <- find_stata()
+#stataexe <- "/usr/local/bin/stata"
+knitr::opts_chunk$set(engine.path=list(stata=stataexe))
+```
+
+```{stata}
+*| label: stata1
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+est clear
+sysuse nlsw88, clear
+reg wage hours if south
+est sto south
+reg wage hours if !south
+est sto nonsouth
+suest south nonsouth
+est sto suest
+gen hours1=hours*(south==1)
+gen hours2=hours*(south==0)
+reg wage south hours?
+est sto chow
+test _b[hours1]-_b[hours2]=0
+esttab south nonsouth suest chow, nogaps mti
+
+```
+
+
+In the above example, we are interested in the effect of hours on wage for south and non-south subsets.  The Chow test is to use the entire sample which has both south and nonsouth data.  Then use the interaction of south indicator and hours to find the effect of hours for south and nonsouth.  By including these two subsamples in the same regression, we can test the equality of the two coefficients.  
+
+The other way to do this is to use Stata's "suest" command.  This command basically take the two regressions and the variance covariance structure; then a test of the difference between two coefficients can be done.  However, "suest" does not work for some commands.  In my opinion, using interaction can be more flexible.
+
+# A comparison with two different outcomes
+
+We can also use the same idea to compare the effect of some treatment on two different outcomes, if we have the same set of covariates.  We just need to "stack" the two outcomes and run a pooled regression with some interactions.
+
+Here is an example.
+
+
+```{stata}
+*| label: stata2
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+
+est clear
+sysuse nlsw88, clear
+reg south wage hours 
+est sto south
+reg smsa wage hours 
+est sto smsa
+suest south smsa
+est sto suest
+preserve
+gen Y1=south
+gen Y2=smsa
+gen id=_n
+reshape long Y, i(id) j(subsample)
+gen wage1=wage*(subsample==1)
+gen wage2=wage*(subsample==2)
+gen hours1=hours*(subsample==1)
+gen hours2=hours*(subsample==2)
+reg Y wage? hours? subsample
+test _b[wage1]-_b[wage2]=0
+est sto stacked
+esttab south smsa suest stacked, nogaps mti
+
+```
+
+In this example, we are interested in comparing the effect of wage on south vs. smsa (not interesting, but just as an example).  What I did is to reshape it to long format, stacking south and smsa as "Y".  Then creat interaction of other covariates with subsample indicator.  Then run the regression with Y on the interaction terms.  
+
+# Overlapping samples
+
+What if we'd like to compare coefficients for two overlapping subsamples?  As I mentioned, Austin Nichols gave the following example: 
+
+
+```{stata}
+*| label: stata3
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+
+est clear
+sysuse nlsw88, clear
+ta south smsa
+reg wage hours if south
+est sto south
+reg wage hours if smsa
+est sto smsa
+suest south smsa
+est sto suest
+preserve
+expand 2
+bys idcode: g n=_n
+keep if (n==1&south)|(n==2&smsa)
+g hours1=hours*!(n==1&south)
+g hours2=hours*!(n==2&smsa)
+reg wage hours? n, cl(idcode)
+est sto stacked
+restore
+esttab south smsa suest stacked, nogaps mti
+
+```
+
+# IV regression
+
+What about IV regression?
+
+
+
+```{stata}
+*| label: stata4
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+sysuse nlsw88, clear
+ivregress 2sls wage (hours=union) if south
+ivregress 2sls wage (hours=union) if !south
+gen hours1=hours*(south==1)
+gen hours2=hours*(south==0)
+gen union1=union*(south==1)
+gen union2=union*(south==0)
+
+ivregress 2sls wage south (hours? = union?)
+```
+
+We can see same Chow kind of test works, with IV regression, if we have the right interaction terms.
+
+# IV with fixed effects
+
+However, when doing with a fixed effet IV, I seem to have difficulties.  In this example, I use "reghdfe" to do an IV regression with fixed effect.  We can also use "xtivreg2", but "ivreghdfe" is supposed to be faster.
+
+
+```{stata}
+*| label: stata5
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+sysuse nlsw88, clear
+gen hours1=hours*(south==1)
+gen hours2=hours*(south==0)
+gen union1=union*(south==1)
+gen union2=union*(south==0)
+ivreghdfe wage (hours=union) if south, a(race) cluster(race)
+ivreghdfe wage (hours=union) if !south, a(race) cluster(race)
+ivreghdfe wage south (hours? = union?) , a(race) cluster(race) 
+
+```
+
+We can see I failed to replicate the first two regressions in the third regression.  Why?  Because we'll need the fixed effect to be interacted with the subsample indicator to make it right.
+
+Here is another try:
+
+
+
+```{stata}
+*| label: stata6
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+sysuse nlsw88, clear
+gen hours1=hours*(south==1)
+gen hours2=hours*(south==0)
+gen union1=union*(south==1)
+gen union2=union*(south==0)
+
+gen race1=race*(south==1)
+gen race2=race*(south==0)
+
+
+ivreghdfe wage (hours=union) if south, a(race) cluster(race) 
+ivreghdfe wage (hours=union) if !south, a(race) cluster(race)
+ivregress 2sls wage south (hours? = union?) i.race?, cluster(race) 
+
+```
+
+This works.  Basically we use dummies which are interactions of subsample indicator and the fixed effect dummies.  This would not work if we have a lot of fixed effect units.
+
+But we can trick "reghdfe" to use a two way fixed effect option:
+
+This way we can do a test to see whether hours effect differs between these two samples.
+
+```{stata}
+*| label: stata7
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+
+sysuse nlsw88, clear
+gen hours1=hours*(south==1)
+gen hours2=hours*(south==0)
+gen union1=union*(south==1)
+gen union2=union*(south==0)
+gen race1=race*(south==1)
+gen race2=race*(south==0)
+
+ivreghdfe wage south (hours? = union?) , a(race1 race2) cluster(race)
+test _b[hours1]-_b[hours2]=0
+```
+
+# Chow test with different covariates
+
+What if we want to compare coefficients across equations with different covariates?  We can still do Chow test.
+
+Say you have
+$$ Y_1 = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon_1$$
+$$ Y_2 = \gamma_0 + \gamma_1 X_1  + \epsilon_2$$
+
+The way you can think of the second equation is that you still have $X_2$ but it is just a constant, which means it will go into the constant term.
+$$ Y_2 = \gamma_0 + \gamma_1 X_1 + \gamma_2 C + \epsilon_2$$
+
+So we can just replace $X_2$ with a constant in the sample for $Y_2$ and still do Chow test.
+
+```{stata}
+*| label: stata8
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+sysuse nlsw88, clear
+reg south wage hours tenure
+est sto south
+reg smsa wage hours
+est sto smsa
+suest south smsa
+est sto suest
+preserve
+gen Y1=south
+gen Y2=smsa
+gen id=_n
+reshape long Y, i(id) j(subsample)
+gen wage1=wage*(subsample==1)
+gen wage2=wage*(subsample==2)
+gen hours1=hours*(subsample==1)
+gen hours2=hours*(subsample==2)
+replace tenure=1 if subsample==2
+gen tenure1= tenure*(subsample==1)
+gen tenure2= tenure*(subsample==2)
+reg Y wage? hours? tenure? subsample
+est sto chow
+test _b[hours1]-_b[hours2]=0
+esttab  suest chow, nogaps mti
+```
+
+We can see Chow type of "stacking" method generates the same result as "suest" in terms of point estimates.  For standard errors you can use "robust" or "cluster" option in "reg" command.
+
+# Conclusion
+
+For testing cross equations hypotheses, we can use "suest" or Chow type "stacking" method.  Sometimes people use "sureg".  I prefer not use "sureg".  It is a GLS estimator for all the equations together.  It relies on assumptions of the error term of the whole system.  It assumes homoscedasticity for example.  If it's true, then GLS is more efficient; if not, then biased.  If the equations have the same covariates, then it returns the same coefficient estimates as the single equation estimates.  If different covariates, then different estimates as the single equation estimates.  
+
+The nice thing about Chow test is that it is very flexible, and it does not rely on Stata's internal functions.  You can do it with R or other programs.  And it works for complicated models too, usually, as long as the single equation works.   "suest" needs the results stored before hand, which may not be available even within stata.  
+
+

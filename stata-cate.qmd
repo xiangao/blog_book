@@ -1,0 +1,284 @@
+---
+title: "Stata 19 CATE command"
+date: "2025-06-26"
+---
+
+
+# Stata 19 new CATE command
+
+Fernando Rios-Avila has a new blog about the new CATE command in Stata 19, which implements Conditional Average Treatment Effect (CATE) estimation. 
+
+https://friosavila.github.io/app_metrics/app_metrics12.html
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#| include: false
+
+library(Statamarkdown)
+stataexe <- find_stata()
+#stataexe <- "/usr/local/bin/stata"
+knitr::opts_chunk$set(engine.path=list(stata=stataexe))
+```
+
+```{stata}
+*| label: stata1
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+clear all
+webuse assets3
+global catecovars age educ i.(incomecat pension married twoearn ira ownhome)
+cate po (assets $catecovars) (e401k), group(incomecat) nolog
+```
+
+He said "We can achieve comparable results using standard regression with full interactions:"
+
+
+```{stata}
+*| label: stata2
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+clear all
+webuse assets3
+global catecovars age educ i.(incomecat pension married twoearn ira ownhome)
+
+* you do not want to see all interactions.
+qui:reg assets i.incomecat##i.e401k##c.($catecovars), robust
+
+* Average Treatment Effect (ATE)
+margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r))
+
+* Group Average Treatment Effects (GATEs)
+margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r)) over(incomecat)
+```
+
+Numerically these two sets of estimations may be close, but I don't think they are from the same model, even the same idea.  The CATE command with "PO" option is to estimate the CATE with "partialling out" approach.  
+
+What Fernando did is a "regression adjustment" type of model, which is modeling outcome model and allow interaction of treatment and covariates.  The "partialling out" approach is sometimes called double ML.
+
+Let's see how to replicate "teffects ra" with "reg":
+
+```{stata}
+*| label: stata4
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+clear all
+webuse assets3
+global catecovars age educ i.(incomecat pension married twoearn ira ownhome)
+
+teffects ra (assets age educ i.(incomecat pension married twoearn ira ownhome))(e401k)
+
+qui: reg assets i.e401k##c.(age educ) i.e401k##i.(incomecat pension married twoearn ira ownhome)
+margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r))
+
+```
+
+
+
+## DoubleML
+
+The R package DoubleML implements the double/debiased machine learning framework of Chernozhukov et al. (2018). It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.
+
+They consider a partially linear model:
+
+$$ y_i = \theta d_i + g_0(x_i) + \eta_i $$
+
+$$ d_i = m_0(x_i) + v_i $$
+
+This model is quite general, except it does not allow interaction of $d$ and $x$; therefore no hetergeneous treatment effect across $x$. But "DoubleML" implements more than partially linear model, it actually allows for heterogeneous treatment effects, in models such as interactive regression model.
+
+The basic idea of doubleML is to use any machine learning algorithm to estimate outcome equation ($l_0(X) = E(Y | X)$) and treatment equation ($m_0(X) = E(D | X)$). Then get the residuals, namely $\hat W=Y-\hat l_0(X)$ and $\hat V = D - \hat m_0(X)$.
+
+Then regress $\hat W$ on $\hat V$. Based on FWL theorem, you get $\hat \theta$.
+
+An important component here is to specify a Neyman-orthogonal score function. In the case of PLR, it can be the product of the two residuals:
+
+$$\psi (W; \theta, \eta) = (Y-D\theta -g(X))(D-m(X)) $$
+
+The estimators $\hat \theta$ is to solve the equation that the sample mean of this score function being 0.
+
+And the variance of this score function is used as the variance of the doubleML estimator's variance.
+
+Now we try to replicate the CATE estimation in Stata using the R package DoubleML.  I have not found a way to include factor variables in the lasso regression in R, so I included them as numerica variables.
+
+The example in stata's cate command is to use lasso on both outcome and treatment regression, then random forest on the individual treatment effect to get ATE.  Here I try to replicate it in R.
+
+```{r}
+#| label: doubleml1
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+
+library(haven)
+library(DoubleML)
+library(mlr3)
+library(mlr3learners)
+library(data.table)
+library(dplyr)
+# get rid of labels because doubleML does not like them
+data <- read_dta("https://www.stata-press.com/data/r19/assets3.dta") |> 
+  zap_labels() 
+
+
+  # mutate(incomecat=as.factor(incomecat), 
+  #        pension=as.factor(pension), 
+  #        married=as.factor(married), 
+  #        twoearn=as.factor(twoearn), 
+  #        ira=as.factor(ira), 
+  #        ownhome=as.factor(ownhome)) 
+
+assets3 <- data.table::setDT(data)
+dml_data = DoubleMLData$new(data = assets3,
+                             y_col = "assets",
+                             d_cols = "e401k",
+                             x_cols = c("age","educ", "incomecat","pension", "married","twoearn","ira","ownhome"))
+
+print(dml_data)
+
+lgr::get_logger("mlr3")$set_threshold("warn")
+learner = lrn("regr.glmnet", lambda=1)
+ml_g_sim = learner$clone()
+ml_m_sim = learner$clone()
+set.seed(123)
+obj_dml_plr = DoubleMLPLR$new(dml_data, ml_l=ml_g_sim, ml_m=ml_m_sim, n_folds=10)
+obj_dml_plr$fit()
+obj_dml_plr$summary()
+
+```
+
+If we use random forest on the two models:
+```{r}
+#| label: doubleml2
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+
+# surpress messages from mlr3 package during fitting
+lgr::get_logger("mlr3")$set_threshold("warn")
+learner = lrn("regr.ranger", num.trees=2000,  max.depth=5, min.node.size=2)
+ml_l = learner$clone()
+ml_m = learner$clone()
+# learner = lrn("regr.glmnet")
+# ml_g_sim = learner$clone()
+# ml_m_sim = learner$clone()
+set.seed(123)
+obj_dml_plr = DoubleMLPLR$new(dml_data, ml_l=ml_l, ml_m=ml_m, n_folds=5)
+obj_dml_plr$fit()
+obj_dml_plr$summary()
+
+```
+
+We can do the same in Stata:
+```{stata}
+*| label: stata3
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+clear all
+webuse assets3
+global catecovars age educ incomecat pension married twoearn ira ownhome
+cate po (assets age educ incomecat pension married twoearn ira ownhome) (e401k),  omethod(rforest) tmethod(rforest) nolog  xfolds(5)
+
+```
+
+The results are somewhat similar, but not exactly the same.  There are some subtle differences in the way these two packages running random forest on the two models that I am not aware of.
+
+# AIPW
+
+Stata's cate also has "aipw" option.  
+
+
+```{stata}
+*| label: stata5
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+clear all
+webuse assets3
+global catecovars age educ incomecat pension married twoearn ira ownhome
+cate aipw (assets $catecovars) (e401k),  nolog
+```
+
+I'll try to do this with "npcausal":
+
+```{r}
+#| label: aipw1
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+library(npcausal)
+#SL.library <- c("SL.earth","SL.gam","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")
+#SL.library <- c("SL.glmnet")
+SL.lasso = function(...) {
+  SL.glmnet(..., alpha=1)
+}
+SL.library <- c("SL.lasso")
+
+Y <- data$assets
+A <- data$e401k
+W <- data[, c("age", "educ", "incomecat", "pension", "married", "twoearn", "ira", "ownhome")]
+aipw<- ate(y=Y, a=A, x=W, nsplits=10, sl.lib=SL.library)
+
+
+```
+
+Note here to match the Stata results, I included only "glmnet" in the SuperLearner library.  The results are not exactly the same, but close enough.
+
+
+Or we can use a similar package with more functionalities: "AIPW".
+
+```{r}
+#| label: aipw2
+#| include: true
+#| warning: false
+#| cache: true
+#| message: false
+#| echo: true
+
+library(AIPW)
+library(SuperLearner)
+
+#SuperLearner libraries for outcome (Q) and exposure models (g)
+#sl.lib <- c("SL.glmnet")
+
+AIPW_sl <- AIPW$new(Y= Y,
+                     A= A,
+                     W= W, 
+                     Q.SL.library = SL.library,
+                     g.SL.library = SL.library,
+                     k_split = 10,
+                     verbose=FALSE)
+
+AIPW_sl$fit()
+AIPW_sl$summary()
+AIPW_sl$result
+
+ 
+# library(ggplot2)
+# AIPW_sl$plot.p_score()
+# AIPW_sl$plot.ip_weights()
+
+```

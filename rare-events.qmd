@@ -1,0 +1,96 @@
+---
+title: "What model to use for rare events"
+date: "2017-10-26"
+---
+
+
+# Introduction
+
+In empirical studies, people are worried about rare event situation.  That is, when you have, for example, lots of 0's and only a few 1's, or vice versa.  Do you run a logit model, or do you use a "rare event logit"?  When should you use either approach?  Or there is a third approach?
+
+Paul Allison said in his blog (https://statisticalhorizons.com/logistic-regression-for-rare-events):
+
+"Prompted by a 2001 article by King and Zeng, many researchers worry about whether they can legitimately use conventional logistic regression for data in which events are rare. Although King and Zeng accurately described the problem and proposed an appropriate solution, there are still a lot of misconceptions about this issue.
+
+The problem is not specifically the rarity of events, but rather the possibility of a small number of cases on the rarer of the two outcomes.  If you have a sample size of 1000 but only 20 events, you have a problem. If you have a sample size of 10,000 with 200 events, you may be OK. If your sample has 100,000 cases with 2000 events, you're golden."
+
+In general I agree with him.  However, when exactly should we use King and Zeng's "relogit"?
+
+Allison also mentioned two other methods.  One is called the Firth method, a penalized likelihood approach.  The other one is the exact logistic regression, which is for small samples.
+
+In this simulation exercise, I'll see how three methods perform: logit, bias-reduced logistic regression (using brglm2 with `method="brglmFit"` and `type="AS_mean"`), and Firth model.
+
+# Simulation
+
+Here I have some code for using multiple cores to run these three models.  The bias-reduced logistic regression is implemented in R via the `brglm2` package, the Firth method is implemented in `logistf`.
+
+```{r}
+#| label: rare-events-sim
+#| eval: false
+
+library(brglm2)
+library(logistf)
+require(snowfall)
+set.seed(666)
+
+# initialize parallel cores.
+sfInit(parallel=TRUE, cpus=16)
+
+gen.sim <- function(df){
+  x <- rnorm(df['nobs'], 0, 1)
+
+  # generate binary data
+  p <- df['p']
+  alpha <- -log((1-p)/p)
+  z = alpha + 2*x
+  pr = 1/(1+exp(-z))
+  y = rbinom(df['nobs'], 1, pr)
+  df = data.frame(y=y, x=x)
+
+  # logit
+  m1 <- glm(y ~ x, family='binomial')
+  m1.x <- summary(m1)$coefficients['x','Estimate'] - 2
+
+  # bias-reduced logistic regression (brglm2)
+  m2 <- glm(y ~ x, family = binomial(link = "logit"), data = df,
+            method = "brglmFit", type = "AS_mean")
+  m2.x <- coef(m2)['x'] - 2
+
+  # logistf (Firth)
+  m3 <- logistf(y ~ x, data=df)
+  m3.x <- coef(m3)['x'] - 2
+
+  return(c(logit=m1.x, brglm2=m2.x, logistf=m3.x))
+}
+
+# set parameter space
+sim.grid = seq(1, 100, 1)
+p.grid = c(.01, .05, .1)
+nobs.grid = c(10, 30, 50, 100, 200, 500, 1000, 10000)
+
+data.grid <- expand.grid(nobs.grid, sim.grid, p.grid)
+names(data.grid) <- c('nobs', 'nsim', 'p')
+
+# export functions and libraries to parallel workers
+sfExport(list=list("gen.sim"))
+sfLibrary(brglm2)
+sfLibrary(logistf)
+
+results <- data.frame(t(sfApply(data.grid, 1, gen.sim)))
+
+# stop the cluster
+sfStop()
+
+forshiny <- cbind(data.grid, results)
+write.csv(forshiny, 'results.csv')
+```
+
+We simulate 100 times with sample size from 10 to 10000, event probability .01, .05, and .1.
+
+Since there are many simulations, we used the `snowfall` library to speed things up.
+
+In the graphs are two vertical lines.  The lighter one is the bias, the other one is MSE.
+
+In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well.  This is understandable, after all, the rarer of the two groups has only less than 5 observations.  When the product is more than 50, there is not much difference between these three models.  For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that the bias-reduced logistic regression (brglm2) and logistf perform better than logit.  In most cases, logistf is the best.
+
+In the small sample situation, maybe it's better to use the exact logistic regression.

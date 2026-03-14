@@ -1,0 +1,138 @@
+---
+title: "Mediation analysis in R and Stata"
+date: "2019-08-06"
+---
+
+
+# Mediation analysis
+
+Traditionally mediation model can be represented in the following equestions:
+
+$$ Y = a X + b M + \epsilon_1 $$
+$$ M = c X + \epsilon_2 $$
+
+That is, we'd like to study the effect of $X$ on $Y$, and we see the effect can be a direct effect, and an indirect effect, through $M$.
+
+Baron and Kenny's (http://davidakenny.net/cm/mediate.htm) method is done in four steps.  Modern approach tends to use SEM (structural equation modeling) to model these two equations directly.
+
+R's lavaan and Stata's sem commands are powerful tools.
+
+A simple example:
+
+```{r}
+#| echo: true
+#| message: false
+
+library(lavaan)
+set.seed(1234)
+n <- 10000
+X <- rnorm(n)
+M <- 0.5*X + rnorm(n)
+Y <- 0.7*M + 0.3*X + rnorm(n)
+Data <- data.frame(X = X, Y = Y, M = M)
+model <- '   Y ~ a*X + b*M
+             M ~ c*X
+           # direct effect (a)
+           # indirect effect (b*c)
+             bc := b*c
+           # total effect
+             total := a + (b*c)
+         '
+fit <- sem(model, data = Data)
+summary(fit)
+
+```
+Now let's do it in stata.  
+
+```{r}
+#| echo: false
+#| message: false
+
+library(Statamarkdown)
+```
+```{stata}
+*| cache: true
+
+set obs 10000
+gen x= rnormal()
+gen m= .5*x + rnormal()
+gen y= .7*m + .3*x + .4*m*x +rnormal()
+sem (y <- x m) (m <- x)
+estat teffects
+
+```
+
+The above examples should have direct effect of .3 and indirect effect of .35, and total effect of .65.
+
+# Causal Mediation analysis
+
+The traditional mediation analysis has been criticized for the lack of causal interpretation.  Without manipulation of the mediator, it is hard to interpret the effects causally, because even if the treatment is from random experiments, the mediator is often not.  Therefore there could be an unmeasured confounder that is causing both $M$ and $Y$.
+
+R's "mediation" package is for causal mediation analysis.  It uses simulation to estimate the causal effects of treatment, under assumptions of sequential ignorability.  It estimates the following quantities:
+
+$$\tau_i = Y_i(1, M_i(1)) - Y_i(0, Mi(0))$$
+
+This is the total treatment effefct, which is to say, what's the change in $Y$ if we change each unit from control to treated, hypothetically?
+
+Then this can be decomposed into the causal mediation effects:
+
+$$\delta_i(t) = Y_i(t, M_i(1)) - Y_i(t, M_i(0))$$
+
+for treatment status $t=0,1$.  This is to say, given treatment status, what's the mediation effect?
+
+$$\eta_i(t) = Y_i(1, M_i(t)) - Y_i(0, M_i(t)) $$
+
+for treatment status $t=0,1$.  This is to say, given mediator stauts for each treatment status, what's the direct effect?
+
+Therefore there are four quantities estimated, direct and mediation effect for treated and control.
+
+R's "mediation" needs users to feed two models, outcome model and mediation model.  
+
+If we study the same data, we would expect it returns the same estimates as the tranditional methods.  However, the causal mediation models can be much more flexible in outcome and mediation models.
+
+```{r}
+#| echo: true
+#| message: false
+
+library(mediation)
+med.fit <- lm(M ~ X, data=Data)
+summary(med.fit)
+out.fit <- lm(Y ~ X + M,data=Data)
+summary(out.fit)
+set.seed(123)
+med.out <- mediate(med.fit, out.fit, treat = "X", mediator = "M", sims = 100)
+summary(med.out)
+
+```
+
+# Binary outcome
+
+For example, in the case of binary outcome, the traditional approach will have difficulties.  We can estimate the outcome model and mediator model jointly, but the total effects are not easy to decompose into direct and indirect effect (see Imai et al, page 320 https://imai.fas.harvard.edu/research/files/BaronKenny.pdf).
+
+The causal mediation analysis framework is much more general.  
+
+
+```{r}
+#| echo: true
+#| message: false
+
+library(mediation)
+data(framing)
+med.fit <- lm(emo ~ treat + age + educ + gender + income, data = framing)
+out.fit <- glm(cong_mesg ~ emo + treat + age + educ + gender + income,
+               data = framing, family = binomial("probit"))
+set.seed(123)
+med.out <- mediate(med.fit, out.fit, treat = "treat", mediator = "emo",
+                     robustSE = TRUE, sims = 100)
+summary(med.out)
+
+```
+
+"mediation" package has more functionalities, such as multilevel, interaction of treatment and mediator, etc.  
+
+Stata's sem and gsem commands can model different situations, but the direct effect and indirect effects are not easy to compute, especially when you have binary outcome, or other non-continuous outcome situations.  They are not designed for causal mediation analysis.
+
+
+
+
+

@@ -1,0 +1,223 @@
+---
+title: "Matching and Weighting Part 1: matching"
+date: "2025-05-29"
+---
+
+
+This is based on R's MatchIt and WeightIt packages and their documentations.  All credits go to Noal Greifer and coauthors.  I write to summarize what I have learned.
+
+# Assumptions
+
+Matching or weighting is usually used in observational studies.  We have the following assumptions before using matching or weighting to make a causal claim:
+
+1. SUTVA
+2. ignorability (unconfoundedness, or no unobserved confounders)
+3. overlap (common support, or positivity)
+
+With these assmptions, we can try to identify the treatment effect in an observational study.
+
+# Problem
+
+The second assmption is saying controlling for $X$, the treatment assignment $D$ is independent of the potential outcomes $Y(0)$ and $Y(1)$, i.e., we have a pseudo-randomized experiment.  
+
+In reality, it's rare we have a balanced distribution of $X$ for treated and control.  That's when we need to use matching or weighting to balance the distribution of $X$ between treatment and control groups.
+
+# Distance
+
+The idea of matching is to find a set of control units that are similar(close) to the treatment units in terms of $X$.  The first question is: how to define "close"?  There are several distance measures.  
+
+## Propensity score
+
+The most common distance measure is the propensity score (PS), which is the probability of being treated given $X$.  The benefit is that when there is high dimension of $X$, we can reduce the dimension to a single number, the PS.  
+
+There are many ways to estimate the propensity score, such as logit, or more flexible parametric "gam", or other machine learning methods, such as "gbm", "lasso", "rpart", "randomforest", "cbps", etc.  Here CBPS has seen more popularity.  The propensity scores are estimated using the covariate balancing propensity score (CBPS) algorithm, which is a form of logistic regression where balance constraints are incorporated to a generalized method of moments estimation of of the model coefficients.
+
+## Distance from covariates
+
+Or we can compute distance from covariates directly, not using propensity score.  The distance can be computed using Mahalanobis distance, or Euclidean distance, or other distance measures.
+
+
+# matching methods
+
+With a distance, we then decide which method to use.  The first few matching methods all need to specify a distance measure.  They are matching based on distance.  Then there are stratum matching methods, which do not need a distance measure.  The last two methods are subsetting methods.
+
+## Nearest neighbor matching
+
+NNM is widely used; it is also known as greedy matching.  It matches each treated unit to the closest control unit in terms of distance.  The closest control unit is defined as the one with the smallest distance to the treated unit.  If there are multiple control units with the same distance and we want a 1:1 match, one is randomly selected.
+
+## Optimal pair matching
+
+NNM is not optimal in the sense that it does not necessarily minimize the total distance between matched pairs.  Optimal pair matching is a method that minimizes the total distance (or some other overall criterion) between matched pairs.  It is more computationally intensive than NNM, but it can lead to better balance.
+
+## Optimal full matching
+
+OFM assigns each unit (treated or control) to a subclass.  For each subclass then to calculate the sum of within-subclass distances, and then to minimize the total distance across all subclasses.  It is more computationally intensive than NNM and optimal pair matching.  Weights are used based on subclass membership.  Because all units are included, it can be used to estimate ATE.  
+
+## Generalized Full matching
+
+GFM is a variant of OFM.  It uses a faster algorithm for large datasets.  
+
+## Generic matching
+
+Generic matching is to use NNM on the scaled generalized Mhalanobis distance.
+
+## Exact matching
+
+It's a stratum matching.  First subclasses are defined, by combinations of covariate values.  Then units are assigned to subclasses.  When a subclass has only either control or treated units, it is discarded.  
+
+Exact matching is nonparametric, but it works only when covariates are discrete and it happens that there are enough treated and control units in each subclass.  
+
+## Coarsened exact matching
+
+CEM is a more popular stratum matching.  First bins are created after coarsensing the covariates.  then use exact matching on the covariate bins.  CEM is nonparametric.  User needs to decide how many bins to create for each covariate.  
+
+## Subclassification
+
+Subclassification is another kind of stratum matching.  It uses the propensity score to define bins, usually quantiles of PS in the treated group, or control group or overall, depending on target estimand.
+
+## Cardinality and profile matching
+
+Cardinality matching involves finding the largest sample that satisfies user-supplied balance constraints and constraints on the ratio of matched treated to matched control units.  Profile matching involves identifying a target distribution (e.g., the full sample for the ATE or the treated units for the ATT) and finding the largest subset of the treated and control groups that satisfy user-supplied balance constraints with respect to that target.  
+
+# Example
+
+Here is an example with Lalonde data, we are intrested in the effect of treatment on "rep78".
+
+
+```{r}
+#| include: false
+
+library("MatchIt")
+data("lalonde")
+
+head(lalonde)
+# No matching; constructing a pre-match matchit object
+m.out0 <- matchit(treat ~ age + educ + race + married + 
+                    nodegree + re74 + re75,
+                  data = lalonde,
+                  method = NULL,
+                  distance = "glm")
+summary(m.out0)
+```
+Or use "cobalt" to see the balance:
+
+```{r}
+#| include: false
+
+library("cobalt")
+bal.tab(treat ~ age + educ + race + married + nodegree + re74 + re75,
+        data = lalonde, estimand = "ATT", thresholds = c(m = .05))
+```
+
+First do a PS match.
+
+
+```{r}
+
+# Matching on logit of a PS estimated with logistic
+# regression:
+m.out1 <- matchit(treat ~ age + educ + race + married +
+                    nodegree + re74 + re75,
+                  data = lalonde,
+                  distance = "glm",
+                  link = "linear.logit")
+summary(m.out1)
+plot(m.out1, type = "jitter", interactive = FALSE)
+plot(summary(m.out1))
+```
+
+We see there are still some imbalance on variables such as "raceblack".  We can use more flexible models for the PS.
+
+
+```{r}
+
+
+# GAM logistic PS with smoothing splines (s()):
+m.out2 <- matchit(treat ~ s(age) + s(educ) +
+                    race + married +
+                    nodegree + re74 + re75,
+                  data = lalonde,
+                  distance = "gam")
+summary(m.out2)
+plot(m.out2, type = "jitter", interactive = FALSE)
+plot(summary(m.out2))
+```
+
+Or use CBPS.
+
+```{r}
+
+# CBPS for ATC matching w/replacement, using the just-
+# identified version of CBPS (setting method = "exact"):
+m.out3 <- matchit(treat ~ age + educ + race + married +
+                    nodegree + re74 + re75,
+                  data = lalonde,
+                  distance = "cbps",
+                  estimand = "ATC",
+                  distance.options = list(method = "exact"),
+                  replace = TRUE)
+summary(m.out3)
+plot(m.out3, type = "jitter", interactive = FALSE)
+plot(summary(m.out3))
+```
+
+```{r}
+
+# Mahalanobis distance matching - no PS estimated
+m.out4 <- matchit(treat ~ age + educ + race + married +
+                    nodegree + re74 + re75,
+                  data = lalonde,
+                  distance = "mahalanobis")
+summary(m.out4)
+m.out4$distance #NULL
+plot(m.out4,  interactive = FALSE)
+plot(summary(m.out4))
+```
+
+```{r}
+
+# Full matching on a probit PS
+m.out5 <- matchit(treat ~ age + educ + race + married + 
+                    nodegree + re74 + re75,
+                  data = lalonde,
+                  method = "full",
+                  distance = "glm",
+                  link = "probit")
+
+summary(m.out5)
+plot(m.out5, type = "jitter", interactive = FALSE)
+plot(summary(m.out5))
+```
+
+# Estimation
+
+After we get a matched data that we think is good enough, we can estimate the treatment effect.  
+
+```{r}
+
+
+m.data <- match_data(m.out5)
+
+head(m.data)
+```
+
+What "match_data" does is to grab the matched data with a few additional variables such as "weights", "subclass", and "distance".  Then we can use it in a simple linear model with weights.
+
+```{r}
+
+library("marginaleffects")
+
+fit <- lm(re78 ~ treat * (age + educ + race + married +
+                            nodegree + re74 + re75),
+          data = m.data,
+          weights = weights)
+
+avg_comparisons(fit,
+                variables = "treat",
+                vcov = ~subclass,
+                newdata = subset(treat == 1))
+
+```
+
+Note we allow interaction of treatment and covariates, but we do no need to demean the covariates here, since we are relying on "marginaleffects" and its "avg_comparisons" function to compute the average treatment effect.  The "newdata" argument is used to specify the effect, in this case ATT.  Note the weights are generated this way:  since it's ATT, all treated units are weighted by 1, and control units are weighted by $p/(1-p)$, where $p$ is proportion of treated units in the subclass.  Anyway, for full matching, we get the comparison of potential outcomes for the treated, with weights, and clustered standard errors on subclasses, because that the level the comparison is conducted.
+

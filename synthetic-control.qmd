@@ -1,0 +1,158 @@
+---
+title: "Synthetic Control in R and Stata"
+date: "2021-09-12"
+---
+
+
+# Synthetic control
+
+Abadie et al. have a few papers on synthetic control (https://economics.mit.edu/files/11859, https://economics.mit.edu/files/17847).  The key idea is for a case study situation.  A single unit, say a state/firm/country is exposed to a shock, and we are interested in the effect of that shock.  For example, Card et al studied the effect of minimum wage increase for the state of New Jersey.  They used diff-in-diff, with Pennsylvania as the control state.  The point of synthetic control is that maybe parallel trend assumption does not hold for the control unit.  Is Pennsylvania a good control for New Jersey?  Does it follow the same trend as New Jersey?  Maybe not.  Synthetic control is to generate a more comparable control with some combination of multiple control units, which can have a much closer parallel trend as the treated unit, than using any of the control units.
+
+Now, how to construct this synthetic control unit?  Basically it is a weighted average of multiple control units.  There are two sets of weights to be determined.  One set for the control units, one set to determine the importance of predictors.  Abadie et al (2010) propose to choose a set of $w_i$'s so that the resulting synthetic control best resembles the pre-intervention values for the treated unit of predictors of the outcome variable, subject to the constraints that the weights are non-negative and sum to 1.  Another set of weights $v_h$ for predictor importance is determined such that it minimizes the mean squared prediction error (MSPE) of this synthetic control with respect to the outcome in the pre-treatment period.  The intuition of these weights are to pick $w_i$'s to make the weighted sum of each predictor as close to the treated unit's value of predictor as close as possible, given a set of $v_h$'s.  Then $v_h$'s are determined by how important each predictor is to predict the outcome.  We don't use any information post-treatment to determine the weights.  But we can use pre-treatment outcome to see the relative importance of each predictor in terms of predictor outcome.  We can do this by out-of-sample validation.  Basically divide the pre-treatment period into training and validation periods (that's one reason that the pre-treatment period cannot be too short).  Iterate the process of choosing $w_i$ and $v_h$ to achieve a minimization of MSPE in the validation period.
+
+# inference
+
+Since sythetic control is for case study situation, we have essentially one treated unit and one synthetic control.  The usual inference method would not work.  Abadie et al suggested a permutation based approach.  The basic idea is to permute the label of treatment; in other words, suppose one control unit is now a treated unit.  Then follow the same procedure to get the synthetic control for that "treated unit"; look at the effect.  Now if the treatment is truely for the treated unit only, then there would not be any effect for all the control unit.  Therefore we can have a distribution of treatment effects after permutation of treatment label.
+
+# an example
+
+The canonical sythetic control is implemented in both R and Stata (https://web.stanford.edu/~jhain/synthpage.html).  We use a package called "tidysynth" here to study one of the original examples, which evaluates the impact of Proposition 99 on cigarette consumption in California.
+
+
+```{r}
+#| label: rchunk1
+#| echo: false
+#| cache: true
+
+library(tidysynth)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(tidyr)
+data("smoking")
+smoking %>% dplyr::glimpse()
+```
+
+
+```{r}
+#| label: rchunk2
+#| echo: false
+#| cache: true
+
+smoking_out <-
+    smoking %>%
+    # initial the synthetic control object
+    synthetic_control(outcome = cigsale, # outcome
+                    unit = state, # unit index in the panel data
+                    time = year, # time index in the panel data
+                    i_unit = "California", # unit where the intervention occurred
+                    i_time = 1988, # time period when the intervention occurred
+                    generate_placebos=T # generate placebo synthetic controls (for inference)
+                    ) %>%
+    # Generate the aggregate predictors used to fit the weights
+    # average log income, retail price of cigarettes, and proportion of the
+    # population between 15 and 24 years of age from 1980 - 1988
+  generate_predictor(time_window = 1980:1988,
+                     ln_income = mean(lnincome, na.rm = T),
+                     ret_price = mean(retprice, na.rm = T),
+                     youth = mean(age15to24, na.rm = T)) %>%
+    # average beer consumption in the donor pool from 1984 - 1988
+  generate_predictor(time_window = 1984:1988,
+                     beer_sales = mean(beer, na.rm = T)) %>%
+    # Lagged cigarette sales 
+  generate_predictor(time_window = 1975,
+                     cigsale_1975 = cigsale) %>%
+  generate_predictor(time_window = 1980,
+                     cigsale_1980 = cigsale) %>%
+  generate_predictor(time_window = 1988,
+                     cigsale_1988 = cigsale) %>%
+    # Generate the fitted weights for the synthetic control
+  generate_weights(optimization_window = 1970:1988, # time to use in the optimization task
+                   margin_ipop = .02,sigf_ipop = 7,bound_ipop = 6 # optimizer options
+  ) %>%
+  # Generate the synthetic control
+  generate_control()
+
+smoking_out %>% plot_trends()
+
+smoking_out %>% plot_differences()
+
+smoking_out %>% plot_weights()
+
+smoking_out %>% grab_balance_table()
+
+smoking_out %>% plot_placebos()
+
+smoking_out %>% plot_placebos(prune = FALSE)
+
+smoking_out %>% plot_mspe_ratio()
+
+smoking_out %>% grab_significance()
+
+smoking_out %>% grab_synthetic_control()
+
+smoking_out %>% grab_synthetic_control(placebo = T)
+
+smoking_out %>% 
+  tidyr::unnest(cols = c(.outcome)) 
+
+
+```
+
+# Generalized Synthetic Control
+
+The idea of generalized SC is to combine both an interactive fixed effect model and synthetic control.  It is basically a panel data synthetic control.  It naturally takes multiple treated units and uses bootstrap to get standard errors.  It generates ATT with standard errors. 
+
+Examples are here: https://yiqingxu.org/packages/gsynth/gsynth_examples.html
+ 
+
+```{r}
+#| label: rchunk3
+#| echo: false
+#| cache: true
+
+## for processing C++ code
+require(Rcpp) 
+## for plotting
+require(ggplot2)  
+require(GGally) 
+## for parallel computing 
+require(foreach)  
+require(future)
+require(doParallel) 
+require(abind) 
+require(lfe)
+library(gsynth)
+## ## Syntax has been updated since v.1.2.0.
+## ## Comments and suggestions -> yiqingxu@stanford.edu.
+data(gsynth)
+library(panelView)
+## ## See bit.ly/panelview4r for more info.
+## ## Report bugs -> yiqingxu@stanford.edu.
+panelview(Y ~ D, data = simdata,  index = c("id","time"), pre.post = TRUE) 
+
+panelview(Y ~ D, data = simdata,  index = c("id","time"), type = "outcome") 
+system.time(
+    out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"), force = "two-way", CV = TRUE, r = c(0, 5), se = TRUE, inference = "parametric", nboots = 100, parallel = FALSE)
+)
+
+print(out)
+out$est.att
+out$est.avg
+out$est.beta
+
+system.time(
+out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"), 
+    force = "two-way", CV = TRUE, r = c(0, 5), se = TRUE, 
+    inference = "parametric", nboots = 100, parallel = TRUE, cores = 4)
+)
+
+
+# cumuEff was removed in newer gsynth versions (now a wrapper for fect)
+# cumu1 <- cumuEff(out, cumu = TRUE, id = NULL, period = c(0,5))
+# cumu1$est.catt
+
+plot(out)
+
+```
+

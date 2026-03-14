@@ -1,0 +1,129 @@
+---
+title: "IV in Fixed effect Poisson with many fixed effects"
+date: "2024-08-29"
+---
+
+
+# Poisson regression with many fixed effects
+
+I have a few posts about Poisson regression for non-negative outcomes, including continous variable, count variable, or corner solution (such as non-negative outcome with many zeros).  The benefits include that we can use QMLE Poisson, which means we only need to have the mean of outcome specified correctly, as an exponetiated function of covariates.  There is no assumption that the distribution needs to be a Poisson distribution.  When we want to model non-negative outcome with fixed effects, fixed effect Poisson should be our first choice also, because fixed effect Poisson is shown to be consistent without the assumption of the distribution of the error term, and it does not have the "incidental parameter" problem.  
+
+Stata has "xtpoisson" to do fixed effect Poisson. However, we would recommend "ppmlhdfe".  "ppmlhdfe is a Stata package that implements Poisson pseudo-maximum likelihood regressions (PPML) with multi-way fixed effects".  It is faster than xtpoisson.  More importantly, it does report the predicted value correctly.  I mentioned in past post that we need to be cautious when we need to use predicted values after "xtpoisson, fe", or "xtreg, fe".  The reason is that these are models estimated after "absorbing" the fixed effects, meaning fixed effects are not actually estimated.  Therefore the predicted values are without fixed effects.  But in "ppmlhdfe" we get the correct predicted values with fixed effect.  
+
+On a side note, the same author has "reghdfe" as a replacement for "areg" in Stata.  "reghdfe" is faster than "areg", or "xtreg, fe".  It also allows for many levels of fixed effects.  As "ppmlhdfe", it also provides correct predicted values with fixed effects.   
+
+
+# IV poisson with many fixed effects
+
+Stata has a "ivpoisson" function with handles IV in a Poisson regression setting.  However, it does not have the option to include fixed effects. 
+
+In the case that the endogenous variable is continous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:
+
+1. Run the first stage regression (reduced from for the endogous variable), and get the predicted value of the residual.  Sometimes called Mundlak residual.  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.
+2. Include both the endogenous variable and the Mundlak residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.
+
+Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  The reason is that the Mundlak residual is generated from the first stage, we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.
+
+
+
+# Example
+
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#| include: false
+
+library(Statamarkdown)
+stataexe <- find_stata()
+#stataexe <- "/usr/local/bin/stata"
+knitr::opts_chunk$set(engine.path=list(stata=stataexe))
+```
+
+```{stata}
+*| label: stata1
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+* control function approach
+webuse website
+reghdfe time phone frfam, absorb(ad female) resid
+predict double u2h_fe, resid
+ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
+
+```
+
+In this example, "time" is the endognous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the Mundlak residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.  
+
+To verify our control function approach, we do the same with a linear model.  By the way, for linear model and Poisson model, control function approach works, in the sense you can just put in predicted residual in the second stage and that takes care of the endogneity adjustment.  There is a package "ivreghdfe" we use to verify our two step process.
+
+
+```{stata}
+*| label: stata2
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+clear all
+webuse website
+ivreghdfe visits frfam (time=phone), absorb(ad female)
+* now the control function apparoach
+reghdfe time phone frfam , absorb(ad female) resid
+predict u2h_fe, resid
+reghdfe visits time u2h_fe frfam , absorb(ad female)
+
+```
+
+We can see that "ivreghdfe" gives the same result as our two step process.  The standard errors are wrong.  Now we do bootstrapping.
+
+# Bootstrapping standard errors
+
+Suppose we need clustered standard errors on "ad".
+
+
+```{stata}
+*| label: stata3
+*| echo: true
+*| cache: true
+*| collectcode: true
+
+* bootstrap, suppose we need to cluster by "ad"
+clear all
+capture program drop ppmlhdfe_cf
+ program ppmlhdfe_cf, rclass
+  reghdfe time phone frfam , absorb(ad female) resid
+  predict double u2h_fe, resid
+  ppmlhdfe visits time u2h_fe frfam , absorb(ad female)
+  return scalar b_time = _b[time]
+  drop u2h_fe
+  xtset, clear
+ end
+
+webuse website
+
+xtset, clear
+bootstrap r(b_time) , reps(100) seed(123) cluster(ad) idcluster(newid) : ppmlhdfe_cf
+
+```
+
+Somehow we need "xtset clear" for each regression.  I think this is due to the fact that Stata generates a new id for the bootstrapped clusters, then somehow it xtsets the id, even if you don't use it in the regression.  Therefore we'll need to clear it every time.
+
+# How to do it with R
+
+R has similar packages https://cran.r-project.org/web/packages/fixest/vignettes/fixest_walkthrough.html.
+
+We can use "fixest" and "fepois" to do the same thing as "reghdfe" and "ppmlhdfe".  Again, at the moment, we need to manually bootstrap the two stages for correct standard errors.
+
+
+
+
+
+
+

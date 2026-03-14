@@ -1,0 +1,121 @@
+---
+title: "Using machine learning for causal effect in observational study"
+date: "2017-09-21"
+---
+
+
+
+# A simulation for an OLS model
+
+In an observational study, we need to assume we have the functional form to get causal effect estimated correctly, in addtion to the assumption of treatment being exogenous.  
+
+```{r}
+#| cache: true
+#| warning: false
+
+
+library(MASS)
+library(ggplot2)
+library(dplyr)
+library(tmle)
+library(glmnet)
+set.seed(366)
+
+nobs <- 2000
+xw <- .8
+xz <- .5
+zw <- .6
+nrow <- 3
+ncol <- 3
+covarMat = matrix( c(1^2, xz^2, xw^2, xz^2, 1^2, zw^2,  xw^2, zw^2, 1^2 ) , nrow=ncol , ncol=ncol )
+
+mu <- rep(0,3)
+rawvars <- mvrnorm(n=nobs, mu=mu, Sigma=covarMat)
+df <- as_tibble(rawvars, .name_repair = "minimal")
+names(df) <- c('x','z','w')
+df <- df %>%
+    mutate(log.x=log(x^2), log.z=log(z^2), log.w=log(w^2), z.sqr=z^2, w.sqr=w^2) %>%
+    mutate(g.var= log.w  + rnorm(nobs)) %>%
+    mutate(A = rbinom(nobs, 1, 1/(1+exp((g.var))))) %>%
+    mutate(y0=rnorm(nobs) + log.x) %>%
+    mutate(tau.true = 2  + rnorm(nobs), y1=y0+tau.true, treat=A, y = treat*y1 + (1-treat)*y0)
+lm1 <- lm(y ~ A + log.w + log.x , data=df)
+summary(lm1)
+lm2 <- lm(y ~ A , data=df)
+summary(lm2)
+lm3 <- lm(y ~ A + w, data=df)
+summary(lm3)
+lm4 <- lm(y ~ A + w + x, data=df)
+summary(lm4)
+
+```
+
+In this example, treatment assignment process is determined by logged
+w, and outcome is dtermined by logged x and treatment.  However, what
+we observe is w and x.  In observational studies, this happens all the
+time.  In fact, this is an ideal situation, that we observe variables
+that are determinants of outcome, although we are not sure about the
+functional form that determines the outcome.  However, this example
+shows that unless we have observed exactly the factors themselves (in
+this case logged x, w, which determines the DGP), we have biased
+estimates of the true treatment effect.
+
+Model 1 is the only model with reasonable estimate of treatment effect
+(which is 2 in this case).  Model 2 is a model with endogeneity: A is
+correlated with the missing variabel logged x.  Model 3 and 4 we have
+x and w, but not logged, therefore still biased.
+
+The lesson here is the functional form does matter.  However, we have
+no way of knowing the functional form.  What can we do here?  
+
+
+```{r}
+#| cache: true
+#| warning: false
+
+
+Q.SL.library <- c("SL.glmnet","SL.glm","SL.glm.interaction", "SL.rpart","SL.bayesglm","SL.step","SL.mean")
+g.SL.library <- c("SL.glmnet","SL.glm","SL.glm.interaction", "SL.rpart","SL.bayesglm","SL.step","SL.mean")
+
+# this one is good since both Q and g are correct (including z in it)
+tmle1 <- tmle(Y = df$y, A = df$treat, W = df[,c('x','w')], g.SL.library = g.SL.library , Q.SL.library = Q.SL.library)
+tmle1
+tmle2 <- tmle(Y = df$y, A = df$treat, W = df[,c('x','w', 'z')], g.SL.library = g.SL.library , Q.SL.library = Q.SL.library)
+tmle2
+
+
+```
+
+
+We use [Mark van der Laan's TMLE method]
+(http://biostats.bepress.com/ucbbiostat/paper275/).  It uses
+[SuperLearner] (http://biostats.bepress.com/ucbbiostat/paper222/) as
+the initial estimator.  It's an ensemble of mulitple machine learning
+algorithms.  Therefore it does not need to assume the functional form
+of the DGP.  Even if we don't have the variables that determines the
+DGP of outcome, if we observe some functions (even nonlinear
+functions) of these variables, we can still get reasonable estimates
+of the treatment effect.
+
+In this example, we used multiple popular machine learning algorithms
+in modeling both treatment assingment process and the outcome process.
+The first TMLE model is with x and w (note not the logged x and w
+which are in the true DGP), the second one with an additional variable
+z.
+
+It seems that TMLE results are less biased than the linear models with
+x and w.  It may not be better than the linear model with logged x and
+w, but in empirical studies, we often cannot assume we have the
+variables in the DGP, but only some proxy of the variables in the DGP.
+I'll do more simulations to see whether TMLE does perform better in
+the situation that we are not sure about the functional form.  We
+should expect that is the case.
+
+So far TMLE can only be used when treatment is binary variable.  
+
+It's about time we embrace machine learning techniques into studies of
+caual effect in observational studies.
+
+
+
+

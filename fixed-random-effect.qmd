@@ -1,0 +1,122 @@
+---
+title: "Fixed or Random Effect, or Both?"
+date: "2019-05-23"
+---
+
+
+
+# Panel data
+
+When we have a panel data (repeated observations over time, or observations clustered at higher level), we usually think of two choices: random effect or fixed effect?  Economists usually prefers fixed effect models, since it wipes out all within unit heterogeneity.  Economists do not like random effect models since it has a big assumption:  the random effects need to be uncorrelated to other covariates in the model.  To see this,  suppose we have 
+
+$$ y_{it} = \beta_0  + \beta_1 x_{it} + c_i + \epsilon_{it} $$
+
+Suppose we have individuals $i=1, ... , n$ measured at time $t=1, ..., T$.  Here $c_i$ is the unobserved time-invariant individual effects.  The difference between fixed and random effects is in how they handle $c_i$.  
+
+Fixed effect models for a linear model can be implemented by one of these two methods:  with dummies of individuals, or run an OLS with de-meaned $y$ and $x$.  These two methods are equivalent.  In a non-linear model, things are more difficult, except Poisson model, other non-lienar model with dummies suffer "incidental parameter" problem.  The gold-standard is to do a conditional likelihood (conditional logit for example), which "obsorbs" the fixed effects in the likelihood function, therefore it's not necessary to estimate them.  Unfortunately most non-linear models do not have such nice conditional likelihood.  In that case we can only hope the bias would be small (it does get smaller when you have deeper panel, that is , number of observations per individual).
+
+Random effect models treat $c_i$ as part of the error term.  In that case, it comes the biggest drawback:  the covariates have to be uncorrelated with the error term to have a consistent estimator.  Therefore in the above equation, $x$ has to be uncorrelated with $c_i$, which economists in general do not think it's realistic.  
+
+# Time-invariant variables
+
+Sometimes people are interested in the effect of time-invariant variables, thus the model
+
+$$ y_{it} = \beta_0  + \beta_1 x_{it} + c_i  + \gamma z_i+ \epsilon_{it} $$
+
+Fixed effect models cannot handle this, because $\gamma$ is not identified because $z_i$ is perfectly collinear with $c_i$.  Random effect can still be estimated, treating $z_i$ simply as another covariate.  
+
+# Between-within model
+
+Usually we were told to do a Hausman test to see whether we should use fixed effect or random effect model.  The basic idea is the random effect is more efficient if the assumptions are satisfied.  If not, then fixed effect model is still consistent.  The Hausman test is to compare the difference between the two.  If the difference is small then stick with random effect.  If it's big, then fixed effect should be preferred since it's consistent.
+
+However, there is a between-within model (BW) that can incorporate both.  Neuhaus and Kalbfleisch (1998)(https://www.ncbi.nlm.nih.gov/pubmed/9629647) introduced BW estimator,
+
+$$ y_{it} = \beta_0  + \beta_1 (x_{it} - \bar x_i) + \beta_2 \bar x_i + c_i  + \gamma z_i+ \epsilon_{it} $$
+
+It can be shown that $\beta_1$ is the same as the one in the fixed effect model.  It is the effect of within individual deviation of $x$ on within individual deviation of $y$.  $\beta_2$ is the effect of mean of $x$ on mean of $y$, that is, the "between" effect.  $\gamma$ is the effect of time-invariant variable on the mean of $y$.
+
+The other specification of BW estimator is 
+
+$$ y_{it} = \beta_0  + \beta_1 x_{it}  + \beta_2 \bar x_i + c_i  + \gamma z_i+ \epsilon_{it} $$
+
+This is just some transformation of the original specification, it's the same model.  $\beta_1$ is exactly the same as before, $\beta_2$ becomes the difference between "within" and "between" effects.  This is called "contextual model", $\beta_2$ is the "contextual" effect.  See Neuhaus and Kalbfleisch (1998)(https://doi.org/10.1017/psrm.2014.7).  In this specification, $\beta_2$ is acutally similar to a Hausman test.  It shows the difference between "between" and "within".  
+
+One advantage of BW model is that it can incorporate fixed effect models along with a random effect estimation, thus including time-invariant covariates becomes possible.  A second advantage is that it can do more complicated models, such as cross-level interactions, random slopes, or other multi-level models.  
+
+The actual implementation of the simplest form of BW is easy: simply use random effect models on the above two equations.  
+
+# BW model in R
+
+R has a package "panelr"(https://panelr.jacob-long.com/articles/wbm.html) that implements various kinds of BW models.  Let's see an example.
+
+
+```{r}
+#| echo: true
+#| message: false
+
+library(panelr)
+data("WageData")
+wages <- panel_data(WageData, id = id, wave = t)
+model1 <- wbm(lwage ~ wks + union + ms + occ | blk + fem, data = wages)
+summary(model1)
+```
+
+Let's compare this with another popular package "lfe".
+
+```{r}
+#| echo: true
+#| message: false
+
+library(lfe)
+model2 <- felm(lwage ~ wks + union + ms + occ | id, data = wages)
+summary(model2)
+```
+We can see these two gives the same fixed effect estimation.  "panelr" in addition estimates the effect of "blk" and "fem" which are time-invariant.  But "lfe" has an advantage, it allows you to estimate fixed effect with clustered standard errors, which I wish "panelr" can do too.
+
+```{r}
+#| echo: true
+#| message: false
+
+model3 <- felm(lwage ~ wks + union + ms + occ | id | 0 | id, data = wages)
+summary(model3)
+```
+
+# BW model in Stata
+
+In stata, there is no package to do BW estimator.  But we can do it with "xtreg".
+
+```{r}
+#| echo: false
+#| message: false
+
+library(Statamarkdown)
+```
+
+```{stata}
+*| cache: true
+
+webuse nlswork
+xtset idcode
+xtreg ln_w age, fe cluster(idcode)
+
+```
+
+We then generate the mean of age and run a BW estimation.
+```{stata}
+*| cache: true
+
+webuse nlswork
+xtset idcode
+bysort idcode: center age, prefix(d) mean(m)
+xtreg ln_w age mage i.race, re cluster(idcode)
+```
+In this BW model, we have the fixed effect model coefficient on age, which is .0181.  The coeffcient on mage (.0044) is the "contextual effect" of between effect of age, that is, the addtional effect of between effect on logged wage.  The between effect should be .0044+.0181=.0225.  And we have the effect of time-invariant covariate race estimated.  The advantage of using xtreg is that we have clustered standard errors implemented.
+
+
+# BW model in non-linear models
+
+Paul Allison in his blog(https://statisticalhorizons.com/between-within-contextual-effects) mentioned using BW model for a binary outcome.  I have not dig into the literature to see how large the bias can be using the BW , comparing to, say a conditional logit model.  But if OLS is a good linear approximation of a logit model, BW model could be a good approximation with a binary outcome with panel data.
+
+
+
+

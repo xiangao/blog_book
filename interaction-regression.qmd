@@ -1,0 +1,108 @@
+---
+title: "Interpreting interaction in a regression model"
+date: "2017-12-07"
+---
+
+
+
+# Interaction with two binary variables  
+
+In a regression model with interaction term, people tend to pay attention to only the coefficient of the interaction term.  
+
+Let's start with the simpliest situation: $x_1$ and $x_2$ are binary and coded 0/1.
+
+$$ E(y) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1x_2 $$
+
+In this case, we have a saturated model; that is, we have three coefficients representing additive effects from the baseline situation (both $x_1$ and $x_2$ being 0).  There are four different situations, with four combinations of $x_1$ and $x_2$.  
+
+
+A lot of people just pay attention to the interaction term.   In the case of studying treatment effects between two groups, say female and male, that makes sense, the interaction term representing the difference between male and female in terms of treatment effect.
+
+In this model:
+
+$$ E(y) = \beta_1 female + \beta_2 treatment + \beta_{12} female*treatment $$
+
+The two dummy-coded binary variables, female and treatment, form four combinations.  The following 2x2 table represents the expected means of the four cells(combinations).
+
+
+|               |  male                   |  female                                        |
+| ------------- |:-----------------------:|:----------------------------------------------:|
+| control       |  $$ \beta_0 $$          |  $$ \beta_0 + \beta_1 $$                        |
+| treatment     | $$ \beta_0 + \beta_2 $$ |  $$ \beta_0 + \beta_1 + \beta_2 + \beta_{12}$$ |
+
+We can see from this table that, for example,
+
+$$\beta_0=E(Y|(0,0))$$;
+
+that is, $\beta_0$ is the expected mean of the cell (0,0) (male and control).
+
+$$\beta_0 + \beta_1 =E(Y|(1,0))$$;
+
+that is ,$\beta_0 + \beta_1$ is the expected mean of the cell (1,0) (female and control).  And so on.
+
+Now,
+
+$$ \beta_{12} = (E(Y|(1,1))-E(Y|(0,1)))-(E(Y|(1,0))-E(Y|(0,0))) $$
+
+that is, the coefficient on the interaction term is actually the difference in difference.  That's why in many situations, people are only interested in the interaction coefficient, since they are only interested in the diff-in-diff estimates.  The usually diff-in-diff estimator in causal inference literature refer to something similar, instead of female vs. male, people are interested in the treatment effect difference in before and after treatment.  If we simply replace female/male dummy with before/after dummy, we can use the same logic.  In those situations, it's fine to mainly focus on the interaction term coefficient.
+
+
+In some other situations, the three coefficients are equally important.  It depends on your interest.  For example, if we are interested in studying differences between union member and non-union member and black vs. non-black, we may not be only interested in the interaction effect.  Instead, we might be interested in all four cells, maybe all possible pairwise comparisons.  In that case, we should pay attention to all three coefficients.  Stata's "margins" command is of great help if we'd like to compare the cell means.
+
+Let's take a look from a sample example in Stata:
+
+```{r}
+#| label: stata-chunk
+#| engine: 'stata'
+#| engine.path: '/usr/local/bin/stata'
+#| cache: true
+
+webuse union3
+reg ln_wage i.union##i.black, r
+margins union#black
+margins union#black, pwcompare
+
+```
+
+What we get by using "margins union#black" is the four cell means of $E(Y)$, in this case, log of wage.  Then "margins union#black, pwcompare" tells us all pairwise comparison of these four cell means.  Instead of only paying attention to the interaction coefficient, in this case we might be interested in some comparisons of the four different situations of union and black.  In fact, in this example, despite the interaction term being insignificant, all six comparisons of the cell means turn out to have 95% confidence intervals that do not include zero.
+
+
+# Interaction with continuous variables
+
+
+Let's start with the simpliest situation: $x_1$ and $x_2$ are continuous.
+
+$$ E(y) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$
+
+In this case, we recommend "centering" $x_1$ and $x_2$ if they are continuous; that is, subtracting the mean value from each continuous independent variable when they are involved in the interaction term.  There are two reason for it:
+
+1. To reduce multi-collinearity.  If the range of $x_1$ and $x_2$ include only positive numbers, then $x_1*x_2$  can be highly correlated with both or one of $x_1$ and $x_2$.  This can lead to numerical problems and unstable coefficient estimates (multi-collinearity problem).
+
+"Centering" can reduce the correlation between the interaction term and the independent variables.  If the original variables are normally distributed, interaction term after centering is actually uncorrelated with the original variables.  When they are not normally distributed, centering will still reduce the correlation to a large degree.
+
+2. To help with interpretation.  In a model with interaction, $\beta_1$ represents the effect of $x_1$ when $x_2$ is zero.  However, in many situations, zero is not within the range of $x_2$.  After centering, centered $x_2$ at zero simply means original $x_2$ at its mean value.
+
+When we have dummy variable interacting with continuous variable, only continuous variable should be centered.
+
+Again, Stata's margins command is helpful.
+
+
+```{r}
+#| label: stata-chunk2
+#| engine: 'stata'
+#| engine.path: '/usr/local/bin/stata'
+#| cache: true
+
+sysuse auto
+sum mpg
+gen mpg_centered=mpg-r(mean)
+sum mpg_centered
+reg price i.foreign##c.mpg_centered
+margins foreign, at(mpg_centered=(-3 (1) 3))
+marginsplot
+
+```
+
+In this example, the graph shows the predicted price for foreign and domestic cars at different level of mpg.
+
+

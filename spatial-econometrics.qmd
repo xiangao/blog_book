@@ -1,0 +1,138 @@
+---
+title: "Spatial econometrics introduction"
+date: "2025-03-25"
+---
+
+
+# Why do we need spatial econometrics?
+
+‘Everything is related to everything else, but near things are more related than distant
+things’ (Tobler 1970).  This is the first law of geography.  This is the reason why we need spatial econometrics.  The spatial econometrics is to account for the spatial dependence in the data.  The spatial dependence is the correlation between the observations that are close to each other.  This is a common feature in many datasets.  For example, in the housing market, the price of a house is related to the prices of the houses nearby.  In the crime data, the crime rate in one neighborhood is related to the crime rate in the neighboring neighborhoods.  In the health data, the health outcomes of people in one area are related to the health outcomes of people in the neighboring areas.  In the environmental data, the pollution level in one area is related to the pollution level in the neighboring areas.  In the economic data, the economic performance of one region is related to the economic performance of the neighboring regions.  In the social network data, the behavior of one person is related to the behavior of the people in the neighboring areas.  
+
+Econometricians love OLS.  However, the robustness of OLS relies on i.i.d. data.  If our data is spatially correlated, then OLS is biased, without taking account of the spatial structure.  
+
+# A genaral linear spatial model
+
+$$ y = \lambda W y + X \beta + W X \gamma  + u $$
+
+$$ u = \rho W u + \epsilon $$
+
+where $Y$ is the dependent variable, $X$ is the matrix of independent variables, $\beta$ is the vector of coefficients, and $u$ is the error term.  The error term $u$ is spatially correlated.  
+
+We can see the major difference is $W$.  The term $W y$ is called "spatially lagged y", which in my opinion is misleading.  This term is likely from time-series counter-part of lagged $y$, but there is nothing about lags in the spatial data.  $W$ is the spatial weights matrix. It is a matrix that describes the spatial structure of the data. The simplest example of $W$ is the case that we define an element of $W$, $w_{i,j}$ to be 1 if unit $i$ and $j$ are neighbors, 0 if not.  
+
+In this simplest case, our model is saying we have a pattern we need to take account of: neighboring units are related, they seem to display similar pattern in terms of our study.  This commonality of neighbors can be causal, for example, if we study the effect of minimum wage effect on employment, then if the neighboring state's wage increase might negatively impact the focal state's employment, because people go for higher wages.  This is the spatial spillover effect.  This can also be non-causal, for example, if we study the effect of temperature on crop yield, then the neighboring state's temperature might be a good predictor of the focal state's temperature.  This is the spatial autocorrelation.  In either case, we need to take account of the spatial structure in the data.  
+
+The reason behind the spatial pattern can be all kinds.  It can be $x_i$ causing $y_j$, or $y_i$ causing $y_j$, or some unobserved factors causing both $y_i$ and $y_j$, or some other reasons.  Ignoring this spatial structure could make OLS biased.  Betz et al (2020) show that ignoring spatial interdependence in the outcome results in asymptotically biased estimates even when instruments are randomly assigned. 
+
+# Estimation with S2SLS for a less general model
+
+Because we have the term $W y$, we introduced endogeneity.  $W y$ is necessarily correlated with $u$, even if $u$ is not spatially correlated.  Suppose $u$ is not spatially correlated.
+
+The spatial two stage least squares (S2SLS) estimator is one solution.  Usually we use $X$ and spatial lags of $X$ as instruments.  Typically instruments $H$ is $(X, W X,  W^2 X)$.
+
+S2SLS is similar to 2SLS.  The first stage is 
+$$ \hat Z = PZ = [X, \hat {W y}] $$
+where $$\hat {W y} = PWy$$ and $$P = H(H'H)^{-1}H'$$.
+
+Then 
+$$ \gamma_{S2SLS} = (\hat Z'Z)^{-1} \hat Z'y $$
+
+
+
+The first stage is to regress $WY$ on $H$ .  The second stage is to regress $Y$ on the predicted $WY$ from the first stage and $X$ and $W X$.  The coefficient of $X$ is the S2SLS estimator.
+
+# Estimation with a more general model
+
+Suppose instead the error term is spatially correlated
+
+
+$$ u = \rho W u + \epsilon $$
+
+Then the estimation is more complicated.  The generalized spatial two stage least squares (GS2SLS) estimator is needed.  See Kelejian and Prucha (1998) for details.
+
+# an example
+
+This example is from R package "sphet".
+
+
+The Boston data contain information on property values and characteristics in the area of
+Boston, Massachusetts and has been widely used for illustrating spatial models. Specifically,
+there is a total of 506 units of observation for each of which a variety of attributes are avail-
+able, such as: (corrected) median values of owner-occupied homes (CMEDV); per-capita crime
+rate (CRIM); nitric oxides concentration (NOX); average number of rooms (RM); proportions of
+residential land zoned for lots over 25,000 sq. ft (ZN); proportions of non-retail business acres
+per town (INDUS); Charles River dummy variable (CHAS); proportions of units built prior to
+1940 (AGE); weighted distances to five Boston employment centers (DIS); index of accessibil-
+ity to highways (RAD); property-tax rate (TAX); pupil-teacher ratios (PTRATIO); proportion of
+blacks (B); and % of the lower status of the population (LSTAT).
+
+The dataset with Pace’s tract coordinates is available to the R community as part of "spdep".
+
+The spatial weights matrix is a sphere of influence neighbors list also available from spdep
+once the Boston data are loaded.  Here the weight matrix comes with the data.  Usually it's the most heavy lifting part of the study.
+
+
+
+```{r}
+
+
+library(sphet)
+library(spdep)
+data("boston", package = "spData")
+listw <- nb2listw(boston.soi)
+
+```
+
+The function read.gwt2dist reads a ‘.GWT’ file (e.g., generated using the function distance).
+In this example we are using the matrix of tract point coordinates projected to UTM zone
+19 boston.utm available from spdep to generate a ‘.GWT’ file of the 10 nearest neighbors.
+
+
+```{r}
+
+
+id1 <- seq(1, nrow(boston.utm))
+tmp <- distance(boston.utm, region.id = id1, output = TRUE,
+                type = "NN", nn = 10, shape.name = "shapefile",
+                region.id.name = "id1", firstline = TRUE,
+                file.name = "boston_nn_10.GWT")
+coldist <- read.gwt2dist(file = "boston_nn_10.GWT", region.id = id1, skip = 1)
+class(coldist)
+
+summary(coldist)
+```
+
+Spatial models in sphet are fitted by the functions stslshac and gstslshet. "stslshac" is Spatial two stages least square with HAC standard errors. "gstslshet" is GM estimation of a Cliff-Ord type model with Heteroskedastic Innovations, which is the general model we discussed before, with spatially correlated errors.
+
+The function stslshac is used to estimate the S2SLS model.
+```{r}
+
+res <- stslshac(log(CMEDV) ~ CRIM + ZN + INDUS + CHAS + I(NOX^2) + I(RM^2)
+                + AGE + log(DIS) + log(RAD) + TAX + PTRATIO + B + log(LSTAT),
+                data = boston.c, listw,
+                distance = coldist, type = "Triangular", HAC = TRUE)
+summary(res)
+```
+
+The function gstslshet is used to estimate the GS2SLS model.
+
+```{r}
+
+res <- gstslshet(log(CMEDV) ~ CRIM + ZN + INDUS + CHAS + I(NOX^2) + I(RM^2)
+                 + AGE + log(DIS) + log(RAD) + TAX + PTRATIO + B + log(LSTAT),
+                 data = boston.c, listw = listw, initial.value = 0.2)
+summary(res)
+
+```
+
+
+In stata, you would use "spivregress" which replaced user-written "spivreg".  Stata has a set of commands for spatial econometrics.  Check out stata's "sp" manual.
+
+
+
+
+
+
+
+

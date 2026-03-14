@@ -1,0 +1,348 @@
+---
+title: "Bartik Instrument and Rotemberg weights"
+date: "2024-10-26"
+---
+
+
+# Bartik Instrument
+
+Bartik instrument is a method to estimate the causal effect of a treatment on an outcome.  The method is developed by Bartik (1991).  The method is also known as the shift share IV method.
+
+We follow Goldsmith-Pinkham, Sorkin, and Swift (2021) (GPSS) to describe the method.  Let's say we are interested in estimating the elasiticity of employment on wage growth.
+
+$$ y_{lt} = D_{lt} \rho + \beta_0 x_{lt} + \epsilon_{lt}$$
+
+$y_l$ is the wage growth in location $l$, $x_l$ is the employment growth rate.  $\beta_0$ is the inverse elasticity of labor supply.  
+
+The usual challenge is that $x_l$ is endogenous. There could be factors that are driving both wage growth and employment growth at location $l$.  Note that I am omitting the time subscript for simplicity. 
+
+There are two accounting identities:
+
+$$ x_{lt} = Z_{lt} G_{lt} = \sum_{k=1}^K z_{lkt} g_{lkt} $$
+and
+$$ g_{lkt} = g_{kt} + \tilde{g}_{lkt} $$
+
+Suppose in location $l$ there are $K$ industries.  Then the employment growth can be decomposed to the sum of industry growth $g_{lkt}$, with $z$'s as the industry shares.
+
+The second identity is to say the this industry growh rate at this location can be decomposed to a national  industry rate and a location-industry rate.  The idea of Bartik instrument is to use the product of initial industry location share and industry growth rate as the instrument.
+
+$$ B_{lt} = Z_{l0} G_{t} = \sum_{k=1}^K z_{lk0} g_{kt} $$
+
+The intuition is that the initial shares are exogenous, as it's a level variable.  And the industry growth rate is exogenous, since it's national, not location related.
+
+
+# Bartik Instrument in special cases
+
+## Two industries and one period
+
+GPSS goes through the simpliest case: two industries and one period.  
+
+$$ B_l = z_{l1} g_1 + z_{l2} g_2 $$
+
+Since there are only two industries, $z_{l1} = 1 - z_{l2}$.  Then we can rewrite the Bartik instrument as
+
+$$ B_l = g_2 + (g_1 - g_2) z_{l1} $$
+
+From this simplist case, we see that the instrument has only $z_{l1}$, that is related to location.  If the industry share can be considered exogenous, then the instrument is valid.  We have to argue that the industry share is exogenous. In this case, the instrument is a linear function of the industry share.  Therefore, the Bartik instrument is the same as using the industry share as an instrument.
+
+GPSS shows that just-identified two-stage least squares using a Bartik instrument can in fact be written as GMM with an overidentified set of instruments, where the weight matrix is the outer product of national growth rates.  That is, Bartik estimator is equivalent to a GMM estimator, with each location share as one instrument, and the weight matrix is the outer product of national growth rates.
+
+With $K$ industries and $T$ time periods, it's basically using $K \times T$ instruments. Still, Bartik instrument is the same as GMM with all these instruments.  
+
+
+
+# Rotemberg weights
+
+GPSS decompose the Bartik estimator:
+
+$$ \beta_{Bartik} = \sum_{k} \hat \alpha_k \hat \beta_k$$
+where
+$$ \hat \beta_k = (Z'_k X^{\perp})^{-1} Z'_k Y^{\perp}$$
+and
+$$ \hat \alpha_k = \frac{g_k Z'_k X^{\perp}}{\sum_{k'} g_{k'}  Z'_{k'} X^{\perp}}$$
+
+Here $X^{\perp}$ and $Y^{\perp}$ are the residualized $X$ and $Y$,  from the regression of $X$ and $Y$ on all other variables (controls).
+
+Rotemberg weights provide a measure of how important each share is.  Each weight states how much bias the overall estimate would have if a given instrument (industry) were biased by $\alpha_k$ percent.  Weights can be very useful to see which industries are important, and thus whether exogeneity assumptions are plausible for instruments with largest weights.
+
+# Simulations
+
+Simulations codes are adopted from Kohei Kawaguchi's lecture notes.  I modified slightly to fit different scenarios.
+
+Here we simulate a case with 4 industries and 4 periods.  We have 1000 locations, 4 periods, and 4 industries.  The true $\beta$ (effect of $x$ on $y$) is 1.  
+
+```{r}
+#| message: false
+#| warning: false
+
+library(ggplot2)
+library(tidyverse)
+library(modelsummary)
+library(kableExtra)
+library(estimatr)
+set.seed(6)
+L <- 1000
+T <- 4
+K <- 4
+beta <- 1
+sigma <-c(1, 1, 1)
+
+z_lk0 <- expand_grid(
+    l = 1:L,
+    k = 1:K
+  ) |> 
+mutate(z_lk0 = runif(length(l))) 
+
+g_kt <-  expand_grid(
+    t = 1:T,
+    k = 1:K
+  ) |> 
+  mutate(g_kt = rnorm(t, 0, .1))
+
+df <- expand_grid(
+    l = 1:L,
+    t = 1:T,
+    k = 1:K
+  ) |> 
+  left_join(z_lk0, by = c("l", "k")) |> 
+  left_join(g_kt,  by = c("k", "t")) |>
+  mutate(z_lkt = z_lk0 + sigma[1] * runif(length(l)),
+    g_lkt = g_kt + sigma[2] * rnorm(length(l),0, .1)
+  ) 
+
+df <- df %>%
+  group_by(t, l) |> 
+  mutate(
+    z_lk0 = z_lk0 / sum(z_lk0),
+    z_lkt = (z_lkt / sum(z_lkt)),
+    x_lt = sum(z_lkt * g_lkt)
+  ) 
+
+df
+ 
+```
+
+This assumes we observe the industry shares at time 0 ($z_{lk0}$), and the industry growth rates ($g_{kt}$).  We also observe the industry shares at time $t$ ($z_{lkt}$).  The employment growth rate at location $l$ and time $t$ ($g_{lkt}$) is a function of $g_{kt}$ plus some noise.  We can calculate the $x_{lt}$, which is the weighted sum of industry growth rates.
+
+
+Next we generate the outcome at $l$, $t$ level.  Outcome (wage growth) is a linear function of $x$ (employment growth) at $l$, $t$ level.  
+
+
+```{r}
+#| message: false
+#| warning: false
+
+df_lt <- df |>
+  mutate(g_tilde_lkt = g_lkt - g_kt) |> 
+  group_by(l, t) |> 
+  summarise(across(c(x_lt, g_tilde_lkt),  mean),  .groups = "drop") |>
+  ungroup() |> 
+  mutate(y_lt = beta * x_lt + sigma[3] * g_tilde_lkt)
+```
+ 
+If we run OLS on raw data, we'll get biased results.
+
+```{r}
+#| message: false
+#| warning: false
+
+
+result_ols <-
+  df_lt |>
+  lm(formula = y_lt ~ x_lt)
+
+modelsummary(result_ols)
+
+```
+
+Now we generate the Bartik instrument.  We calculate the Bartik instrument as the weighted sum of $z_{lk0}$ and $g_{kt}$.
+
+```{r}
+#| message: false
+#| warning: false
+
+
+b_lt <- df |> 
+  group_by(l, t) |>
+  summarise(b_lt = sum(z_lk0 * g_kt)) |>
+  ungroup()
+
+df_lt <- df_lt |>
+  left_join(b_lt, by = c("l", "t"))
+
+
+result_first_stage <-  lm(formula = x_lt ~ b_lt, data = df_lt)
+
+modelsummary(result_first_stage)
+
+result_tsls <- df_lt |>
+  estimatr::iv_robust(formula = y_lt ~ x_lt | b_lt)
+
+modelsummary::modelsummary(result_tsls)
+```
+
+
+## Calculate Rotemberg weights
+
+Let's do IV using Bartik instruments.  No controls here.  We use matrix operation to recover the IV estimates, which is the same as the tsls function in R.
+
+```{r}
+#| message: false
+#| warning: false
+
+B = as.matrix(cbind(1,df_lt$b_lt))
+Y = as.matrix(df_lt$y_lt)
+X = as.matrix(cbind(1,df_lt$x_lt))
+ 
+iv = round(solve(t(B)%*%X)%*%t(B)%*%Y,3)
+ 
+## Label and organize results into a data frame
+beta.hat = as.data.frame(cbind(c("Intercept","x"),iv))
+names(beta.hat) = c("Coeff.","Est")
+beta.hat
+
+```
+
+Now we calculate the Rotemberg weights.  
+
+```{r}
+#| message: false
+#| warning: false
+
+# This code is the R version of Paul Goldsmith-Pinkham's R code for Rotemberg weights on 
+# github; which is actually a call from a C++ code by jjchern.
+# bw.R calls ComputeAlphaBeta.cpp
+# dimensions:  G is KTx1, Z is LTxKT, Y is LTx1, X is LTx1
+# so B=ZG is LTx1
+# Here I learned the dimensions from the ADH example in Paul's github.
+# in ADH example, czone(L) is 722, year(T) is 2, ind(K) is 390.
+# so G is 780x1, Z is 1444x780, Y is 1444x1, X is 1444x1
+y_lt <- df_lt |> 
+  select(l,t,y_lt)
+
+Y <- as.matrix(y_lt[,3])
+
+x_lt <- df_lt |> 
+  select(l,t,x_lt)
+
+X <- as.matrix(x_lt[,3])
+#X <- as.matrix(cbind(1,x_lt[,3]))
+
+# global is kt level data set
+# # g_data <- df |> 
+# #   group_by(k,t) |> 
+# #   summarise(g_kt=sum(g_lkt*z_lkt)) 
+# 
+# G <- as.matrix(g_data[,3])
+
+G <- as.matrix(g_kt[,3])
+
+# generate wide Z matrix, LTxKT from df
+# z_data <- df |> 
+#   select(l,t,k,z_lkt) |> 
+#   pivot_wider(names_from = k, values_from = z_lkt) |> 
+#   select(-l, -t)
+
+# this makes a wide Z data, which is LTxKT, KT variables are generated by the spread function.
+# basically expand z_lkt to KT variables, filled with 0 if there is no data.
+# I was using z_lkt, but it should be z_lk0?
+# z_data <- df |> 
+#   select(l,t,k,z_lkt) |> 
+#   mutate(k = str_glue("t{t}_sh_ind_{k}") ) |>
+#   spread(k, z_lkt, fill = 0)
+
+z_data <- df |> 
+  select(l,t,k,z_lk0) |> 
+  mutate(k = str_glue("t{t}_sh_ind_{k}") ) |>
+  spread(k, z_lk0, fill = 0)
+
+Z <- as.matrix(z_data[,-c(1,2)])
+
+beta = round((t(Z) %*% Y)/(t(Z) %*% X), digits=3)
+alpha=(diag(as.numeric(G)) %*% t(Z)  %*% X) / as.numeric((t(G) %*% t(Z) %*% X))
+
+bw <- tibble(g_kt, alpha=as.numeric(alpha), beta=as.numeric(beta)) |> 
+  mutate(product=alpha*beta)
+
+bw
+
+sum(bw$product)
+```
+
+The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator.   
+
+
+Note there is no restriction for $\alpha$, other than the sum is 1.  Therefore it can be negative or positive.  It can be greater than 1, as long as the sum is 1.  This probably needs to be restricted to be less than 1.  But I am not sure about it.
+
+
+
+# Why is good to have Rotemberg weights?
+
+GPSS Corollary D.1. shows the interpretation of the Rotemberg weights.  
+
+The percentage of bias can be writen as:
+
+$$ \frac{E(\tilde{\beta})}{\beta} = \sum_k \alpha_k \frac{E(\tilde \beta_k)}{\beta_0}$$
+
+This is to say the $\alpha_k$ is the share of the bias of the estimate of $\beta$ that comes from the bias of the estimate of $\beta_k$.  That is, how sensitive it is to the bias from industry $k$.  
+
+In my simulations, all the industries are random, therefore the weights are random too.  But in empirical studies, they are not random, most likely dominated by some industries.  This is why it is important to have Rotemberg weights.  It tells us which industries are important in the estimation of the effect of interest.  
+
+# What if you are using a reduced form?
+
+If you use the reduced form, something like:
+
+
+$$ y_{lt} = D_{lt} \rho + \beta_0 B_{lt} + \epsilon_{lt}$$
+
+where $B_{lt}$ is the Bartik instrument, constructed in such as a way:
+
+$$ B_{lt} = Z_{l0} G_{t} = \sum_{k=1}^K z_{lk0} g_{kt} $$
+
+Then I think the Rotemberg weights should be calculated as:
+
+$$ \beta_{Bartik} = \sum_{k} \hat \alpha_k \hat \beta_k$$
+where
+$$ \hat \beta_k = (Z'_k B^{\perp})^{-1} Z'_k Y^{\perp}$$
+and
+$$ \hat \alpha_k = \frac{g_k Z'_k B^{\perp}}{\sum_{k'} g_{k'}  Z'_{k'} B^{\perp}}$$
+
+where $B^{\perp}$ and $Y^{\perp}$ are residualized $B$ and $Y$.
+
+
+
+```{r}
+#| message: false
+#| warning: false
+
+result_reduced <- df_lt |>
+  lm(formula = y_lt ~  b_lt)
+
+modelsummary::modelsummary(result_reduced)
+```
+
+Now we calculate the Rotemberg weights for the reduced form, for our simulated data.
+
+
+```{r}
+#| message: false
+#| warning: false
+
+B <- as.matrix(b_lt[,3])
+
+beta = (t(Z) %*% Y)/(t(Z) %*% B)
+alpha=(diag(as.numeric(G)) %*% t(Z)  %*% B) / as.numeric((t(G) %*% t(Z) %*% B))
+
+bw <- tibble(g_kt, alpha=as.numeric(alpha), beta=as.numeric(beta)) |> 
+  mutate(product = alpha * beta)
+
+bw
+
+sum(bw$product)
+
+```
+
+
+
+
+

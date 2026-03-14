@@ -1,0 +1,363 @@
+---
+title: "Causal mediation analysis"
+date: "2022-07-21"
+---
+
+
+# Traditional mediation analysis
+
+We summarized how to do traditional mediation analysis (Baron and Kenny, 1986) with R and Stata in my last blog about mediation.
+
+Traditionally mediation model can be represented in the following equations:
+
+$$ Y = a A + b M + \epsilon_1 $$
+
+$$ M = c A + \epsilon_2 $$
+
+There are three main variables, A (treatment, or exposure), M (mediator) and Y (outcome). There are two pathways from A to Y, a direct effect, and an indirect effect through A -\> M -\> Y.
+
+The traditional approach is to model these two equations directly, and get the estimates of direct and indirect effects.
+
+# Causal mediation analysis
+
+The traditional method is criticized for lack of causal interpretation. The causal mediation analysis makes assumptions up front. If those assumptions are met, then you have a causal interpretation.
+
+In a random experiment, usually A is randomly assigned, but M is not. If there is a confounder on the M to Y pathway, then we don't have a causal effect, or say we cannot estimate causal effect without confounder bias.
+
+Causal mediation analysis needs that too; it's not like if you use a causal mediation package then you get the causal effect.
+
+The other shortcoming of the traditional mediation method is that it assumes a homogeneous treatment indirect effect; that is, there is no $A$ - $M$ interaction. With causal mediation, this interaction can be allowed.
+
+## Controlled direct effect
+
+Suppose we can set $A$ and $M$ at will to any $(a, m)$, then we have the potential outcome $Y(a,m)$.
+
+Conditional direct effect (CDE) is defined as $$ CDE(m) = E(Y(1,m)-Y(0,m)) $$ That is, setting $M$ to $m$, what is the effect of $A$ on $Y$?
+
+### Assumptions
+
+What are the assumptions for CDE to be identified (estimatible)?
+
+1.  Conditional treatment randomization. Suppose we observe confounders W, which can be a joint set of confounders for the A to Y pathway, or the M to Y pathway.
+
+    $$
+    Y(a,m) \perp A|W
+    $$
+
+    This is the usual conditional independence (unconfoundedness, ignorability, etc.) assumption. This is saying the assignment of treatment, given covariates W, has nothing to do with potential outcomes.
+
+2.  Conditional mediator randomization.
+
+    $$
+    Y(a,m) \perp M|W, A=a
+    $$
+
+    This is to say, within each strata of W, given treatment status, the assignment of mediator gives no information about potential outcome. This randomization is usually not implemented during many experiments (random trials). This is the assumption that makes a lot of mediation hard to make a causal claim.
+
+3.  Positivity.
+
+    There are two positivity assumptions:
+
+    $$
+    P(A=a | W=w) > 0
+    $$ for all w.
+
+    This is the usual positivity assumption.
+
+    $$
+    P(M=m | W=w, A=a) > 0
+    $$
+
+    for all w. This is the mediator positivity.
+
+If these assumptions can be met, then we can do causal mediation analysis. In reality, the ignorability assumptions are untestable. The positivity assumptions can be tested.
+
+### Estimation
+
+CDE can be estimated using G-computation method, or IPW, or the doubly-robust methods, one of them is AIPW (augmented IPW).
+
+G-computation is to model the outcome equation:
+
+$$
+CDE_G(m) = E[ E(Y(A=1, M=m, W=w) - E(Y(A=0, M=m, W=w)))]
+$$ $$
+CDE_G(m) = \sum_w [ E(Y(A=1, M=m, W=w) - E(Y(A=0, M=m, W=w))) ] P(W=w)
+$$
+
+IPW is to model the treatment assignment equation and the mediator assignment equation:
+
+$$
+E[Y(a,m)] = E[{\frac{I(A=a, M=m)}{P(A=a, M=m | W)}} Y]
+$$
+
+Therefore,
+
+$$ 
+CDE_{ipw}(m) = E[{\frac{I(A=1,M=m)}{g_M(m|1,W)g_A(1,W)} - \frac{I(A=0,M=m)}{g_M(m|0,W)g_A(0,W)}} Y]
+$$
+
+where $g_M$ is the probability of mediator, g_A is the probability of treatment.
+
+For the AIPW estimator:
+
+$$ CDE_{AIPW} = CDE_G(m) + B(\bar Q, g_M, g_A) $$ where $\bar Q$ is the mean outcome function.
+
+$$
+B(\bar Q, g_M, g_A) = \frac{1}{n} \sum_n {\frac{I(M=m, A=1)}{g_m(m|1, W) g_A(1|W)}[Y-\bar Q(m,1,W)]}  - \frac{1}{n} \sum_n {\frac{I(M=m, A=0)}{g_m(m|0, W) g_A(0|W)}[Y-\bar Q(m,0,W)]}
+$$
+
+### simulation example
+
+This example is from <https://si.biostat.washington.edu/archives/siscer2021/CR2113>
+
+First, G-computation:
+
+```{r}
+#| echo: true
+#| message: false
+
+
+set.seed(1234)
+n <- 5000
+# confounder of A/Y
+W1 <- rnorm(n)
+# confounder of M/Y
+W2 <- rnorm(n)
+# treatment
+A <- rbinom(n, 1, plogis(-1 + W1 / 2))
+# binary mediator
+M <- rbinom(n, 1, plogis(-2 + A / 2 + W2 / 3))
+# binary outcome
+Y <- rbinom(n, 1, plogis(-1 + A - M / 2 + W1 / 3 + W2 / 3))
+full_data <- data.frame(W1 = W1, W2 = W2, A = A, M = M, Y = Y)
+
+# fit outcome regression
+or_fit <- glm(Y ~ A + M + W1 + W2, family = binomial(), data = full_data)
+# new data setting A and M
+data_A1_M0 <- data_A0_M0 <- full_data
+data_A1_M0$A <- 1; data_A1_M0$M <- 0
+data_A0_M0$A <- 0; data_A0_M0$M <- 0
+# predict on new data
+Qbar_A1_M0 <- predict(or_fit, newdata = data_A1_M0, type = "response")
+Qbar_A0_M0 <- predict(or_fit, newdata = data_A0_M0, type = "response")
+# gcomp estimate of CDE(0)
+mean(Qbar_A1_M0 - Qbar_A0_M0)
+
+```
+
+Second, IPW:
+
+```{r}
+#| echo: true
+#| message: false
+
+# model for P(A = 1 | W)
+ps_fit1 <- glm(A ~ W1 + W2, family = binomial(), data = full_data)
+P_A1_W <- predict(ps_fit1, type = "response")
+P_A0_W <- 1 - P_A1_W
+# model for P(M = 0 | A, W)
+ps_fit2 <- glm(M ~ A + W1 + W2, family = binomial(), data = full_data)
+# P(M = 0 | A = 1, W)
+data_A1 <- full_data; data_A1$A <- 1
+P_M0_A1_W <- 1 - predict(ps_fit2, newdata = data_A1, type = "response")
+# P(M = 0 | A = 0, W)
+data_A0 <- full_data; data_A0$A <- 0
+P_M0_A0_W <- 1 - predict(ps_fit2, newdata = data_A0, type = "response")
+# ipw estimate of CDE(0)
+mean( (A == 1) / P_A1_W * (M == 0) / P_M0_A1_W * Y ) -
+mean( (A == 0) / P_A0_W * (M == 0) / P_M0_A0_W * Y )
+
+```
+
+AIPW:
+
+```{r}
+#| echo: true
+#| message: false
+
+# aipw estimate of E[Y(1,0)]
+aiptw_EY_A1_M0 <- mean(Qbar_A1_M0) +
+mean( (A == 1) / P_A1_W * (M == 0) / P_M0_A1_W * (Y - Qbar_A1_M0) )
+# aipw estimate of E[Y(0,0)]
+aiptw_EY_A0_M0 <- mean(Qbar_A0_M0) +
+mean( (A == 0) / P_A0_W * (M == 0) / P_M0_A0_W * (Y - Qbar_A0_M0) )
+# aipw estimate of CDE(0)
+aiptw_EY_A1_M0 - aiptw_EY_A0_M0
+
+```
+
+## Natural direct and indirect effect
+
+CDE is to study the effect of treatment, given the level of mediator. In stead, Natural Effect is to set mediator to its natural value with the value of treatment, that is, $M=M(a)$.
+
+$$
+ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))])
+$$
+
+There are two different ways to decompose the $ATE$ in terms of $NIE$ and $NDE$. Above is one of them.
+
+The advantage of NDE and NIE comparing to CDE is that it's more "natural"; that is, you don't set the level of mediator deterministicly. And it can decompose the ATE into direct and indirect effects.
+
+However, there is an additional assumption for NDE and NIE identified.
+
+Assumption 4:
+
+$$ Y(a, m) \perp M(a^*) | W$$
+
+This is the "cross-wold" condition: the outcome under $(a,m)$ is independent of $M$ under $a^*$. These two situations cannot happen in the same world; you cannot set $A$ to both $a$ and $a^*$. There is no experiment can implement it.
+
+Then there are the usual positivity assumptions.
+
+Simulation example from the same website materials:
+
+```{r}
+#| echo: true
+#| message: false
+
+# fit outcome regression (include interaction because we can)
+or_fit <- glm(Y ~ A + M + W1 + W2 + A*M + M*W1,
+family = binomial(), data = full_data)
+# need E(Y | A = 0/1, M = 0/1, W1 = W1i, W2 = W2i)
+get_EY_a_m_Wi <- function(full_data, or_fit, a, m){
+data_Aa_Mm_Wi <- full_data
+data_Aa_Mm_Wi$A <- a; data_Aa_Mm_Wi$M <- m
+predict(or_fit, newdata = data_Aa_Mm_Wi, type = "response")
+}
+EY_A0_M0_Wi <- get_EY_a_m_Wi(full_data, or_fit, a = 0, m = 0)
+EY_A0_M1_Wi <- get_EY_a_m_Wi(full_data, or_fit, a = 0, m = 1)
+EY_A1_M0_Wi <- get_EY_a_m_Wi(full_data, or_fit, a = 1, m = 0)
+EY_A1_M1_Wi <- get_EY_a_m_Wi(full_data, or_fit, a = 1, m = 1)
+
+# include interactions -- why not?
+med_fit <- glm(M ~ A*W1 + W1*W2, family = binomial(), data = full_data)
+# estimates of P(M = m | A = a, W = W_i)
+get_Pm_a_Wi <- function(full_data, med_fit, a, m){
+data_Aa_Wi <- full_data; data_Aa_Wi$A <- a
+p <- predict(med_fit, newdata = data_Aa_Wi, type = "response")
+if(m == 1){
+p
+}else{
+1 - p
+}
+}
+PM0_A0_Wi <- get_Pm_a_Wi(full_data, med_fit, a = 0, m = 0)
+PM1_A0_Wi <- get_Pm_a_Wi(full_data, med_fit, a = 0, m = 1)
+PM0_A1_Wi <- get_Pm_a_Wi(full_data, med_fit, a = 1, m = 0)
+PM1_A1_Wi <- get_Pm_a_Wi(full_data, med_fit, a = 1, m = 1)
+
+# E(E(Y | A = 1, M, W) | A = 1, W)
+EY1M1_Wi <- EY_A1_M1_Wi * PM1_A1_Wi + EY_A1_M0_Wi * PM0_A1_Wi
+# E(E(Y | A = 0, M, W) | A = 1, W)
+EY0M1_Wi <- EY_A0_M1_Wi * PM1_A1_Wi + EY_A0_M0_Wi * PM0_A1_Wi
+# E(E(Y | A = 1, M, W) | A = 0, W)
+EY1M0_Wi <- EY_A1_M1_Wi * PM1_A0_Wi + EY_A1_M0_Wi * PM0_A0_Wi
+# E(E(Y | A = 0, M, W) | A = 0, W)
+EY0M0_Wi <- EY_A0_M1_Wi * PM1_A0_Wi + EY_A0_M0_Wi * PM0_A0_Wi
+
+# estimate of E[Y(1, M(1))]
+E_Y1M1 <- mean(EY1M1_Wi)
+# estimate of E[Y(0, M(1))]
+E_Y0M1 <- mean(EY0M1_Wi)
+# estimate of E[Y(1, M(0))]
+E_Y1M0 <- mean(EY1M0_Wi)
+# estimate of E[Y(0, M(0))]
+E_Y0M0 <- mean(EY0M0_Wi)
+
+```
+
+There are other methods to estimate natural effects, some of them are doubly robust. The "mediation" package can be used to do it.
+
+## When there is an exposure-induced confounder
+
+When there is an exposure-induced confounder, say $Z$, that means in the pathway of $A$ to $M$ there is an intermediate confounder $Z$ which is the child of $A$. When that happens and we observe $Z$, $CDE$ can still be estimated, but $NIE$ and $NDE$ cannot. The reason is that the presence of $Z$ implies that the cross-world assumption cannot hold.
+
+## Interventional direct and indirect effects
+
+People are not happy with the cross-world assumption in general. Interventional direct and indirect effects are introduced to avoid this assumption and still be able to decompose the $ATE$.
+
+$$ ATE = IIE + IDE = (E[ Y(1,M(1))] - E[Y(1,M^*)]) + (E[Y(1,M^*)]-E[Y(0,M(0))])
+$$
+
+The different point here is to set $M=M^*$, where $M^*$ is a random draw from $M(a^*) | W=w$. That is, there is a distribution of $M$ in the strata that $W=w$. We take a random draw, instead of setting to a specific value.
+
+The advantage of this is that it does not need cross-world assumption to identify $IIE$ and $IDE$.
+
+### an example
+
+Here is an example from package "medoutcon", which implements interventional effects:
+
+```{r}
+#| echo: true
+#| message: false
+
+
+library(data.table)
+library(tidyverse)
+library(medoutcon)
+set.seed(1584)
+
+# produces a simple data set based on ca causal model with mediation
+make_example_data <- function(n_obs = 1000) {
+  ## baseline covariates
+  w_1 <- rbinom(n_obs, 1, prob = 0.6)
+  w_2 <- rbinom(n_obs, 1, prob = 0.3)
+  w_3 <- rbinom(n_obs, 1, prob = pmin(0.2 + (w_1 + w_2) / 3, 1))
+  w <- cbind(w_1, w_2, w_3)
+  w_names <- paste("W", seq_len(ncol(w)), sep = "_")
+
+  ## exposure
+  a <- as.numeric(rbinom(n_obs, 1, plogis(rowSums(w) - 2)))
+
+  ## mediator-outcome confounder affected by treatment
+  z <- rbinom(n_obs, 1, plogis(rowMeans(-log(2) + w - a) + 0.2))
+
+  ## mediator -- could be multivariate
+  m <- rbinom(n_obs, 1, plogis(rowSums(log(3) * w[, -3] + a - z)))
+  m_names <- "M"
+
+  ## outcome
+  y <- rbinom(n_obs, 1, plogis(1 / (rowSums(w) - z + a + m)))
+
+  ## construct output
+  dat <- as.data.table(cbind(w = w, a = a, z = z, m = m, y = y))
+  setnames(dat, c(w_names, "A", "Z", m_names, "Y"))
+  return(dat)
+}
+
+# set seed and simulate example data
+example_data <- make_example_data()
+w_names <- str_subset(colnames(example_data), "W")
+m_names <- str_subset(colnames(example_data), "M")
+
+# quick look at the data
+head(example_data)
+
+# compute one-step estimate of the interventional direct effect
+os_de <- medoutcon(W = example_data[, ..w_names],
+                   A = example_data$A,
+                   Z = example_data$Z,
+                   M = example_data[, ..m_names],
+                   Y = example_data$Y,
+                   effect = "direct",
+                   estimator = "onestep")
+os_de
+
+# compute targeted minimum loss estimate of the interventional direct effect
+tmle_de <- medoutcon(W = example_data[, ..w_names],
+                     A = example_data$A,
+                     Z = example_data$Z,
+                     M = example_data[, ..m_names],
+                     Y = example_data$Y,
+                     effect = "direct",
+                     estimator = "tmle")
+tmle_de
+
+```
+
+### potential problem
+
+However, there is a recent paper by Caleb Miles that points out the interventional effects does not satisfy "sharp mediational null". "Intuitively, an indirect effect measure should be null whenever there is no individual-level effect for anyone in the population." He found a counter example that the interventional effects cannot pass this "sharp mediational null" criterion.
+
+More recently, Ivan Diaz comes up with "causal influence" which seems to overcome this problem.
+
+To be continued...

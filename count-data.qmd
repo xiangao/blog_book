@@ -1,0 +1,145 @@
+---
+title: "Which count data model to use"
+date: "2017-10-10"
+---
+
+
+# A comparison of various count data models with extra zeros 
+
+In empirical studies, data sets with a lot of zeros are often hard to model.  There are various models to deal with it:  zero-inflated Poisson model, Negative Binomial (NB)model, hurdle model, etc.  
+
+Here we are following a zero-inflated model's thinking:  model the data with two processes.  One is a Bernoulli process, the other one is a count data process (Poisson or NB).
+
+We'd like to see, in this simulation exercise, how different models perform with changes of sample size and percentage of zeros (we expect the less zero, the better a plain Poisson model would perform).  Therefore we vary sample size $n$ and an indicator of how much percentage of zeros in the data $\theta$.
+
+For the count data process ($y_c$):
+$$ log(y_c) = 2 x + u $$
+
+For the Bernoulli process ($y_b$):
+
+$$ z_1 = 4 z + \theta $$
+$$ logit(y_b) = z_1 $$
+$$ p_y = \frac{e^z_1}{1+e^{z_1}} $$
+
+Combining these two processes:
+
+$$ y = y_c \ \text{if} \ p_y=1$$
+$$ y = y_b \ \text{if} \ p_y=0$$
+
+## Zero-inflated Poisson models
+
+A zero-inflated Poisson needs specifying both the binary process and the count process correctly.  Often than not, we don't have a model for the binary process.  Many people simply use the same explanatory variables for both processes.  We simulate both situations.  Case 1:  suppose we observe $z$, and case 2: suppose we don't observe $z$.  In the graph below, they are labeled zip1 and zip2.
+
+## Poisson model
+
+A plain Poisson model returns a consistent estimator for the coefficients, with or without Poisson-distributed data.  We expect Poisson model's performance improve with sample size.  Note that the standard errors from a Poisson model needs adjustment, which we do not discuss in this post.
+
+## NB model
+
+NB model is used widely to handle "overdispersion" problem.  That is, the variance far exceeds the mean, therefore the Poisson model is considered inappropriate.  NB model addresses that by allowing an extra parameter.  However, many people also use it to model "extra zero" situation, we'll see in our simulation it may not be better than a plain Poisson model. 
+
+## Log-linear model
+
+What about an OLS model with $log(y+1)$?
+
+## hurdle model
+
+A hurdle model models the zero's and other values separately; that is, the zero's are from a binomial process only, the other positive values are from a truncated count data process.  We assume here, in the simulation, we don't observe $z$.  Therefore, $x$ is determining both binary and count processes.  In the graph below, it's labeled hurdle.
+
+
+    
+    library(MASS)
+    library(pscl)
+    library(msm)
+    require(snowfall)
+    set.seed(666)
+    
+    # initialize parallel cores.
+    sfInit( parallel=TRUE, cpus=12)
+    
+    
+    gen.sim <- function(df){
+        z <- rnorm(df['nobs'],0,1)
+        x <- rnorm(df['nobs'],0,1)
+        u <- rnorm(df['nobs'],0,1)
+     #generate count data
+        log.mu <- 2*x + u
+        y.count <- floor(exp(log.mu))
+    
+       # generate bernoulli data
+        z1 <- 4*z + df['th']
+        prob <- exp(z1)/(1+exp(z1))
+        y.logit <- rbinom(df['nobs'],size=1,prob=prob)
+    
+        # zero-inflated poisson
+        y <- ifelse(y.logit==1, y.count,y.logit)
+        m1 <- zeroinfl(y ~ x | z)
+        m1.x <- summary(m1)$coefficients$count['x','Estimate']-2
+        # zero-inflated without a z
+        m4 <- zeroinfl(y ~ x | x)
+        m4.x <- summary(m4)$coefficients$count['x','Estimate']-2
+    
+        # poisson
+        m2 <- glm(y ~ x, family = "poisson")
+        m2.x <- summary(m2)$coefficients['x','Estimate']-2
+        # log linear with plus 1
+        y.plus1 <- y +1
+        m3 <- lm(log(y.plus1) ~ x)
+        m3.x <- exp(summary(m3)$coefficients['x','Estimate'])-2
+        #
+        #
+        # negative binomial
+    #    m5.x <- tryCatch(nb1(y ~ x), error=function(e) NA)
+        m5 <- glm(y ~ x, family=negative.binomial(2))
+        m5.x <- summary(m5)$coefficients['x','Estimate']-2
+        # hurdle model
+        m6 <- hurdle(y ~ x)
+    #    m5 <- glm(y ~ x, family=negative.binomial(2))
+        m6.x <- summary(m6)$coefficients$count['x','Estimate']-2
+    
+    
+        return(c(zip1=m1.x, poisson=m2.x, log.linear=m3.x, zip2=m4.x, nb=m5.x, hurdle=m6.x))
+    }
+    
+    
+    # set parameter space
+    sim.grid = seq(1,100,1)
+    th.grid = seq(-4, 4, 2)
+    nobs.grid = ceiling(exp(seq(4,9,1))/100)*100
+    
+    data.grid <- expand.grid(nobs.grid, sim.grid, th.grid)
+    names(data.grid) <- c('nobs', 'nsim','th')
+    
+    # export functions to the slaves
+    # export data to the slaves if necessary
+    sfExport(list=list("gen.sim"))
+    
+    # export function to the slaves
+    sfLibrary(msm)
+    sfLibrary(pscl)
+    
+    results <- data.frame(t(sfApply(data.grid, 1, gen.sim)))
+    
+    # stop the cluster
+    sfStop()
+    
+    forshiny <- cbind(data.grid, results)
+    # write out for use in shiny.
+    write.csv(forshiny, 'results.csv')
+    
+        
+Count data models can be used even if data is not "counts"; for example, some non-negative non-integer numbers.  In fact, Poisson model is consistent even if data is not Poisson-distributed, if the model specification is correct on modeling the log of expected counts.  We simulate both scenarios:  Case 1, data is generated from a Poisson process.  Case 2, data is generated from a Normal distribution, but we use count data models to model it.  The above code is for case 2.
+
+We simulate 100 times with $\theta$ ranging from -4 to 4, lower number means higher percentage of zeros; number of observations from $e^4$ to $e^9$ (roughly from 50 to 8000).
+
+Since there are many simulations, we used "snowfall" library to speed things up.  
+
+For raw code, please visit [case1: poisson](https://github.com/xiangao/poisson) and  [case2: normal](https://github.com/xiangao/poisson2).
+
+The simulation results are available in the GitHub repositories linked above.
+
+In the graph, there are two vertical lines.  The lighter one is the bias, the other one is MSE.
+
+If we can compare the situations that data generated from Poisson process and normal process, we can see using count data models to model normal distributed data is still valid, just with bigger standard deviations.  With large sample, actually Poisson model out-performs NB, and Log-linear model, without having to model the extra zeros.  NB model does not do well, in general.  Log-linear model is the worst.  Zero-inflated Poisson with correct specification of the binary process performs the best,  naturally.  But that relies on correct specification of the binary process, which is not always realistic.  Zero-inflated Poisson or hurdle model without correct specification of the binary process are not too bad, especially when sample size is large.  These two are very close since only the difference between the two is that hurdle is modeling all zeros from binary process and all positive numbers from count data process; while zip2 is modeling some zeros (probably most) from binary process and all other values (including some zeros) from a Poisson process.
+
+ 

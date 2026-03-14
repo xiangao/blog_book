@@ -1,0 +1,41 @@
+---
+title: "Poisson model with exposure"
+date: "2024-04-20"
+---
+
+
+# Poisson with exposure or Poisson rate
+
+Poisson model with exposure is essentially a poisson model with a constrained coefficient on the exposure variable.  It makes sense when you have a count variable, and this count increases with time.  Therefore in your data, your count variable would be larger if the exposure time were longer.  To account for this, you can use a poisson model with exposure.  The model is shown below.
+
+$$ log(E(Y)/t) = \beta_0 + \beta_1 * X$$
+which is the same as 
+$$ log(E(Y)) = \beta_0 + \beta_1 * X + log(t)$$
+which is a poisson model with $log(t)$ as control, but with a constrained cofficient of 1.
+
+You would think you can model count divided by time and get the same results.  But they are different models.  If you model the rate, which is $Y/t$ as the dependent variable, then the model is
+
+$$ log(E(Y/t)) = \beta_0 + \beta_1 * X$$
+
+You can still use Poisson model for this, but it is diffeeent from the poisson model with exposure.  What's the difference?
+
+The difference is the first model is to model the $E(Y)/t$, and the second one is $E(Y/t)$.  These can be quite different in Poisson model, since it's nonlinear.
+
+In stata, the first one would be 
+poisson y x, exposure(t)
+or
+gen lnt = log(t)
+constraint 1 lnt = 1
+poisson y x lnt
+
+The second one would be
+gen rate=y/t
+poisson rate x
+
+The second model is not wrong though, even though rate is not count anymore.  It's just a different model.  But the first one is the one that is more commonly used.
+
+The other model that is similar to exposure model is to include exposure as a control, but not constrained to 1.  That is,
+poisson y x lnt
+
+This model is more flexible.  It does not assume count increase linearly with time.  
+
