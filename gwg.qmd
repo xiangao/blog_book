@@ -1,0 +1,204 @@
+---
+title: "Gender Wage Gap Analysis Using US Current Population Survey Data"
+author: "Xiang Ao"
+date: "2025-11-17"
+---
+
+Traditionally Oaxaca-Blinder decomposition is used to decompose the wage gap into explained and unexplained parts. The explained part is due to differences in observable characteristics, such as education, experience, occupation, etc. The unexplained part is due to discrimination or other unobserved factors.
+
+It has a problem that when decomposing, using female as reference group or male as reference group will give different results.
+
+Słoczyński (2015) and Słoczyński (2013) have shown that a regression adjustment type of analysis is equivalent to Oaxaca-Blinder decomposition in a nonstandard way.
+
+# Oaxaca-Blinder decomposition
+
+Assume the regression model is different for male and female: $$ y_i = X_i \beta_a + \epsilon_a $$
+
+where $a$ is gender (female is 1), $X$'s are person characteristics.
+
+$$ E[y_i | a_i = 1] - E[y_i | a_i = 0] = E[X_i | a_i=1]  (\beta_1 - \beta_0) + (E[X_i | a_i =1 ] - E[X_i | a_i = 0]) \beta_0 $$
+
+or
+
+$$ E[y_i | a_i = 1] - E[y_i | a_i = 0] = E[X_i | a_i=0]  (\beta_1 - \beta_0) + (E[X_i | a_i =1 ] - E[X_i | a_i = 0]) \beta_1 $$ These two equations are different forms of the Oaxaca-Blinder decomposition. The first element is the "unexplained component", which is the difference in the coefficients, and the second element is the "explained component", which is the difference in the means of the covariates.
+
+These two equations can give different results for the two components, one has a baseline of male, and other one female.
+
+We can further shows that
+
+$$
+\begin{align}
+E[y_i | a_i =1] - E[y_i | a_i=0] &= E[X_i | a_i=1]  (\beta_1 - \beta_0) + (E[X_i | a_i =1 ] - E[X_i | a_i = 0]) \beta_0  \\
+&= E[y_i(1) - y_i(0) | a_i=1] + (E[y_i(0) | a_i=1] - E[y_i(0) | a_i = 0]) \\
+&= \tau_{PATT} + (E[y_i(0) | a_i=1] - E[y_i(0) | a_i=0])
+\end{align}
+$$
+
+That is, the observed difference is the sum of $\tau_{PATT}$ and selection bias. It is also know in the OB decomposition literature as unexplained component and explained component. The former as "discrimination".
+
+We can simply use Regression Adjustment for $\tau_{PATT}$.  The easiest would be an OLS of $y_i$ on demeaned $X_i$ and $a_i$ and interaction, then the coefficient on $a_i$ is $\tau_{PATT}$.
+
+He aslo advocates the "population average gender effect" (PAGE):
+
+$$ \tau_{PAGE} = E[\tau(X_i)] $$
+
+which is basically ATE, or conditional average effect (CATE), then average over the $X$'s.
+
+In this version, the two forms of OB decomposition can be $\tau_{PAGM}$ and $\tau_{PAGW}$, for men and women.
+
+The nice thing about this estimator $\tau_{PAGE}$ is that first, it is consistent with the treatment effect (causal inference) literature, and it is invariant to the choice of reference group.
+
+The second advantage is that we also do not need to assume homogeneity of treatment effect, which is a strong assumption in the Oaxaca-Blinder decomposition.
+
+The third advantage is that we can use nonparametric methods to estimate the treatment effect. Traditional OB decomposition is based on linear regression, which assumes a linear relationship between the covariates and the outcome.
+
+# Example
+
+I am using the data from https://github.com/d2cml-ai/CausalAI-Course/tree/main/data.
+
+"The data set we consider is from the 2015 March Supplement of the U.S. Current Population Survey. We select white non-hispanic individuals, aged 25 to 64 years, and working more than 35 hours per week for at least 50 weeks of the year. We exclude self-employed workers; individuals living in group quarters; individuals in the military, agricultural or private household sectors; individuals with inconsistent reports on earnings and employment status; individuals with allocated or missing information in any of the variables used in the analysis; and individuals with hourly wage below 3. "
+
+I am using this data to study gender wage gap (GWP).
+
+We can model GWP using potential outcome framework. Here treatment is gender discrimination, and outcome is logged wage. Treatment is 1 if female, 0 if male.
+
+The ATE would be
+
+$$ \delta_{ATE} = E[Y(1) - Y(0)] $$
+
+where $Y(1)$ is the potential outcome if treated, and $Y(0)$ is the potential outcome if not treated.
+
+## Regression adjustment
+
+Since this is to estimate ATE, we can use regression adjustment to estimate the ATE. First let's use de-meaned $X$'s. Then the coefficient on gender is the ATE.
+
+We use These variables as $X$'s:
+
+"shs","hsg","scl","clg","ad","ne","mw","so","we","exp1", "occ", "occ2", "ind", and "ind2".
+
+They are:
+
+"Less then High School","High School Graduate","Some College","College Graduate","Advanced Degree", "Northeast","Midwest","South","West","Experience", "occupation", "occupation 2", "industry", and "industry 2".
+
+I decide to use "occ2" and "ind2" as they are broader categories of occupation and industry. We don't have enough data for finer categories "occ" and "ind".
+
+"exp1" seems to be the only variable that is continuous, let's demean it first. Let's also input "occ2" and "ind2" as factors.
+
+Let's include demeaned "exp1", sohs", "hsg", "socl", "clg", "mw", "sout", and "we" first.  I leave out "occ2" and "ind2" since there are too many levels to demean.
+
+```{r}
+#| label: ra1
+#| cache: true
+#| warning: false
+#| message: false
+library(tidyverse)
+library(broom)
+
+
+data <- read_csv("wage2015_subsample_inference.csv") |>
+  rename(socl = scl, sohs = shs, sout = so) |>
+  mutate(exp_dm = exp1 - mean(exp1, na.rm = TRUE), female=sex, occ2 = factor(occ2), ind2 = factor(ind2)) |>
+  mutate(sohs_dm = sohs - mean(sohs, na.rm = TRUE),
+         hsg_dm = hsg - mean(hsg, na.rm = TRUE),
+         socl_dm = socl - mean(socl, na.rm = TRUE),
+         clg_dm = clg - mean(clg, na.rm = TRUE),
+         mw_dm = mw - mean(mw, na.rm = TRUE),
+         sout_dm = sout - mean(sout, na.rm = TRUE),
+         we_dm = we - mean(we, na.rm = TRUE))
+
+glimpse(data)
+
+
+# construct matrices for estimation from the data
+
+# 1. basic model
+reg1 <- lm(lwage ~ female, data=data)
+tidy(reg1)
+
+reg2 <- lm(lwage ~ female*(exp_dm + sohs_dm + hsg_dm + socl_dm + clg_dm + mw_dm + sout_dm + we_dm), data=data)
+tidy(reg2)
+```
+
+We see the raw gap is 3.8%.  Adjusting for some covariates we have 11% gap.
+
+Or, we can use "marginaleffects" instead of demeaning.
+
+```{r}
+#| label: ra2
+#| cache: true
+#| warning: false
+#| message: false
+
+reg3 <- lm(lwage ~ female*(exp1 + sohs + hsg+ socl + clg + mw + sout + we ), data=data)
+
+library(marginaleffects)
+
+avg_comparisons(reg3,
+                variables = "female",
+                vcov = ~subclass)
+```
+
+We get the same result as the demeaned regression.
+
+If we want $\tau_{ATT}$, then we can use the "newdata" argument to specify the treatment group,
+```{r}
+#| label: ra3
+#| cache: true
+#| warning: false
+#| message: false
+avg_comparisons(reg3,
+                variables = "female",
+                vcov = ~subclass,
+                newdata = subset(female == 1))
+```
+
+Next, we adjust for occupation and industry. We can use "occ2" and "ind2" as factors.
+
+```{r}
+#| label: ra4
+#| cache: true
+#| warning: false
+#| message: false
+reg4 <- lm(lwage ~ female*(exp1 + sohs + hsg+ socl + clg + mw + sout + we + occ2 + ind2), data=data)
+avg_comparisons(reg4,
+                variables = "female",
+                vcov = ~subclass,
+                newdata = subset(female == 1))
+```
+
+So in the model with full interaction, we have a gap of 7.5%.
+
+Now let's try nonparametric estimation.
+
+
+## Nonparametric estimation
+
+If we'd like to go for nonparametric, relaxing linearity assumption, then we can use "npcausal". Note this may take a while, depending on which machine learning packages you decide to include. We can also use other nonparametric estimators, such as TMLE or doubleML.
+
+```{r}
+#| label: npcausal1
+#| cache: true
+#| warning: false
+#| message: false
+
+
+library(npcausal)
+
+#SL.library <- c("SL.earth","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")
+
+
+SL.library <- c("SL.earth","SL.glmnet","SL.mean","SL.ranger", "SL.xgboost")
+
+# construct W from model matrix of reg3
+reg3 <- lm(lwage ~ exp_dm + sohs + hsg+ socl + clg + mw + sout + we + occ2 + ind2, data=data)
+W <- as.data.frame(model.matrix(reg3)[, -1]) # remove intercept
+
+Y <- data$lwage
+A <- data$female
+set.seed(123)
+aipw_ate <- ate(y=Y, a=A, x=W, nsplits=5, sl.lib=SL.library)
+
+aipw_att <- att(y=Y, a=A, x=W, nsplits=5, sl.lib=SL.library)
+```
+
+We can see this effect is about -6.6%, similar to the regression adjustment result -7.5%.

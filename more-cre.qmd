@@ -1,0 +1,126 @@
+---
+title: "More on Correlated Random Effect (CRE)"
+author: "Xiang Ao"
+date: "2025-11-11"
+---
+
+Jeff Wooldridge suggested using Correlated Random Effect (CRE) for binary outcomes in this twitter post:  https://x.com/jmwooldridge/status/1986100627454206220
+
+
+Here I summerize what I learned so far:
+
+# linear model
+
+For panel data, the usual set up is:
+
+$$y_{it} = \alpha + X_{it} \beta + v_i + \epsilon_{it} $$
+
+Wooldridge (2021) paper on DiD shows that these models are the same:
+1. Two way fixed effect OLS. Dummy variable approach is the same too.
+2. Mundlak's CRE approach.  This includes a pooled OLS with Mundlak device (means of $X$'s by group), and CRE with random effects.
+
+The idea of Chamberlain's device is that since we don't have $v_i$, we can project $X_i$ onto $v_i$.  Basically, we can replace $v_i$ with projection of $X_i$ onto $v_i$.  Mundlak's device is a special case, that we put all $X_t$'s the same weight, thus the mean of $X_{it}$ for each $i$ is the projection of $X_{it}$ onto $v_i$.  Replace $v_i$ with that projection, and what is left then by definition is uncorrelated with $X_{it}$.
+
+
+Here is an example:
+
+
+## example 1
+
+
+```{r}
+#| label: fix1
+#| cache: true
+#| warning: false
+#| message: false
+library(dplyr)
+library(fixest)
+library(bacondecomp)
+data("castle")
+
+# Fixed-effects model with individual and time fixed effects
+fe_model_twoway <- feols(l_homicide ~ poverty + l_police | state + year, data = castle)
+summary(fe_model_twoway)
+
+# random effect
+library(lme4)
+re_model <- lmer(l_homicide ~ poverty + l_police +  factor(year) +  (1 | state), data = castle)
+summary(re_model)
+
+# Mundlak
+castle2 <- castle |>
+  group_by(state) |>
+  mutate(poverty_mean = mean(poverty, na.rm = TRUE), l_police_mean= mean(l_police, na.rm = TRUE))
+cre_model <- feols(l_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year), data = castle2)
+summary(cre_model)
+
+# Mundlak
+cre_model2 <- lmer(l_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year) +  (1 | state), data = castle2)
+summary(cre_model2)
+```
+
+In this example, fixed effect model, CRE1 and CRE2 all give the same coefficient on poverty.
+
+As we know, RE model assumes $v_i$ is uncorrelated with $X_{it}$, while CRE and FE allow for correlation between $v_i$ and $X_{it}$.
+
+# nonlinear model
+
+What I did not realize before is that this is only valid for linear case.   For OLS to be consistent, we only need contemporaneous exogeneity, which means $E[\epsilon_{it} | X_{it}, v_i] = 0$.  This is not the case for nonlinear cases, such as logit or probit models.
+
+## Binary outcome
+
+For binary outcomes, the model is:
+
+$$y_{it} = \Phi(\alpha + X_{it} \beta + v_i + \epsilon_{it}) $$
+I used to think it's the best to use conditional logit.  However, it needs "conditional indepencence" (serial independence could be a better name) to be consistent.  That is, we have to assume the series of $y_{it}$ is conditionally independent of each other given $X_{it}$ and $v_i$.  This is a strong assumption.  If we think we have serial correlation in the error term, then this would not hold.  The other disadvantage of conditional logit (also called fixed effect logit) is that $v_i$'s are not estimated, it is just a nuisance parameter.  Any partial effects cannot be calculated, because any partial effects are functions of $v_i$'s.
+
+Instead, Wooldridge suggests using CRE probit.  Basically adding Mundlak device (group means of $X$'s) to the model, and then use pooled probit.  Note that we do not use RE probit or logit, since that would need conditional independence too.
+
+For nonlinear panel data with unobserved heterogeneity (meaning there is $v_i$ that we don't observe), we have a few assumptions.
+
+First, strict exogeneity,
+$$ D(y`_{it} | X_{i1}, ..., X_{iT}, v_i) = D(y_{it} | X_{it}, v_i) $$
+This means that the distribution of $y_{it}$ only depends on $X_{it}$, given $v_i$.
+
+Second, conditional independence,
+$$ D(y_{i1}, y_{i2}, ..., y_{iT} | X_i, v_i) = \prod_{i=1}^T D(y_{it} | X_i, v_i) $$
+
+This means that the distribution of joint distriubtion of $y_{it}$'s can be modeled by each $y_{it}$ independently, given $X_i$ and $v_i$.  We need this in most nonlinear cases, but not in linear case.
+
+Then we need to specify $D(v_i) | X_i$.  The random effect assumption is saying $$ D(v_i | X_i) = D(v_i) $$, that is, $v_i$ is independent of $X_i$.  This is a strong assumption.  We should try to avoid this assumption.
+
+Now, most nonlinear models make the second assumption, in the panel setting, when we have $v_i$.  That includes RE model, conditional logit.  However, that does not include pooled probit/logit, or CRE with pooled logit/probit.  That is why Wooldridge recommend using CRE with pooled probit.
+
+
+## Example 2
+
+```{r}
+#| label: fix2
+#| cache: true
+#| warning: false
+#| message: false
+# generate a binary outcome, high_homocide
+
+castle2 <- castle2 |>
+  mutate(high_homicide = ifelse(l_homicide > mean(l_homicide, na.rm = TRUE), 1, 0))
+
+# CRE pooled probit
+cre_probit <- glm(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year), data = castle2, family = binomial(link = "probit"))
+# Compute Average Marginal Effects (AMEs)
+library(marginaleffects)
+ame_cre_probit <- avg_slopes(cre_probit)
+ame_cre_probit
+
+
+# linear model
+cre_lm <- lm(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year), data = castle2)
+ame_lm <- avg_slopes(cre_lm)
+ame_lm
+
+# CRE RE probit
+cre_re_probit <- glmer(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year) +  (1 | state), data = castle2, family = binomial(link = "probit"))
+ame_cre_re_probit <- avg_slopes(cre_re_probit)
+ame_cre_re_probit
+```
+
+Ultimately we are interested in the partial effect, therefore we can compare across models.  In this case, we should prefer average marginal effect by CRE pooled probit.
