@@ -9,9 +9,9 @@ Most causal inference methods assume SUTVA — the Stable Unit Treatment Value A
 
 Qu et al. (2021) develop efficient estimators — clustered IPW and AIPW — for heterogeneous treatment effects under partial interference.  The `CausalModel` R package implements these estimators alongside standard observational and experimental methods.
 
-# The Setup
+## The Setup
 
-## Clusters and Groups
+### Clusters and Groups
 
 Each unit $i$ belongs to a **cluster** $c$ (e.g., a household, classroom, or village).  Within each cluster, units are organized into **groups** indexed by $j = 0, 1, \ldots, J-1$.  The **group structure** $\mathbf{s} = (s_0, s_1, \ldots, s_{J-1})$ gives the number of units per group.
 
@@ -23,7 +23,7 @@ For example, with `group_struct = c(2, 3)`:
 
 Groups can represent substantively different roles (e.g., parents vs children, different job categories) or simply partition units for modeling flexibility.
 
-## The Neighborhood Configuration G
+### The Neighborhood Configuration G
 
 The key object is the **neighborhood configuration** $G_i = (g_0, g_1, \ldots, g_{J-1})$, where $g_j$ counts how many *other* units in group $j$ (within unit $i$'s cluster) are treated.  "Other" means excluding unit $i$ itself.
 
@@ -32,7 +32,7 @@ With `group_struct = c(2, 3)`:
 - If unit $i$ is in group 0, then $g_0 \in \{0, 1\}$ (the other unit in group 0 is treated or not) and $g_1 \in \{0, 1, 2, 3\}$ (0 to 3 units in group 1 are treated)
 - $G$ encodes the full treatment environment that unit $i$ experiences
 
-## Heterogeneous Treatment Effects β(G)
+### Heterogeneous Treatment Effects β(G)
 
 Under partial interference, the treatment effect for unit $i$ depends on its neighborhood $G_i$:
 
@@ -49,7 +49,7 @@ where:
 - $\tau$ is the **direct effect** — the effect of treatment when no neighbors are treated
 - $\gamma_j$ is the **spillover effect** from group $j$ — the additional effect per treated neighbor in group $j$
 
-### Example
+#### Example
 
 With `group_struct = c(2, 3)`, $\tau = 1$, $\gamma_0 = 0.5$, $\gamma_1 = 0.1$:
 
@@ -62,9 +62,9 @@ With `group_struct = c(2, 3)`, $\tau = 1$, $\gamma_0 = 0.5$, $\gamma_1 = 0.1$:
 
 Having one treated neighbor in group 0 adds 0.5 to the treatment effect; having one in group 1 adds only 0.1.
 
-# Estimation
+## Estimation
 
-## Two Propensity Models
+### Two Propensity Models
 
 Standard IPW uses one propensity score: $P(Z_i = 1 | X_i)$.  Under interference, we need two:
 
@@ -73,7 +73,7 @@ Standard IPW uses one propensity score: $P(Z_i = 1 | X_i)$.  Under interference,
 
 The neighborhood propensity is the new ingredient.  It captures how likely a particular treatment environment is, conditional on covariates.
 
-## Clustered IPW
+### Clustered IPW
 
 The clustered IPW estimator for $\beta(g)$ reweights outcomes by both propensity scores:
 
@@ -81,7 +81,7 @@ $$\hat{\beta}_{\text{IPW}}(g) = \frac{1}{N} \sum_i \left[ \frac{\mathbf{1}(Z_i=1
 
 This gives a separate treatment effect estimate at each neighborhood configuration $g$.
 
-## Clustered AIPW (Doubly Robust)
+### Clustered AIPW (Doubly Robust)
 
 The AIPW version adds outcome modeling to gain robustness:
 
@@ -90,11 +90,11 @@ The AIPW version adds outcome modeling to gain robustness:
 
 This is the recommended estimator — it inherits the double robustness property from the standard AIPW framework.
 
-## Variance Estimation
+### Variance Estimation
 
 Standard errors are computed via a matching-based variance estimator.  Within each group and neighborhood configuration, units are matched on standardized covariates, and the variance is estimated from the matched pairs.  This avoids the need for bootstrap (which is expensive with clusters) or asymptotic formulas that may not apply at moderate sample sizes.
 
-# Using CausalModel
+## Using CausalModel
 
 ```{r}
 #| label: setup
@@ -106,7 +106,7 @@ library(knitr)
 set.seed(42)
 ```
 
-## Generate Clustered Data
+### Generate Clustered Data
 
 The `generate_fixed_cluster()` function creates synthetic data with known interference structure.
 
@@ -136,7 +136,7 @@ Each unit has:
 - `group_labels` — which group within the cluster (0-indexed)
 - `ingroup_labels` — position within the group (0-indexed)
 
-## Construct the Clustered Object
+### Construct the Clustered Object
 
 ```{r}
 #| label: clustered_obj
@@ -161,9 +161,9 @@ The `clustered()` constructor does several things internally:
 3. Fits the neighborhood propensity model (multinomial logistic regression)
 4. Computes $G$ for each unit — the number of treated neighbors per group
 
-## Estimate Treatment Effects
+### Estimate Treatment Effects
 
-### Clustered AIPW
+#### Clustered AIPW
 
 ```{r}
 #| label: aipw_est
@@ -194,7 +194,7 @@ for (j in seq_along(result_aipw)) {
 }
 ```
 
-### Clustered IPW
+#### Clustered IPW
 
 ```{r}
 #| label: ipw_est
@@ -215,7 +215,7 @@ valid <- !is.nan(result_ipw[[1]]$beta_g) & result_ipw[[1]]$se > 0
 round(result_ipw[[1]]$beta_g[valid], 3)
 ```
 
-## Interpreting the Results
+### Interpreting the Results
 
 The neighborhood configurations are encoded as integers.  For `group_struct = c(2, 3)`, the encoding for group 0 is:
 
@@ -234,7 +234,7 @@ where $s_0 = 2$ is the size of group 0.  The stride for the second dimension is 
 
 Not all configurations may have enough observations for reliable estimation — the `se > 0` filter removes degenerate cases.
 
-# Monte Carlo Validation
+## Monte Carlo Validation
 
 To verify that the estimators work correctly, we run a Monte Carlo study: generate data 100 times, estimate $\beta(G)$ each time, and check bias, SE calibration, and coverage.
 
@@ -351,7 +351,7 @@ for (j in seq_along(g_indices)) {
 
 The studentized statistics should approximately follow $N(0,1)$ if the estimator and SE are both consistent.
 
-# What If You Ignore Interference?
+## What If You Ignore Interference?
 
 What happens if you use a standard estimator (say, AIPW without the interference structure) on data with spillovers?  You get a single number that averages over all neighborhood configurations — and it doesn't correspond to any well-defined causal estimand.
 
@@ -398,7 +398,7 @@ print(df, row.names = FALSE)
 
 The naive estimate gives you *some* weighted average of the $\beta(g)$ values, but you can't tell how much is direct effect and how much is spillover.  The clustered estimator decomposes the total effect into interpretable components — exactly the information you need for policy design.  If the spillover is large, expanding treatment to clusters (rather than individuals) may be much more effective.
 
-# Summary
+## Summary
 
 - **Partial interference** relaxes SUTVA within clusters: a unit's outcome depends on neighbors' treatment, not just its own
 - The **neighborhood configuration** $G = (g_0, g_1, \ldots)$ encodes the treatment environment — how many neighbors in each group are treated

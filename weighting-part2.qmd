@@ -6,7 +6,7 @@ date: "2025-05-31"
 
 This is based on R's MatchIt and WeightIt packages and their documentations.  All credits go to Noal Greifer and coauthors.  I write to summarize what I have learned.
 
-# Assumptions
+## Assumptions
 
 Matching or weighting is usually used in observational studies.  We have the following assumptions before using matching or weighting to make a causal claim:
 
@@ -16,46 +16,46 @@ Matching or weighting is usually used in observational studies.  We have the fol
 
 With these assmptions, we can try to identify the treatment effect in an observational study.
 
-# Problem
+## Problem
 
 The second assumption is saying controlling for $X$, the treatment assignment $D$ is independent of the potential outcomes $Y(0)$ and $Y(1)$, i.e., we have a pseudo-randomized experiment.  
 
 In reality, it's rare we have a balanced distribution of $X$ for treated and control.  That's when we need to use matching or weighting to balance the distribution of $X$ between treatment and control groups.
 
-# weighting methods
+## weighting methods
 
 The idea of weighting is to use weights to creat a pseudo population which has a balanced distribution of $X$ for treated and control groups.  The most popular weighting method is inverse probability of treatment weighting (IPTW).  IPTW uses the propensity score to create weights.  
 
 There are a few other weighting methods that are gaining popularity.  
 
-## Inverse probability of treatment weighting (IPTW)
+### Inverse probability of treatment weighting (IPTW)
 
 IPTW is the most common weighting method.  It uses the inverse of the propensity score as weights.  The idea is to weight each treated unit by $1/p$ and each control unit by $1/(1-p)$, where $p$ is the propensity score.  This way, we can create a pseudo population where the distribution of $X$ is balanced between treatment and control groups.
 
-## Covariate balancing propensity score (CBPS)
+### Covariate balancing propensity score (CBPS)
 
 The same idea, but with a different way to estimate the propensity score.  CBPS is a form of logistic regression where balance constraints are incorporated to a generalized method of moments estimation of the model coefficients.  
 
-## Entropy balancing
+### Entropy balancing
 
 Entropy balancing involves the specification of an optimization problem, the solution to which is then used to compute the weights. The constraints of the primal optimization problem correspond to covariate balance on the means (for binary and multi-category treatments) or treatment-covariate covariances (for continuous treatments), positivity of the weights, and that the weights sum to a certain value.  Entropy balancing is doubly robust (for the ATT) in the sense that it is consistent either when the true propensity score model is a logistic regression of the treatment on the covariates or when the true outcome model for the control units is a linear regression of the outcome on the covariates, and it attains a semi-parametric efficiency bound when both are true. Entropy balancing will always yield exact mean balance on the included terms (not necessarity on the distribution of the covariates)
 
-## Energy balancing
+### Energy balancing
 
 Energy balancing is a method of estimating weights using optimization without a propensity score. 
 
 The primary benefit of energy balancing is that all features of the covariate distribution are balanced, not just means, as with other optimization-based methods like entropy balancing.
 
-## SuperLearner
+### SuperLearner
 
 SuperLearner works by fitting several machine learning models to the treatment and covariates and then taking a weighted combination of the generated predicted values to use as the propensity scores, which are then used to construct weights. 
 
 
-# Example
+## Example
 
 Here is an example with Lalonde data, we are interested in the effect of treatment on "rep78".
 
-## IPW
+### IPW
 ```{r}
 #| include: false
 
@@ -74,7 +74,7 @@ library(cobalt)
 bal.tab(w.out1, stats = c("m", "v"), thresholds = c(m = .05))
 ```
 
-## entropy balancing
+### entropy balancing
 
 ```{r}
 #| include: false
@@ -98,7 +98,7 @@ avg_comparisons(fit, variables = "treat",
                 newdata = subset(treat == 1))
 ```
 
-## energy balancing
+### energy balancing
 
 ```{r}
 #| include: false
@@ -125,7 +125,7 @@ if (!is.null(w.out3)) {
 
 ```
 
-# comparing matching and weighting
+## comparing matching and weighting
 
 Matching and weighting are popular in different fields.  We used to say matching involves discarding data therefore changing the estimand, but now with full matching and other methods, matching can be done without losing data.  We used to believe weighting can be unstable, as weights can be highly variable, but with CBPS, entropy balancing and energy balancing, weighting can perform much better.
 

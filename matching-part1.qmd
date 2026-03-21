@@ -6,7 +6,7 @@ date: "2025-05-29"
 
 This is based on R's MatchIt and WeightIt packages and their documentations.  All credits go to Noal Greifer and coauthors.  I write to summarize what I have learned.
 
-# Assumptions
+## Assumptions
 
 Matching or weighting is usually used in observational studies.  We have the following assumptions before using matching or weighting to make a causal claim:
 
@@ -16,70 +16,70 @@ Matching or weighting is usually used in observational studies.  We have the fol
 
 With these assmptions, we can try to identify the treatment effect in an observational study.
 
-# Problem
+## Problem
 
 The second assmption is saying controlling for $X$, the treatment assignment $D$ is independent of the potential outcomes $Y(0)$ and $Y(1)$, i.e., we have a pseudo-randomized experiment.  
 
 In reality, it's rare we have a balanced distribution of $X$ for treated and control.  That's when we need to use matching or weighting to balance the distribution of $X$ between treatment and control groups.
 
-# Distance
+## Distance
 
 The idea of matching is to find a set of control units that are similar(close) to the treatment units in terms of $X$.  The first question is: how to define "close"?  There are several distance measures.  
 
-## Propensity score
+### Propensity score
 
 The most common distance measure is the propensity score (PS), which is the probability of being treated given $X$.  The benefit is that when there is high dimension of $X$, we can reduce the dimension to a single number, the PS.  
 
 There are many ways to estimate the propensity score, such as logit, or more flexible parametric "gam", or other machine learning methods, such as "gbm", "lasso", "rpart", "randomforest", "cbps", etc.  Here CBPS has seen more popularity.  The propensity scores are estimated using the covariate balancing propensity score (CBPS) algorithm, which is a form of logistic regression where balance constraints are incorporated to a generalized method of moments estimation of of the model coefficients.
 
-## Distance from covariates
+### Distance from covariates
 
 Or we can compute distance from covariates directly, not using propensity score.  The distance can be computed using Mahalanobis distance, or Euclidean distance, or other distance measures.
 
 
-# matching methods
+## matching methods
 
 With a distance, we then decide which method to use.  The first few matching methods all need to specify a distance measure.  They are matching based on distance.  Then there are stratum matching methods, which do not need a distance measure.  The last two methods are subsetting methods.
 
-## Nearest neighbor matching
+### Nearest neighbor matching
 
 NNM is widely used; it is also known as greedy matching.  It matches each treated unit to the closest control unit in terms of distance.  The closest control unit is defined as the one with the smallest distance to the treated unit.  If there are multiple control units with the same distance and we want a 1:1 match, one is randomly selected.
 
-## Optimal pair matching
+### Optimal pair matching
 
 NNM is not optimal in the sense that it does not necessarily minimize the total distance between matched pairs.  Optimal pair matching is a method that minimizes the total distance (or some other overall criterion) between matched pairs.  It is more computationally intensive than NNM, but it can lead to better balance.
 
-## Optimal full matching
+### Optimal full matching
 
 OFM assigns each unit (treated or control) to a subclass.  For each subclass then to calculate the sum of within-subclass distances, and then to minimize the total distance across all subclasses.  It is more computationally intensive than NNM and optimal pair matching.  Weights are used based on subclass membership.  Because all units are included, it can be used to estimate ATE.  
 
-## Generalized Full matching
+### Generalized Full matching
 
 GFM is a variant of OFM.  It uses a faster algorithm for large datasets.  
 
-## Generic matching
+### Generic matching
 
 Generic matching is to use NNM on the scaled generalized Mhalanobis distance.
 
-## Exact matching
+### Exact matching
 
 It's a stratum matching.  First subclasses are defined, by combinations of covariate values.  Then units are assigned to subclasses.  When a subclass has only either control or treated units, it is discarded.  
 
 Exact matching is nonparametric, but it works only when covariates are discrete and it happens that there are enough treated and control units in each subclass.  
 
-## Coarsened exact matching
+### Coarsened exact matching
 
 CEM is a more popular stratum matching.  First bins are created after coarsensing the covariates.  then use exact matching on the covariate bins.  CEM is nonparametric.  User needs to decide how many bins to create for each covariate.  
 
-## Subclassification
+### Subclassification
 
 Subclassification is another kind of stratum matching.  It uses the propensity score to define bins, usually quantiles of PS in the treated group, or control group or overall, depending on target estimand.
 
-## Cardinality and profile matching
+### Cardinality and profile matching
 
 Cardinality matching involves finding the largest sample that satisfies user-supplied balance constraints and constraints on the ratio of matched treated to matched control units.  Profile matching involves identifying a target distribution (e.g., the full sample for the ATE or the treated units for the ATT) and finding the largest subset of the treated and control groups that satisfy user-supplied balance constraints with respect to that target.  
 
-# Example
+## Example
 
 Here is an example with Lalonde data, we are intrested in the effect of treatment on "rep78".
 
@@ -189,7 +189,7 @@ plot(m.out5, type = "jitter", interactive = FALSE)
 plot(summary(m.out5))
 ```
 
-# Estimation
+## Estimation
 
 After we get a matched data that we think is good enough, we can estimate the treatment effect.  
 

@@ -15,11 +15,11 @@ But what if the real data has complicated structure that's hard to specify param
 
 It has two major functions:  first, causal simulation using nonparametric generative models; second, interventional prediction using learned confounding structure.  The latter is called **Engression**.  First let's talk about Engression.
 
-# Engression
+## Engression
 
 Engression (Shen & Meinshausen, 2024, JRSSB) stands for "energy regression."  Standard regression predicts $E[Y|X]$ — a single number.  Engression learns the entire conditional distribution $P(Y|X)$ using neural networks trained with the **energy score**.
 
-## The Energy Score
+### The Energy Score
 
 The energy score is a proper scoring rule for distributions.  Given observations $Y$ and samples $\hat Y, \hat Y'$ from the model:
 
@@ -27,7 +27,7 @@ $$ S(Y, \hat Y, \hat Y') = E\|Y - \hat Y\| - \frac{1}{2}E\|\hat Y - \hat Y'\| $$
 
 The first term measures how close the model's samples are to the truth.  The second term penalizes lack of spread — without it, the model could collapse to a point prediction.  Minimizing this score trains the network to match the full distribution, not just the mean.
 
-## The Stochastic Network (StoNet)
+### The Stochastic Network (StoNet)
 
 The building block is the `StoNet` — a neural network that concatenates random noise $\epsilon \sim N(0,I)$ with the input at each layer:
 
@@ -39,7 +39,7 @@ Different noise draws produce different outputs — each one is a sample from th
 - **Predict quantiles**: take quantiles of the noise draws → conditional quantile regression
 - **Sample**: each forward pass with fresh noise is a sample from $P(Y|X=x)$
 
-## Why Engression?
+### Why Engression?
 
 What makes engression special compared to other distributional regression methods (quantile regression, mixture density networks)?
 
@@ -47,7 +47,7 @@ What makes engression special compared to other distributional regression method
 2. **Multivariate**: it handles multivariate responses naturally — no need to specify marginals separately.
 3. **No distributional assumptions**: unlike mixture density networks (which assume Gaussian mixtures) or quantile regression (which estimates quantiles one at a time), engression learns the full joint distribution of $Y|X$ without parametric assumptions.
 
-## Quick Example
+### Quick Example
 
 ```{r}
 #| label: engression_example
@@ -78,11 +78,11 @@ Ysample <- predict(engr, X, type = "sample", nsample = 1)
 
 The key point: engression gives you a *distributional* model of $Y|X$, not just a point prediction. 
 
-# From Engression to Frengression
+## From Engression to Frengression
 
 Frengression = **fr**ugal simulation + **engression**.  It uses three engression models (StoNets) to decompose the joint distribution $P(X,A,Y)$ into the causal simulation framework.  Each sub-network is an engression model trained with the energy score.
 
-# The Architecture
+## The Architecture
 
 Frengression has three sub-networks, matching the three pieces of the decomposition:
 
@@ -99,7 +99,7 @@ The key insight is how `model_eta` works.  It takes the covariates $(x,z)$ and o
 
 Same network, different source of `eta`.  That's the whole trick.
 
-# Using Rfrengression
+## Using Rfrengression
 
 The `Rfrengression` package is a native R implementation using the `torch` package.
 
@@ -111,7 +111,7 @@ The `Rfrengression` package is a native R implementation using the `torch` packa
 library(Rfrengression)
 ```
 
-## Example: Binary Treatment DGP
+### Example: Binary Treatment DGP
 
 Let's use a DGP with binary treatment, binary outcome, and four confounders:
 
@@ -137,7 +137,7 @@ true_ate <- mean(Y.1 - Y.0)
 cat("True ATE:", round(true_ate, 4), "\n")
 ```
 
-## Train Frengression
+### Train Frengression
 
 Two-stage training: first the outcome model (`model_y` + `model_eta`), then the marginal (`model_xz`).
 
@@ -160,7 +160,7 @@ model <- train_xz(model, x_mat, z_mat,
                    num_iters = 1000, lr = 1e-4, print_every = 500)
 ```
 
-## Estimate ATE
+### Estimate ATE
 
 The interventional prediction samples `eta` from $N(0,1)$ — no confounding:
 
@@ -176,7 +176,7 @@ cat("Frengression ATE:", round(y1 - y0, 4), "\n")
 cat("True ATE:", round(true_ate, 4), "\n")
 ```
 
-# Frengression as DGP
+## Frengression as DGP
 
 Frengression can estimate ATE, but that's not its main strength — dedicated semiparametric estimators (npcausal, TMLE, DoubleML) are designed for that.  The real value is using frengression as a **data-generating process** for benchmarking.
 
@@ -215,7 +215,7 @@ cat("Treatment prevalence:", mean(syn$x), "\n")
 cat("Outcome prevalence:", mean(syn$y), "\n")
 ```
 
-# Real Data: LaLonde
+## Real Data: LaLonde
 
 Where this really shines is with real data.  The LaLonde dataset (job training program, 614 observations) has complex confounding that no one could specify parametrically — many zeros in prior earnings, non-standard covariate distributions, poor overlap.
 
@@ -268,7 +268,7 @@ cat("True ATE:", 0.3, "(standardized) =", round(0.3 * sd(y_lal), 0), "dollars\n"
 
 The synthetic data inherits LaLonde's messy confounding structure — the complex propensity score, the zero-inflated prior earnings, the demographic imbalances — but we know the true causal effect.  No researcher could hand-specify this DGP.
 
-# Comparison: causl vs frengression
+## Comparison: causl vs frengression
 
 Both packages implement the same decomposition:
 
@@ -283,7 +283,7 @@ Both packages implement the same decomposition:
 
 The `causl` approach is more transparent — you know exactly what you specified.  Frengression is more flexible — it can capture structure you didn't anticipate.  They're complementary.
 
-# Benchmarking: Frengression vs Semiparametric Methods
+## Benchmarking: Frengression vs Semiparametric Methods
 
 Now let's compare frengression against standard semiparametric causal inference tools on the same data.  The three comparison methods are:
 
@@ -308,7 +308,7 @@ library(tidyverse)
 library(knitr)
 ```
 
-## Single-Dataset Comparison
+### Single-Dataset Comparison
 
 First, run all four methods on the binary DGP data created above.
 
@@ -420,7 +420,7 @@ kable(results, digits = 4,
 
 The semiparametric estimators are purpose-built for ATE and leverage influence function theory to achieve $\sqrt{n}$-consistent, doubly-robust estimates.  Frengression learns the *entire joint distribution* $P(X,Y,Z)$, from which ATE is just one functional — so some loss of precision for this specific estimand is expected.
 
-## Monte Carlo Benchmarking (Simulated DGP)
+### Monte Carlo Benchmarking (Simulated DGP)
 
 This is frengression's "killer app."  We use the model trained above, plug in a known causal effect via `specify_causal()`, generate B=10 synthetic datasets, and benchmark all four estimators.
 
@@ -564,7 +564,7 @@ ggplot(ate_long_trim, aes(x = Method, y = ATE, fill = Method)) +
   theme(legend.position = "none")
 ```
 
-## Monte Carlo Benchmarking (LaLonde)
+### Monte Carlo Benchmarking (LaLonde)
 
 Now the same exercise, but trained on real LaLonde data — where the confounding structure is unknown and complex.  We already trained `model_lal` above and specified a known effect with `model_lal_bench`.
 
@@ -716,7 +716,7 @@ ggplot(ate_long_lal_trim, aes(x = Method, y = ATE, fill = Method)) +
 
 The semiparametric methods show meaningful bias on the LaLonde-generated data, suggesting that neural-network-generated confounding is harder to adjust for than hand-specified simulations.  The synthetic data inherits LaLonde's messy structure — complex propensity score surfaces, zero-inflated prior earnings, demographic imbalances — which violates the smoothness assumptions that SuperLearner and ranger rely on.
 
-# Summary
+## Summary
 
 - Frengression implements the same causal simulation framework as `causl` (Evans & Didelez, 2024), but learns the decomposition nonparametrically
 - Three networks: `model_xz` (past), `model_y` (causal margin), `model_eta` (copula/dependence)
