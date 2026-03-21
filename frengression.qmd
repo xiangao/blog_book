@@ -1,0 +1,726 @@
+---
+title: "Frengression and Engression"
+date: "2026-03-21"
+---
+
+In the [causal simulation chapter](causal-simulation.qmd), we saw how Evans & Didelez (2024) decompose the joint distribution $p(x,a,y)$ into three pieces:
+
+$$ p(x,a,y) = p(x,a) \cdot p_a(y) \cdot c(x,y|a) $$
+
+where $p(x,a)$ is the "past" (marginal of covariates and treatment), $p_a(y)$ is the causal margin (marginal structural model), and $c(x,y|a)$ is the copula (dependence between covariates and outcome given treatment).  The `causl` package implements this with parametric families: you specify Gaussian, binomial, etc. for each piece.
+
+But what if the real data has complicated structure that's hard to specify parametrically?  What if we don't know the right copula family, or the marginal distributions are non-standard?
+
+**Frengression** (Yang, Evans and Shen, 2025) solves this by learning all three pieces from data using neural networks.  Same decomposition, but nonparametric.
+
+It has two major functions:  first, causal simulation using nonparametric generative models; second, interventional prediction using learned confounding structure.  The latter is called **Engression**.  First let's talk about Engression.
+
+# Engression
+
+Engression (Shen & Meinshausen, 2024, JRSSB) stands for "energy regression."  Standard regression predicts $E[Y|X]$ — a single number.  Engression learns the entire conditional distribution $P(Y|X)$ using neural networks trained with the **energy score**.
+
+## The Energy Score
+
+The energy score is a proper scoring rule for distributions.  Given observations $Y$ and samples $\hat Y, \hat Y'$ from the model:
+
+$$ S(Y, \hat Y, \hat Y') = E\|Y - \hat Y\| - \frac{1}{2}E\|\hat Y - \hat Y'\| $$
+
+The first term measures how close the model's samples are to the truth.  The second term penalizes lack of spread — without it, the model could collapse to a point prediction.  Minimizing this score trains the network to match the full distribution, not just the mean.
+
+## The Stochastic Network (StoNet)
+
+The building block is the `StoNet` — a neural network that concatenates random noise $\epsilon \sim N(0,I)$ with the input at each layer:
+
+$$\text{StoNet}(x) = f(x, \epsilon), \quad \epsilon \sim N(0,I)$$
+
+Different noise draws produce different outputs — each one is a sample from the learned conditional distribution.  This is what makes engression a generative model.  You can:
+
+- **Predict the mean**: average over many noise draws → $E[Y|X=x]$
+- **Predict quantiles**: take quantiles of the noise draws → conditional quantile regression
+- **Sample**: each forward pass with fresh noise is a sample from $P(Y|X=x)$
+
+## Why Engression?
+
+What makes engression special compared to other distributional regression methods (quantile regression, mixture density networks)?
+
+1. **Extrapolation**: the energy score encourages the model to extrapolate sensibly outside the training range.  Standard neural networks often produce wild predictions outside training data; engression stays more calibrated.
+2. **Multivariate**: it handles multivariate responses naturally — no need to specify marginals separately.
+3. **No distributional assumptions**: unlike mixture density networks (which assume Gaussian mixtures) or quantile regression (which estimates quantiles one at a time), engression learns the full joint distribution of $Y|X$ without parametric assumptions.
+
+## Quick Example
+
+```{r}
+#| label: engression_example
+#| warning: false
+#| cache: false
+#| message: false
+#| eval: false
+
+library(engression)
+
+# Nonlinear DGP with heteroskedastic noise
+n <- 1000
+X <- matrix(rnorm(n * 2), ncol = 2)
+Y <- (X[,1])^2 + X[,2] + rnorm(n) * (0.5 + abs(X[,1]))
+
+# Fit engression — learns the full conditional distribution
+engr <- engression(X, Y)
+
+# Predict conditional mean (like lm, but nonlinear)
+Yhat_mean <- predict(engr, X, type = "mean")
+
+# Predict conditional quantiles (like quantile regression, but joint)
+Yhat_quant <- predict(engr, X, type = "quantiles")
+
+# Sample from the learned distribution (generative)
+Ysample <- predict(engr, X, type = "sample", nsample = 1)
+```
+
+The key point: engression gives you a *distributional* model of $Y|X$, not just a point prediction. 
+
+# From Engression to Frengression
+
+Frengression = **fr**ugal simulation + **engression**.  It uses three engression models (StoNets) to decompose the joint distribution $P(X,A,Y)$ into the causal simulation framework.  Each sub-network is an engression model trained with the energy score.
+
+# The Architecture
+
+Frengression has three sub-networks, matching the three pieces of the decomposition:
+
+| Decomposition | causl (parametric) | Frengression (neural net) |
+|---|---|---|
+| $P(X,A)$ — the past | Specified by family + params | `model_xz`: noise-only generator |
+| $P_a(Y)$ — causal margin | Specified by family + params | `model_y`: takes $(x, \text{eta})$, outputs $y$ |
+| $c(X,Y \mid A)$ — copula | Gaussian/Frank/etc. copula | `model_eta`: takes $(x,z)$, outputs eta |
+
+The key insight is how `model_eta` works.  It takes the covariates $(x,z)$ and outputs a latent variable `eta` that encodes the dependence between confounders and outcome.  During training, a Z-permutation trick forces `eta` to be marginally $N(0,I)$.  This means:
+
+- When `eta` comes from `model_eta(x,z)` (observational): it carries the confounding information, reproducing the observed data
+- When `eta` is sampled from $N(0,1)$ independently (interventional): no confounding, giving you $P(Y|do(X))$
+
+Same network, different source of `eta`.  That's the whole trick.
+
+# Using Rfrengression
+
+The `Rfrengression` package is a native R implementation using the `torch` package.
+
+```{r}
+#| label: setup
+#| warning: false
+#| cache: false
+#| message: false
+library(Rfrengression)
+```
+
+## Example: Binary Treatment DGP
+
+Let's use a DGP with binary treatment, binary outcome, and four confounders:
+
+```{r}
+#| label: dgp
+#| warning: false
+#| cache: false
+#| message: false
+set.seed(42)
+n <- 2000
+
+w1 <- rbinom(n, 1, 0.5)
+w2 <- rbinom(n, 1, 0.5)
+w3 <- round(runif(n, 0, 4), 3)
+w4 <- round(runif(n, 0, 5), 3)
+
+A <- rbinom(n, 1, plogis(-0.4 + 0.2*w2 + 0.15*w3 + 0.2*w4 + 0.15*w2*w4))
+Y.1 <- rbinom(n, 1, plogis(-1 + 1 - 0.1*w1 + 0.3*w2 + 0.25*w3 + 0.2*w4 + 0.15*w2*w4))
+Y.0 <- rbinom(n, 1, plogis(-1 + 0 - 0.1*w1 + 0.3*w2 + 0.25*w3 + 0.2*w4 + 0.15*w2*w4))
+Y <- Y.1 * A + Y.0 * (1 - A)
+
+true_ate <- mean(Y.1 - Y.0)
+cat("True ATE:", round(true_ate, 4), "\n")
+```
+
+## Train Frengression
+
+Two-stage training: first the outcome model (`model_y` + `model_eta`), then the marginal (`model_xz`).
+
+```{r}
+#| label: train
+#| warning: false
+#| cache: false
+#| message: false
+x_mat <- matrix(A, ncol = 1)
+z_mat <- as.matrix(data.frame(w1, w2, w3, w4))
+y_mat <- matrix(Y, ncol = 1)
+
+model <- frengression(x_dim = 1, y_dim = 1, z_dim = 4,
+                      x_binary = TRUE, y_binary = TRUE,
+                      z_binary_dims = 2, noise_dim = 10)
+
+model <- train_y(model, x_mat, z_mat, y_mat,
+                 num_iters = 1000, lr = 1e-3, print_every = 500)
+model <- train_xz(model, x_mat, z_mat,
+                   num_iters = 1000, lr = 1e-4, print_every = 500)
+```
+
+## Estimate ATE
+
+The interventional prediction samples `eta` from $N(0,1)$ — no confounding:
+
+```{r}
+#| label: ate
+#| warning: false
+#| cache: false
+#| message: false
+y1 <- predict(model, matrix(1, ncol = 1), type = "mean", nsample = 2000)
+y0 <- predict(model, matrix(0, ncol = 1), type = "mean", nsample = 2000)
+
+cat("Frengression ATE:", round(y1 - y0, 4), "\n")
+cat("True ATE:", round(true_ate, 4), "\n")
+```
+
+# Frengression as DGP
+
+Frengression can estimate ATE, but that's not its main strength — dedicated semiparametric estimators (npcausal, TMLE, DoubleML) are designed for that.  The real value is using frengression as a **data-generating process** for benchmarking.
+
+The idea:
+
+1. Train frengression on observational data — it learns the realistic confounding structure
+2. Replace the causal margin with a known function via `specify_causal()`
+3. Generate synthetic datasets — realistic confounding, known ground truth
+
+```{r}
+#| label: dgp_bench
+#| warning: false
+#| cache: false
+#| message: false
+# Specify a known causal effect: Y = sigmoid(0.2*X + eta)
+model_bench <- specify_causal(model, function(x, eta) {
+  torch::torch_sigmoid(0.2 * x + eta)
+})
+
+# True ATE computed empirically from the model
+y1_true <- predict(model_bench, matrix(1, ncol = 1), type = "mean", nsample = 5000)
+y0_true <- predict(model_bench, matrix(0, ncol = 1), type = "mean", nsample = 5000)
+cat("True ATE (specified):", round(as.numeric(y1_true - y0_true), 4), "\n")
+```
+
+Now we can generate synthetic datasets and benchmark any method:
+
+```{r}
+#| label: syn
+#| warning: false
+#| cache: false
+#| message: false
+syn <- sample_joint(model_bench, sample_size = 1000)
+cat("Synthetic data: n =", nrow(syn$x), "\n")
+cat("Treatment prevalence:", mean(syn$x), "\n")
+cat("Outcome prevalence:", mean(syn$y), "\n")
+```
+
+# Real Data: LaLonde
+
+Where this really shines is with real data.  The LaLonde dataset (job training program, 614 observations) has complex confounding that no one could specify parametrically — many zeros in prior earnings, non-standard covariate distributions, poor overlap.
+
+```{r}
+#| label: lalonde
+#| warning: false
+#| cache: false
+#| message: false
+library(MatchIt)
+data("lalonde", package = "MatchIt")
+lalonde$black <- as.integer(lalonde$race == "black")
+lalonde$hispan <- as.integer(lalonde$race == "hispan")
+
+x_lal <- matrix(lalonde$treat, ncol = 1)
+y_lal <- matrix(lalonde$re78, ncol = 1)
+z_lal <- as.matrix(lalonde[, c("age", "educ", "black", "hispan",
+                                "married", "nodegree", "re74", "re75")])
+
+# Standardize for training
+z_sc <- scale(z_lal)
+y_sc <- (y_lal - mean(y_lal)) / sd(y_lal)
+
+model_lal <- frengression(x_dim = 1, y_dim = 1, z_dim = 8,
+                           x_binary = TRUE, y_binary = FALSE,
+                           z_binary_dims = 4, noise_dim = 10)
+
+model_lal <- train_y(model_lal, x_lal, z_sc, y_sc,
+                      num_iters = 1000, lr = 1e-3, print_every = 500)
+model_lal <- train_xz(model_lal, x_lal, z_sc,
+                        num_iters = 1000, lr = 1e-4, print_every = 500)
+```
+
+Now specify a known effect and generate:
+
+```{r}
+#| label: lalonde_gen
+#| warning: false
+#| cache: false
+#| message: false
+model_lal_bench <- specify_causal(model_lal, function(x, eta) {
+  0.3 * x + eta
+})
+
+# Generate synthetic LaLonde-like data with known ATE = 0.3 (standardized)
+syn_lal <- sample_joint(model_lal_bench, sample_size = 2000)
+cat("Synthetic LaLonde: n =", nrow(syn_lal$x), "\n")
+cat("Treatment prevalence:", round(mean(syn_lal$x), 3), "\n")
+cat("True ATE:", 0.3, "(standardized) =", round(0.3 * sd(y_lal), 0), "dollars\n")
+```
+
+The synthetic data inherits LaLonde's messy confounding structure — the complex propensity score, the zero-inflated prior earnings, the demographic imbalances — but we know the true causal effect.  No researcher could hand-specify this DGP.
+
+# Comparison: causl vs frengression
+
+Both packages implement the same decomposition:
+
+| Feature | causl | Frengression |
+|---|---|---|
+| Marginal $P(X,A)$ | Parametric families | Learned by neural net |
+| Causal margin $P_a(Y)$ | Parametric families | Learned (or specified) |
+| Copula | Gaussian, Frank, etc. | Learned by `model_eta` |
+| Requires specification | Yes — families + params | No — learns from data |
+| Can learn from real data | Limited (plasmode) | Yes — full joint |
+| Distributional flexibility | Limited by family choice | Arbitrary |
+
+The `causl` approach is more transparent — you know exactly what you specified.  Frengression is more flexible — it can capture structure you didn't anticipate.  They're complementary.
+
+# Benchmarking: Frengression vs Semiparametric Methods
+
+Now let's compare frengression against standard semiparametric causal inference tools on the same data.  The three comparison methods are:
+
+- **npcausal**: AIPW estimator with SuperLearner nuisance models
+- **TMLE**: Targeted minimum loss-based estimation with SuperLearner
+- **DoubleML**: Partially linear regression with ranger (random forest)
+
+These methods are purpose-built for ATE estimation using influence function theory — they should be more precise for this specific estimand.  The question is how frengression compares, and what it can do that they cannot.
+
+```{r}
+#| label: bench_libs
+#| warning: false
+#| cache: true
+#| message: false
+library(npcausal)
+library(tmle)
+library(SuperLearner)
+library(DoubleML)
+library(mlr3)
+library(mlr3learners)
+library(tidyverse)
+library(knitr)
+```
+
+## Single-Dataset Comparison
+
+First, run all four methods on the binary DGP data created above.
+
+```{r}
+#| label: npcausal_ate
+#| warning: false
+#| cache: true
+#| message: false
+W <- data.frame(w1, w2, w3, w4)
+SL.library <- c("SL.earth", "SL.glm.interaction", "SL.mean",
+                "SL.ranger", "SL.glmnet")
+
+set.seed(123)
+aipw_fit <- ate(y = Y, a = A, x = W, nsplits = 2, sl.lib = SL.library)
+
+ate_npcausal <- aipw_fit$res$est[3]
+se_npcausal  <- aipw_fit$res$se[3]
+ci_npcausal  <- c(aipw_fit$res$ci.ll[3], aipw_fit$res$ci.ul[3])
+
+cat("npcausal ATE:", round(ate_npcausal, 4), "\n")
+cat("SE:", round(se_npcausal, 4), "\n")
+```
+
+```{r}
+#| label: tmle_ate
+#| warning: false
+#| cache: true
+#| message: false
+set.seed(123)
+tmle_fit <- tmle(Y = Y, A = A, W = W, family = "binomial",
+                 Q.SL.library = SL.library, g.SL.library = SL.library)
+
+ate_tmle <- tmle_fit$estimates$ATE$psi
+se_tmle  <- sqrt(tmle_fit$estimates$ATE$var.psi)
+ci_tmle  <- tmle_fit$estimates$ATE$CI
+
+cat("TMLE ATE:", round(ate_tmle, 4), "\n")
+cat("SE:", round(se_tmle, 4), "\n")
+```
+
+```{r}
+#| label: doubleml_ate
+#| warning: false
+#| cache: true
+#| message: false
+lgr::get_logger("mlr3")$set_threshold("warn")
+data_obs <- data.frame(w1, w2, w3, w4, A, Y)
+
+dml_data <- DoubleMLData$new(data_obs,
+                              y_col = "Y", d_cols = "A",
+                              x_cols = c("w1", "w2", "w3", "w4"))
+
+learner_l <- lrn("regr.ranger", num.trees = 500, max.depth = 5, min.node.size = 2)
+learner_m <- learner_l$clone()
+
+set.seed(123)
+dml_plr <- DoubleMLPLR$new(dml_data, ml_l = learner_l, ml_m = learner_m)
+dml_plr$fit()
+
+ate_dml <- dml_plr$coef
+se_dml  <- dml_plr$se
+ci_dml  <- c(dml_plr$confint()[1], dml_plr$confint()[2])
+
+cat("DoubleML ATE:", round(ate_dml, 4), "\n")
+cat("SE:", round(se_dml, 4), "\n")
+```
+
+```{r}
+#| label: frengression_se
+#| warning: false
+#| cache: false
+#| message: false
+# Frengression ATE already computed above (y1 - y0)
+ate_freng <- as.numeric(y1 - y0)
+
+# Bootstrap SE via repeated prediction (Monte Carlo variability)
+set.seed(123)
+ate_boot <- replicate(200, {
+  predict(model, matrix(1, ncol = 1), type = "mean", nsample = 500) -
+    predict(model, matrix(0, ncol = 1), type = "mean", nsample = 500)
+})
+se_freng <- sd(ate_boot)
+```
+
+```{r}
+#| label: comparison_table
+#| warning: false
+#| cache: true
+#| message: false
+results <- data.frame(
+  Method = c("True ATE", "Frengression", "npcausal (AIPW)", "TMLE", "DoubleML (PLR)"),
+  ATE = c(true_ate, ate_freng, ate_npcausal, ate_tmle, ate_dml),
+  SE = c(NA, se_freng, se_npcausal, se_tmle, se_dml),
+  CI_lower = c(NA,
+               ate_freng - 1.96 * se_freng,
+               ci_npcausal[1], ci_tmle[1], ci_dml[1]),
+  CI_upper = c(NA,
+               ate_freng + 1.96 * se_freng,
+               ci_npcausal[2], ci_tmle[2], ci_dml[2])
+)
+
+results$Bias <- results$ATE - true_ate
+results$Covers <- ifelse(is.na(results$CI_lower), NA,
+                         results$CI_lower <= true_ate & true_ate <= results$CI_upper)
+
+kable(results, digits = 4,
+      caption = "ATE Estimation: Frengression vs Semiparametric Methods")
+```
+
+The semiparametric estimators are purpose-built for ATE and leverage influence function theory to achieve $\sqrt{n}$-consistent, doubly-robust estimates.  Frengression learns the *entire joint distribution* $P(X,Y,Z)$, from which ATE is just one functional — so some loss of precision for this specific estimand is expected.
+
+## Monte Carlo Benchmarking (Simulated DGP)
+
+This is frengression's "killer app."  We use the model trained above, plug in a known causal effect via `specify_causal()`, generate B=10 synthetic datasets, and benchmark all four estimators.
+
+```{r}
+#| label: benchmark_sim
+#| warning: false
+#| cache: false
+#| message: false
+B <- 10
+n_syn <- 2000
+
+methods <- c("Frengression", "npcausal", "TMLE", "DoubleML")
+ate_mat <- matrix(NA, nrow = B, ncol = length(methods),
+                  dimnames = list(NULL, methods))
+se_mat  <- ate_mat
+cover_mat <- ate_mat
+
+SL.lib_fast <- c("SL.glm.interaction", "SL.ranger", "SL.mean")
+
+# True ATE from the specified model (already computed above as y1_true - y0_true)
+true_ate_bench <- as.numeric(y1_true - y0_true)
+
+set.seed(2024)
+for (b in seq_len(B)) {
+  syn <- sample_joint(model_bench, sample_size = n_syn)
+
+  x_syn <- as.numeric(syn$x)
+  y_syn <- as.numeric(syn$y)
+  z_syn <- as.data.frame(syn$z)
+  colnames(z_syn) <- paste0("z", 1:ncol(z_syn))
+  df_syn <- cbind(data.frame(A = x_syn, Y = y_syn), z_syn)
+
+  # --- Frengression ---
+  tryCatch({
+    mod_f <- frengression(x_dim = 1, y_dim = 1, z_dim = ncol(z_syn),
+                          x_binary = TRUE, y_binary = TRUE,
+                          noise_dim = 10, hidden_dim = 100, num_layer = 3)
+    mod_f <- train_y(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
+                     matrix(y_syn, ncol=1),
+                     num_iters = 500, lr = 1e-3, silent = TRUE)
+    mod_f <- train_xz(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
+                       num_iters = 500, lr = 1e-4, silent = TRUE)
+
+    y1_f <- predict(mod_f, matrix(1, ncol=1), type="mean", nsample=1000)
+    y0_f <- predict(mod_f, matrix(0, ncol=1), type="mean", nsample=1000)
+    ate_mat[b, "Frengression"] <- y1_f - y0_f
+
+    ate_mc <- replicate(100, {
+      predict(mod_f, matrix(1,ncol=1), type="mean", nsample=200) -
+        predict(mod_f, matrix(0,ncol=1), type="mean", nsample=200)
+    })
+    se_mat[b, "Frengression"] <- sd(ate_mc)
+    ci_f <- ate_mat[b, "Frengression"] + c(-1,1) * 1.96 * se_mat[b, "Frengression"]
+    cover_mat[b, "Frengression"] <- (ci_f[1] <= true_ate_bench & true_ate_bench <= ci_f[2])
+  }, error = function(e) message("Frengression failed on rep ", b, ": ", e$message))
+
+  # --- npcausal ---
+  tryCatch({
+    fit_np <- ate(y = y_syn, a = x_syn, x = z_syn,
+                  nsplits = 2, sl.lib = SL.lib_fast)
+    ate_mat[b, "npcausal"] <- fit_np$res$est[3]
+    se_mat[b, "npcausal"]  <- fit_np$res$se[3]
+    ci <- c(fit_np$res$ci.ll[3], fit_np$res$ci.ul[3])
+    cover_mat[b, "npcausal"] <- (ci[1] <= true_ate_bench & true_ate_bench <= ci[2])
+  }, error = function(e) message("npcausal failed on rep ", b, ": ", e$message))
+
+  # --- TMLE ---
+  tryCatch({
+    fit_tmle <- tmle(Y = y_syn, A = x_syn, W = z_syn, family = "binomial",
+                     Q.SL.library = SL.lib_fast, g.SL.library = SL.lib_fast)
+    ate_mat[b, "TMLE"] <- fit_tmle$estimates$ATE$psi
+    se_mat[b, "TMLE"]  <- sqrt(fit_tmle$estimates$ATE$var.psi)
+    ci_t <- fit_tmle$estimates$ATE$CI
+    cover_mat[b, "TMLE"] <- (ci_t[1] <= true_ate_bench & true_ate_bench <= ci_t[2])
+  }, error = function(e) message("TMLE failed on rep ", b, ": ", e$message))
+
+  # --- DoubleML ---
+  tryCatch({
+    dml_d <- DoubleMLData$new(df_syn, y_col = "Y", d_cols = "A",
+                               x_cols = colnames(z_syn))
+    lr_l <- lrn("regr.ranger", num.trees = 300, max.depth = 5, min.node.size = 2)
+    lr_m <- lr_l$clone()
+    dml_obj <- DoubleMLPLR$new(dml_d, ml_l = lr_l, ml_m = lr_m)
+    dml_obj$fit()
+    ate_mat[b, "DoubleML"] <- dml_obj$coef
+    se_mat[b, "DoubleML"]  <- dml_obj$se
+    ci_d <- c(dml_obj$confint()[1], dml_obj$confint()[2])
+    cover_mat[b, "DoubleML"] <- (ci_d[1] <= true_ate_bench & true_ate_bench <= ci_d[2])
+  }, error = function(e) message("DoubleML failed on rep ", b, ": ", e$message))
+
+  if (b %% 5 == 0) cat("Completed replication", b, "of", B, "\n")
+}
+```
+
+```{r}
+#| label: benchmark_results
+#| warning: false
+#| cache: true
+#| message: false
+bench_summary <- data.frame(
+  Method = colnames(ate_mat),
+  Mean_ATE = colMeans(ate_mat, na.rm = TRUE),
+  Bias = colMeans(ate_mat, na.rm = TRUE) - true_ate_bench,
+  SD = apply(ate_mat, 2, sd, na.rm = TRUE),
+  RMSE = sqrt(colMeans((ate_mat - true_ate_bench)^2, na.rm = TRUE)),
+  Mean_SE = colMeans(se_mat, na.rm = TRUE),
+  Coverage_95 = colMeans(cover_mat, na.rm = TRUE),
+  N_valid = colSums(!is.na(ate_mat))
+)
+
+kable(bench_summary, digits = 4,
+      caption = paste0("Monte Carlo Benchmarking (B=", B,
+                       ", n=", n_syn, ", True ATE=",
+                       round(true_ate_bench, 4), ")"))
+```
+
+```{r}
+#| label: benchmark_plot
+#| warning: false
+#| cache: true
+#| message: false
+#| fig-cap: "ATE Estimates Across Synthetic Datasets"
+ate_long <- as.data.frame(ate_mat) |>
+  pivot_longer(everything(), names_to = "Method", values_to = "ATE") |>
+  filter(!is.na(ATE))
+
+# Trim extreme outliers for readable plot
+q_bounds <- quantile(ate_long$ATE, c(0.02, 0.98), na.rm = TRUE)
+ate_long_trim <- ate_long |> filter(ATE >= q_bounds[1] & ATE <= q_bounds[2])
+
+ggplot(ate_long_trim, aes(x = Method, y = ATE, fill = Method)) +
+  geom_boxplot(alpha = 0.7) +
+  geom_hline(yintercept = true_ate_bench, linetype = "dashed", color = "red",
+             linewidth = 1) +
+  annotate("text", x = 0.5, y = true_ate_bench, label = "True ATE",
+           hjust = 0, vjust = -0.5, color = "red") +
+  labs(title = "ATE Estimates Across Frengression-Generated Datasets",
+       subtitle = paste0("B=", B, " replications, n=", n_syn, " per dataset"),
+       y = "Estimated ATE") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## Monte Carlo Benchmarking (LaLonde)
+
+Now the same exercise, but trained on real LaLonde data — where the confounding structure is unknown and complex.  We already trained `model_lal` above and specified a known effect with `model_lal_bench`.
+
+```{r}
+#| label: lalonde_bench
+#| warning: false
+#| cache: false
+#| message: false
+# Compute true ATE empirically from the specified model
+y1_lal_true <- predict(model_lal_bench, matrix(1, ncol=1), type="mean", nsample=5000)
+y0_lal_true <- predict(model_lal_bench, matrix(0, ncol=1), type="mean", nsample=5000)
+true_ate_lal <- as.numeric(y1_lal_true - y0_lal_true)
+cat("True ATE (standardized):", round(true_ate_lal, 4), "\n")
+cat("True ATE (dollars):", round(true_ate_lal * sd(y_lal), 0), "\n")
+
+B_lal <- 10
+n_syn_lal <- 2000
+
+methods <- c("Frengression", "npcausal", "TMLE", "DoubleML")
+ate_mat_lal <- matrix(NA, nrow = B_lal, ncol = length(methods),
+                       dimnames = list(NULL, methods))
+se_mat_lal  <- ate_mat_lal
+cover_mat_lal <- ate_mat_lal
+
+SL.lib_fast <- c("SL.glm.interaction", "SL.ranger", "SL.mean")
+
+set.seed(2024)
+for (b in seq_len(B_lal)) {
+  syn <- sample_joint(model_lal_bench, sample_size = n_syn_lal)
+
+  x_syn <- as.numeric(syn$x)
+  y_syn <- as.numeric(syn$y)
+  z_syn <- as.data.frame(syn$z)
+  colnames(z_syn) <- paste0("z", 1:ncol(z_syn))
+  df_syn <- cbind(data.frame(A = x_syn, Y = y_syn), z_syn)
+
+  # --- Frengression ---
+  tryCatch({
+    mod_f <- frengression(x_dim = 1, y_dim = 1, z_dim = ncol(z_syn),
+                          x_binary = TRUE, y_binary = FALSE,
+                          noise_dim = 10, hidden_dim = 100, num_layer = 3)
+    mod_f <- train_y(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
+                     matrix(y_syn, ncol=1),
+                     num_iters = 500, lr = 1e-3, silent = TRUE)
+    mod_f <- train_xz(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
+                       num_iters = 500, lr = 1e-4, silent = TRUE)
+
+    y1_f <- predict(mod_f, matrix(1, ncol=1), type="mean", nsample=1000)
+    y0_f <- predict(mod_f, matrix(0, ncol=1), type="mean", nsample=1000)
+    ate_mat_lal[b, "Frengression"] <- y1_f - y0_f
+
+    ate_mc <- replicate(100, {
+      predict(mod_f, matrix(1,ncol=1), type="mean", nsample=200) -
+        predict(mod_f, matrix(0,ncol=1), type="mean", nsample=200)
+    })
+    se_mat_lal[b, "Frengression"] <- sd(ate_mc)
+    ci_f <- ate_mat_lal[b, "Frengression"] + c(-1,1) * 1.96 * se_mat_lal[b, "Frengression"]
+    cover_mat_lal[b, "Frengression"] <- (ci_f[1] <= true_ate_lal & true_ate_lal <= ci_f[2])
+  }, error = function(e) message("Frengression failed on rep ", b, ": ", e$message))
+
+  # --- npcausal ---
+  tryCatch({
+    fit_np <- ate(y = y_syn, a = x_syn, x = z_syn,
+                  nsplits = 2, sl.lib = SL.lib_fast)
+    ate_mat_lal[b, "npcausal"] <- fit_np$res$est[3]
+    se_mat_lal[b, "npcausal"]  <- fit_np$res$se[3]
+    ci <- c(fit_np$res$ci.ll[3], fit_np$res$ci.ul[3])
+    cover_mat_lal[b, "npcausal"] <- (ci[1] <= true_ate_lal & true_ate_lal <= ci[2])
+  }, error = function(e) message("npcausal failed on rep ", b, ": ", e$message))
+
+  # --- TMLE ---
+  tryCatch({
+    fit_tmle <- tmle(Y = y_syn, A = x_syn, W = z_syn, family = "gaussian",
+                     Q.SL.library = SL.lib_fast, g.SL.library = SL.lib_fast)
+    ate_mat_lal[b, "TMLE"] <- fit_tmle$estimates$ATE$psi
+    se_mat_lal[b, "TMLE"]  <- sqrt(fit_tmle$estimates$ATE$var.psi)
+    ci_t <- fit_tmle$estimates$ATE$CI
+    cover_mat_lal[b, "TMLE"] <- (ci_t[1] <= true_ate_lal & true_ate_lal <= ci_t[2])
+  }, error = function(e) message("TMLE failed on rep ", b, ": ", e$message))
+
+  # --- DoubleML ---
+  tryCatch({
+    dml_d <- DoubleMLData$new(df_syn, y_col = "Y", d_cols = "A",
+                               x_cols = colnames(z_syn))
+    lr_l <- lrn("regr.ranger", num.trees = 300, max.depth = 5, min.node.size = 2)
+    lr_m <- lr_l$clone()
+    dml_obj <- DoubleMLPLR$new(dml_d, ml_l = lr_l, ml_m = lr_m)
+    dml_obj$fit()
+    ate_mat_lal[b, "DoubleML"] <- dml_obj$coef
+    se_mat_lal[b, "DoubleML"]  <- dml_obj$se
+    ci_d <- c(dml_obj$confint()[1], dml_obj$confint()[2])
+    cover_mat_lal[b, "DoubleML"] <- (ci_d[1] <= true_ate_lal & true_ate_lal <= ci_d[2])
+  }, error = function(e) message("DoubleML failed on rep ", b, ": ", e$message))
+
+  if (b %% 5 == 0) cat("Completed replication", b, "of", B_lal, "\n")
+}
+```
+
+```{r}
+#| label: lalonde_results
+#| warning: false
+#| cache: true
+#| message: false
+bench_lal <- data.frame(
+  Method = colnames(ate_mat_lal),
+  Mean_ATE = colMeans(ate_mat_lal, na.rm = TRUE),
+  Bias = colMeans(ate_mat_lal, na.rm = TRUE) - true_ate_lal,
+  SD = apply(ate_mat_lal, 2, sd, na.rm = TRUE),
+  RMSE = sqrt(colMeans((ate_mat_lal - true_ate_lal)^2, na.rm = TRUE)),
+  Mean_SE = colMeans(se_mat_lal, na.rm = TRUE),
+  Coverage_95 = colMeans(cover_mat_lal, na.rm = TRUE),
+  N_valid = colSums(!is.na(ate_mat_lal))
+)
+
+kable(bench_lal, digits = 4,
+      caption = paste0("LaLonde-Based Benchmarking (B=", B_lal,
+                       ", n=", n_syn_lal,
+                       ", True ATE=", round(true_ate_lal, 4),
+                       " [", round(true_ate_lal * sd(y_lal), 0), " dollars])"))
+```
+
+```{r}
+#| label: lalonde_plot
+#| warning: false
+#| cache: true
+#| message: false
+#| fig-cap: "ATE Estimates from LaLonde-Based Synthetic Data"
+ate_long_lal <- as.data.frame(ate_mat_lal) |>
+  pivot_longer(everything(), names_to = "Method", values_to = "ATE") |>
+  filter(!is.na(ATE))
+
+q_bounds_lal <- quantile(ate_long_lal$ATE, c(0.02, 0.98), na.rm = TRUE)
+ate_long_lal_trim <- ate_long_lal |>
+  filter(ATE >= q_bounds_lal[1] & ATE <= q_bounds_lal[2])
+
+ggplot(ate_long_lal_trim, aes(x = Method, y = ATE, fill = Method)) +
+  geom_boxplot(alpha = 0.7) +
+  geom_hline(yintercept = true_ate_lal, linetype = "dashed", color = "red",
+             linewidth = 1) +
+  annotate("text", x = 0.5, y = true_ate_lal, label = "True ATE",
+           hjust = 0, vjust = -0.5, color = "red") +
+  labs(title = "ATE Estimates: LaLonde-Based Frengression DGP",
+       subtitle = paste0("B=", B_lal, " replications, n=", n_syn_lal,
+                         " per dataset (confounding learned from real data)"),
+       y = "Estimated ATE (standardized)") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+The semiparametric methods show meaningful bias on the LaLonde-generated data, suggesting that neural-network-generated confounding is harder to adjust for than hand-specified simulations.  The synthetic data inherits LaLonde's messy structure — complex propensity score surfaces, zero-inflated prior earnings, demographic imbalances — which violates the smoothness assumptions that SuperLearner and ranger rely on.
+
+# Summary
+
+- Frengression implements the same causal simulation framework as `causl` (Evans & Didelez, 2024), but learns the decomposition nonparametrically
+- Three networks: `model_xz` (past), `model_y` (causal margin), `model_eta` (copula/dependence)
+- The `specify_causal()` function lets you plug in known effects while keeping learned confounding
+- Main use case: realistic Monte Carlo benchmarking with ground truth
+- R package: `Rfrengression` (native R torch, no Python dependency)
+- Paper: Yang, Evans, and Shen (2025), "Frugal, Flexible, Faithful: Causal Data Simulation via Frengression" (arXiv:2508.01018)
