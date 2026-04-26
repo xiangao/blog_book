@@ -1,4 +1,4 @@
-# Causal Inference & Applied Econometrics
+# Topics on econometrics and causal inference
 
 A Quarto book collecting notes and tutorials on causal inference and applied econometrics, with implementations in R and Stata.
 

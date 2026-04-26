@@ -1,4 +1,4 @@
-# Causal Inference & Applied Econometrics - Quarto Book
+# Topics on econometrics and causal inference - Quarto Book
 
 ## Overview
 A Quarto book compiled from blogdown posts (2017–2025) and quarto_blog posts (2025) covering causal inference and applied econometrics methods with R, Stata, and Python code.
