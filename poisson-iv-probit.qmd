@@ -1,0 +1,288 @@
+---
+title: "IV in Poisson with a Binary Endogenous Variable"
+date: "2026-05-01"
+---
+
+
+## When the endogenous variable is binary
+
+In the [previous post](poisson-iv-fe.qmd), we showed how to handle endogeneity in a Poisson regression with many fixed effects using the control function (CF) approach, when the endogenous variable is continuous.  The first stage was a linear regression via `reghdfe`, and the first-stage residuals served as the control function in the second-stage Poisson regression.
+
+What if the endogenous variable is binary — a 0/1 dummy?  For example, instead of continuous time on a website, suppose we observe only whether the user spent "extended time" (a binary indicator).  Does the same linear first stage still work?  Should we use a probit or logit model instead?
+
+The short answer: **the linear first stage still works and is the safest approach**.  But there are three natural candidates, and they differ substantially in their assumptions and robustness properties.
+
+
+## Setup
+
+Let $y_1$ be the count outcome (Poisson), $y_2 \in \{0,1\}$ be the binary endogenous variable, $\mathbf{z_1}$ be the exogenous controls, and $z$ be the excluded instrument.  The structural equation is
+
+$$E[y_1 \mid \mathbf{z_1}, y_2] = \exp(\mathbf{z_1}\boldsymbol{\delta_1} + \alpha_1 y_2)$$
+
+The goal is to consistently estimate $\alpha_1$.  Identification rests on two conditions: the exclusion restriction $E(\mathbf{z}'u_1) = 0$ (instrument exogeneity), and the rank condition that $z$ is partially correlated with $y_2$ after partialling out $\mathbf{z_1}$.
+
+
+## Three approaches
+
+### Approach A — Linear projection first stage (recommended)
+
+**Procedure:**
+
+1. Regress $y_2$ on all instruments $\mathbf{z}$ using OLS (`reghdfe` with fixed effects), obtain residuals $\hat{v}_2 = y_2 - \mathbf{z}\hat{\pi}_2$
+2. Run Poisson QMLE (`ppmlhdfe`) of $y_1$ on $(\mathbf{z_1},\ y_2,\ \hat{v}_2)$
+
+The first stage is a **linear projection**, not a model for $E[y_2 \mid \mathbf{z}]$.  The equation $y_2 = \mathbf{z}\pi_2 + v_2$ with $E(\mathbf{z}'v_2) = 0$ is defined purely by the orthogonality condition — it makes no claim that the true conditional mean of $y_2$ is linear.  Because OLS always satisfies $E(\mathbf{z}'\hat{v}_2) = 0$ by construction, the CF residual $\hat{v}_2$ is valid regardless of whether $y_2$ is binary, continuous, or mixed.  Wooldridge (2015, p. 423) makes this explicit: *"I need no structural interpretation of this [reduced form] equation."*
+
+The coefficient on $\hat{v}_2$ doubles as an endogeneity test: its t-statistic tests the null that $y_2$ is exogenous.
+
+**What must hold:**
+
+- **First stage:** Only that $\mathbf{z}$ is exogenous and the rank condition holds — no assumption on the functional form of $E[y_2 \mid \mathbf{z}]$.
+- **Second stage:** The Poisson conditional mean $E[y_1 \mid \mathbf{z_1}, y_2, v_2] = \exp(\mathbf{z_1}\boldsymbol{\delta_1} + \alpha_1 y_2 + \rho v_2)$ must be correctly specified.  This is a substantive assumption on how endogeneity enters the Poisson mean — it is the one assumption Approach A cannot escape.
+
+**Standard errors:** Bootstrap, because the first-stage estimation error propagates into the second stage.
+
+
+### Approach B — Probit first stage with generalized residuals
+
+**Procedure:**
+
+1. Estimate a probit model for $y_2$ on $\mathbf{z}$, then form the *generalized residual*:
+$$\hat{r}_2 = y_2\,\lambda(\mathbf{z}\hat{\boldsymbol{\delta}}_2) - (1-y_2)\,\lambda(-\mathbf{z}\hat{\boldsymbol{\delta}}_2)$$
+where $\lambda(\cdot) = \phi(\cdot)/\Phi(\cdot)$ is the inverse Mills ratio
+2. Run Poisson QMLE of $y_1$ on $(\mathbf{z_1},\ y_2,\ \hat{r}_2)$
+
+The generalized residual is the probit score; it equals $E[e_2 \mid \mathbf{z}, y_2]$ only when the probit model is **correctly specified** ($e_2 \sim \mathrm{Normal}(0,1)$ in the latent index $y_2 = \mathbf{1}[\mathbf{z}\boldsymbol{\delta}_2 + e_2 \geq 0]$).  If the probit is misspecified, $\hat{r}_2$ does not recover the right control function and the second stage remains inconsistent.  Wooldridge (2015, p. 428) is explicit: *"generally inconsistent if the probit model for $y_2$ is misspecified."*
+
+When the probit is correctly specified, Approach B can be more **efficient** than A because $\hat{r}_2$ more precisely captures the endogeneity-relevant component of $y_2$.
+
+**What must hold:**
+
+- **First stage:** The probit model for $y_2$ must be correctly specified — $e_2$ must be truly Normal(0,1) for $\hat{r}_2$ to be a valid control function.
+- **Second stage:** The Poisson conditional mean $E[y_1 \mid \mathbf{z_1}, y_2, r_2] = \exp(\mathbf{z_1}\boldsymbol{\delta_1} + \alpha_1 y_2 + \rho r_2)$ must be correctly specified.
+
+**Note on fixed effects:** Probit FE with many groups suffers from the incidental parameters problem (unlike Poisson FE).  For a panel setting with many groups, use the correlated random effects / Mundlak device to handle the fixed effects in the probit — see the [Mundlak device post](mundlak-device.qmd).
+
+**Standard errors:** Bootstrap required.
+
+
+### Approach C — Fitted values as instrument (IV/GMM Poisson)
+
+**Procedure:**
+
+1. Fit any model for $y_2$ on $\mathbf{z}$ — probit, logit, or linear probability — and obtain fitted values $\hat{p}_2$
+2. Use $\hat{p}_2$ as an **instrument** for $y_2$ in an IV/GMM Poisson estimator (Stata: `ivpoisson gmm`) — keeping $y_2$ as the actual regressor
+
+This is an IV approach, not a CF approach.  The validity of $\hat{p}_2$ as an instrument rests entirely on **instrument exogeneity**: $\hat{p}_2$ converges to a deterministic function of $\mathbf{z}$ alone, and since $\mathbf{z}$ is exogenous, any function of $\mathbf{z}$ is a valid instrument.  Logit fitted values, probit fitted values, and linear fitted values $\mathbf{z}\hat{\pi}_2$ from OLS are all equally valid — the choice affects efficiency, not consistency.  The model that best approximates the true $P(y_2 = 1 \mid \mathbf{z})$ produces the strongest instrument; all produce consistent estimates.  Wooldridge (2007, p. 7): *"fully robust to misspecification of the probit model."*
+
+**What must hold:**
+
+- **First stage:** Only that $\mathbf{z}$ is exogenous and $\hat{p}_2$ is relevant — no assumption on the functional form of $E[y_2 \mid \mathbf{z}]$.
+- **Second stage:** The structural Poisson mean $E[y_1 \mid \mathbf{z_1}, y_2] = \exp(\mathbf{z_1}\boldsymbol{\delta_1} + \alpha_1 y_2)$ must be correctly specified — the IV/GMM moment conditions $E[\hat{p}_2 \cdot (y_1 - \exp(\cdot))] = 0$ identify $\alpha_1$ only when the structural mean is right.
+
+**Limitation:** Stata's `ivpoisson` does not support `ppmlhdfe`-style `absorb()`, making Approach C harder to use with high-dimensional fixed effects.
+
+**Critical warning — the plug-in mistake:** Do **not** substitute $\hat{p}_2$ as a *regressor* replacing $y_2$.  This is a common error and it is generally **inconsistent** for Poisson (see below).
+
+
+## Approaches A and C are not the same, even with a linear first stage
+
+A natural question arises: if Approach C uses linear fitted values $\hat{y}_2 = \mathbf{z}\hat{\pi}_2$ as the instrument (instead of probit fitted values), does it reduce to Approach A?
+
+For a **linear second stage**, the answer is yes.  Using $\hat{y}_2$ as an instrument in 2SLS gives numerically identical estimates as adding $\hat{v}_2 = y_2 - \hat{y}_2$ as a regressor — this is the classic 2SLS = CF equivalence from the Frisch-Waugh-Lovell theorem.
+
+For **Poisson**, the answer is no.  The two approaches involve different estimating equations:
+
+- **Approach A (CF):** $\hat{v}_2$ enters *inside* the exponential, modifying the conditional mean. The QMLE moment conditions are:
+$$E\left[(\mathbf{z_1},\; y_2,\; \hat{v}_2) \cdot \bigl(y_1 - \exp(\mathbf{z_1}\boldsymbol{\delta_1} + \alpha_1 y_2 + \rho\hat{v}_2)\bigr)\right] = 0$$
+
+- **Approach C with linear first stage (IV):** $\hat{y}_2$ enters only as an instrument; the exponential mean remains $\exp(\mathbf{z_1}\boldsymbol{\delta_1} + \alpha_1 y_2)$. The GMM moment conditions are:
+$$E\left[(\mathbf{z_1},\; \hat{y}_2) \cdot \bigl(y_1 - \exp(\mathbf{z_1}\boldsymbol{\delta_1} + \alpha_1 y_2)\bigr)\right] = 0$$
+
+These are different moment conditions that will generally produce different point estimates in finite samples.  Both are consistent under their respective assumptions, but the CF assumption (that endogeneity enters additively through $v_2$ inside the exponential) is more restrictive than the IV exogeneity assumption.  The nonlinearity of $\exp(\cdot)$ is what breaks the Frisch-Waugh-Lovell equivalence.
+
+
+## Summary table
+
+| | First stage | What enters 2nd stage | Role | First-stage assumption | Second-stage assumption |
+|---|---|---|---|---|---|
+| **A** | OLS projection | Residuals $\hat{v}_2$ | Regressor (CF) | Exogeneity of $\mathbf{z}$ only | CF mean $\exp(\cdots + \rho v_2)$ correct |
+| **B** | Probit | Gen. residuals $\hat{r}_2$ | Regressor (CF) | Probit correctly specified | CF mean $\exp(\cdots + \rho r_2)$ correct |
+| **C** | Probit / logit / LPM | Fitted values $\hat{p}_2$ | Instrument for $y_2$ | Exogeneity of $\mathbf{z}$ only | Structural mean $\exp(\cdots)$ correct |
+
+Note that A and C share the same first-stage assumption (instrument exogeneity) but differ in the second-stage assumption.  A imposes the CF structure (how endogeneity enters the mean); C imposes only the structural mean and is silent on how endogeneity enters.  Despite this, A and C are **not equivalent** for Poisson even when C uses a linear first stage — unlike the linear second-stage case where 2SLS = CF.
+
+**Recommendation:** Start with Approach A as the robust and practical default (works with `ppmlhdfe` and FE).  Run Approach C as a robustness check if implementation allows.  Use Approach B only with strong justification for the probit specification.
+
+
+## Example in Stata
+
+
+```{r}
+#| label: setup
+#| include: false
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#| include: false
+
+library(Statamarkdown)
+stataexe <- find_stata()
+knitr::opts_chunk$set(engine.path = list(stata = stataexe))
+```
+
+We use Stata's built-in `website` dataset from the previous post.  To illustrate a binary endogenous variable, we create `time_hi`, an indicator for whether time on the website exceeded the median.  The instrument remains `phone` (whether the user accessed via phone) and the count outcome is `visits`.  Fixed effects are `ad` and `female`.
+
+
+### Approach A — Linear projection CF
+
+```{stata}
+*| label: stata-a
+*| echo: true
+*| cache: true
+
+webuse website, clear
+* Binary endogenous: high time on site (above median)
+_pctile time, p(50)
+gen time_hi = (time > r(r1))
+label var time_hi "High time on site (above median)"
+
+* First stage: linear projection (reghdfe absorbs FE)
+reghdfe time_hi phone frfam, absorb(ad female) resid
+predict v2hat, resid
+
+* Second stage: Poisson CF
+ppmlhdfe visits time_hi v2hat frfam, absorb(ad female)
+```
+
+The coefficient on `v2hat` tests whether `time_hi` is endogenous — a significant t-statistic is evidence of endogeneity.  The `time_hi` coefficient estimates $\alpha_1$.
+
+
+### Approach B — Probit generalized residuals
+
+With only 12 ad categories and a binary `female`, we can include them as dummies in the probit.  For large panels, replace `i.ad i.female` with Mundlak means.
+
+```{stata}
+*| label: stata-b
+*| echo: true
+*| cache: true
+
+webuse website, clear
+_pctile time, p(50)
+gen time_hi = (time > r(r1))
+
+* First stage: probit with dummies for FE
+probit time_hi phone frfam i.ad i.female, nolog
+predict xbhat, xb
+
+* Generalized residual: y*lambda(xb) - (1-y)*lambda(-xb)
+gen gr2 = cond(time_hi == 1, ///
+    normalden(xbhat) / normal(xbhat), ///
+    -normalden(xbhat) / (1 - normal(xbhat)))
+
+* Second stage: Poisson CF
+ppmlhdfe visits time_hi gr2 frfam, absorb(ad female)
+```
+
+
+### Approach C — Probit fitted values as instrument
+
+We use `ivpoisson gmm`.  Because `ivpoisson` does not support `absorb()`, we run the probit and Poisson without absorbing the FE dummies, which avoids the collinearity problem that arises when the same FE dummies appear in both the probit and the instrument list.  This simplified version illustrates the principle; with high-dimensional FE, Approach A is more practical.
+
+The key point: `time_hi` stays as the **regressor** and `phat` enters only as the **instrument**.
+
+```{stata}
+*| label: stata-c
+*| echo: true
+*| cache: true
+
+webuse website, clear
+_pctile time, p(50)
+gen time_hi = (time > r(r1))
+
+* Probit without FE dummies — avoids collinearity in ivpoisson
+probit time_hi phone frfam, nolog
+predict phat, pr
+
+* IV GMM Poisson: phat instruments for time_hi
+* time_hi remains the regressor — do NOT replace it with phat
+ivpoisson gmm visits frfam (time_hi = phat), vce(robust)
+```
+
+
+### Bootstrapping standard errors for Approach A
+
+As in the previous post, correct standard errors for the two-step Approach A require bootstrapping the whole procedure, clustering by `ad`.
+
+```{stata}
+*| label: stata-boot
+*| echo: true
+*| cache: true
+
+webuse website, clear
+_pctile time, p(50)
+gen time_hi = (time > r(r1))
+xtset, clear
+
+capture program drop ppml_cf_binary
+program ppml_cf_binary, rclass
+    reghdfe time_hi phone frfam, absorb(ad female) resid
+    predict v2hat, resid
+    ppmlhdfe visits time_hi v2hat frfam, absorb(ad female)
+    return scalar b_timehi = _b[time_hi]
+    drop v2hat
+    xtset, clear
+end
+
+bootstrap r(b_timehi), reps(200) seed(123) cluster(ad) idcluster(newid): ppml_cf_binary
+```
+
+Compare the bootstrapped standard error on `time_hi` with the naive second-stage standard error from Approach A — the bootstrapped one is correct.
+
+
+## How to do it in R
+
+The `fixest` package mirrors the Stata workflow.  Approach A is the most straightforward:
+
+```r
+library(fixest)
+library(dplyr)
+
+# Assume 'website' is loaded; create binary endogenous variable
+website <- website |>
+  mutate(time_hi = as.integer(time > median(time)))
+
+# Step 1: linear projection first stage (absorbs FE)
+fs <- feols(time_hi ~ phone + frfam | ad + female, data = website)
+website$v2hat <- residuals(fs)
+
+# Step 2: Poisson second stage with CF residual
+ss <- fepois(visits ~ time_hi + v2hat + frfam | ad + female, data = website)
+summary(ss)
+```
+
+For correct standard errors, bootstrap the two steps jointly using a manual `replicate()` loop that re-runs both `feols` and `fepois` on each resampled dataset.
+
+For Approach C, `fixest` supports IV Poisson via `feglm(..., family = poisson)` with an `iv` specification, which implements IV/GMM moment conditions correctly without plugging in fitted values.
+
+
+## Common mistake — the plug-in approach
+
+A tempting shortcut is to substitute $\hat{p}_2$ directly for $y_2$ as a regressor:
+
+```stata
+* WRONG — generally inconsistent for Poisson
+ppmlhdfe visits phat frfam, absorb(ad female)
+```
+
+This is the "plug-in" estimator and it is generally **inconsistent** for Poisson.  The confusion arises from the linear model, where 2SLS can be computed either by using fitted values as instruments or by substituting them as regressors — these give the same estimates.  In Poisson, these are genuinely different operations.  Approach C uses $\hat{p}_2$ as an *instrument* (keeping $y_2$ as the regressor); the plug-in replaces $y_2$ with $\hat{p}_2$ inside $\exp(\cdot)$.  As shown above, even for Approach C with a linear first stage, using $\hat{y}_2$ as an instrument is not the same as using $\hat{v}_2$ as a regressor (Approach A).  The nonlinearity of $\exp(\cdot)$ means the Frisch-Waugh-Lovell equivalence that holds for linear models does not carry over.
+
+
+## References
+
+- Wooldridge, J.M. (2002). *Econometric Analysis of Cross Section and Panel Data*. MIT Press.
+- Wooldridge, J.M. (2007). *What's New in Econometrics? Lecture 6: Control Functions and Related Methods*. NBER Summer Institute slides.
+- Wooldridge, J.M. (2014). Quasi-Maximum Likelihood Estimation and Testing for Nonlinear Models with Endogenous Explanatory Variables. *Journal of Econometrics*, 182(1), 226–234.
+- Wooldridge, J.M. (2015). Control Function Methods in Applied Econometrics. *Journal of Human Resources*, 50(2), 420–445.
