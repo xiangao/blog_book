@@ -1,0 +1,160 @@
+---
+title: "Same Data, Different Estimators"
+date: "2026-05-13"
+---
+
+## One panel, several questions
+
+The BLS Local Area Unemployment Statistics (LAUS) county file is a useful
+benchmark panel because it is large, public, and substantively familiar. It has
+monthly county unemployment rates, many pre-treatment periods, and a natural
+COVID-era policy application: stay-at-home orders in April 2020.
+
+This makes it a good "same data, different estimators" example. Instead of
+changing the empirical setting every time we introduce a new panel method, we
+can hold the panel fixed and ask what each estimator is doing differently.
+
+The setup follows the application in Shen, Song, and Abadie:
+
+| quantity | value |
+| --- | ---: |
+| outcome | county unemployment rate |
+| data source | BLS LAUS county flat file |
+| pre-period | January 2008 to March 2020 |
+| post-period | April 2020 |
+| control states | Arkansas, Iowa, Nebraska, North Dakota, South Dakota, Utah, Wyoming |
+| treated units | counties in stay-at-home-order states |
+| excluded units | Alaska and District of Columbia |
+| control counties | 438 |
+| treated counties | 2,674 |
+| pre-treatment months | 147 |
+
+The paper reports an ATT of about 5.06 percentage points. With the current BLS
+flat file and the code below, `MSC.jl` constructs the same-sized panel and gives
+an application-replication estimate of 4.9552 under the default bounded solver
+settings.
+
+## Construct the panel once
+
+The key is to build one common panel, then pass exactly the same matrix to
+several estimators. The county panel has controls first, treated units second,
+pre-treatment periods first, and April 2020 as the only post-treatment period.
+
+The `MSC.jl` example script contains the data-preparation helper, so we can
+reuse it rather than duplicating parsing logic:
+
+```julia
+using MSC
+using SynthDiD
+using Statistics
+
+include("/home/xao/projects/software/MSC.jl/examples/03_covid_sah_orders.jl")
+
+df = load_laus_county_panel(find_laus_county_file())
+panel = MSC.panel_matrices(df, :county, :month, :unemployment_rate, :D)
+
+Y = Matrix{Float64}(panel.Y)
+N0 = panel.N0
+T0 = panel.T0
+```
+
+Here `N0 = 438`, `size(Y, 1) - N0 = 2674`, and `T0 = 147`.
+
+## Four estimators on the same outcome matrix
+
+Now the same `Y`, `N0`, and `T0` can be passed to several estimators.
+
+```julia
+# Plain DiD
+tau_did = SynthDiD.did_estimate(Y, N0, T0)
+
+# Synthetic difference-in-differences
+tau_sdid = SynthDiD.synthdid_estimate(Y, N0, T0)
+
+# Synthetic control
+tau_sc = SynthDiD.sc_estimate(Y, N0, T0)
+
+# Multivariate synthetic control
+tau_msc = MSC.msc_estimate(
+    panel;
+    lambdas = [0.03],
+    standardize = false,
+    max_iter = 100,
+    tol = 1e-4,
+)
+```
+
+On the downloaded BLS file, this gives:
+
+| estimator | estimate |
+| --- | ---: |
+| Difference-in-differences | 2.6940 |
+| Synthetic difference-in-differences | 2.6944 |
+| Synthetic control | 3.4134 |
+| Multivariate synthetic control | 4.9552 |
+| Paper benchmark | about 5.06 |
+
+These are not just different implementations of the same estimand. They encode
+different ways to decide which controls and which pre-periods matter.
+
+## What changes across estimators?
+
+Plain DiD uses equal unit weights and equal time weights. It asks whether
+treated counties changed more from the pre-period average to April 2020 than
+the no-order counties did. This is transparent, but it leans heavily on a
+parallel-trends comparison between a very large treated group and seven
+no-order states.
+
+Synthetic control changes the unit weights. It tries to form a weighted control
+group that better matches the treated group before April 2020. In this example
+the estimate moves from about 2.69 to about 3.41 percentage points.
+
+Synthetic DiD changes both unit and time weights. In this particular one-month
+post-treatment application, the SDiD estimate is almost the same as DiD. That
+is itself informative: for this design and implementation, the optimized
+weights do not move the simple average comparison much.
+
+Multivariate synthetic control changes the target problem more substantially.
+It does not fit one synthetic control for an aggregate treated average, and it
+does not fit 2,674 separate synthetic controls. Instead it learns a sparse
+matrix mapping 438 control counties to all 2,674 treated counties jointly, then
+averages the treated-county effects. That is why it is a natural estimator for
+this paper's high-dimensional disaggregated setting.
+
+## Why this example is useful
+
+This panel is a good teaching and diagnostic example because the estimates are
+not identical:
+
+| comparison | lesson |
+| --- | --- |
+| DiD vs SC | unit weights matter |
+| DiD vs SDiD | time weights may or may not matter in a one-post-period design |
+| SC vs MSC | aggregate treated fit differs from high-dimensional treated-unit fit |
+| MSC vs paper | matching sample counts is not the same as pinning the exact data vintage and optimizer |
+
+For applied work, this is the right workflow. Start with a single panel and
+force the estimators to use the same sample. Then disagreements are easier to
+interpret: they come from the estimator, not from hidden data-processing
+differences.
+
+## Practical notes
+
+The BLS data are large enough that I would not make the book render download or
+parse the file every time. The better pattern is:
+
+1. keep the raw BLS flat file outside the book repository;
+2. write one data-preparation script that produces a common panel object;
+3. cache a small summary table of estimates;
+4. make the chapter explain the design, code path, and interpretation.
+
+The current `MSC.jl` example does exactly this for the paper application. It
+looks for `data/la.data.64.County` or an explicit `BLS_LAUS_COUNTY_FILE`, builds
+the paper-sized panel, and prints the comparison with the reported paper
+number.
+
+If the goal is exact reproduction of 5.06, the missing ingredient is not
+another estimator. It is the paper's exact replication archive: the BLS vintage,
+county inclusion file, and optimizer/tuning settings. Without that archive, the
+honest claim is that we replicate the application design and sample counts, and
+we report how different estimators behave on the same public data.
