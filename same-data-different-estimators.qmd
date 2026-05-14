@@ -60,6 +60,105 @@ T0 = panel.T0
 
 Here `N0 = 438`, `size(Y, 1) - N0 = 2674`, and `T0 = 147`.
 
+### A DuckDB version of the same panel step
+
+The raw LAUS county file is large enough that it is worth separating two
+jobs:
+
+1. use DuckDB to scan, filter, complete-case-check, and order the flat file;
+2. hand the resulting common panel to the estimators.
+
+The estimators do not need to know that DuckDB was used. They still receive the
+same `DataFrame`, then the same `Y`, `N0`, and `T0`.
+
+```julia
+using DataFrames
+using DBInterface
+using DuckDB
+using MSC
+
+const CONTROL_STATE_FIPS = ("05", "19", "31", "38", "46", "49", "56")
+const EXCLUDED_STATE_FIPS = ("02", "11")
+
+sqlpath(path) = replace(path, "'" => "''")
+
+function load_laus_county_panel_duckdb(
+    laus_dir;
+    start_year = 2008,
+    start_month = 1,
+    end_year = 2020,
+    end_month = 4,
+)
+    county_path = sqlpath(joinpath(laus_dir, "la.data.64.County"))
+    start_idx = 12 * start_year + start_month
+    end_idx = 12 * end_year + end_month
+    controls = join(["'$x'" for x in CONTROL_STATE_FIPS], ", ")
+    excluded = join(["'$x'" for x in EXCLUDED_STATE_FIPS], ", ")
+
+    con = DBInterface.connect(DuckDB.DB())
+
+    DataFrame(DBInterface.execute(con, """
+    WITH raw AS (
+        SELECT
+            trim(series_id) AS county,
+            substr(trim(series_id), 6, 2) AS state_fips,
+            CAST(year AS INTEGER) AS year,
+            CAST(substr(period, 2, 2) AS INTEGER) AS month_num,
+            12 * CAST(year AS INTEGER) + CAST(substr(period, 2, 2) AS INTEGER) AS month_index,
+            try_cast(trim(value) AS DOUBLE) AS unemployment_rate
+        FROM read_csv_auto('$county_path', delim='\t', header=true, all_varchar=true)
+        WHERE starts_with(trim(series_id), 'LAUCN')
+          AND ends_with(trim(series_id), '03')
+          AND period != 'M13'
+    ), filtered AS (
+        SELECT *
+        FROM raw
+        WHERE state_fips NOT IN ($excluded)
+          AND month_index BETWEEN $start_idx AND $end_idx
+          AND unemployment_rate IS NOT NULL
+    ), complete_counties AS (
+        SELECT county
+        FROM filtered
+        GROUP BY county
+        HAVING count(*) = (SELECT count(DISTINCT month_index) FROM filtered)
+    )
+    SELECT
+        f.county,
+        CAST(f.year AS VARCHAR) || '-' || lpad(CAST(f.month_num AS VARCHAR), 2, '0') AS month,
+        f.unemployment_rate,
+        CASE WHEN f.state_fips IN ($controls) THEN 0.0 ELSE 1.0 END
+          * CASE WHEN f.month_index = $end_idx THEN 1.0 ELSE 0.0 END AS D,
+        f.state_fips
+    FROM filtered f
+    JOIN complete_counties c USING (county)
+    ORDER BY
+        CASE WHEN f.state_fips IN ($controls) THEN 0 ELSE 1 END,
+        f.county,
+        f.month_index
+    """))
+end
+
+df = load_laus_county_panel_duckdb(expanduser("~/projects/data/laus"))
+panel = MSC.panel_matrices(df, :county, :month, :unemployment_rate, :D)
+```
+
+This gives the same design counts as the CSV helper:
+
+| quantity | value |
+| --- | ---: |
+| panel rows | 460,576 |
+| counties | 3,112 |
+| control counties | 438 |
+| treated counties | 2,674 |
+| months | 148 |
+| pre-treatment months | 147 |
+
+On my local machine, materializing this panel took about 10.4 seconds with
+DuckDB versus about 23.1 seconds with the current CSV/DataFrames helper. The
+main gain is not that the estimators run inside DuckDB. They do not. The gain
+is that DuckDB does the wide flat-file scan, filtering, complete-history check,
+and ordering before Julia receives the analysis table.
+
 ## Four estimators on the same outcome matrix
 
 Now the same `Y`, `N0`, and `T0` can be passed to several estimators.
@@ -144,14 +243,15 @@ The BLS data are large enough that I would not make the book render download or
 parse the file every time. The better pattern is:
 
 1. keep the raw BLS flat file outside the book repository;
-2. write one data-preparation script that produces a common panel object;
+2. use DuckDB or a dedicated preparation script to produce a common panel object;
 3. cache a small summary table of estimates;
 4. make the chapter explain the design, code path, and interpretation.
 
-The current `MSC.jl` example does exactly this for the paper application. It
+The current `MSC.jl` example does this for the paper application. It
 looks for `data/la.data.64.County` or an explicit `BLS_LAUS_COUNTY_FILE`, builds
 the paper-sized panel, and prints the comparison with the reported paper
-number.
+number. The DuckDB variant above is a faster way to perform the same panel
+construction step when the full BLS flat file is available locally.
 
 If the goal is exact reproduction of 5.06, the missing ingredient is not
 another estimator. It is the paper's exact replication archive: the BLS vintage,
