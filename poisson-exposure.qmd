@@ -3,39 +3,166 @@ title: "Poisson model with exposure"
 date: "2024-04-20"
 ---
 
-
 ## Poisson with exposure or Poisson rate
 
-Poisson model with exposure is essentially a poisson model with a constrained coefficient on the exposure variable.  It makes sense when you have a count variable, and this count increases with time.  Therefore in your data, your count variable would be larger if the exposure time were longer.  To account for this, you can use a poisson model with exposure.  The model is shown below.
+Poisson models for count data often arise when units are observed for different
+lengths of time. A hospital admission count for a patient followed for 30 days
+is not directly comparable to a count for a patient followed for 365 days. The
+natural quantity of interest is the *rate* — admissions per unit time — not
+the raw count.
 
-$$ log(E(Y)/t) = \beta_0 + \beta_1 * X$$
-which is the same as 
-$$ log(E(Y)) = \beta_0 + \beta_1 * X + log(t)$$
-which is a poisson model with $log(t)$ as control, but with a constrained cofficient of 1.
+There are three related but distinct specifications, each making a different
+assumption:
 
-You would think you can model count divided by time and get the same results.  But they are different models.  If you model the rate, which is $Y/t$ as the dependent variable, then the model is
+**Model 1 — Poisson with offset (rate model):**
 
-$$ log(E(Y/t)) = \beta_0 + \beta_1 * X$$
+$$\log\!\bigl(E[Y]/t\bigr) = \beta_0 + \beta_1 X$$
 
-You can still use Poisson model for this, but it is diffeeent from the poisson model with exposure.  What's the difference?
+Equivalently, $\log E[Y] = \beta_0 + \beta_1 X + \log t$, where $\log t$ is
+included as a *fixed* offset (coefficient constrained to 1). This is the
+standard exposure model: the expected count is proportional to exposure time.
 
-The difference is the first model is to model the $E(Y)/t$, and the second one is $E(Y/t)$.  These can be quite different in Poisson model, since it's nonlinear.
+**Model 2 — Poisson on the ratio $Y/t$:**
 
-In stata, the first one would be 
-poisson y x, exposure(t)
-or
-gen lnt = log(t)
-constraint 1 lnt = 1
-poisson y x lnt
+$$\log\!\bigl(E[Y/t]\bigr) = \beta_0 + \beta_1 X$$
 
-The second one would be
-gen rate=y/t
-poisson rate x
+This looks similar, but $E[Y/t] \ne E[Y]/t$ in a nonlinear (Poisson) model
+by Jensen's inequality. In practice the two can give similar point estimates,
+but the standard errors differ because the variance structure changes when you
+divide by $t$.
 
-The second model is not wrong though, even though rate is not count anymore.  It's just a different model.  But the first one is the one that is more commonly used.
+**Model 3 — Unconstrained log-exposure:**
 
-The other model that is similar to exposure model is to include exposure as a control, but not constrained to 1.  That is,
-poisson y x lnt
+$$\log E[Y] = \beta_0 + \beta_1 X + \gamma \log t$$
 
-This model is more flexible.  It does not assume count increase linearly with time.  
+Here $\gamma$ is estimated from the data. If $\hat\gamma \approx 1$, the
+proportionality assumption is supported. If $\hat\gamma < 1$, counts grow
+sub-linearly with exposure — a testable, substantive claim.
 
+## Simulation
+
+```{r}
+#| label: sim-data
+#| cache: true
+#| warning: false
+#| message: false
+
+library(tidyverse)
+set.seed(42)
+
+n <- 800
+
+# Simulate a health study: count of adverse events
+# Covariate: age group (0 = younger, 1 = older)
+age_old <- rbinom(n, 1, 0.45)
+
+# Exposure: days under observation (varies 7–365)
+exposure <- sample(seq(7, 365, by = 7), n, replace = TRUE)
+
+# True model: rate = exp(-3 + 1.2 * age_old)
+# Count ~ Poisson(rate * exposure)
+true_rate <- exp(-3 + 1.2 * age_old)
+count <- rpois(n, lambda = true_rate * exposure)
+
+df <- data.frame(count, age_old, exposure, log_exposure = log(exposure))
+summary(df[, c("count", "exposure")])
+```
+
+The data has a wide range of exposure times, so ignoring them would badly
+confound the comparison between age groups.
+
+## Fitting the three models
+
+```{r}
+#| label: fit-models
+#| cache: true
+#| warning: false
+
+# Model 1: offset — coefficient on log(exposure) constrained to 1
+m1 <- glm(count ~ age_old + offset(log(exposure)),
+          family = poisson, data = df)
+
+# Model 2: Poisson on the rate Y/t (different response)
+df$rate <- df$count / df$exposure
+m2 <- glm(rate ~ age_old,
+          family = poisson, data = df)
+
+# Model 3: log(exposure) as a free covariate
+m3 <- glm(count ~ age_old + log_exposure,
+          family = poisson, data = df)
+
+# Collect coefficients
+results <- data.frame(
+  Model = c("1. Offset (constrained γ=1)",
+            "2. Rate Y/t as response",
+            "3. Unconstrained log(t)"),
+  Intercept = c(coef(m1)[1], coef(m2)[1], coef(m3)[1]),
+  age_old   = c(coef(m1)[2], coef(m2)[2], coef(m3)[2]),
+  gamma_log_t = c(1, NA, coef(m3)[3])
+)
+
+knitr::kable(results, digits = 3,
+  caption = "Coefficient estimates: true intercept = −3, true age effect = 1.2, true γ = 1")
+```
+
+**Reading the table:** Model 1 and Model 3 give nearly identical age-group
+coefficients because the true $\gamma = 1$ (counts are indeed proportional to
+exposure time). Model 2 differs slightly in the intercept because the response
+variable changes. The estimated $\hat\gamma$ from Model 3 should be close to 1.
+
+## When $\gamma \ne 1$
+
+To see why the unconstrained model matters, repeat the simulation with a
+sub-linear count process ($\gamma = 0.6$: an initial burst of events that
+doesn't grow proportionally with long follow-up):
+
+```{r}
+#| label: nonlinear-exposure
+#| cache: true
+#| warning: false
+
+count2 <- rpois(n, lambda = true_rate * exposure^0.6)
+df2 <- data.frame(count2, age_old, exposure, log_exposure = log(exposure))
+
+m1b <- glm(count2 ~ age_old + offset(log(exposure)),
+           family = poisson, data = df2)
+m3b <- glm(count2 ~ age_old + log_exposure,
+           family = poisson, data = df2)
+
+cat("Offset model age coefficient:      ", round(coef(m1b)[2], 3), "\n")
+cat("Unconstrained model age coefficient:", round(coef(m3b)[2], 3), "\n")
+cat("Estimated gamma (log-exposure):    ", round(coef(m3b)[3], 3),
+    " (true = 0.6)\n")
+```
+
+When $\gamma \ne 1$, forcing the offset constraint biases the treatment
+coefficient. The unconstrained model recovers both the true age effect and
+the true $\gamma$.
+
+## Stata equivalent
+
+```stata
+* Model 1: offset
+poisson count age_old, exposure(exposure)
+
+* Model 2: rate as response
+gen rate = count / exposure
+poisson rate age_old
+
+* Model 3: unconstrained log(t)
+gen log_exposure = log(exposure)
+poisson count age_old log_exposure
+```
+
+## Which model to use?
+
+| Situation | Recommended model |
+|---|---|
+| Counts grow proportionally with time | Model 1 (offset) |
+| Uncertain about proportionality | Model 3 (unconstrained), test $\hat\gamma = 1$ |
+| Rate is the natural estimand | Model 1 or Model 2; both are valid |
+| Long follow-up with declining event rate | Model 3 or negative binomial with offset |
+
+In most health and social-science applications, Model 1 (Poisson with offset)
+is the default. Model 3 is the diagnostic check: fit it, look at $\hat\gamma$,
+and return to Model 1 if the constraint is supported by the data.

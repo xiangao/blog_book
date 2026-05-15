@@ -47,86 +47,58 @@ What about an OLS model with $log(y+1)$?
 A hurdle model models the zero's and other values separately; that is, the zero's are from a binomial process only, the other positive values are from a truncated count data process.  We assume here, in the simulation, we don't observe $z$.  Therefore, $x$ is determining both binary and count processes.  In the graph below, it's labeled hurdle.
 
 
-    
-    library(MASS)
-    library(pscl)
-    library(msm)
-    require(snowfall)
-    set.seed(666)
-    
-    # initialize parallel cores.
-    sfInit( parallel=TRUE, cpus=12)
-    
-    
-    gen.sim <- function(df){
-        z <- rnorm(df['nobs'],0,1)
-        x <- rnorm(df['nobs'],0,1)
-        u <- rnorm(df['nobs'],0,1)
-     #generate count data
-        log.mu <- 2*x + u
-        y.count <- floor(exp(log.mu))
-    
-       # generate bernoulli data
-        z1 <- 4*z + df['th']
-        prob <- exp(z1)/(1+exp(z1))
-        y.logit <- rbinom(df['nobs'],size=1,prob=prob)
-    
-        # zero-inflated poisson
-        y <- ifelse(y.logit==1, y.count,y.logit)
-        m1 <- zeroinfl(y ~ x | z)
-        m1.x <- summary(m1)$coefficients$count['x','Estimate']-2
-        # zero-inflated without a z
-        m4 <- zeroinfl(y ~ x | x)
-        m4.x <- summary(m4)$coefficients$count['x','Estimate']-2
-    
-        # poisson
-        m2 <- glm(y ~ x, family = "poisson")
-        m2.x <- summary(m2)$coefficients['x','Estimate']-2
-        # log linear with plus 1
-        y.plus1 <- y +1
-        m3 <- lm(log(y.plus1) ~ x)
-        m3.x <- exp(summary(m3)$coefficients['x','Estimate'])-2
-        #
-        #
-        # negative binomial
-    #    m5.x <- tryCatch(nb1(y ~ x), error=function(e) NA)
-        m5 <- glm(y ~ x, family=negative.binomial(2))
-        m5.x <- summary(m5)$coefficients['x','Estimate']-2
-        # hurdle model
-        m6 <- hurdle(y ~ x)
-    #    m5 <- glm(y ~ x, family=negative.binomial(2))
-        m6.x <- summary(m6)$coefficients$count['x','Estimate']-2
-    
-    
-        return(c(zip1=m1.x, poisson=m2.x, log.linear=m3.x, zip2=m4.x, nb=m5.x, hurdle=m6.x))
-    }
-    
-    
-    # set parameter space
-    sim.grid = seq(1,100,1)
-    th.grid = seq(-4, 4, 2)
-    nobs.grid = ceiling(exp(seq(4,9,1))/100)*100
-    
-    data.grid <- expand.grid(nobs.grid, sim.grid, th.grid)
-    names(data.grid) <- c('nobs', 'nsim','th')
-    
-    # export functions to the slaves
-    # export data to the slaves if necessary
-    sfExport(list=list("gen.sim"))
-    
-    # export function to the slaves
-    sfLibrary(msm)
-    sfLibrary(pscl)
-    
-    results <- data.frame(t(sfApply(data.grid, 1, gen.sim)))
-    
-    # stop the cluster
-    sfStop()
-    
-    forshiny <- cbind(data.grid, results)
-    # write out for use in shiny.
-    write.csv(forshiny, 'results.csv')
-    
+```{r}
+#| label: count-sim
+#| eval: false
+#| echo: true
+
+library(MASS)
+library(pscl)
+library(parallel)
+set.seed(666)
+
+gen.sim <- function(df) {
+  nobs <- df["nobs"]; th <- df["th"]
+  z    <- rnorm(nobs, 0, 1)
+  x    <- rnorm(nobs, 0, 1)
+  u    <- rnorm(nobs, 0, 1)
+  y.count  <- floor(exp(2 * x + u))
+  z1       <- 4 * z + th
+  prob     <- plogis(z1)
+  y.logit  <- rbinom(nobs, size = 1, prob = prob)
+  y        <- ifelse(y.logit == 1, y.count, y.logit)
+
+  m1 <- zeroinfl(y ~ x | z)
+  m4 <- zeroinfl(y ~ x | x)
+  m2 <- glm(y ~ x, family = "poisson")
+  m3 <- lm(log(y + 1) ~ x)
+  m5 <- glm.nb(y ~ x)
+  m6 <- hurdle(y ~ x)
+
+  c(zip1       = coef(m1, "count")["x"] - 2,
+    poisson     = coef(m2)["x"] - 2,
+    log.linear  = exp(coef(m3)["x"]) - 2,
+    zip2        = coef(m4, "count")["x"] - 2,
+    nb          = coef(m5)["x"] - 2,
+    hurdle      = coef(m6, "count")["x"] - 2)
+}
+
+data.grid <- expand.grid(
+  nobs = ceiling(exp(seq(4, 9, 1)) / 100) * 100,
+  nsim = seq(1, 100, 1),
+  th   = seq(-4, 4, 2)
+)
+
+cl      <- makeCluster(detectCores() - 1)
+clusterEvalQ(cl, { library(MASS); library(pscl) })
+clusterExport(cl, "gen.sim")
+results <- parApply(cl, data.grid, 1, gen.sim)
+stopCluster(cl)
+
+forshiny <- cbind(data.grid, t(results))
+write.csv(forshiny, "results.csv", row.names = FALSE)
+```
+
         
 Count data models can be used even if data is not "counts"; for example, some non-negative non-integer numbers.  In fact, Poisson model is consistent even if data is not Poisson-distributed, if the model specification is correct on modeling the log of expected counts.  We simulate both scenarios:  Case 1, data is generated from a Poisson process.  Case 2, data is generated from a Normal distribution, but we use count data models to model it.  The above code is for case 2.
 
@@ -134,12 +106,99 @@ We simulate 100 times with $\theta$ ranging from -4 to 4, lower number means hig
 
 Since there are many simulations, we used "snowfall" library to speed things up.  
 
-For raw code, please visit [case1: poisson](https://github.com/xiangao/poisson) and  [case2: normal](https://github.com/xiangao/poisson2).
+For raw code, please visit [case1: poisson](https://github.com/xiangao/poisson) and [case2: normal](https://github.com/xiangao/poisson2). The code above updates the original `snowfall`-based version to use base R `parallel`.
 
-The simulation results are available in the GitHub repositories linked above.
+**Summary of simulation findings:** With large samples, plain Poisson outperforms NB and log-linear even with extra zeros. Zero-inflated Poisson with correct specification of the zero process is best, but that relies on knowing what drives the zeros. Hurdle and ZIP without correct zero-model specification are similar and not much worse than Poisson. Log-linear (`log(y+1)`) is consistently the worst.
 
-In the graph, there are two vertical lines.  The lighter one is the bias, the other one is MSE.
+## Quick worked example
 
-If we can compare the situations that data generated from Poisson process and normal process, we can see using count data models to model normal distributed data is still valid, just with bigger standard deviations.  With large sample, actually Poisson model out-performs NB, and Log-linear model, without having to model the extra zeros.  NB model does not do well, in general.  Log-linear model is the worst.  Zero-inflated Poisson with correct specification of the binary process performs the best,  naturally.  But that relies on correct specification of the binary process, which is not always realistic.  Zero-inflated Poisson or hurdle model without correct specification of the binary process are not too bad, especially when sample size is large.  These two are very close since only the difference between the two is that hurdle is modeling all zeros from binary process and all positive numbers from count data process; while zip2 is modeling some zeros (probably most) from binary process and all other values (including some zeros) from a Poisson process.
+All five models on a single small dataset (n = 1000, ~40% zeros):
 
- 
+```{r}
+#| label: quick-example
+#| cache: true
+#| warning: false
+#| message: false
+
+library(MASS)
+library(pscl)
+set.seed(42)
+
+n  <- 1000
+x  <- rnorm(n)
+z  <- rnorm(n)                          # zero-inflation driver
+mu <- exp(1.5 + 0.8 * x)               # count mean
+y_c <- rpois(n, lambda = mu)
+y_b <- rbinom(n, 1, plogis(1 + 2 * z)) # 1 = non-zero
+y   <- y_c * y_b                        # zero-inflated count
+
+cat("Zero fraction:", round(mean(y == 0), 2), "\n")
+cat("Mean (non-zero):", round(mean(y[y > 0]), 2), "\n\n")
+
+# 1. Poisson
+m_pois <- glm(y ~ x, family = poisson)
+
+# 2. Negative binomial
+m_nb <- glm.nb(y ~ x)
+
+# 3. Zero-inflated Poisson (ZIP) — correct zero model
+m_zip <- zeroinfl(y ~ x | z)
+
+# 4. ZIP — wrong zero model (only x)
+m_zip2 <- zeroinfl(y ~ x | x)
+
+# 5. Hurdle
+m_hurdle <- hurdle(y ~ x)
+
+# Compare x coefficient (true = 0.8)
+coefs <- c(
+  Poisson    = coef(m_pois)["x"],
+  NB         = coef(m_nb)["x"],
+  `ZIP (correct z)` = coef(m_zip, "count")["x"],
+  `ZIP (wrong)` = coef(m_zip2, "count")["x"],
+  Hurdle     = coef(m_hurdle, "count")["x"]
+)
+
+knitr::kable(
+  data.frame(Model = names(coefs), `x coefficient` = round(coefs, 3),
+             Bias = round(coefs - 0.8, 3)),
+  caption = "True x coefficient = 0.8"
+)
+```
+
+ZIP with the correct zero-inflation model (using `z`) recovers the true
+coefficient most accurately. Without `z`, all models show upward bias because
+the zeros are incorrectly attributed to the count process.
+
+## Mixed count models with glmmTMB
+
+When data has both overdispersion *and* random effects (clustered counts, panel
+data, repeated measures), `glmmTMB` handles the full range in one package:
+
+```{r}
+#| eval: false
+#| echo: true
+
+library(glmmTMB)
+
+# Zero-inflated negative binomial with random intercept per subject
+m_glmmtmb <- glmmTMB(
+  count ~ treatment + time + (1 | subject),   # count model
+  ziformula = ~ treatment,                     # zero-inflation model
+  family = nbinom2,
+  data = your_data
+)
+
+summary(m_glmmtmb)
+
+# Conditional vs marginal predictions
+predict(m_glmmtmb, type = "conditional")  # excluding zero-inflation
+predict(m_glmmtmb, type = "response")     # including zero-inflation
+```
+
+`glmmTMB` supports: Poisson, NB1, NB2, zero-inflated variants of all of the
+above, hurdle models, beta-binomial, tweedie, and more. The `ziformula`
+argument takes a one-sided formula for the zero-inflation component — use
+`~ 1` for a constant zero-inflation rate, or covariates to model what drives
+the structural zeros.
+

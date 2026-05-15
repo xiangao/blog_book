@@ -1,14 +1,26 @@
 ---
-title: "Uplift Model in Python"
+title: "Uplift Modeling and CATE"
 author: "Xiang Ao"
 date: "2025-10-10"
 ---
 
-Uplift modeling is a technique used to estimate the incremental impact of a treatment or intervention on an outcome, often used in marketing. It helps identify which individuals are more likely to respond positively to a treatment, allowing for more targeted interventions.
+Uplift modeling estimates the incremental impact of a treatment on an
+individual — who will convert *because of* the treatment, as opposed to who
+would have converted anyway (or never converts regardless). It is widely used
+in marketing and customer targeting.
 
-To me this is basically conditional average treatment effect (CATE).
+This is the same estimand as the **conditional average treatment effect**
+(CATE): $\tau(x) = E[Y(1) - Y(0) \mid X = x]$. The term "uplift" comes from
+the industry; "CATE" comes from the causal inference literature. They are the
+same thing.
 
-I am copying this code from https://github.com/uber/causalml/blob/master/docs/examples/uplift_trees_with_synthetic_data.ipynb.  Just to see how it works and also test out python code in quarto.
+## Python: causalml uplift trees
+
+The `causalml` library (Uber) provides uplift tree classifiers and the
+cumulative gain curve for evaluating targeting policies. The code below
+follows the library's tutorial with synthetic data.
+
+I am copying this code from https://github.com/uber/causalml/blob/master/docs/examples/uplift_trees_with_synthetic_data.ipynb.
 
 ```{python}
 #| eval: false
@@ -87,3 +99,89 @@ auuc_metrics = (synth.assign(is_treated = 1 - actual_is_control[synthetic],
 
 plot_gain(auuc_metrics, outcome_col='conversion', treatment_col='is_treated')
 ```
+
+## R: causal forest for CATE
+
+In R, the `grf` package implements **causal forests** — the standard
+nonparametric CATE estimator in the econometrics literature. The setup is
+simpler than uplift trees: provide outcomes, treatments, and covariates; the
+forest handles nuisance estimation internally via honest splitting.
+
+```{r}
+#| eval: false
+#| echo: true
+
+library(grf)
+library(ggplot2)
+
+# Simulate a marketing intervention
+# True CATE: treatment helps high-engagement users more
+set.seed(123)
+n  <- 5000
+X  <- matrix(rnorm(n * 5), n, 5)
+colnames(X) <- paste0("x", 1:5)
+W  <- rbinom(n, 1, 0.5)                          # random treatment
+tau_true <- 0.3 + 0.5 * X[, 1]                   # CATE depends on x1
+Y  <- tau_true * W + X[, 2] + rnorm(n, sd = 0.5) # observed outcome
+
+# Fit causal forest
+cf <- causal_forest(X, Y, W, num.trees = 2000, seed = 42)
+
+# Estimate CATE for each unit
+tau_hat <- predict(cf, estimate.variance = TRUE)
+cate    <- tau_hat$predictions
+cate_se <- sqrt(tau_hat$variance.estimates)
+
+cat("Mean estimated CATE:", round(mean(cate), 3), "\n")
+cat("True mean CATE:     ", round(mean(tau_true), 3), "\n")
+```
+
+```{r}
+#| eval: false
+#| echo: true
+
+# Who benefits? Targeting policy
+# Sort by predicted CATE, target top 30%
+threshold <- quantile(cate, 0.70)
+targeted  <- cate >= threshold
+
+cat("Average CATE in targeted group:", round(mean(cate[targeted]), 3), "\n")
+cat("Average CATE in non-targeted:  ", round(mean(cate[!targeted]), 3), "\n")
+
+# Variable importance: which covariates drive heterogeneity?
+imp <- variable_importance(cf)
+barplot(imp, names.arg = colnames(X),
+        main = "Variable importance for CATE",
+        ylab = "Importance")
+```
+
+```{r}
+#| eval: false
+#| echo: true
+
+# Omnibus test: is there significant CATE heterogeneity?
+test_calibration(cf)
+```
+
+The `test_calibration()` output tests whether the causal forest's predictions
+are meaningful — whether high-predicted-CATE units actually show higher
+effects. A significant coefficient on `mean.forest.prediction` confirms that
+the CATE estimates carry signal.
+
+## Uplift vs CATE: the same thing with different vocabulary
+
+| Uplift term | Causal inference term |
+|---|---|
+| Uplift score | $\hat\tau(x)$ — estimated CATE |
+| Persuadables | Units with $\tau(x) > 0$ |
+| Do-not-disturbs | Units with $\tau(x) < 0$ |
+| Cumulative gain curve | Policy value curve / AUTOC |
+| Uplift tree | Causal tree / honest tree |
+| Uplift forest | Causal forest (grf) |
+
+The Python causalml library originated in the marketing/tech industry; `grf`
+originates in econometrics. They estimate the same quantity. `grf` provides
+better-calibrated confidence intervals and formal tests for heterogeneity
+(which are important for publication); causalml provides richer
+policy-evaluation tools (gain curves, Qini coefficients) that matter for
+business decisions.
