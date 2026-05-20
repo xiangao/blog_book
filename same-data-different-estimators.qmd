@@ -3,16 +3,16 @@ title: "Same Data, Different Estimators"
 date: "2026-05-13"
 ---
 
-## One panel, several questions
+## One panel, several estimators
 
-The BLS Local Area Unemployment Statistics (LAUS) county file is a useful
-benchmark panel because it is large, public, and substantively familiar. It has
-monthly county unemployment rates, many pre-treatment periods, and a natural
-COVID-era policy application: stay-at-home orders in April 2020.
+Here I use the BLS Local Area Unemployment Statistics county file to compare a
+few panel estimators. The data are public, large enough to be interesting, and
+have a natural COVID example: stay-at-home orders in April 2020.
 
-This makes it a good "same data, different estimators" example. Instead of
-changing the empirical setting every time we introduce a new panel method, we
-can hold the panel fixed and ask what each estimator is doing differently.
+The point is to keep the data fixed. If I change the data every time I change
+the estimator, then it is hard to know whether the result changed because of
+the estimator or because of the sample. So here I build one panel and pass the
+same outcome matrix to several methods.
 
 The setup follows the application in Shen, Song, and Abadie:
 
@@ -30,15 +30,14 @@ The setup follows the application in Shen, Song, and Abadie:
 | pre-treatment months | 147 |
 
 The paper reports an ATT of about 5.06 percentage points. With the current BLS
-flat file and the code below, `MSC.jl` constructs the same-sized panel and gives
-an application-replication estimate of 4.9552 under the default bounded solver
-settings.
+flat file and the code below, `MSC.jl` builds the same-sized panel and gives
+4.9552 under the default bounded solver settings.
 
 ## Construct the panel once
 
-The key is to build one common panel, then pass exactly the same matrix to
-several estimators. The county panel has controls first, treated units second,
-pre-treatment periods first, and April 2020 as the only post-treatment period.
+The key is to build one common panel first. The matrix has controls first,
+treated units second, pre-treatment months first, and April 2020 as the only
+post-treatment month.
 
 The `MSC.jl` example script contains the data-preparation helper, so we can
 reuse it rather than duplicating parsing logic:
@@ -62,8 +61,7 @@ Here `N0 = 438`, `size(Y, 1) - N0 = 2674`, and `T0 = 147`.
 
 ### A DuckDB version of the same panel step
 
-The raw LAUS county file is large enough that it is worth separating two
-jobs:
+The raw LAUS county file is large enough that I want to separate two jobs:
 
 1. use DuckDB to scan, filter, complete-case-check, and order the flat file;
 2. hand the resulting common panel to the estimators.
@@ -153,11 +151,10 @@ This gives the same design counts as the CSV helper:
 | months | 148 |
 | pre-treatment months | 147 |
 
-On my local machine, materializing this panel took about 10.4 seconds with
-DuckDB versus about 23.1 seconds with the current CSV/DataFrames helper. The
-main gain is not that the estimators run inside DuckDB. They do not. The gain
-is that DuckDB does the wide flat-file scan, filtering, complete-history check,
-and ordering before Julia receives the analysis table.
+On my machine, materializing this panel took about 10.4 seconds with DuckDB and
+about 23.1 seconds with the current CSV/DataFrames helper. The estimators are
+not running inside DuckDB. DuckDB just does the wide-file scan, filtering,
+complete-history check, and ordering before Julia receives the analysis table.
 
 ## Four estimators on the same outcome matrix
 
@@ -193,37 +190,35 @@ On the downloaded BLS file, this gives:
 | Multivariate synthetic control | 4.9552 |
 | Paper benchmark | about 5.06 |
 
-These are not just different implementations of the same estimand. They encode
-different ways to decide which controls and which pre-periods matter.
+These are not just four implementations of the same calculation. They make
+different choices about which controls and which pre-periods matter.
 
 ## What changes across estimators?
 
 Plain DiD uses equal unit weights and equal time weights. It asks whether
 treated counties changed more from the pre-period average to April 2020 than
-the no-order counties did. This is transparent, but it leans heavily on a
-parallel-trends comparison between a very large treated group and seven
+the no-order counties did. This is easy to understand, but it leans heavily on
+a parallel-trends comparison between a very large treated group and seven
 no-order states.
 
 Synthetic control changes the unit weights. It tries to form a weighted control
 group that better matches the treated group before April 2020. In this example
 the estimate moves from about 2.69 to about 3.41 percentage points.
 
-Synthetic DiD changes both unit and time weights. In this particular one-month
-post-treatment application, the SDiD estimate is almost the same as DiD. That
-is itself informative: for this design and implementation, the optimized
-weights do not move the simple average comparison much.
+Synthetic DiD changes both unit and time weights. In this one-post-month
+application, the SDiD estimate is almost the same as DiD. For this design, the
+optimized weights do not move the simple average comparison much.
 
-Multivariate synthetic control changes the target problem more substantially.
-It does not fit one synthetic control for an aggregate treated average, and it
-does not fit 2,674 separate synthetic controls. Instead it learns a sparse
-matrix mapping 438 control counties to all 2,674 treated counties jointly, then
-averages the treated-county effects. That is why it is a natural estimator for
-this paper's high-dimensional disaggregated setting.
+Multivariate synthetic control changes the target problem more. It does not fit
+one synthetic control for an aggregate treated average, and it does not fit
+2,674 separate synthetic controls. It learns a sparse matrix mapping 438
+control counties to all 2,674 treated counties jointly, then averages the
+treated-county effects. That is closer to the disaggregated problem in the
+paper.
 
-## Why this example is useful
+## What I learn from this
 
-This panel is a good teaching and diagnostic example because the estimates are
-not identical:
+The estimates are not identical:
 
 | comparison | lesson |
 | --- | --- |
@@ -232,29 +227,27 @@ not identical:
 | SC vs MSC | aggregate treated fit differs from high-dimensional treated-unit fit |
 | MSC vs paper | matching sample counts is not the same as pinning the exact data vintage and optimizer |
 
-For applied work, this is the right workflow. Start with a single panel and
-force the estimators to use the same sample. Then disagreements are easier to
-interpret: they come from the estimator, not from hidden data-processing
-differences.
+For applied work, I think this is the right workflow. Start with one sample and
+force the estimators to use it. Then disagreements are easier to interpret.
 
 ## Practical notes
 
-The BLS data are large enough that I would not make the book render download or
-parse the file every time. The better pattern is:
+The BLS data are large enough that I would not make the book download or parse
+the file every time. The better pattern is:
 
 1. keep the raw BLS flat file outside the book repository;
 2. use DuckDB or a dedicated preparation script to produce a common panel object;
 3. cache a small summary table of estimates;
 4. make the chapter explain the design, code path, and interpretation.
 
-The current `MSC.jl` example does this for the paper application. It
-looks for `data/la.data.64.County` or an explicit `BLS_LAUS_COUNTY_FILE`, builds
-the paper-sized panel, and prints the comparison with the reported paper
-number. The DuckDB variant above is a faster way to perform the same panel
-construction step when the full BLS flat file is available locally.
+The current `MSC.jl` example does this for the paper application. It looks for
+`data/la.data.64.County` or an explicit `BLS_LAUS_COUNTY_FILE`, builds the
+paper-sized panel, and prints the comparison with the reported paper number.
+The DuckDB version above is just a faster way to do the same panel construction
+when the full BLS flat file is available locally.
 
 If the goal is exact reproduction of 5.06, the missing ingredient is not
 another estimator. It is the paper's exact replication archive: the BLS vintage,
-county inclusion file, and optimizer/tuning settings. Without that archive, the
-honest claim is that we replicate the application design and sample counts, and
-we report how different estimators behave on the same public data.
+county inclusion file, and optimizer settings. Without that archive, I would
+only claim that this replicates the application design and sample counts, and
+then compares estimators on the same public data.

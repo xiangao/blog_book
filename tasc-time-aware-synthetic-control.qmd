@@ -3,18 +3,15 @@ title: "Same Data, Different Estimators: A Synthetic Control Comparison"
 date: "2026-05-15"
 ---
 
-## One panel, four questions
+## One panel, four estimators
 
-The cleanest way to understand what a panel estimator actually does is to hold
-the data fixed and change only the estimator. If the estimates agree, the choice
-of method is a minor implementation detail. If they diverge, each gap is an
-empirical lesson about what the estimator assumed.
+Here I use the Proposition 99 data to compare four panel estimators on the same
+outcome matrix: DiD, synthetic DiD, synthetic control, and TASC.
 
-California's Proposition 99 (1988) is the canonical synthetic control dataset:
-39 US states, annual cigarette sales per capita from 1970 to 2000, treatment
-beginning in 1989. We apply four estimators to exactly the same outcome matrix
-— DiD, Synthetic DiD, Synthetic Control, and TASC — and ask what drives
-the differences.
+This is the standard California smoking example. There are 39 states, annual
+cigarette sales per capita from 1970 to 2000, and California is treated after
+the 1988 anti-smoking law. The useful thing about this example is that the
+estimators do not give exactly the same answer.
 
 ## Four estimators, one panel
 
@@ -46,37 +43,30 @@ pred   = predict_counterfactual(model, Y_tasc)
 | Synthetic DiD | −16.1 |
 | TASC | −17.1 |
 
-Ten packs separates the smallest and largest estimate. That is not rounding
-error. It is a direct consequence of what each estimator treats as a valid
-control comparison.
+The smallest and largest estimates differ by about ten packs per capita. That
+is not a rounding issue. It comes from the way each estimator constructs the
+counterfactual.
 
 ## What changes across estimators
 
-**DiD (−27.4)** assigns equal weight to every control state and every
+**DiD (-27.4)** assigns equal weight to every control state and every
 pre-treatment year. California is compared to the average of all 38 donor
-states. As the figure shows, the equal-weighted control composite sits far
-below California's pre-treatment trajectory, so the implied parallel-trends
-counterfactual is too low — it predicts California would have fallen much less
-without Prop 99 than a closer match would suggest. The large ATT reflects the
-poor pre-treatment fit of equal weights, not a larger causal effect.
+states. In this data, that average sits well below California before treatment.
+So the large DiD estimate is not automatically evidence of a larger causal
+effect. It is partly a warning that equal weights do not fit the pre-period
+well.
 
-**Synthetic control (−19.6)** replaces equal weights with optimised donor
-weights: a convex combination of states that best matches California's
-1970–1988 cigarette sales. The pre-period fit is tight. Once the control
-composite closely tracks California before treatment, the post-treatment gap
-shrinks to a more credible estimate. The 8-point drop from DiD to SC ($27 →
-$20) is entirely attributable to better pre-treatment match — same data, better
-control group.
+**Synthetic control (-19.6)** replaces equal weights with donor weights chosen
+to match California's 1970-1988 cigarette sales. Once the pre-period fit is
+better, the post-treatment gap shrinks. The move from about -27 to about -20 is
+mostly the price of using a better control group.
 
-**Synthetic DiD (−16.1)** adds time weights on top of unit weights. The SDiD
-objective up-weights pre-treatment years that most resemble the recent
-pre-treatment trend, reducing the influence of the distant 1970s where the
-data can only loosely inform the post-1988 counterfactual. The small additional
-drop from SC to SDiD ($20 → $16) reflects those time weights discounting
-the early pre-period.
+**Synthetic DiD (-16.1)** adds time weights. The estimator can put more weight
+on the pre-treatment years that are more useful for the post-1988
+counterfactual. Here that moves the estimate a bit closer to zero.
 
-**TASC (−17.1)** takes a different route entirely. Instead of choosing weights,
-it fits a state-space model to the pre-treatment panel:
+**TASC (-17.1)** does something different. Instead of choosing only weights, it
+fits a state-space model to the pre-treatment panel:
 
 $$
 x_t = A\,x_{t-1} + q_t,\quad q_t \sim \mathcal{N}(0,Q)
@@ -86,12 +76,10 @@ $$
 y_t = H\,x_t + r_t,\quad r_t \sim \mathcal{N}(0,R)
 $$
 
-The matrix $A$ captures how the latent factors evolve over time — the piece
-that DiD, SC, and SDiD all ignore. After treatment, the Kalman filter continues
-to run on the donor panel to infer the latent state; the treated unit's row of
-$H$ then maps that state to a counterfactual. The TASC estimate (−17.1) lands
-between SC and SDiD, consistent with its low-rank factor model being a
-different but comparably-principled shrinkage of the donor pool.
+The matrix $A$ describes how the latent factors move over time. After
+treatment, the filter continues using the donor panel, and the treated unit's
+row of $H$ maps the latent state to California's counterfactual. The TASC
+estimate (-17.1) lands between SC and SDiD in this example.
 
 ## The figure
 
@@ -113,21 +101,15 @@ $\hat Y_{1t}(0) \pm 1.96\,\hat\sigma_t$.](tasc-prop99.svg)
 
 Two things are visible in the figure that the table cannot show.
 
-First, the **pre-treatment paths** diverge. DiD's equal-weighted control
-composite (dashed red) sits well below California in the pre-period.
-SC and TASC track California closely — that is what the weight optimisation
-buys. The DiD counterfactual's poor pre-treatment fit is the whole explanation
-for its larger post-treatment gap.
+First, the pre-treatment paths differ. The DiD control average sits well below
+California before treatment. SC and TASC track California more closely. This is
+why the DiD post-treatment gap is larger.
 
-Second, the **TASC posterior band** is narrow in the pre-period and widens
-after 1989. This is the right shape. Before treatment, the RTS smoother
-borrows information from both directions in time and from all donor units,
-so latent state uncertainty is low. After treatment, the filter runs forward
-without California's observations; each additional post-treatment year
-compounds one more step of state uncertainty via $P_{t+1} = AP_tA^\top + Q$.
-The other three estimators give a single point estimate for the entire
-post-treatment path — not because the future is more predictable than
-the past, but because they have no time-series model to tell them otherwise.
+Second, the TASC band is narrow before treatment and wider after 1989. That is
+what I would expect. Before treatment, the smoother can use information from
+both directions in time. After treatment, the filter has to move forward
+without California's observed outcomes, so the uncertainty accumulates through
+$P_{t+1} = AP_tA^\top + Q$.
 
 ## What the comparison teaches
 
@@ -138,18 +120,16 @@ the past, but because they have no time-series model to tell them otherwise.
 | SC vs TASC | Model — weight fitting vs latent state-space |
 | SC/SDiD vs TASC | Uncertainty — point estimate vs posterior interval |
 
-The right estimator depends on the setting. DiD is transparent and requires
-only parallel trends. SC earns tighter pre-treatment fit at the cost of
-assuming a convex donor combination. SDiD adds time-period discipline. TASC
-is appropriate when the outcome series has persistent dynamics and genuine
-post-treatment uncertainty quantification matters.
+Which estimator I would use depends on the setting. DiD is transparent, but
+the pre-period fit here is poor. SC improves the donor match. SDiD also weights
+time periods. TASC is useful when the outcome series has persistent dynamics
+and we want uncertainty for the counterfactual path, not just one average
+number.
 
-For this particular panel — 19 pre-treatment years, stable trends, 11
-post-treatment years — the estimates cluster between −16 and −20 once
-pre-treatment match is enforced (SC, SDiD, TASC). The outlier is DiD, whose
-equal weights are rejected by the data. The lesson is not that Prop 99 had a
-different effect depending on who you ask, but that equal weights are a poor
-description of California's counterfactual.
+For this panel, the three methods that try to match the pre-period give
+estimates between about -16 and -20. DiD is the outlier. I would read this as a
+problem with equal weights, not as evidence that the effect of Proposition 99
+depends on the estimator.
 
 ## Setup code
 

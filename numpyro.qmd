@@ -52,15 +52,14 @@ reg1 <- lmer(FVC ~ Weeks + (1 + Weeks | Patient), data = data)
 summary(reg1)
 ```
 
-The lme4 model gives point estimates for the fixed effects and variance
-components. Now we replicate it in numpyro, which gives the full posterior
-distribution over every parameter.
+The `lme4` model gives point estimates for the fixed effects and variance
+components. Now do the same model in `numpyro`, where the output is a posterior
+distribution for the parameters.
 
 ## Example 2: Numpyro hierarchical model
 
-We implement the same model in Python using numpyro. The structure is
-identical to the lme4 model: each patient gets their own intercept and slope,
-drawn from a population-level distribution.
+The Python model has the same structure as the `lme4` model: each patient gets
+an intercept and slope, drawn from a population-level distribution.
 
 ```{python}
 #| eval: false
@@ -85,7 +84,7 @@ fvc   = jnp.array(data["FVC"].values,   dtype=float)
 pat   = jnp.array(patients,              dtype=int)
 ```
 
-The numpyro model mirrors the lme4 formula `FVC ~ Weeks + (1 + Weeks | Patient)`:
+The `numpyro` model corresponds to `FVC ~ Weeks + (1 + Weeks | Patient)`:
 
 ```{python}
 #| eval: false
@@ -115,9 +114,8 @@ mcmc.run(jax.random.PRNGKey(0), pat, weeks, fvc)
 mcmc.print_summary()
 ```
 
-The `mcmc.print_summary()` output shows the posterior mean, standard
-deviation, and 90% credible interval for each parameter. Expected output
-(approximate):
+The `mcmc.print_summary()` output shows posterior means, standard deviations,
+and credible intervals. Approximate output looks like this:
 
 ```
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
@@ -164,13 +162,11 @@ print(f"  90% CI: [{jnp.quantile(fvc_pred, 0.05):.1f}, {jnp.quantile(fvc_pred, 0
 | Computation | Fast (seconds) | Slower (minutes for 1000 samples) |
 | Prediction | `predict()` gives point estimates | Posterior predictive — full distribution |
 
-The main advantage of numpyro becomes clear with *predictions*. For a new
-patient, lme4 gives a point estimate with a (approximate) confidence interval.
-Numpyro gives the full posterior predictive distribution — you can extract any
-quantile, compute the probability that FVC stays above a threshold, or
-propagate uncertainty into downstream decisions.
+The main advantage of `numpyro` shows up in prediction. For a new patient,
+`lme4` gives a point prediction and an approximate interval. `numpyro` gives a
+posterior predictive distribution. Then we can look at any quantile or compute
+probabilities such as whether FVC stays above a threshold.
 
-For a simple random-effects model with a large dataset, lme4 is faster and
-usually sufficient. Numpyro becomes more compelling when the model is complex
-(non-Gaussian outcomes, nonlinear trends, structured priors) or when the full
-predictive distribution is the deliverable.
+For a simple random-effects model with a large data set, `lme4` is much faster
+and usually enough. `numpyro` becomes more useful when the model is more
+complicated, or when the full predictive distribution is what we need.
