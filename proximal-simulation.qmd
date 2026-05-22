@@ -1,14 +1,14 @@
 ---
-title: "Simulation on promimal causal inference with panel data"
+title: "Simulation on proximal causal inference with panel data"
 date: "2025-08-01"
 ---
 
 
 This is to continue the discussion on proximal causal inference.  The idea is to use negative controls to estimate the causal effect of treatment on outcome while accounting for unobserved confounders.  This is a follow-up of the previous post on [proximal causal inference](https://xiangao.github.io/2024/07/01/proximal-causal-inference.html).
 
-In this post, I am trying to see whether we can use lagged $D$ and lagged $Y$ as NCE and NCO, in a panel data setting.  The idea is to use the lagged treatment as a negative control exposure (NCE) and the lagged outcome as a negative control outcome (NCO).  
+In this post, I am trying to see whether we can use lagged $D$ and lagged $Y$ as NCE and NCO, in a panel data setting.  The idea is to use the lagged treatment as a negative control exposure (NCE) and the lagged outcome as a negative control outcome (NCO).
 
-Let's see a two period DAG: 
+Let's see a two period DAG:
 
 ```{r}
 #| label: dag1
@@ -37,8 +37,8 @@ g <- dagify(
                 y = c(A1 = 1,  A2 = 1, Y2 = 1, Y1 = 1, U2 = 2, U1 = 3))
 )
 
-ggdag(g) + 
-  theme_dag() 
+ggdag(g) +
+  theme_dag()
 ```
 
 Suppose that's the case for the causal structure, then I can reasonably combine U1 and U2 into a single unobserved confounder $U$:
@@ -67,8 +67,8 @@ g <- dagify(
                 y = c(A1 = 1,  A2 = 1, Y2 = 1, Y1 = 1, U = 2))
 )
 
-ggdag(g) + 
-  theme_dag() 
+ggdag(g) +
+  theme_dag()
 ```
 
 That would fit into the double negative control framework.  The problem is that we have to assume there is no link from A1 to Y1, which is odd.  Can we assume in period 1 there is no effect, but in period 2, there is an effect?
@@ -77,7 +77,7 @@ That would fit into the double negative control framework.  The problem is that 
 
 ## A simulation with panel data
 
-I generate two period data based on the DAG above.  
+I generate two period data based on the DAG above.
 
 ```{r}
 #| label: sim1
@@ -104,7 +104,7 @@ gen_data <- function(seed, n){
   data <- data.frame(u=u, x1=x1, x2=x2, a1=a1, a2=a2, y1=y1, y2=y2)
   return(data)
 }
-data <- gen_data(333, 100000)  
+data <- gen_data(333, 100000)
 
 ```
 
@@ -118,8 +118,8 @@ data <- gen_data(333, 100000)
 #| echo: true
 
 
-data_sim <- data |> 
-  select(a1, a2, y2,  x1, x2, y1) |> 
+data_sim <- data |>
+  select(a1, a2, y2,  x1, x2, y1) |>
   rename(a = a2, y = y2,  x = x1, w = y1, z=a1)
 
 ```
@@ -143,7 +143,7 @@ summary(lm2)
 
 ```
 
-Or we can use more sophisticated methods.  Here I use the m-estimation code by Paul Zivich:  https://github.com/pzivich/publications-code/blob/master/ProximalCI/proximal_sims_r.R.  This code is to contruct estimating equations, then use root finding to find the parameter estimates.
+Or we can use more sophisticated methods.  Here I use the m-estimation code by Paul Zivich:  https://github.com/pzivich/publications-code/blob/master/ProximalCI/proximal_sims_r.R.  This code is to construct estimating equations, then use root finding to find the parameter estimates.
 
 
 ```{r}
@@ -164,21 +164,21 @@ pcl_m2 <- function(theta, mydata, out = "ef"){
   z <- mydata$z
   y <- mydata$y
   # model for what
-  what <- theta[1] + theta[2] * a + theta[3] * x + theta[4] * z 
+  what <- theta[1] + theta[2] * a + theta[3] * x + theta[4] * z
 
   # matrix of covars in model for what
-  wmat <- as.matrix(cbind(rep(1, nrow(mydata)), a, x, z), ncol = 4, 
+  wmat <- as.matrix(cbind(rep(1, nrow(mydata)), a, x, z), ncol = 4,
                     nrow = nrow(mydata))
 
   # estimating function for what
   ef1 <- (t(wmat)  %*% (w - what))            # gives px1 vector (summed over units)
   ef1_b <- wmat * (w - what)                  # gives nxp matrix (rows are units)
-  
+
   # model for yhat
-  yhat <- theta[5] + theta[6]*a + theta[7]*x + theta[8] * what  
+  yhat <- theta[5] + theta[6]*a + theta[7]*x + theta[8] * what
 
   # matrix of covars in model for yhat
-  ymat <- as.matrix(cbind(rep(1, nrow(mydata)), a, x, what), ncol = 4, 
+  ymat <- as.matrix(cbind(rep(1, nrow(mydata)), a, x, what), ncol = 4,
                     nrow = nrow(mydata))
 
   #estimating function for yhat
@@ -205,20 +205,20 @@ mestimator <- function(ef, init, dat, ...){
 
   # bread
   # derivative of estimating function at betahat
-  pd <- gradient(ef, betahat, out = "ef", ...) 
+  pd <- gradient(ef, betahat, out = "ef", ...)
   pd <- as.matrix(pd)
   bread <- -pd/n
   se_mod <- sqrt(abs(diag(-solve(pd))))
-  
+
   # meat1
   efhat <- ef(betahat, out = "full", ...)
   meat <- list()
   meat1 <- (t(efhat) %*% efhat)/n
-  
+
   # sandwich
   sandwich1 <- (solve(bread) %*% meat1 %*% t(solve(bread)))/n
   se_sandwich1 <- sqrt(diag(sandwich1))
-  
+
   results <- data.frame(betahat, se_sandwich1, se_mod)
   return(results)
 }
@@ -241,9 +241,8 @@ rmpcl
 
 Both the 2sls and the m-estimation give us the same estimate of the causal effect of treatment on outcome, which is 3.  The m estimator can be more general.  2sls is good for the linear case.
 
-However, the main issue is the assumption that there is no link from A1 to Y1.  
+However, the main issue is the assumption that there is no link from A1 to Y1.
 
-To think about it from a different angle: this is similar to DiD setting.  Basically we need A1 to be 0.  There is no effect in period 1.  If we only have A1 as 0, then it makes sense to have no link from A1 to Y1 (no anticipation assumption).  
-
+To think about it from a different angle: this is similar to DiD setting.  Basically we need A1 to be 0.  There is no effect in period 1.  If we only have A1 as 0, then it makes sense to have no link from A1 to Y1 (no anticipation assumption).
 
 

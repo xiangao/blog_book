@@ -25,9 +25,9 @@ library(tidyverse)
 dag <- dagify(
   Y ~ A1 + A0 + L1 ,
   A1 ~ A0 + L1,
-  L1 ~ A0 , 
+  L1 ~ A0 ,
   coords = time_ordered_coords()
-) 
+)
 
 dag %>%
   ggplot(aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -40,11 +40,11 @@ dag %>%
 
 ## Assumptions
 
-There are four potential outcomes, with $A_0$ and $A_1$ can be 0 or 1.  The causal estimand is 
+There are four potential outcomes, with $A_0$ and $A_1$ can be 0 or 1.  The causal estimand is
 $$ \tau_{a_o,a_1,a_o',a_1'} = E[Y^{a_0,a_1} - Y^{a_0',a_1'}]$$
 
 
-To idenfity the effects, we need assumptions.
+To identify the effects, we need assumptions.
 
 1.  Sequential ignorability
 $$ Y^{a_0,a_1} \perp A_0$$
@@ -69,27 +69,27 @@ $$ Y^{a_0,a_1} = Y | (A_0=a_0,A_1=a_1)$$
 
 ## Identifiability
 
-$$ \begin{align} 
+$$ \begin{align}
 E[Y^{a_0,a_1} &= E[Y^{a_0,a_1} | A_0=a_0] \\
 &= E[Y^{A_0,a_1} | A_0=a_0] \\
 &= \sum_{l=0,1}E[Y^{A_0,a_1} | A_0=a_0, L=l] P(L=l | A_0=a_0) \\
 &= \sum_{l=0,1}E[Y^{A_0,a_1} | A_0=a_0, L=l, A_1=a_1] P(L=l | A_0=a_0) \\
-&= \sum_{l=0,1}E[Y^{A_0,A_1} | A_0=a_0, L=l, A_1=a_1] P(L=l | A_0=a_0) 
+&= \sum_{l=0,1}E[Y^{A_0,A_1} | A_0=a_0, L=l, A_1=a_1] P(L=l | A_0=a_0)
 \end{align} $$
 
 This can be expanded to the general case.  Basically start from the first period, then the second, based on the first, and so on.
 
 ## Estimation
 
-There are two types of componenets in the g-estimation.  The first is the outcome model, then there are models for time-varying covariates, or intermediate outcomes (confounders).
+There are two types of components in the g-estimation.  The first is the outcome model, then there are models for time-varying covariates, or intermediate outcomes (confounders).
 
 ## Parametric g-formula
 
-In this simple case, if $Y$ is continuous, we can use a linear model.  If $Y$ is binary, we can use a logistic model.  
+In this simple case, if $Y$ is continuous, we can use a linear model.  If $Y$ is binary, we can use a logistic model.
 
 $$ E[Y | A_0, A_1, L_1] = \beta_0 + \beta_1 A_0 + \beta_2 L_1 + \beta_3 A_1$$
 
-Suppose $L_1$ is binary, 
+Suppose $L_1$ is binary,
 
 $$P(L_1=1 | A_0) = logit^{-1}(\gamma_0 + \gamma_1 A_0)$$
 $$ L_1 | A_0 \sim Bernoulli(\gamma_0 + \gamma_1 A_0)$$
@@ -101,7 +101,7 @@ We may need to simulate the distribution of the time-varying covariates for the 
 
 I am following Christopher Boyer's example in his teaching page: https://christopherbboyer.com/about.
 
-The first example is from his lab3 teaching page.  
+The first example is from his lab3 teaching page.
 
 First we set up a simulated data set.
 
@@ -141,7 +141,7 @@ dat <- uncount(hw3_freq, N) %>%
   ) %>%
   # make sure that time is read as a number
   mutate(time = parse_number(time),
-         # add some random error to Y 
+         # add some random error to Y
          # (nrow(.) means a different value for each row of the dataset in use
          Y = Y + rnorm(nrow(.), 0, 10))
 
@@ -152,9 +152,9 @@ t1 <- dat %>%
   filter(time == 1)
 ```
 
-Then calculate the g-formula by hand.  
+Then calculate the g-formula by hand.
 
-First for $E[Y^{1,1}]$.  
+First for $E[Y^{1,1}]$.
 
 ```{r}
 #| message: false
@@ -186,7 +186,7 @@ new_dat_11$Ey <- predict(Y_mod, newdata = new_dat_11, type = "response")
 mean(new_dat_11$Ey)
 ```
 
-Then for $E[Y^{0,0}]$.  
+Then for $E[Y^{0,0}]$.
 
 ```{r}
 #| message: false
@@ -211,7 +211,7 @@ mean(new_dat_00$Ey)
 
 ```
 
-Now with the gfoRmula package.  
+Now with the gfoRmula package.
 
 ```{r}
 #| message: false
@@ -225,7 +225,7 @@ id <- "id"
 time_name <- "time"
 covnames <- c("L", "A")
 outcome_name <- "Y"
-# 
+#
 outcome_type <- "continuous_eof"
 #
 histories <- c(lagged)
@@ -287,7 +287,7 @@ gform_res$sim_data
 
 ## A second example
 
-Chistopher Boyer has a package "gmethods" that can be used to estimate the g-formula.  To me it's a bit more intuitive than the gfoRmula package.  Here is an example in the "gmethods" package, with the same model in the "gfoRmula" package.  
+Chistopher Boyer has a package "gmethods" that can be used to estimate the g-formula.  To me it's a bit more intuitive than the gfoRmula package.  Here is an example in the "gmethods" package, with the same model in the "gfoRmula" package.
 
 The example dataset continuous_eofdata again consists of 7,500 observations on 2,500 individuals with a maximum of 7 follow-up times, where the outcome corresponds to a characteristic only in the last interval (e.g., systolic blood pressure in interval 7). The variables in the dataset are:
 t0: The time index
@@ -296,11 +296,11 @@ L1: A time-varying covariate; categorical
 L2: A time-varying covariate; continuous
 L3: A baseline covariate; continuous
 A: The treatment variable; binary
-Y: The outcome of interest; continuous  
+Y: The outcome of interest; continuous
 
 The goal is to estimate the mean outcome at time $K + 1 = 7$ under ‘‘never treat’’ versus ‘‘always treat.’’
 
-The DAG would be something like:  
+The DAG would be something like:
 
 ```{r}
 #| message: false
@@ -313,7 +313,7 @@ dag <- dagify(
   L2 ~ lag1_A + L1 + lag1_L1 + lag1_L2 + L3,
   A ~ lag1_A + L1 + L2 + lag1_L1 + lag1_L2 + L3,
   coords = time_ordered_coords()
-) 
+)
 
 dag %>%
   ggplot(aes(x = x, y = y, xend = xend, yend = yend)) +
@@ -327,7 +327,7 @@ dag %>%
 
 ### gFormula results
 
-First use the gFormula package.  
+First use the gFormula package.
 
 
 ```{r}
@@ -373,7 +373,7 @@ gform_cont_eof
 
 ### gmethods results
 
-Now use the gmethods package.  
+Now use the gmethods package.
 
 ```{r}
 #| message: false
@@ -422,4 +422,4 @@ s$results
 
 Note the results are very close.  Also note that in the covariates and treatment models, there is a time variable t0.  This is because these models are pooled regression with all time points.  Therefore a time fixed effect is included.  In the outcome model, there is only the last period data, so the time variable is not included.
 
-Standard errors can be calculated with bootstrapping.  
+Standard errors can be calculated with bootstrapping.

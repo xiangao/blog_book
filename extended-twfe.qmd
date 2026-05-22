@@ -6,10 +6,10 @@ date: "2024-12-09"
 
 ## Staggered DiD without treatment reversal
 
-This blog is adopted from the tutorial of paneltools package.  
+This blog is adopted from the tutorial of paneltools package.
 https://yiqingxu.org/tutorials/panel.html#Installing_Packages
 
-I added Wooldridge's ETWFE, which is my favorate estimator with staggered DiD.  It is easy to understand and implement.  It also works with nonlinear model such as logit and poisson.
+I added Wooldridge's ETWFE, which is my favorite estimator with staggered DiD.  It is easy to understand and implement.  It also works with nonlinear model such as logit and poisson.
 
 ```{r}
 #| message: false
@@ -34,7 +34,7 @@ This data is from Hainmueller and Hopkins (2019), in which the authors investiga
 
 #devtools:: install_github("xuyiqing/panelView")
 library(panelView)
-panelview(nat_rate_ord ~ indirect, data = hh2019, index = c("bfs","year"), 
+panelview(nat_rate_ord ~ indirect, data = hh2019, index = c("bfs","year"),
   xlab = "Year", ylab = "Unit", display.all = T,
   gridOff = TRUE, by.timing = TRUE)
 
@@ -42,7 +42,7 @@ panelview(nat_rate_ord ~ indirect, data = hh2019, index = c("bfs","year"),
 
 ### TWFE
 
-First we do a TWFE model on it.  
+First we do a TWFE model on it.
 
 ```{r}
 #| message: false
@@ -57,7 +57,7 @@ summary( model_twfe)
 
 ```
 
-TWFE has issues when there is staggered adoption and heterogeneous treatment effects.  
+TWFE has issues when there is staggered adoption and heterogeneous treatment effects.
 
 Goodman-Bacon (2021) demonstrates that the two-way fixed-effects (TWFE) estimator in a staggered adoption setting can be represented as a weighted average of all possible 2x2 difference-in-differences (DID) estimates between different cohorts. However, when treatment effects change over time heterogeneously across cohorts, the “forbidden” comparisons that use post-treatment data from early adopters as controls for late adopters may introduce bias in the TWFE estimator. We employ the procedure outlined in Goodman-Bacon (2021) and decompose the TWFE estimate using the command bacon in the bacondecomp package.
 
@@ -84,7 +84,7 @@ ggplot(df_bacon) +
    geom_point()
 ```
 
-The problem shown in Bacon decomposion here is the comparison between "Later" and "Earlier Treated".  It's a "forbiden" comparison.  
+The problem shown in Bacon decomposition here is the comparison between "Later" and "Earlier Treated".  It's a "forbidden" comparison.
 
 TWFE with event history type of graph.
 
@@ -94,12 +94,12 @@ TWFE with event history type of graph.
 #| cache: true
 
 
-df.use <- hh2019 |> 
+df.use <- hh2019 |>
   na.omit()
 
 df <- as.data.frame(
-  hh2019 |> 
-    group_by(bfs) |> 
+  hh2019 |>
+    group_by(bfs) |>
     mutate(treatment_mean = mean(indirect,na.rm = TRUE))
 )
 df.use <- df[which(df$treatment_mean<1),]
@@ -109,22 +109,22 @@ df.twfe <- as.tibble(get.cohort(df.use,D="indirect",index=c("bfs","year"),start0
 # time_to_treatment is NA when the unit is always treated, or never treated.  It needs to be set to an arbitrary value for the twfe model.
 df.twfe$treat <- as.numeric(df.twfe$treatment_mean>0) # drop always treated units
 df.twfe[which(is.na(df.twfe$Time_to_Treatment)),'Time_to_Treatment'] <- 0 # can be an arbitrary value
-twfe.est <- feols(nat_rate_ord ~ i(Time_to_Treatment, treat, ref = -1)| bfs + year,  
+twfe.est <- feols(nat_rate_ord ~ i(Time_to_Treatment, treat, ref = -1)| bfs + year,
                   data = df.twfe, cluster = "bfs")
 summary(twfe.est)
 twfe.output <- as.matrix(twfe.est$coeftable)
 twfe.output <- as.data.frame(twfe.output)
-twfe.output$Time <- c(c(-18:-2),c(0:17))+1 
+twfe.output$Time <- c(c(-18:-2),c(0:17))+1
 p.twfe <- esplot(twfe.output,Period = 'Time',Estimate = 'Estimate',
                                SE = 'Std. Error', xlim = c(-12,10))
 p.twfe
 
- 
+
 ```
 
 ### Sun and Abraham
 
-Sun and Abraham (2021) estimator is a weighted average of the average treatment effect (ATT) estimates for each cohort, obtained from a TWFE regression that includes cohort dummies fully interacted with indicators of relative time to the treatment’s onset. The iw estimator is robust to heterogeneous treatment effects (HTE) and can be implemented using the command sunab in the package fixest. 
+Sun and Abraham (2021) estimator is a weighted average of the average treatment effect (ATT) estimates for each cohort, obtained from a TWFE regression that includes cohort dummies fully interacted with indicators of relative time to the treatment’s onset. The iw estimator is robust to heterogeneous treatment effects (HTE) and can be implemented using the command sunab in the package fixest.
 
 ```{r}
 #| message: false
@@ -132,7 +132,7 @@ Sun and Abraham (2021) estimator is a weighted average of the average treatment 
 #| cache: true
 
 df.sa <- df.twfe
-df.sa[which(is.na(df.sa$FirstTreat)),"FirstTreat"] <- 1000 # replace NA with an arbitrary number 
+df.sa[which(is.na(df.sa$FirstTreat)),"FirstTreat"] <- 1000 # replace NA with an arbitrary number
 model.sa.1 <- feols(nat_rate_ord~sunab(FirstTreat,year)|bfs+year,
                     data = df.sa, cluster = "bfs")
 summary(model.sa.1,agg = "ATT")
@@ -146,7 +146,7 @@ p.sa
 
 ## Callaway and Sant’Anna
 
-Callaway and Sant’Anna (2021) estimator is a weighted average of the average treatment effect (ATT) estimates for each cohort, obtained from a TWFE regression that includes cohort dummies fully interacted with indicators of relative time to the treatment’s onset. The iw estimator is robust to heterogeneous treatment effects (HTE) and can be implemented using the command callaway in the package fixest. 
+Callaway and Sant’Anna (2021) estimator is a weighted average of the average treatment effect (ATT) estimates for each cohort, obtained from a TWFE regression that includes cohort dummies fully interacted with indicators of relative time to the treatment’s onset. The iw estimator is robust to heterogeneous treatment effects (HTE) and can be implemented using the command callaway in the package fixest.
 
 ```{r}
 #| message: false
@@ -169,7 +169,7 @@ cs.est.att.1 <- aggte(cs.est.1, type = "simple", na.rm=T, bstrap = F)
 print(cs.est.att.1)
 
 cs.att.1 <- aggte(cs.est.1, type = "dynamic",
-                  bstrap=FALSE, cband=FALSE, na.rm=T) 
+                  bstrap=FALSE, cband=FALSE, na.rm=T)
 print(cs.att.1)
 cs.output <- cbind.data.frame(Estimate = cs.att.1$att.egt,
                               SE = cs.att.1$se.egt,
@@ -244,7 +244,7 @@ Liu, Wang, and Xu (2022) proposes a method for estimating the fixed effect count
 #| cache: true
 
 library(fect)
-out.fect <- fect(nat_rate_ord~indirect, data = df, 
+out.fect <- fect(nat_rate_ord~indirect, data = df,
                  index = c("bfs","year"),
                  method = 'fe', se = TRUE)
 print(out.fect$est.avg)
@@ -254,16 +254,16 @@ print(fect.output)
 fect.output <- as.data.frame(fect.output)
 fect.output$Time <- c(-17:18)
 p.fect <- esplot(fect.output,Period = 'Time',Estimate = 'ATT',
-                   SE = 'S.E.',CI.lower = "CI.lower", 
+                   SE = 'S.E.',CI.lower = "CI.lower",
                    CI.upper = 'CI.upper',xlim = c(-12,10))
 p.fect
 ```
-Borusyak, Jaravel, and Spiess (2021) with package didimputation almost gives the same result as Liu, Wang, and Xu (2022). 
+Borusyak, Jaravel, and Spiess (2021) with package didimputation almost gives the same result as Liu, Wang, and Xu (2022).
 
 
 ### Wooldridge
 
-Wooldridge 2021, also called extended TWFE (ETWFE), is to allow more flexibiltiy to make TWFE work properly.  The problems with TWFE is that we are not specify it flexibly enough.  If we allow heterogeneous treatment effect, then we cannot expect the canonical TWFE to work properly. 
+Wooldridge 2021, also called extended TWFE (ETWFE), is to allow more flexibility to make TWFE work properly.  The problems with TWFE is that we are not specify it flexibly enough.  If we allow heterogeneous treatment effect, then we cannot expect the canonical TWFE to work properly.
 
 ```{r}
 #| message: false
@@ -289,7 +289,7 @@ mod_es = emfx(model.wool, type = "event", post_only=FALSE)
 mod_es
 
 
-wool.output <- mod_es |> 
+wool.output <- mod_es |>
   filter(event != -1) |>
   mutate(Time = event + 1) |>
   as.data.frame()
@@ -298,11 +298,11 @@ p.wool <- esplot(wool.output,Period = 'Time',Estimate = 'estimate',
                  SE = 'std.error', xlim = c(-12,10))
 p.wool
 
-```   
+```
 
 Note that in order to get pre-event estimates, we need to set "cgroup=never" in the etwfe function.  Otherwise, ETWFE will only give us post-event estimates. Under the default setting, the control group comprises the “not-yet” treated units, therefore all pre-treatment effects are mechanistically set to zero.  By setting "cgroup=never", we only use never treated units as the control group.  This way we can get pre-treatment estimates, but we are not using all available information for the control group, therefore the estimates may not be as efficient as the default setting.
 
-Also we don't have control variable here.  If we have, it is very easy to incorporate into ETWFE.  Wooldridge used the Mundlak device to incorporate control variables, which is a very simple and intuitive way to do it.    
+Also we don't have control variable here.  If we have, it is very easy to incorporate into ETWFE.  Wooldridge used the Mundlak device to incorporate control variables, which is a very simple and intuitive way to do it.
 
 If we do the default setting and plot only post-event estimates:
 
@@ -324,7 +324,7 @@ mod_es2 = emfx(model.wool, type = "event")
 mod_es2
 
 
-wool.output2 <- mod_es2 |> 
+wool.output2 <- mod_es2 |>
   filter(event != -1) |>
   mutate(Time = event + 1) |>
   as.data.frame()
@@ -336,12 +336,11 @@ p.wool2
 
 ## Staggered DiD with treatment reversal
 
-With treatment reversal (ie., the treated units go back to control), Wooldridge's method still works.  However, I don't think package "etwfe" has it implemented. 
+With treatment reversal (ie., the treated units go back to control), Wooldridge's method still works.  However, I don't think package "etwfe" has it implemented.
 
 So far, packages "fect", "PanelMatch" can handle treatment reversal.
 
-We can probably manually do ETWFE with treatment reversal.  See Wooldridge's dropbox for the code in Stata.  The basic idea is to treat cohorts as different treatment beginning time and exit time combinations.  Then do the same regression with interactions of cohort dummies with the time dummies.  It is very flexible.  The tricky part is to get the marginal effect and its standard error right.  
-
+We can probably manually do ETWFE with treatment reversal.  See Wooldridge's dropbox for the code in Stata.  The basic idea is to treat cohorts as different treatment beginning time and exit time combinations.  Then do the same regression with interactions of cohort dummies with the time dummies.  It is very flexible.  The tricky part is to get the marginal effect and its standard error right.
 
 
 

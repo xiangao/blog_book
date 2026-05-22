@@ -12,11 +12,11 @@ Now, how to construct this synthetic control unit?  Basically it is a weighted a
 
 ## inference
 
-Since sythetic control is for case study situation, we have essentially one treated unit and one synthetic control.  The usual inference method would not work.  Abadie et al suggested a permutation based approach.  The basic idea is to permute the label of treatment; in other words, suppose one control unit is now a treated unit.  Then follow the same procedure to get the synthetic control for that "treated unit"; look at the effect.  Now if the treatment is truely for the treated unit only, then there would not be any effect for all the control unit.  Therefore we can have a distribution of treatment effects after permutation of treatment label.
+Since synthetic control is for case study situation, we have essentially one treated unit and one synthetic control.  The usual inference method would not work.  Abadie et al suggested a permutation based approach.  The basic idea is to permute the label of treatment; in other words, suppose one control unit is now a treated unit.  Then follow the same procedure to get the synthetic control for that "treated unit"; look at the effect.  Now if the treatment is truly for the treated unit only, then there would not be any effect for all the control unit.  Therefore we can have a distribution of treatment effects after permutation of treatment label.
 
 ## an example
 
-The canonical sythetic control is implemented in both R and Stata (https://web.stanford.edu/~jhain/synthpage.html).  We use a package called "tidysynth" here to study one of the original examples, which evaluates the impact of Proposition 99 on cigarette consumption in California.
+The canonical synthetic control is implemented in both R and Stata (https://web.stanford.edu/~jhain/synthpage.html).  We use a package called "tidysynth" here to study one of the original examples, which evaluates the impact of Proposition 99 on cigarette consumption in California.
 
 
 ```{r}
@@ -59,7 +59,7 @@ smoking_out <-
     # average beer consumption in the donor pool from 1984 - 1988
   generate_predictor(time_window = 1984:1988,
                      beer_sales = mean(beer, na.rm = T)) %>%
-    # Lagged cigarette sales 
+    # Lagged cigarette sales
   generate_predictor(time_window = 1975,
                      cigsale_1975 = cigsale) %>%
   generate_predictor(time_window = 1980,
@@ -93,18 +93,18 @@ smoking_out %>% grab_synthetic_control()
 
 smoking_out %>% grab_synthetic_control(placebo = T)
 
-smoking_out %>% 
-  tidyr::unnest(cols = c(.outcome)) 
+smoking_out %>%
+  tidyr::unnest(cols = c(.outcome))
 
 
 ```
 
 ## Generalized Synthetic Control
 
-The idea of generalized SC is to combine both an interactive fixed effect model and synthetic control.  It is basically a panel data synthetic control.  It naturally takes multiple treated units and uses bootstrap to get standard errors.  It generates ATT with standard errors. 
+The idea of generalized SC is to combine both an interactive fixed effect model and synthetic control.  It is basically a panel data synthetic control.  It naturally takes multiple treated units and uses bootstrap to get standard errors.  It generates ATT with standard errors.
 
 Examples are here: https://yiqingxu.org/packages/gsynth/gsynth_examples.html
- 
+
 
 ```{r}
 #| label: rchunk3
@@ -112,15 +112,15 @@ Examples are here: https://yiqingxu.org/packages/gsynth/gsynth_examples.html
 #| cache: true
 
 ## for processing C++ code
-require(Rcpp) 
+require(Rcpp)
 ## for plotting
-require(ggplot2)  
-require(GGally) 
-## for parallel computing 
-require(foreach)  
+require(ggplot2)
+require(GGally)
+## for parallel computing
+require(foreach)
 require(future)
-require(doParallel) 
-require(abind) 
+require(doParallel)
+require(abind)
 require(lfe)
 library(gsynth)
 ## ## Syntax has been updated since v.1.2.0.
@@ -129,9 +129,9 @@ data(gsynth)
 library(panelView)
 ## ## See bit.ly/panelview4r for more info.
 ## ## Report bugs -> yiqingxu@stanford.edu.
-panelview(Y ~ D, data = simdata,  index = c("id","time"), pre.post = TRUE) 
+panelview(Y ~ D, data = simdata,  index = c("id","time"), pre.post = TRUE)
 
-panelview(Y ~ D, data = simdata,  index = c("id","time"), type = "outcome") 
+panelview(Y ~ D, data = simdata,  index = c("id","time"), type = "outcome")
 system.time(
     out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"), force = "two-way", CV = TRUE, r = c(0, 5), se = TRUE, inference = "parametric", nboots = 100, parallel = FALSE)
 )
@@ -142,8 +142,8 @@ out$est.avg
 out$est.beta
 
 system.time(
-out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"), 
-    force = "two-way", CV = TRUE, r = c(0, 5), se = TRUE, 
+out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"),
+    force = "two-way", CV = TRUE, r = c(0, 5), se = TRUE,
     inference = "parametric", nboots = 100, parallel = TRUE, cores = 4)
 )
 

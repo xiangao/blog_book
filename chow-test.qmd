@@ -7,7 +7,7 @@ date: "2022-04-06"
 
 ## Chow test
 
-Comparing coefficients across regressions is common.  Chow test is one of them.  If you'd like to compare coefficients of regressions for two subsets, that's the original Chow test.    
+Comparing coefficients across regressions is common.  Chow test is one of them.  If you'd like to compare coefficients of regressions for two subsets, that's the original Chow test.
 
 The idea is to interact the subset indicator with all the covariates or only the covariate you are interested (treatment).  If you only interact the dummy with the treatment variable, then you are assuming all other covariates have the same effect across the two subsets.  This may or may not be reasonable.
 
@@ -50,7 +50,7 @@ esttab south nonsouth suest chow, nogaps mti
 ```
 
 
-In the above example, we are interested in the effect of hours on wage for south and non-south subsets.  The Chow test is to use the entire sample which has both south and nonsouth data.  Then use the interaction of south indicator and hours to find the effect of hours for south and nonsouth.  By including these two subsamples in the same regression, we can test the equality of the two coefficients.  
+In the above example, we are interested in the effect of hours on wage for south and non-south subsets.  The Chow test is to use the entire sample which has both south and nonsouth data.  Then use the interaction of south indicator and hours to find the effect of hours for south and nonsouth.  By including these two subsamples in the same regression, we can test the equality of the two coefficients.
 
 The other way to do this is to use Stata's "suest" command.  This command basically take the two regressions and the variance covariance structure; then a test of the difference between two coefficients can be done.  However, "suest" does not work for some commands.  In my opinion, using interaction can be more flexible.
 
@@ -71,9 +71,9 @@ Here is an example.
 
 est clear
 sysuse nlsw88, clear
-reg south wage hours 
+reg south wage hours
 est sto south
-reg smsa wage hours 
+reg smsa wage hours
 est sto smsa
 suest south smsa
 est sto suest
@@ -93,11 +93,11 @@ esttab south smsa suest stacked, nogaps mti
 
 ```
 
-In this example, we are interested in comparing the effect of wage on south vs. smsa (not interesting, but just as an example).  What I did is to reshape it to long format, stacking south and smsa as "Y".  Then creat interaction of other covariates with subsample indicator.  Then run the regression with Y on the interaction terms.  
+In this example, we are interested in comparing the effect of wage on south vs. smsa (not interesting, but just as an example).  What I did is to reshape it to long format, stacking south and smsa as "Y".  Then creat interaction of other covariates with subsample indicator.  Then run the regression with Y on the interaction terms.
 
 ## Overlapping samples
 
-What if we'd like to compare coefficients for two overlapping subsamples?  As I mentioned, Austin Nichols gave the following example: 
+What if we'd like to compare coefficients for two overlapping subsamples?  As I mentioned, Austin Nichols gave the following example:
 
 
 ```{stata}
@@ -157,7 +157,7 @@ We can see same Chow kind of test works, with IV regression, if we have the righ
 
 ## IV with fixed effects
 
-However, when doing with a fixed effet IV, I seem to have difficulties.  In this example, I use "reghdfe" to do an IV regression with fixed effect.  We can also use "xtivreg2", but "ivreghdfe" is supposed to be faster.
+However, when doing with a fixed effect IV, I seem to have difficulties.  In this example, I use "reghdfe" to do an IV regression with fixed effect.  We can also use "xtivreg2", but "ivreghdfe" is supposed to be faster.
 
 
 ```{stata}
@@ -174,7 +174,7 @@ gen union1=union*(south==1)
 gen union2=union*(south==0)
 ivreghdfe wage (hours=union) if south, a(race) cluster(race)
 ivreghdfe wage (hours=union) if !south, a(race) cluster(race)
-ivreghdfe wage south (hours? = union?) , a(race) cluster(race) 
+ivreghdfe wage south (hours? = union?) , a(race) cluster(race)
 
 ```
 
@@ -201,9 +201,9 @@ gen race1=race*(south==1)
 gen race2=race*(south==0)
 
 
-ivreghdfe wage (hours=union) if south, a(race) cluster(race) 
+ivreghdfe wage (hours=union) if south, a(race) cluster(race)
 ivreghdfe wage (hours=union) if !south, a(race) cluster(race)
-ivregress 2sls wage south (hours? = union?) i.race?, cluster(race) 
+ivregress 2sls wage south (hours? = union?) i.race?, cluster(race)
 
 ```
 
@@ -280,8 +280,7 @@ We can see Chow type of "stacking" method generates the same result as "suest" i
 
 ## Conclusion
 
-For testing cross equations hypotheses, we can use "suest" or Chow type "stacking" method.  Sometimes people use "sureg".  I prefer not use "sureg".  It is a GLS estimator for all the equations together.  It relies on assumptions of the error term of the whole system.  It assumes homoscedasticity for example.  If it's true, then GLS is more efficient; if not, then biased.  If the equations have the same covariates, then it returns the same coefficient estimates as the single equation estimates.  If different covariates, then different estimates as the single equation estimates.  
+For testing cross equations hypotheses, we can use "suest" or Chow type "stacking" method.  Sometimes people use "sureg".  I prefer not use "sureg".  It is a GLS estimator for all the equations together.  It relies on assumptions of the error term of the whole system.  It assumes homoscedasticity for example.  If it's true, then GLS is more efficient; if not, then biased.  If the equations have the same covariates, then it returns the same coefficient estimates as the single equation estimates.  If different covariates, then different estimates as the single equation estimates.
 
-The nice thing about Chow test is that it is very flexible, and it does not rely on Stata's internal functions.  You can do it with R or other programs.  And it works for complicated models too, usually, as long as the single equation works.   "suest" needs the results stored before hand, which may not be available even within stata.  
-
+The nice thing about Chow test is that it is very flexible, and it does not rely on Stata's internal functions.  You can do it with R or other programs.  And it works for complicated models too, usually, as long as the single equation works.   "suest" needs the results stored before hand, which may not be available even within stata.
 
