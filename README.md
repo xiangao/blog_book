@@ -22,3 +22,5 @@ quarto preview   # Preview with live reload
 ## Author
 
 Xiang Ao
+
+> **2026-06-07:** Math/code review pass — see `CLAUDE.md` (Review pass section) for the list of corrections. Audit trail in `../_review/`.

@@ -144,9 +144,10 @@ print("  Weeks:    ", -2.34)
 p0_alpha = samples["alpha"][:, 0]   # patient 0 intercept samples
 p0_beta  = samples["beta"][:, 0]    # patient 0 slope samples
 
-# Predict FVC at week 20
+# Predict FVC at week 20 -- posterior predictive (add observation noise)
 week_pred = 20.
-fvc_pred  = p0_alpha + p0_beta * week_pred
+mu_pred   = p0_alpha + p0_beta * week_pred
+fvc_pred  = dist.Normal(mu_pred, samples["sigma_obs"]).sample(jax.random.PRNGKey(1))
 print(f"\nPatient 0 FVC at week 20:")
 print(f"  Mean: {jnp.mean(fvc_pred):.1f}")
 print(f"  90% CI: [{jnp.quantile(fvc_pred, 0.05):.1f}, {jnp.quantile(fvc_pred, 0.95):.1f}]")

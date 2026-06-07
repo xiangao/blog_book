@@ -583,9 +583,9 @@ window.Quarto = {
 <p>We’d like to see, in this simulation exercise, how different models perform with changes of sample size and percentage of zeros (we expect the less zero, the better a plain Poisson model would perform). Therefore we vary sample size <span class="math inline">\(n\)</span> and an indicator of how much percentage of zeros in the data <span class="math inline">\(\theta\)</span>.</p>
 <p>For the count data process (<span class="math inline">\(y_c\)</span>): <span class="math display">\[ log(y_c) = 2 x + u \]</span></p>
 <p>For the Bernoulli process (<span class="math inline">\(y_b\)</span>):</p>
-<p><span class="math display">\[ z_1 = 4 z + \theta \]</span> <span class="math display">\[ logit(y_b) = z_1 \]</span> <span class="math display">\[ p_y = \frac{e^z_1}{1+e^{z_1}} \]</span></p>
-<p>Combining these two processes:</p>
-<p><span class="math display">\[ y = y_c \ \text{if} \ p_y=1\]</span> <span class="math display">\[ y = y_b \ \text{if} \ p_y=0\]</span></p>
+<p><span class="math display">\[ z_1 = 4 z + \theta \]</span> <span class="math display">\[ logit(y_b) = z_1 \]</span> <span class="math display">\[ p_y = \frac{e^{z_1}}{1+e^{z_1}} \]</span></p>
+<p>where <span class="math inline">\(y_b \sim Bernoulli(p_y)\)</span> is the realized 0/1 draw. Combining these two processes:</p>
+<p><span class="math display">\[ y = y_c \cdot y_b\]</span> so <span class="math inline">\(y = y_c\)</span> when <span class="math inline">\(y_b=1\)</span> and <span class="math inline">\(y = 0\)</span> when <span class="math inline">\(y_b=0\)</span>.</p>
 <section id="zero-inflated-poisson-models" class="level3" data-number="23.1.1"><h3 data-number="23.1.1" class="anchored" data-anchor-id="zero-inflated-poisson-models">
 <span class="header-section-number">23.1.1</span> Zero-inflated Poisson models</h3>
 <p>A zero-inflated Poisson needs specifying both the binary process and the count process correctly. Often than not, we don’t have a model for the binary process. Many people simply use the same explanatory variables for both processes. We simulate both situations. Case 1: suppose we observe <span class="math inline">\(z\)</span>, and case 2: suppose we don’t observe <span class="math inline">\(z\)</span>. In the graph below, they are labeled zip1 and zip2.</p>
@@ -650,7 +650,7 @@ window.Quarto = {
 </div>
 <p>Count data models can be used even if data is not “counts”; for example, some non-negative non-integer numbers. In fact, Poisson model is consistent even if data is not Poisson-distributed, if the model specification is correct on modeling the log of expected counts. We simulate both scenarios: Case 1, data is generated from a Poisson process. Case 2, data is generated from a Normal distribution, but we use count data models to model it. The above code is for case 2.</p>
 <p>We simulate 100 times with <span class="math inline">\(\theta\)</span> ranging from -4 to 4, lower number means higher percentage of zeros; number of observations from <span class="math inline">\(e^4\)</span> to <span class="math inline">\(e^9\)</span> (roughly from 50 to 8000).</p>
-<p>Since there are many simulations, we used “snowfall” library to speed things up.</p>
+<p>Since there are many simulations, we use base R’s <code>parallel</code> library to speed things up.</p>
 <p>For raw code, please visit <a href="https://github.com/xiangao/poisson">case1: poisson</a> and <a href="https://github.com/xiangao/poisson2">case2: normal</a>. The code above updates the original <code>snowfall</code>-based version to use base R <code>parallel</code>.</p>
 <p><strong>Summary of simulation findings:</strong> With large samples, plain Poisson outperforms NB and log-linear even with extra zeros. Zero-inflated Poisson with correct specification of the zero process is best, but that relies on knowing what drives the zeros. Hurdle and ZIP without correct zero-model specification are similar and not much worse than Poisson. Log-linear (<code>log(y+1)</code>) is consistently the worst.</p>
 </section></section><section id="quick-worked-example" class="level2" data-number="23.2"><h2 data-number="23.2" class="anchored" data-anchor-id="quick-worked-example">
@@ -1258,12 +1258,12 @@ window.Quarto = {
 <span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>$$ z_1 = 4 z + \theta $$</span>
 <span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>$$ logit(y_b) = z_1 $$</span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>$$ p_y = \frac{e^z_1}{1+e^{z_1}} $$</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>$$ p_y = \frac{e^{z_1}}{1+e^{z_1}} $$</span>
 <span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>Combining these two processes:</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>where $y_b \sim Bernoulli(p_y)$ is the realized 0/1 draw.  Combining these two processes:</span>
 <span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>$$ y = y_c \ \text{if} \ p_y=1$$</span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>$$ y = y_b \ \text{if} \ p_y=0$$</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>$$ y = y_c \cdot y_b$$</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>so $y = y_c$ when $y_b=1$ and $y = 0$ when $y_b=0$.</span>
 <span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="fu">### Zero-inflated Poisson models</span></span>
 <span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a></span>
@@ -1343,7 +1343,7 @@ window.Quarto = {
 <span id="cb8-106"><a href="#cb8-106" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-107"><a href="#cb8-107" aria-hidden="true" tabindex="-1"></a>We simulate 100 times with $\theta$ ranging from -4 to 4, lower number means higher percentage of zeros; number of observations from $e^4$ to $e^9$ (roughly from 50 to 8000).</span>
 <span id="cb8-108"><a href="#cb8-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a>Since there are many simulations, we used "snowfall" library to speed things up.  </span>
+<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a>Since there are many simulations, we use base R's <span class="in">`parallel`</span> library to speed things up.</span>
 <span id="cb8-110"><a href="#cb8-110" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a>For raw code, please visit <span class="co">[</span><span class="ot">case1: poisson</span><span class="co">](https://github.com/xiangao/poisson)</span> and <span class="co">[</span><span class="ot">case2: normal</span><span class="co">](https://github.com/xiangao/poisson2)</span>. The code above updates the original <span class="in">`snowfall`</span>-based version to use base R <span class="in">`parallel`</span>.</span>
 <span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a></span>

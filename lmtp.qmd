@@ -119,16 +119,20 @@ simulate_data <- function(seed, N, tau, sigma = 0.5) {
       data[[At]] <- rbinom(N, size = 1, prob = 0.5)
     }
     else {
-      data[[Lt]] <- rnorm(N, mean = 0.25 * data[[Lt1]], 0.5)
-      data[[Ltd]] <- rnorm(N, mean = 0.25 * data[[Lt1d]], 0.5)
+      # L_t depends on the previous treatment A_{t-1} (the DAG edge A1 -> L2),
+      # which is the time-varying confounding this chapter is about.
+      data[[Lt]] <- rnorm(N, mean = 0.25 * data[[Lt1]] + 0.4 * data[[At1]], 0.5)
+      data[[Ltd]] <- rnorm(N, mean = 0.25 * data[[Lt1d]] + 0.4 * data[[At1d]], 0.5)
 
       data[[At]] <- rbinom(N, size = 1, prob = plogis(0.5 - 0.2 * data[[At1]] + 0.1 * data[[Lt1]]))
     }
 
     data[[Atd]] <- mtp(data, At)
   }
-  data$Y  <- rnorm(N, data[[At]] + data[[Lt]], sigma)
-  data$Yd <- rnorm(N, data[[Atd]] + data[[Ltd]], sigma)
+  # Y depends on the final treatment A_2 and confounder L_2, and also directly
+  # on the first-period treatment A_1 (the DAG edge A1 -> Y).
+  data$Y  <- rnorm(N, data[[At]] + data[[Lt]] + 0.5 * data[["A_1"]], sigma)
+  data$Yd <- rnorm(N, data[[Atd]] + data[[Ltd]] + 0.5 * data[["A_1d"]], sigma)
   data
 }
 
@@ -141,7 +145,7 @@ mtp <- function(data, trt) {
   a * 0 + 0
 }
 
-simulated_data2 <- simulate_data(seed = 123, N = 1000, tau = 2)
+simulated_data2 <- simulate_data(seed = 123, N = 10000, tau = 2)
 
 mean(simulated_data2$Yd)
 
@@ -216,7 +220,7 @@ In a general case, this is the generalized g-formula to estimate $\theta$:
 
 Set $m_{\tau + 1} = Y$, let $A_t^d = d(A_t, H_t)$.   For $t = \tau, \ldots, 1$, recursively define:
 
-$$ m_t : (a_t, h_t)  = E[m_{t + 1} (A_{t+1}^d, H_{t+1}) | A_t = a_t, H_t =h_t] $$
+$$ m_t(a_t, h_t)  = E[m_{t + 1} (A_{t+1}^d, H_{t+1}) | A_t = a_t, H_t =h_t] $$
 
 Then $\theta = E[m_1(A_1^d, L_1)]$.
 

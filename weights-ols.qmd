@@ -11,7 +11,7 @@ Unmodeled heterogeneity and straightforward solutions" has demystified OLS weigh
 
 When we have unconfoundedness, that is, we assume there is no unobserved confounders, we usually run a linear regression of $Y$ on $D$ and $X$, where $D$ is the treatment variable and $X$ is the covariates.  We know in fact the unconfoundedness actually is only true for each level of $X$.  If $X$ is low dimensional and discrete, then it's possible to stratify and basically calculate the ATE with g-formula.  However, usually we just do a linear regression
 $$ Y = \alpha + \beta D + \gamma X + \epsilon$$
-and claim we have controlled for $X$, especially when $X$ is high-dimentional or continuous.  At least we claim it's a linear approximation of the truth.  But, how bad is it?
+and claim we have controlled for $X$, especially when $X$ is high-dimensional or continuous.  At least we claim it's a linear approximation of the truth.  But, how bad is it?
 
 Suppose we are interested in the ATE of $D$ on $Y$.  Say we have discrete variables $X$.  Under unconfoundedness, the ATE is
 
@@ -53,7 +53,7 @@ $$
 $$
 
 
-Note for the denominator, it's a constant, basically to scale the sum of weights to be 1.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $\hat d(X_i)$.  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the higher weight.
+Note for the denominator, it's a constant, basically to scale the sum of weights to be 1.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $-\hat d(X_i)$ (negative).  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the larger the magnitude of the (negative) weight.
 
 If these weights are the same as the IPW weights, then we'll get $\tau_{reg}=\tau_{ATE}$.  However, they are usually different.
 
@@ -61,7 +61,7 @@ Another way to write this as weighted difference in means:
 
 $$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i $$
 
-where $\tilde \omega_i = D_i \omega_i + (1-D_i) \omega_i$
+where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = -\hat d(X_i)/c$ for control units ($D_i=0$)
 
 Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) > 1$ will cause the weight to be negative if it's a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  Likewise for control units with $\hat d(X_i) < 0$.
 
@@ -73,13 +73,13 @@ Therefore, $\hat \tau_{reg}$ is another weighted average of the outcome, which i
 
 Angrist 1998 has the strata-wise weights for OLS:
 
-$$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(X_i) (1-\hat d(X_i)) \hat P(X_i=x)}{\sum_x  \hat d(X_i) (1-\hat d(X_i)) \hat P(X_i=x)} $$
+$$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} $$
 
-this shows that different from ATE, these weights are $\hat d(X_i) (1-\hat d(X_i)) \hat P(X_i=x)$.  The stratas are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.
+this shows that different from ATE, these weights are $\hat d(x) (1-\hat d(x)) \hat P(X=x)$.  The stratas are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.
 
 If there is no treatment effect heterogeneity, then it does not matter how you weight.  When there is treatment effect heterogeneity, this estimator could be very different from ATE.
 
-Hazlett and Shinkre show that Angrist's estimator is a special case of a general case.  It is only valid when the probability of treatment is linear in X.  When you have discrete X and have a saturated model in X, then it's linear in X.  Hazlett and Shrikre showed a more general formula for the weights, but here we assume Angrist's formula is correct, basically assuming linearity in modeling probability of treatment.
+Hazlett and Shinkre show that Angrist's estimator is a special case of a general case.  It is only valid when the probability of treatment is linear in X.  When you have discrete X and have a saturated model in X, then it's linear in X.  Hazlett and Shinkre showed a more general formula for the weights, but here we assume Angrist's formula is correct, basically assuming linearity in modeling probability of treatment.
 
 
 ## Recommended estimation approaches

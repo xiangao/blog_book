@@ -258,8 +258,13 @@ z_data <- df |>
 
 Z <- as.matrix(z_data[,-c(1,2)])
 
-beta = round((t(Z) %*% Y)/(t(Z) %*% X), digits=3)
-alpha=(diag(as.numeric(G)) %*% t(Z)  %*% X) / as.numeric((t(G) %*% t(Z) %*% X))
+# Residualize Y and X on the controls before forming the weights. There are
+# no controls here other than the constant, so the residualization is just
+# demeaning; this is what makes the Rotemberg decomposition exact (GPSS).
+Yp <- Y - mean(Y)
+Xp <- X - mean(X)
+beta = round((t(Z) %*% Yp)/(t(Z) %*% Xp), digits=3)
+alpha=(diag(as.numeric(G)) %*% t(Z)  %*% Xp) / as.numeric((t(G) %*% t(Z) %*% Xp))
 
 bw <- tibble(g_kt, alpha=as.numeric(alpha), beta=as.numeric(beta)) |>
   mutate(product=alpha*beta)
@@ -272,7 +277,7 @@ sum(bw$product)
 The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator.
 
 
-Note there is no restriction for $\alpha$, other than the sum is 1.  Therefore it can be negative or positive.  It can be greater than 1, as long as the sum is 1.  This probably needs to be restricted to be less than 1.  But I am not sure about it.
+Note there is no restriction for $\alpha$, other than the sum is 1.  Therefore it can be negative or positive, and individual weights can exceed 1, as long as they sum to 1.  In GPSS the Rotemberg weights routinely take negative values and values greater than 1; this is a feature used to flag problematic instruments.
 
 
 
@@ -330,8 +335,12 @@ Now we calculate the Rotemberg weights for the reduced form, for our simulated d
 
 B <- as.matrix(b_lt[,3])
 
-beta = (t(Z) %*% Y)/(t(Z) %*% B)
-alpha=(diag(as.numeric(G)) %*% t(Z)  %*% B) / as.numeric((t(G) %*% t(Z) %*% B))
+# Residualize Y and B on the controls (here only a constant ⇒ demean), as in
+# the GPSS reduced-form Rotemberg formula above, so the decomposition is exact.
+Yp <- Y - mean(Y)
+Bp <- B - mean(B)
+beta = (t(Z) %*% Yp)/(t(Z) %*% Bp)
+alpha=(diag(as.numeric(G)) %*% t(Z)  %*% Bp) / as.numeric((t(G) %*% t(Z) %*% Bp))
 
 bw <- tibble(g_kt, alpha=as.numeric(alpha), beta=as.numeric(beta)) |>
   mutate(product = alpha * beta)
