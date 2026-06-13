@@ -579,7 +579,7 @@ window.Quarto = {
 <p>Equivalently, <span class="math inline">\(\log E[Y] = \beta_0 + \beta_1 X + \log t\)</span>, where <span class="math inline">\(\log t\)</span> is included as a <em>fixed</em> offset (coefficient constrained to 1). This is the standard exposure model: the expected count is proportional to exposure time.</p>
 <p><strong>Model 2 — Poisson on the ratio <span class="math inline">\(Y/t\)</span>:</strong></p>
 <p><span class="math display">\[\log\!\bigl(E[Y/t]\bigr) = \beta_0 + \beta_1 X\]</span></p>
-<p>This looks similar, but it is not equivalent to the offset model. Because <span class="math inline">\(t\)</span> is a fixed constant for each unit, <span class="math inline">\(E[Y/t] = E[Y]/t\)</span> exactly (linearity of expectation), so the difference is not from Jensen’s inequality. Rather, the log link is applied to the ratio rather than the count, and the variance of <span class="math inline">\(Y/t\)</span> is <span class="math inline">\(\lambda/t\)</span> (it scales with <span class="math inline">\(1/t\)</span>), so the Poisson variance assumption no longer holds. In practice the two can give similar point estimates, but the standard errors differ because the variance structure changes when you divide by <span class="math inline">\(t\)</span>.</p>
+<p>This looks similar, but it is not equivalent to the offset model, and strictly speaking <span class="math inline">\(Y/t\)</span> is <strong>not a Poisson outcome at all</strong>: a Poisson likelihood is defined for non-negative integer counts, and the continuous ratio <span class="math inline">\(Y/t\)</span> is not one. Because <span class="math inline">\(t\)</span> is a fixed constant for each unit, <span class="math inline">\(E[Y/t] = E[Y]/t\)</span> exactly (linearity of expectation), so the <em>conditional mean</em> is still log-linear in <span class="math inline">\(X\)</span>; that is why the point estimates are often similar. But the Poisson variance assumption fails — <span class="math inline">\(\mathrm{Var}(Y/t) = \lambda/t\)</span> scales with <span class="math inline">\(1/t\)</span>, not with the mean — so fitting <code>glm(rate ~ x, family = poisson)</code> is a quasi-likelihood <em>mean model</em> rather than a correct Poisson likelihood. If you use it, treat it as a workaround: weight by exposure (<code>weights = t</code>) so the implied variance is right, and/or use robust standard errors. The offset model (Model 1) avoids the issue entirely by keeping the integer count as the outcome.</p>
 <p><strong>Model 3 — Unconstrained log-exposure:</strong></p>
 <p><span class="math display">\[\log E[Y] = \beta_0 + \beta_1 X + \gamma \log t\]</span></p>
 <p>Here <span class="math inline">\(\gamma\)</span> is estimated from the data. If <span class="math inline">\(\hat\gamma \approx 1\)</span>, the proportionality assumption is supported. If <span class="math inline">\(\hat\gamma &lt; 1\)</span>, counts grow sub-linearly with exposure — a testable, substantive claim.</p>
@@ -740,7 +740,7 @@ window.Quarto = {
 </tr>
 <tr class="odd">
 <td>Rate is the natural estimand</td>
-<td>Model 1 or Model 2; both are valid</td>
+<td>Model 1 (offset) — it estimates a rate directly; Model 2 only as a weighted/robust quasi-model</td>
 </tr>
 <tr class="even">
 <td>Long follow-up with declining event rate</td>
@@ -1244,154 +1244,159 @@ window.Quarto = {
 <span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>$$\log<span class="sc">\!</span>\bigl(E<span class="co">[</span><span class="ot">Y/t</span><span class="co">]</span>\bigr) = \beta_0 + \beta_1 X$$</span>
 <span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>This looks similar, but it is not equivalent to the offset model.  Because $t$ is</span>
-<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>a fixed constant for each unit, $E<span class="co">[</span><span class="ot">Y/t</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span>/t$ exactly (linearity of</span>
-<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>expectation), so the difference is not from Jensen's inequality.  Rather, the log</span>
-<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>link is applied to the ratio rather than the count, and the variance of $Y/t$ is</span>
-<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>$\lambda/t$ (it scales with $1/t$), so the Poisson variance assumption no longer</span>
-<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>holds.  In practice the two can give similar point estimates, but the standard</span>
-<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>errors differ because the variance structure changes when you divide by $t$.</span>
-<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>**Model 3 — Unconstrained log-exposure:**</span>
-<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>$$\log E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span> = \beta_0 + \beta_1 X + \gamma \log t$$</span>
-<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>Here $\gamma$ is estimated from the data. If $\hat\gamma \approx 1$, the</span>
-<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>proportionality assumption is supported. If $\hat\gamma &lt; 1$, counts grow</span>
-<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>sub-linearly with exposure — a testable, substantive claim.</span>
-<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a><span class="fu">## Simulation</span></span>
-<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim-data</span></span>
-<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">800</span></span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>This looks similar, but it is not equivalent to the offset model, and strictly</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>speaking $Y/t$ is **not a Poisson outcome at all**: a Poisson likelihood is</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>defined for non-negative integer counts, and the continuous ratio $Y/t$ is not</span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>one. Because $t$ is a fixed constant for each unit, $E<span class="co">[</span><span class="ot">Y/t</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span>/t$ exactly</span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>(linearity of expectation), so the *conditional mean* is still log-linear in</span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>$X$; that is why the point estimates are often similar. But the Poisson variance</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>assumption fails — $\mathrm{Var}(Y/t) = \lambda/t$ scales with $1/t$, not with</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>the mean — so fitting <span class="in">`glm(rate ~ x, family = poisson)`</span> is a quasi-likelihood</span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>*mean model* rather than a correct Poisson likelihood. If you use it, treat it</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>as a workaround: weight by exposure (<span class="in">`weights = t`</span>) so the implied variance is</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>right, and/or use robust standard errors. The offset model (Model 1) avoids the</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a>issue entirely by keeping the integer count as the outcome.</span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>**Model 3 — Unconstrained log-exposure:**</span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>$$\log E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span> = \beta_0 + \beta_1 X + \gamma \log t$$</span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>Here $\gamma$ is estimated from the data. If $\hat\gamma \approx 1$, the</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>proportionality assumption is supported. If $\hat\gamma &lt; 1$, counts grow</span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>sub-linearly with exposure — a testable, substantive claim.</span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a><span class="fu">## Simulation</span></span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim-data</span></span>
+<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
 <span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate a health study: count of adverse events</span></span>
-<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a><span class="co"># Covariate: age group (0 = younger, 1 = older)</span></span>
-<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>age_old <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fl">0.45</span>)</span>
-<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Exposure: days under observation (varies 7–365)</span></span>
-<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>exposure <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">seq</span>(<span class="dv">7</span>, <span class="dv">365</span>, <span class="at">by =</span> <span class="dv">7</span>), n, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a><span class="co"># True model: rate = exp(-3 + 1.2 * age_old)</span></span>
-<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a><span class="co"># Count ~ Poisson(rate * exposure)</span></span>
-<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a>true_rate <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">3</span> <span class="sc">+</span> <span class="fl">1.2</span> <span class="sc">*</span> age_old)</span>
-<span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> true_rate <span class="sc">*</span> exposure)</span>
+<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">800</span></span>
+<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate a health study: count of adverse events</span></span>
+<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a><span class="co"># Covariate: age group (0 = younger, 1 = older)</span></span>
+<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a>age_old <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fl">0.45</span>)</span>
+<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a><span class="co"># Exposure: days under observation (varies 7–365)</span></span>
+<span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a>exposure <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">seq</span>(<span class="dv">7</span>, <span class="dv">365</span>, <span class="at">by =</span> <span class="dv">7</span>), n, <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-72"><a href="#cb11-72" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(count, age_old, exposure, <span class="at">log_exposure =</span> <span class="fu">log</span>(exposure))</span>
-<span id="cb11-73"><a href="#cb11-73" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df[, <span class="fu">c</span>(<span class="st">"count"</span>, <span class="st">"exposure"</span>)])</span>
-<span id="cb11-74"><a href="#cb11-74" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a>The data has a wide range of exposure times, so ignoring them would badly</span>
-<span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a>confound the comparison between age groups.</span>
-<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a><span class="fu">## Fitting the three models</span></span>
+<span id="cb11-72"><a href="#cb11-72" aria-hidden="true" tabindex="-1"></a><span class="co"># True model: rate = exp(-3 + 1.2 * age_old)</span></span>
+<span id="cb11-73"><a href="#cb11-73" aria-hidden="true" tabindex="-1"></a><span class="co"># Count ~ Poisson(rate * exposure)</span></span>
+<span id="cb11-74"><a href="#cb11-74" aria-hidden="true" tabindex="-1"></a>true_rate <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="sc">-</span><span class="dv">3</span> <span class="sc">+</span> <span class="fl">1.2</span> <span class="sc">*</span> age_old)</span>
+<span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a>count <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> true_rate <span class="sc">*</span> exposure)</span>
+<span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(count, age_old, exposure, <span class="at">log_exposure =</span> <span class="fu">log</span>(exposure))</span>
+<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df[, <span class="fu">c</span>(<span class="st">"count"</span>, <span class="st">"exposure"</span>)])</span>
+<span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-models</span></span>
-<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 1: offset — coefficient on log(exposure) constrained to 1</span></span>
-<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">glm</span>(count <span class="sc">~</span> age_old <span class="sc">+</span> <span class="fu">offset</span>(<span class="fu">log</span>(exposure)),</span>
-<span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> poisson, <span class="at">data =</span> df)</span>
-<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 2: Poisson on the rate Y/t (different response)</span></span>
-<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>rate <span class="ot">&lt;-</span> df<span class="sc">$</span>count <span class="sc">/</span> df<span class="sc">$</span>exposure</span>
-<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">&lt;-</span> <span class="fu">glm</span>(rate <span class="sc">~</span> age_old,</span>
+<span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a>The data has a wide range of exposure times, so ignoring them would badly</span>
+<span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a>confound the comparison between age groups.</span>
+<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a><span class="fu">## Fitting the three models</span></span>
+<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-models</span></span>
+<span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 1: offset — coefficient on log(exposure) constrained to 1</span></span>
+<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">glm</span>(count <span class="sc">~</span> age_old <span class="sc">+</span> <span class="fu">offset</span>(<span class="fu">log</span>(exposure)),</span>
 <span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> poisson, <span class="at">data =</span> df)</span>
 <span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 3: log(exposure) as a free covariate</span></span>
-<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a>m3 <span class="ot">&lt;-</span> <span class="fu">glm</span>(count <span class="sc">~</span> age_old <span class="sc">+</span> log_exposure,</span>
-<span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> poisson, <span class="at">data =</span> df)</span>
-<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a><span class="co"># Collect coefficients</span></span>
-<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a>  <span class="at">Model =</span> <span class="fu">c</span>(<span class="st">"1. Offset (constrained γ=1)"</span>,</span>
-<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a>            <span class="st">"2. Rate Y/t as response"</span>,</span>
-<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a>            <span class="st">"3. Unconstrained log(t)"</span>),</span>
-<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a>  <span class="at">Intercept =</span> <span class="fu">c</span>(<span class="fu">coef</span>(m1)[<span class="dv">1</span>], <span class="fu">coef</span>(m2)[<span class="dv">1</span>], <span class="fu">coef</span>(m3)[<span class="dv">1</span>]),</span>
-<span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a>  <span class="at">age_old   =</span> <span class="fu">c</span>(<span class="fu">coef</span>(m1)[<span class="dv">2</span>], <span class="fu">coef</span>(m2)[<span class="dv">2</span>], <span class="fu">coef</span>(m3)[<span class="dv">2</span>]),</span>
-<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a>  <span class="at">gamma_log_t =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="cn">NA</span>, <span class="fu">coef</span>(m3)[<span class="dv">3</span>])</span>
-<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(results, <span class="at">digits =</span> <span class="dv">3</span>,</span>
-<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Coefficient estimates: true intercept = −3, true age effect = 1.2, true γ = 1"</span>)</span>
-<span id="cb11-113"><a href="#cb11-113" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a>**Reading the table:** Model 1 and Model 3 give nearly identical age-group</span>
-<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a>coefficients because the true $\gamma = 1$ (counts are indeed proportional to</span>
-<span id="cb11-117"><a href="#cb11-117" aria-hidden="true" tabindex="-1"></a>exposure time). Model 2 differs slightly in the intercept because the response</span>
-<span id="cb11-118"><a href="#cb11-118" aria-hidden="true" tabindex="-1"></a>variable changes. The estimated $\hat\gamma$ from Model 3 should be close to 1.</span>
+<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 2: Poisson on the rate Y/t (different response)</span></span>
+<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>rate <span class="ot">&lt;-</span> df<span class="sc">$</span>count <span class="sc">/</span> df<span class="sc">$</span>exposure</span>
+<span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">&lt;-</span> <span class="fu">glm</span>(rate <span class="sc">~</span> age_old,</span>
+<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> poisson, <span class="at">data =</span> df)</span>
+<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 3: log(exposure) as a free covariate</span></span>
+<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a>m3 <span class="ot">&lt;-</span> <span class="fu">glm</span>(count <span class="sc">~</span> age_old <span class="sc">+</span> log_exposure,</span>
+<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> poisson, <span class="at">data =</span> df)</span>
+<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a><span class="co"># Collect coefficients</span></span>
+<span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a>  <span class="at">Model =</span> <span class="fu">c</span>(<span class="st">"1. Offset (constrained γ=1)"</span>,</span>
+<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a>            <span class="st">"2. Rate Y/t as response"</span>,</span>
+<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a>            <span class="st">"3. Unconstrained log(t)"</span>),</span>
+<span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a>  <span class="at">Intercept =</span> <span class="fu">c</span>(<span class="fu">coef</span>(m1)[<span class="dv">1</span>], <span class="fu">coef</span>(m2)[<span class="dv">1</span>], <span class="fu">coef</span>(m3)[<span class="dv">1</span>]),</span>
+<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a>  <span class="at">age_old   =</span> <span class="fu">c</span>(<span class="fu">coef</span>(m1)[<span class="dv">2</span>], <span class="fu">coef</span>(m2)[<span class="dv">2</span>], <span class="fu">coef</span>(m3)[<span class="dv">2</span>]),</span>
+<span id="cb11-113"><a href="#cb11-113" aria-hidden="true" tabindex="-1"></a>  <span class="at">gamma_log_t =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="cn">NA</span>, <span class="fu">coef</span>(m3)[<span class="dv">3</span>])</span>
+<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(results, <span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb11-117"><a href="#cb11-117" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Coefficient estimates: true intercept = −3, true age effect = 1.2, true γ = 1"</span>)</span>
+<span id="cb11-118"><a href="#cb11-118" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb11-119"><a href="#cb11-119" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-120"><a href="#cb11-120" aria-hidden="true" tabindex="-1"></a><span class="fu">## When $\gamma \ne 1$</span></span>
-<span id="cb11-121"><a href="#cb11-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-122"><a href="#cb11-122" aria-hidden="true" tabindex="-1"></a>To see why the unconstrained model matters, repeat the simulation with a</span>
-<span id="cb11-123"><a href="#cb11-123" aria-hidden="true" tabindex="-1"></a>sub-linear count process ($\gamma = 0.6$: an initial burst of events that</span>
-<span id="cb11-124"><a href="#cb11-124" aria-hidden="true" tabindex="-1"></a>doesn't grow proportionally with long follow-up):</span>
-<span id="cb11-125"><a href="#cb11-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-128"><a href="#cb11-128" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-129"><a href="#cb11-129" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: nonlinear-exposure</span></span>
-<span id="cb11-130"><a href="#cb11-130" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb11-131"><a href="#cb11-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb11-132"><a href="#cb11-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-133"><a href="#cb11-133" aria-hidden="true" tabindex="-1"></a>count2 <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> true_rate <span class="sc">*</span> exposure<span class="sc">^</span><span class="fl">0.6</span>)</span>
-<span id="cb11-134"><a href="#cb11-134" aria-hidden="true" tabindex="-1"></a>df2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(count2, age_old, exposure, <span class="at">log_exposure =</span> <span class="fu">log</span>(exposure))</span>
-<span id="cb11-135"><a href="#cb11-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-136"><a href="#cb11-136" aria-hidden="true" tabindex="-1"></a>m1b <span class="ot">&lt;-</span> <span class="fu">glm</span>(count2 <span class="sc">~</span> age_old <span class="sc">+</span> <span class="fu">offset</span>(<span class="fu">log</span>(exposure)),</span>
-<span id="cb11-137"><a href="#cb11-137" aria-hidden="true" tabindex="-1"></a>           <span class="at">family =</span> poisson, <span class="at">data =</span> df2)</span>
-<span id="cb11-138"><a href="#cb11-138" aria-hidden="true" tabindex="-1"></a>m3b <span class="ot">&lt;-</span> <span class="fu">glm</span>(count2 <span class="sc">~</span> age_old <span class="sc">+</span> log_exposure,</span>
-<span id="cb11-139"><a href="#cb11-139" aria-hidden="true" tabindex="-1"></a>           <span class="at">family =</span> poisson, <span class="at">data =</span> df2)</span>
+<span id="cb11-120"><a href="#cb11-120" aria-hidden="true" tabindex="-1"></a>**Reading the table:** Model 1 and Model 3 give nearly identical age-group</span>
+<span id="cb11-121"><a href="#cb11-121" aria-hidden="true" tabindex="-1"></a>coefficients because the true $\gamma = 1$ (counts are indeed proportional to</span>
+<span id="cb11-122"><a href="#cb11-122" aria-hidden="true" tabindex="-1"></a>exposure time). Model 2 differs slightly in the intercept because the response</span>
+<span id="cb11-123"><a href="#cb11-123" aria-hidden="true" tabindex="-1"></a>variable changes. The estimated $\hat\gamma$ from Model 3 should be close to 1.</span>
+<span id="cb11-124"><a href="#cb11-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-125"><a href="#cb11-125" aria-hidden="true" tabindex="-1"></a><span class="fu">## When $\gamma \ne 1$</span></span>
+<span id="cb11-126"><a href="#cb11-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-127"><a href="#cb11-127" aria-hidden="true" tabindex="-1"></a>To see why the unconstrained model matters, repeat the simulation with a</span>
+<span id="cb11-128"><a href="#cb11-128" aria-hidden="true" tabindex="-1"></a>sub-linear count process ($\gamma = 0.6$: an initial burst of events that</span>
+<span id="cb11-129"><a href="#cb11-129" aria-hidden="true" tabindex="-1"></a>doesn't grow proportionally with long follow-up):</span>
+<span id="cb11-130"><a href="#cb11-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-133"><a href="#cb11-133" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb11-134"><a href="#cb11-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: nonlinear-exposure</span></span>
+<span id="cb11-135"><a href="#cb11-135" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb11-136"><a href="#cb11-136" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb11-137"><a href="#cb11-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-138"><a href="#cb11-138" aria-hidden="true" tabindex="-1"></a>count2 <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> true_rate <span class="sc">*</span> exposure<span class="sc">^</span><span class="fl">0.6</span>)</span>
+<span id="cb11-139"><a href="#cb11-139" aria-hidden="true" tabindex="-1"></a>df2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(count2, age_old, exposure, <span class="at">log_exposure =</span> <span class="fu">log</span>(exposure))</span>
 <span id="cb11-140"><a href="#cb11-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-141"><a href="#cb11-141" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Offset model age coefficient:      "</span>, <span class="fu">round</span>(<span class="fu">coef</span>(m1b)[<span class="dv">2</span>], <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
-<span id="cb11-142"><a href="#cb11-142" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Unconstrained model age coefficient:"</span>, <span class="fu">round</span>(<span class="fu">coef</span>(m3b)[<span class="dv">2</span>], <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
-<span id="cb11-143"><a href="#cb11-143" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Estimated gamma (log-exposure):    "</span>, <span class="fu">round</span>(<span class="fu">coef</span>(m3b)[<span class="dv">3</span>], <span class="dv">3</span>),</span>
-<span id="cb11-144"><a href="#cb11-144" aria-hidden="true" tabindex="-1"></a>    <span class="st">" (true = 0.6)</span><span class="sc">\n</span><span class="st">"</span>)</span>
-<span id="cb11-145"><a href="#cb11-145" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-146"><a href="#cb11-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-147"><a href="#cb11-147" aria-hidden="true" tabindex="-1"></a>When $\gamma \ne 1$, forcing the offset constraint biases the treatment</span>
-<span id="cb11-148"><a href="#cb11-148" aria-hidden="true" tabindex="-1"></a>coefficient. The unconstrained model recovers both the true age effect and</span>
-<span id="cb11-149"><a href="#cb11-149" aria-hidden="true" tabindex="-1"></a>the true $\gamma$.</span>
-<span id="cb11-150"><a href="#cb11-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-151"><a href="#cb11-151" aria-hidden="true" tabindex="-1"></a><span class="fu">## Stata equivalent</span></span>
-<span id="cb11-152"><a href="#cb11-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-153"><a href="#cb11-153" aria-hidden="true" tabindex="-1"></a><span class="in">```stata</span></span>
-<span id="cb11-154"><a href="#cb11-154" aria-hidden="true" tabindex="-1"></a><span class="in">* Model 1: offset</span></span>
-<span id="cb11-155"><a href="#cb11-155" aria-hidden="true" tabindex="-1"></a><span class="in">poisson count age_old, exposure(exposure)</span></span>
-<span id="cb11-156"><a href="#cb11-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-157"><a href="#cb11-157" aria-hidden="true" tabindex="-1"></a><span class="in">* Model 2: rate as response</span></span>
-<span id="cb11-158"><a href="#cb11-158" aria-hidden="true" tabindex="-1"></a><span class="in">gen rate = count / exposure</span></span>
-<span id="cb11-159"><a href="#cb11-159" aria-hidden="true" tabindex="-1"></a><span class="in">poisson rate age_old</span></span>
-<span id="cb11-160"><a href="#cb11-160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-161"><a href="#cb11-161" aria-hidden="true" tabindex="-1"></a><span class="in">* Model 3: unconstrained log(t)</span></span>
-<span id="cb11-162"><a href="#cb11-162" aria-hidden="true" tabindex="-1"></a><span class="in">gen log_exposure = log(exposure)</span></span>
-<span id="cb11-163"><a href="#cb11-163" aria-hidden="true" tabindex="-1"></a><span class="in">poisson count age_old log_exposure</span></span>
-<span id="cb11-164"><a href="#cb11-164" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-141"><a href="#cb11-141" aria-hidden="true" tabindex="-1"></a>m1b <span class="ot">&lt;-</span> <span class="fu">glm</span>(count2 <span class="sc">~</span> age_old <span class="sc">+</span> <span class="fu">offset</span>(<span class="fu">log</span>(exposure)),</span>
+<span id="cb11-142"><a href="#cb11-142" aria-hidden="true" tabindex="-1"></a>           <span class="at">family =</span> poisson, <span class="at">data =</span> df2)</span>
+<span id="cb11-143"><a href="#cb11-143" aria-hidden="true" tabindex="-1"></a>m3b <span class="ot">&lt;-</span> <span class="fu">glm</span>(count2 <span class="sc">~</span> age_old <span class="sc">+</span> log_exposure,</span>
+<span id="cb11-144"><a href="#cb11-144" aria-hidden="true" tabindex="-1"></a>           <span class="at">family =</span> poisson, <span class="at">data =</span> df2)</span>
+<span id="cb11-145"><a href="#cb11-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-146"><a href="#cb11-146" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Offset model age coefficient:      "</span>, <span class="fu">round</span>(<span class="fu">coef</span>(m1b)[<span class="dv">2</span>], <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb11-147"><a href="#cb11-147" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Unconstrained model age coefficient:"</span>, <span class="fu">round</span>(<span class="fu">coef</span>(m3b)[<span class="dv">2</span>], <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb11-148"><a href="#cb11-148" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Estimated gamma (log-exposure):    "</span>, <span class="fu">round</span>(<span class="fu">coef</span>(m3b)[<span class="dv">3</span>], <span class="dv">3</span>),</span>
+<span id="cb11-149"><a href="#cb11-149" aria-hidden="true" tabindex="-1"></a>    <span class="st">" (true = 0.6)</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb11-150"><a href="#cb11-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-151"><a href="#cb11-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-152"><a href="#cb11-152" aria-hidden="true" tabindex="-1"></a>When $\gamma \ne 1$, forcing the offset constraint biases the treatment</span>
+<span id="cb11-153"><a href="#cb11-153" aria-hidden="true" tabindex="-1"></a>coefficient. The unconstrained model recovers both the true age effect and</span>
+<span id="cb11-154"><a href="#cb11-154" aria-hidden="true" tabindex="-1"></a>the true $\gamma$.</span>
+<span id="cb11-155"><a href="#cb11-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-156"><a href="#cb11-156" aria-hidden="true" tabindex="-1"></a><span class="fu">## Stata equivalent</span></span>
+<span id="cb11-157"><a href="#cb11-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-158"><a href="#cb11-158" aria-hidden="true" tabindex="-1"></a><span class="in">```stata</span></span>
+<span id="cb11-159"><a href="#cb11-159" aria-hidden="true" tabindex="-1"></a><span class="in">* Model 1: offset</span></span>
+<span id="cb11-160"><a href="#cb11-160" aria-hidden="true" tabindex="-1"></a><span class="in">poisson count age_old, exposure(exposure)</span></span>
+<span id="cb11-161"><a href="#cb11-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-162"><a href="#cb11-162" aria-hidden="true" tabindex="-1"></a><span class="in">* Model 2: rate as response</span></span>
+<span id="cb11-163"><a href="#cb11-163" aria-hidden="true" tabindex="-1"></a><span class="in">gen rate = count / exposure</span></span>
+<span id="cb11-164"><a href="#cb11-164" aria-hidden="true" tabindex="-1"></a><span class="in">poisson rate age_old</span></span>
 <span id="cb11-165"><a href="#cb11-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-166"><a href="#cb11-166" aria-hidden="true" tabindex="-1"></a><span class="fu">## Which model to use?</span></span>
-<span id="cb11-167"><a href="#cb11-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-168"><a href="#cb11-168" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Situation <span class="pp">|</span> Recommended model <span class="pp">|</span></span>
-<span id="cb11-169"><a href="#cb11-169" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
-<span id="cb11-170"><a href="#cb11-170" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Counts grow proportionally with time <span class="pp">|</span> Model 1 (offset) <span class="pp">|</span></span>
-<span id="cb11-171"><a href="#cb11-171" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Uncertain about proportionality <span class="pp">|</span> Model 3 (unconstrained), test $\hat\gamma = 1$ <span class="pp">|</span></span>
-<span id="cb11-172"><a href="#cb11-172" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Rate is the natural estimand <span class="pp">|</span> Model 1 or Model 2; both are valid <span class="pp">|</span></span>
-<span id="cb11-173"><a href="#cb11-173" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Long follow-up with declining event rate <span class="pp">|</span> Model 3 or negative binomial with offset <span class="pp">|</span></span>
-<span id="cb11-174"><a href="#cb11-174" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-175"><a href="#cb11-175" aria-hidden="true" tabindex="-1"></a>In most health and social-science applications, Model 1 (Poisson with offset)</span>
-<span id="cb11-176"><a href="#cb11-176" aria-hidden="true" tabindex="-1"></a>is the default. Model 3 is the diagnostic check: fit it, look at $\hat\gamma$,</span>
-<span id="cb11-177"><a href="#cb11-177" aria-hidden="true" tabindex="-1"></a>and return to Model 1 if the constraint is supported by the data.</span>
-<span id="cb11-178"><a href="#cb11-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-179"><a href="#cb11-179" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb11-180"><a href="#cb11-180" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-181"><a href="#cb11-181" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb11-182"><a href="#cb11-182" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*</span>
+<span id="cb11-166"><a href="#cb11-166" aria-hidden="true" tabindex="-1"></a><span class="in">* Model 3: unconstrained log(t)</span></span>
+<span id="cb11-167"><a href="#cb11-167" aria-hidden="true" tabindex="-1"></a><span class="in">gen log_exposure = log(exposure)</span></span>
+<span id="cb11-168"><a href="#cb11-168" aria-hidden="true" tabindex="-1"></a><span class="in">poisson count age_old log_exposure</span></span>
+<span id="cb11-169"><a href="#cb11-169" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-170"><a href="#cb11-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-171"><a href="#cb11-171" aria-hidden="true" tabindex="-1"></a><span class="fu">## Which model to use?</span></span>
+<span id="cb11-172"><a href="#cb11-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-173"><a href="#cb11-173" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Situation <span class="pp">|</span> Recommended model <span class="pp">|</span></span>
+<span id="cb11-174"><a href="#cb11-174" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb11-175"><a href="#cb11-175" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Counts grow proportionally with time <span class="pp">|</span> Model 1 (offset) <span class="pp">|</span></span>
+<span id="cb11-176"><a href="#cb11-176" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Uncertain about proportionality <span class="pp">|</span> Model 3 (unconstrained), test $\hat\gamma = 1$ <span class="pp">|</span></span>
+<span id="cb11-177"><a href="#cb11-177" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Rate is the natural estimand <span class="pp">|</span> Model 1 (offset) — it estimates a rate directly; Model 2 only as a weighted/robust quasi-model <span class="pp">|</span></span>
+<span id="cb11-178"><a href="#cb11-178" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Long follow-up with declining event rate <span class="pp">|</span> Model 3 or negative binomial with offset <span class="pp">|</span></span>
+<span id="cb11-179"><a href="#cb11-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-180"><a href="#cb11-180" aria-hidden="true" tabindex="-1"></a>In most health and social-science applications, Model 1 (Poisson with offset)</span>
+<span id="cb11-181"><a href="#cb11-181" aria-hidden="true" tabindex="-1"></a>is the default. Model 3 is the diagnostic check: fit it, look at $\hat\gamma$,</span>
+<span id="cb11-182"><a href="#cb11-182" aria-hidden="true" tabindex="-1"></a>and return to Model 1 if the constraint is supported by the data.</span>
+<span id="cb11-183"><a href="#cb11-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-184"><a href="#cb11-184" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb11-185"><a href="#cb11-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-186"><a href="#cb11-186" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb11-187"><a href="#cb11-187" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

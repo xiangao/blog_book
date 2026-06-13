@@ -62,7 +62,7 @@ ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
 
 In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the Mundlak residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.
 
-To verify our control function approach, we do the same with a linear model.  By the way, for linear model and Poisson model, control function approach works, in the sense you can just put in predicted residual in the second stage and that takes care of the endogeneity adjustment.  There is a package "ivreghdfe" we use to verify our two step process.
+To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.
 
 
 ```{stata}
@@ -113,7 +113,7 @@ bootstrap r(b_time) , reps(100) seed(123) cluster(ad) idcluster(newid) : ppmlhdf
 
 ```
 
-Somehow we need "xtset clear" for each regression.  I think this is due to the fact that Stata generates a new id for the bootstrapped clusters, then somehow it xtsets the id, even if you don't use it in the regression.  Therefore we'll need to clear it every time.
+A troubleshooting note: we need to run `xtset, clear` before each regression inside the bootstrap. The reason is that Stata's cluster bootstrap generates a new id variable for the resampled clusters and leaves the panel `xtset` to that id; if it is not cleared, a later regression can pick up the stale panel setting even when it does not use the id. Clearing it each iteration avoids this.
 
 ## How to do it with R
 

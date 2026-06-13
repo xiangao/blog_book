@@ -152,7 +152,7 @@ mean(simulated_data2$Yd)
 mean(simulated_data1$Yd) - mean(simulated_data2$Yd)
 ```
 
-Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $uniform(0,1)$, and $L_2$ is from $N(0.25 * L_1, 0.5)$.  The treatment $A_1$ is from a Bernoulli distribution with probability 0.5, and the treatment $A_2$ is from a Bernoulli distribution with probability $plogis(0.5 - 0.2 * A_1 + 0.1 * L_2)$.  The outcome $Y$ is from a normal distribution with mean $A2 + L2$.  In the simulated data,  the modified treatment policy is to set the treatment to 0, then 1.  The difference would be SATE.
+Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is from $N(0.25 L_1 + 0.4 A_1,\ 0.5)$ -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability 0.5, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.1 L_1)$.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (`simulated_data1`) and the second sets it to 0 in every period (`simulated_data2`); the reported difference $E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]$ is the effect of the always-treat versus never-treat static regimes.
 
 
 In this case, we can just do a linear regression to get the effect of A2 on Y, knowing the exact DAG.
@@ -213,6 +213,16 @@ mean(m1_d)
 Note this recursive process is based on Diaz, et al. (2023) "Nonparametric Causal Effects Based on Longitudinal Modified Treatment Policies".
 
 Here is how exactly we estimate it:  we start with the last time point.  Regress it on previous treatment and confounders, and then get the predicted value with $A$ changed based on the MTP.  Regress that predicted value on the previous treatment and confounders, get predicted values with $A$ changed based on MTP.  Repeat until the first time point.   The average of the predicted value at time 1 is the expected value under this MTP.
+
+The shift function `d()` above is a *stochastic* intervention: at each
+call it draws a fresh $\epsilon \sim \text{Uniform}(0,1)$ and, with
+probability 0.5, switches a treated unit ($a=1$) to $0$, otherwise
+leaves $a$ unchanged. The regime is "at each time point, draw
+independently conditional on history and apply this rule"; because the
+draw is independent across time points and units, calling `d()`
+separately for $A_2$ and $A_1$ is what implements that regime. (By
+contrast, the `d1`/`d2` functions used with `lmtp_tmle` below are
+*deterministic* static regimes -- always 1 and always 0.)
 
 This is basically g-formula extended to longitudinal data.
 
@@ -300,6 +310,11 @@ print(control)
 
 lmtp_contrast(treat, ref = control)
 ```
+
+Note that `folds = 1` turns off cross-fitting (sample splitting). That is
+fine for a small, fast demonstration with `SL.glm`, but in applied work
+with flexible learners you should use several folds so the nuisance fits
+are cross-fitted; otherwise the standard errors can be anti-conservative.
 
 ## another example
 

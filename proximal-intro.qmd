@@ -219,12 +219,26 @@ If we define $\delta_{a}^y = \beta_{ay} + \beta_{uy} \beta_{au}$ (regression coe
 
 $$ \beta_{ay} = \delta_{a}^y - \delta_{a}^w  \frac{\delta_z^y}{\delta_z^w} $$
 
-Or, we can look at this as a two-stage least squares (2SLS) regression.
-We can replace $U$ with the predicted value of $W$ from the second equation:
+In this **linear-Gaussian special case only**, we can look at this as a
+two-stage-least-squares-style regression and replace $U$ with the predicted
+value of $W$:
 
 $$ E[Y | A,Z] = \beta_{y0} + \beta_{ay} A + \beta_{uy} E[W | A,Z]$$
 
-We first regress $W$ on $A$ and $Z$, and then regress $Y$ on $A$ and the predicted value of $W$.
+so we first regress $W$ on $A$ and $Z$, then regress $Y$ on $A$ and the
+predicted value of $W$.
+
+This "predict $W$ from $A$ and $Z$, then plug it in" shortcut is **not** the
+general proximal identification argument, and it is not the same as a standard
+IV/2SLS specification (we are not instrumenting an endogenous regressor with
+`ivreg`). In general proximal causal inference, the outcome bridge function
+$h(A,W)$ is identified by solving the conditional moment restriction
+$E[Y \mid A,Z] = E[h(A,W)\mid A,Z]$, which requires completeness (relevance)
+conditions linking the treatment-inducing proxy $Z$ and the outcome-inducing
+proxy $W$ to the hidden confounder $U$. The generated regressor
+$S = \widehat{E}[W\mid A,Z]$ is only a valid substitute under the linear-Gaussian
+structure above; even then the two-stage standard errors are wrong as written,
+because $S$ is generated in the first stage (bootstrap the whole procedure).
 
 
 
@@ -341,14 +355,17 @@ If we do the 2sls using $W$ and $Z$, then we get the true effect.
 #| echo: true
 
 
-# Linear (Y, W) Case
+# Linear-Gaussian (Y, W) toy case ONLY. This two-stage plug-in identifies
+# the effect under the linear structure above; it is not the general
+# proximal estimator, and the reported SEs below are NOT valid because S is
+# a generated regressor (bootstrap the whole two-step procedure for inference).
 # Perform the first-stage linear regression W ~ A + Z
 m1 <- lm(W ~ A + Z, data = data)
 # Compute the estimated E[W|A,Z]
 S <- m1$fitted.values
 # Perform the second-stage linear regression Y ~ A + E[W|A,Z]
 m2 <- lm(Y ~ A + S, data = data)
-summary(m2)
+summary(m2)   # point estimate OK under the linear model; SEs need bootstrap
 
 
 ```

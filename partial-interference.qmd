@@ -69,15 +69,17 @@ Having one treated neighbor in group 0 adds 0.5 to the treatment effect; having 
 Standard IPW uses one propensity score, $P(Z_i = 1 | X_i)$. Under interference, we need two:
 
 1. **Individual propensity**: $P(Z_i = 1 | X_i)$ — probability of being treated given covariates (logistic regression)
-2. **Neighborhood propensity**: $P(G_i = g | X_i)$ — probability of having neighborhood configuration $g$ given covariates (multinomial logistic regression)
+2. **Neighborhood propensity**: $P(G_i = g | Z_i, X_i)$ — probability of neighborhood configuration $g$ given **own treatment** and covariates (multinomial logistic regression)
 
 The second piece is the new part. It models how likely a particular treatment environment is, conditional on covariates.
 
+Note the conditioning on $Z_i$ in the second piece. Own treatment $Z_i$ and the neighborhood exposure $G_i$ are usually **dependent by design** — for a network or cluster exposure mapping, $G_i$ is built from the treatments of $i$'s neighbours, which are correlated with $i$'s own assignment mechanism. The joint exposure probability must therefore be modeled as a joint distribution $P(Z_i=z, G_i=g \mid X_i)$, or via the valid factorization $P(Z_i=z\mid X_i)\,P(G_i=g\mid Z_i=z, X_i)$. A product of the two *marginals* $P(Z_i\mid X_i)P(G_i\mid X_i)$ is only correct when own and neighborhood treatment are conditionally independent given $X_i$, which is not the typical case.
+
 ### Clustered IPW
 
-The clustered IPW estimator for $\beta(g)$ reweights outcomes by both propensity scores:
+The clustered IPW estimator for $\beta(g)$ reweights outcomes by the joint exposure probability, written here as the conditional factorization:
 
-$$\hat{\beta}_{\text{IPW}}(g) = \frac{1}{N} \sum_i \left[ \frac{\mathbf{1}(Z_i=1, G_i=g)}{P(Z_i=1|X_i) \cdot P(G_i=g|X_i)} - \frac{\mathbf{1}(Z_i=0, G_i=g)}{P(Z_i=0|X_i) \cdot P(G_i=g|X_i)} \right] Y_i$$
+$$\hat{\beta}_{\text{IPW}}(g) = \frac{1}{N} \sum_i \left[ \frac{\mathbf{1}(Z_i=1, G_i=g)}{P(Z_i=1|X_i) \cdot P(G_i=g|Z_i=1,X_i)} - \frac{\mathbf{1}(Z_i=0, G_i=g)}{P(Z_i=0|X_i) \cdot P(G_i=g|Z_i=0,X_i)} \right] Y_i$$
 
 This gives a separate treatment-effect estimate at each neighborhood configuration $g$.
 
@@ -86,7 +88,7 @@ This gives a separate treatment-effect estimate at each neighborhood configurati
 The AIPW version adds outcome models:
 
 - Fit separate outcome models $E[Y | X, Z, G=g]$ for each configuration $g$
-- Combine with propensity weighting so the estimator is consistent if either the outcome model or both propensity models are correct
+- Combine with propensity weighting so the estimator is consistent if either the outcome model or the (joint) exposure-propensity model is correct. Here the propensity part must correctly model the *joint* exposure mechanism $P(Z_i, G_i \mid X_i)$, not two independent marginals.
 
 This is the estimator I would usually try first, for the same reason standard AIPW is attractive.
 

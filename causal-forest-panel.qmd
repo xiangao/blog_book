@@ -104,7 +104,7 @@ summary(re)
 summary(ols)
 ```
 
-Now we run Causal Forest on this data.  We include all other variables in the data set (but not $V2$, which is used to generate $\alpha_i$), and all the firm dummies, since presumably this will take care of the panel structure ($\alpha_i$).
+Now we run Causal Forest on this data.  Two clarifications about what is and is not at stake here. First, treatment $W$ is **randomized** (`rbinom(., 0.5)`, independent of the firm effect), so the omitted unit effect $\alpha_i$ does *not* confound the treatment effect — it only enters the nuisance functions (and hence precision), it does not create treatment-effect bias. The panel issue here is therefore mainly *dependence and nuisance fit*, not confounding. Second, the firm structure should be handled in two ways: we include the firm dummies in $X$ so the forest can absorb $\alpha_i$ in the nuisance models, **and** we pass `clusters = firm` so that `grf`'s honest sample splitting and its variance estimates keep each firm's repeated observations together rather than treating them as independent rows. Including the dummies alone does neither of those.
 
 ```{r}
 #| label: chunk2
@@ -123,8 +123,11 @@ a <- as.data.frame(model.matrix(y~firm, data.train))
 X <- as.matrix(bind_cols(data.train[,c(5,7:16)],a))
 Y <- data.train$y
 W <- data.train$W
-# causal forest is run on y against V1, to X10 and firm dummies
-tau.forest = causal_forest(X, Y, W)
+# causal forest is run on y against V1, to X10 and firm dummies.
+# clusters = firm makes honest splitting and the variance estimates respect
+# the panel structure (a firm's repeated rows are kept together, not treated
+# as independent observations).
+tau.forest = causal_forest(X, Y, W, clusters = as.integer(data.train$firm))
 
 average_treatment_effect(tau.forest, target.sample = "all")
 average_treatment_effect(tau.forest, target.sample = "treated")

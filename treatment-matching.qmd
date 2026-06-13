@@ -85,7 +85,7 @@ RA estimator estimates the outcome directly, IPW estimates the treatment assignm
 
 Stata implemented the augmented-IPW (AIPW) combination proposed by Robins and Rotnitzky (1995) and the IPW-regression-adjustment (IPWRA) combination proposed by Wooldridge (2010).
 
-The AIPW estimator augments the IPW estimator with a correction term. The term removes the bias if the treatment model is wrong and the outcome model is correct, and the term goes to 0 if the treatment model is correct and the outcome model is wrong.
+The AIPW estimator augments the IPW estimator with a correction term built from the outcome model. Double robustness is best stated as a **consistency** property: AIPW is consistent if *either* the treatment model *or* the outcome model is correctly specified (not necessarily both). It is *not* that the correction term literally "goes to zero" when the treatment model is right and the outcome model is wrong — with a misspecified outcome model the correction term does not generally vanish. Rather, the two pieces are constructed so that the estimator's bias cancels in the limit as long as one of the two models is right.
 
 The IPWRA estimator uses IPW probability weights when performing RA. The weights do not affect the accuracy of the RA estimator if the treatment model is wrong and the outcome model is correct. The weights correct the RA estimator if the treatment model is correct and the outcome model is wrong.
 
@@ -254,7 +254,8 @@ coeftest(m_eb, vcov = vcovHC(m_eb, type = "HC3"))["treat", ]
 | PSM (nearest neighbor) | Intuitive; respects overlap | Discards units; balance not guaranteed |
 | CEM | Exact balance in bins | Requires discretizing continuous vars |
 | Entropy balancing | Exact mean balance; keeps all units | Weights can be extreme; no variance balance by default |
-| IPW (logistic) | Simple; doubly-robust with outcome model | Extreme weights if overlap is poor |
+| IPW (logistic) | Simple; relies only on the treatment model | Not doubly robust on its own; extreme weights if overlap is poor |
+| AIPW / IPWRA | Doubly robust: consistent if *either* the treatment or outcome model is correct | Needs both models specified; more moving parts |
 
 For most applications, entropy balancing or IPW with trimmed weights (via
 `WeightIt`'s `trim()`) is preferred over PSM: better effective sample size,

@@ -26,7 +26,7 @@ Suppose we have a sample $Z$, which can be ${A,W,Y}$ (treatment, covariates, and
 
 We can use a parametric model, assuming we know what kind of distribution $P$ is. We assume $P=P_\theta$. Then we can use MLE to get $\psi(P_\theta)$. This is what we do in parametric modeling. But this can be too restrictive, we usually have no way of knowing how good $P_\theta$ is; in other words, the model can be misspecified thus the target parameter is estimated with bias.
 
-If we don't make any assumptions about the distribution, then we are in nonparametric world. The natural way to approximate $P$ is to use the empirical distribution $\hat P$. Then $\psi^*(\hat P)$ is the "plug-in" estimator. For example we can use sample mean to estimate the population mean, etc. But "plug-in" estimator is not the best choice, in general, because they are not $\sqrt n$ consistent. There is usually a "plug-in bias" when using "plug-in" estimator.
+If we don't make any assumptions about the distribution, then we are in nonparametric world. The natural way to approximate $P$ is to use the empirical distribution $\hat P$. Then $\psi^*(\hat P)$ is the "plug-in" estimator. For example we can use sample mean to estimate the population mean, etc. The plug-in is often not the best choice *when the nuisance functions are estimated flexibly* (e.g. with machine learning): the plug-in then inherits the slow convergence rate of those nuisance estimates and carries a first-order regularization ("plug-in") bias, so it is generally not $\sqrt n$ consistent in that regime. (This is not a universal indictment of plug-in estimators: with a correctly specified, smooth parametric model a plug-in / g-computation estimator can itself be $\sqrt n$ efficient. The problem is specifically the flexible / high-dimensional nuisance case.)
 
 Another choice is nonparametric estimator based on influence function. The nice thing about this type of estimators based on efficient influence function is that they are often $\sqrt n$ consistent, meaning they converge to the truth as fast as $\sqrt n$ rate. This means $\hat \psi - \psi$ not only goes to 0 with $n$ goes to infinity, but also as fast as $1/ \sqrt n$ goes to 0. Why does this matter? Because we have limited sample size, when we are based on asymptotics, the faster the bias goes to 0 the smaller sample size we need.
 
@@ -46,7 +46,7 @@ The IF based estimator only works if either $\phi(P)$ is not too complex (empiri
 
 Unfortunately influence function is hard to derive for different situations. Ed Kennedy has done a lot of work on using IF on causal inference <http://www.ehkennedy.com/>. Here we use his "npcausal" package.
 
-## simulation 1
+## Simulation with a known treatment effect
 
 The simulated data is from <https://migariane.github.io/TMLE.nb.html>
 
@@ -198,7 +198,7 @@ aipw<- ate(y=Y, a=A, x=W, nsplits=1, sl.lib=SL.library)
 aipw$res
 ```
 
-The results from "npcausal" are almost the same as the manual results. Note here we did not do sample splitting; therefore this is not "bias-corrected" estimator. Sample splitting is to help prevent overfitting, thus reducing bias. "npcausal" does this for you, if you specify "nsplits" option.
+The results from "npcausal" are almost the same as the manual results. Two clarifications. First, the manual estimator above *is* bias-corrected in the relevant sense: AIPW is exactly the one-step correction of the plug-in estimator using the efficient influence function. What we did *not* do is **cross-fitting** (sample splitting), which is a separate device. Second, that matters for inference: because the manual example fits the SuperLearner nuisances on the *full* sample and then uses `sd(IF)/sqrt(n)`, the resulting confidence interval is only valid under empirical-process (Donsker) conditions that flexible ML learners typically violate. With cross-fitting, the influence-function variance is valid without those conditions. "npcausal" does the cross-fitting for you when you set `nsplits > 1` (here `nsplits = 1` turns it off, for comparison with the manual full-sample version).
 
 ```{r}
 #| label: chunk8
@@ -297,7 +297,7 @@ obj_dml_plr$fit()
 print(obj_dml_plr)
 ```
 
-## simulation 2
+## EAGeR trial simulation (AIPW package)
 
 This simulation is based on a package "AIPW", which has a simulation data "eager_sim_rct". $A$ denotes the binary treatment assignment, $Y$ is the binary outcome, and $W_g$ represents the covariate that affects the treatment assignment, which in our case was deemed to be the eligibility stratum indicator, sampled with replacement from the EAGeR Trial. Similarly, $W_Q$ is a set of baseline prognostic covariates, which were also sampled with replacement from the EAGeR Trial, and includes the number of prior pregnancy losses, age, number of months of trying to conceive prior to randomization, body mass index (weight (kg)/height (m)2), and mean arterial blood pressure (denoted W1...5 , respectively).
 
@@ -401,7 +401,7 @@ library(npcausal)
 aipw<- ate(y=data$Y, a=data$A, x=W, nsplits=1, sl.lib=SL.library)
 ```
 
-The results from "npcausal" are almost the same as the manual results. Note here we did not do sample splitting; therefore this is not "bias-corrected" estimator. Sample splitting is to help prevent overfitting, thus reducing bias. "npcausal" does this for you, if you specify "nsplits" option.
+The results from "npcausal" are almost the same as the manual results. Two clarifications. First, the manual estimator above *is* bias-corrected in the relevant sense: AIPW is exactly the one-step correction of the plug-in estimator using the efficient influence function. What we did *not* do is **cross-fitting** (sample splitting), which is a separate device. Second, that matters for inference: because the manual example fits the SuperLearner nuisances on the *full* sample and then uses `sd(IF)/sqrt(n)`, the resulting confidence interval is only valid under empirical-process (Donsker) conditions that flexible ML learners typically violate. With cross-fitting, the influence-function variance is valid without those conditions. "npcausal" does the cross-fitting for you when you set `nsplits > 1` (here `nsplits = 1` turns it off, for comparison with the manual full-sample version).
 
 ```{r}
 #| label: chunk17

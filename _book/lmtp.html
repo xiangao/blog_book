@@ -707,7 +707,7 @@ window.Quarto = {
 <pre><code>[1] 1.9</code></pre>
 </div>
 </div>
-<p>Note in this simulation the variables ending with “d” are the variables under hypothetical intervention, or modified treatment policy. <span class="math inline">\(L_1\)</span> is from <span class="math inline">\(uniform(0,1)\)</span>, and <span class="math inline">\(L_2\)</span> is from <span class="math inline">\(N(0.25 * L_1, 0.5)\)</span>. The treatment <span class="math inline">\(A_1\)</span> is from a Bernoulli distribution with probability 0.5, and the treatment <span class="math inline">\(A_2\)</span> is from a Bernoulli distribution with probability <span class="math inline">\(plogis(0.5 - 0.2 * A_1 + 0.1 * L_2)\)</span>. The outcome <span class="math inline">\(Y\)</span> is from a normal distribution with mean <span class="math inline">\(A2 + L2\)</span>. In the simulated data, the modified treatment policy is to set the treatment to 0, then 1. The difference would be SATE.</p>
+<p>Note in this simulation the variables ending with “d” are the variables under hypothetical intervention, or modified treatment policy. <span class="math inline">\(L_1\)</span> is from <span class="math inline">\(\text{Uniform}(0,1)\)</span>, and <span class="math inline">\(L_2\)</span> is from <span class="math inline">\(N(0.25 L_1 + 0.4 A_1,\ 0.5)\)</span> – so the time-varying confounder <span class="math inline">\(L_2\)</span> depends on the earlier treatment <span class="math inline">\(A_1\)</span>, which is the time-varying confounding this chapter is about. The treatment <span class="math inline">\(A_1\)</span> is from a Bernoulli distribution with probability 0.5, and the treatment <span class="math inline">\(A_2\)</span> is from a Bernoulli distribution with probability <span class="math inline">\(\text{plogis}(0.5 - 0.2 A_1 + 0.1 L_1)\)</span>. The outcome <span class="math inline">\(Y\)</span> is from a normal distribution with mean <span class="math inline">\(A_2 + L_2 + 0.5 A_1\)</span>, so <span class="math inline">\(Y\)</span> depends on both the current treatment <span class="math inline">\(A_2\)</span> and the lagged treatment <span class="math inline">\(A_1\)</span>. In the code, the first modified treatment policy sets treatment to 1 in every period (<code>simulated_data1</code>) and the second sets it to 0 in every period (<code>simulated_data2</code>); the reported difference <span class="math inline">\(E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]\)</span> is the effect of the always-treat versus never-treat static regimes.</p>
 <p>In this case, we can just do a linear regression to get the effect of A2 on Y, knowing the exact DAG.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">m1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/glm.html">glm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="va">L_2</span> <span class="op">+</span> <span class="va">A_1</span>   <span class="op">+</span> <span class="va">A_2</span>, data <span class="op">=</span> <span class="va">simulated_data1</span><span class="op">)</span></span>
@@ -812,6 +812,7 @@ Number of Fisher Scoring iterations: 2</code></pre>
 </div>
 <p>Note this recursive process is based on Diaz, et al.&nbsp;(2023) “Nonparametric Causal Effects Based on Longitudinal Modified Treatment Policies”.</p>
 <p>Here is how exactly we estimate it: we start with the last time point. Regress it on previous treatment and confounders, and then get the predicted value with <span class="math inline">\(A\)</span> changed based on the MTP. Regress that predicted value on the previous treatment and confounders, get predicted values with <span class="math inline">\(A\)</span> changed based on MTP. Repeat until the first time point. The average of the predicted value at time 1 is the expected value under this MTP.</p>
+<p>The shift function <code>d()</code> above is a <em>stochastic</em> intervention: at each call it draws a fresh <span class="math inline">\(\epsilon \sim \text{Uniform}(0,1)\)</span> and, with probability 0.5, switches a treated unit (<span class="math inline">\(a=1\)</span>) to <span class="math inline">\(0\)</span>, otherwise leaves <span class="math inline">\(a\)</span> unchanged. The regime is “at each time point, draw independently conditional on history and apply this rule”; because the draw is independent across time points and units, calling <code>d()</code> separately for <span class="math inline">\(A_2\)</span> and <span class="math inline">\(A_1\)</span> is what implements that regime. (By contrast, the <code>d1</code>/<code>d2</code> functions used with <code>lmtp_tmle</code> below are <em>deterministic</em> static regimes – always 1 and always 0.)</p>
 <p>This is basically g-formula extended to longitudinal data.</p>
 <p>In a general case, this is the generalized g-formula to estimate <span class="math inline">\(\theta\)</span>:</p>
 <p>Set <span class="math inline">\(m_{\tau + 1} = Y\)</span>, let <span class="math inline">\(A_t^d = d(A_t, H_t)\)</span>. For <span class="math inline">\(t = \tau, \ldots, 1\)</span>, recursively define:</p>
@@ -886,6 +887,7 @@ Number of Fisher Scoring iterations: 2</code></pre>
   shift   ref estimate std.error conf.low conf.high p.value
 1  1.12 0.117        1    0.0102     0.98      1.02  &lt;0.001</code></pre>
 <p>::: :::</p>
+<p>Note that <code>folds = 1</code> turns off cross-fitting (sample splitting). That is fine for a small, fast demonstration with <code>SL.glm</code>, but in applied work with flexible learners you should use several folds so the nuisance fits are cross-fitted; otherwise the standard errors can be anti-conservative.</p>
 </section><section id="another-example" class="level2" data-number="35.3"><h2 data-number="35.3" class="anchored" data-anchor-id="another-example">
 <span class="header-section-number">35.3</span> another example</h2>
 <p>The data set bmi, from the DynTxRegime package, are simulated to reflect a two-stage RCT {A1, A2} that studied the effect of meal replacement (MR) shakes versus a calorie deficit (CD) diet on adolescent</p>
@@ -1609,7 +1611,7 @@ $ A2          &lt;chr&gt; "MR", "MR", "CD", "CD", "CD", "MR", "MR", "CD", "MR", 
 <span id="cb32-156"><a href="#cb32-156" aria-hidden="true" tabindex="-1"></a><span class="fu">mean</span>(simulated_data1<span class="sc">$</span>Yd) <span class="sc">-</span> <span class="fu">mean</span>(simulated_data2<span class="sc">$</span>Yd)</span>
 <span id="cb32-157"><a href="#cb32-157" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb32-158"><a href="#cb32-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-159"><a href="#cb32-159" aria-hidden="true" tabindex="-1"></a>Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $uniform(0,1)$, and $L_2$ is from $N(0.25 * L_1, 0.5)$.  The treatment $A_1$ is from a Bernoulli distribution with probability 0.5, and the treatment $A_2$ is from a Bernoulli distribution with probability $plogis(0.5 - 0.2 * A_1 + 0.1 * L_2)$.  The outcome $Y$ is from a normal distribution with mean $A2 + L2$.  In the simulated data,  the modified treatment policy is to set the treatment to 0, then 1.  The difference would be SATE.</span>
+<span id="cb32-159"><a href="#cb32-159" aria-hidden="true" tabindex="-1"></a>Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is from $N(0.25 L_1 + 0.4 A_1,\ 0.5)$ -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability 0.5, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.1 L_1)$.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (<span class="in">`simulated_data1`</span>) and the second sets it to 0 in every period (<span class="in">`simulated_data2`</span>); the reported difference $E<span class="co">[</span><span class="ot">Y^{d}_{\text{always }1}</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">Y^{d}_{\text{always }0}</span><span class="co">]</span>$ is the effect of the always-treat versus never-treat static regimes.</span>
 <span id="cb32-160"><a href="#cb32-160" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-161"><a href="#cb32-161" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-162"><a href="#cb32-162" aria-hidden="true" tabindex="-1"></a>In this case, we can just do a linear regression to get the effect of A2 on Y, knowing the exact DAG.</span>
@@ -1671,210 +1673,225 @@ $ A2          &lt;chr&gt; "MR", "MR", "CD", "CD", "CD", "MR", "MR", "CD", "MR", 
 <span id="cb32-222"><a href="#cb32-222" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-223"><a href="#cb32-223" aria-hidden="true" tabindex="-1"></a>Here is how exactly we estimate it:  we start with the last time point.  Regress it on previous treatment and confounders, and then get the predicted value with $A$ changed based on the MTP.  Regress that predicted value on the previous treatment and confounders, get predicted values with $A$ changed based on MTP.  Repeat until the first time point.   The average of the predicted value at time 1 is the expected value under this MTP.</span>
 <span id="cb32-224"><a href="#cb32-224" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-225"><a href="#cb32-225" aria-hidden="true" tabindex="-1"></a>This is basically g-formula extended to longitudinal data.</span>
-<span id="cb32-226"><a href="#cb32-226" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-227"><a href="#cb32-227" aria-hidden="true" tabindex="-1"></a>In a general case, this is the generalized g-formula to estimate $\theta$:</span>
-<span id="cb32-228"><a href="#cb32-228" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-229"><a href="#cb32-229" aria-hidden="true" tabindex="-1"></a>Set $m_{\tau + 1} = Y$, let $A_t^d = d(A_t, H_t)$.   For $t = \tau, \ldots, 1$, recursively define:</span>
-<span id="cb32-230"><a href="#cb32-230" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-231"><a href="#cb32-231" aria-hidden="true" tabindex="-1"></a>$$ m_t(a_t, h_t)  = E<span class="co">[</span><span class="ot">m_{t + 1} (A_{t+1}^d, H_{t+1}) | A_t = a_t, H_t =h_t</span><span class="co">]</span> $$</span>
-<span id="cb32-232"><a href="#cb32-232" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-233"><a href="#cb32-233" aria-hidden="true" tabindex="-1"></a>Then $\theta = E<span class="co">[</span><span class="ot">m_1(A_1^d, L_1)</span><span class="co">]</span>$.</span>
+<span id="cb32-225"><a href="#cb32-225" aria-hidden="true" tabindex="-1"></a>The shift function <span class="in">`d()`</span> above is a *stochastic* intervention: at each</span>
+<span id="cb32-226"><a href="#cb32-226" aria-hidden="true" tabindex="-1"></a>call it draws a fresh $\epsilon \sim \text{Uniform}(0,1)$ and, with</span>
+<span id="cb32-227"><a href="#cb32-227" aria-hidden="true" tabindex="-1"></a>probability 0.5, switches a treated unit ($a=1$) to $0$, otherwise</span>
+<span id="cb32-228"><a href="#cb32-228" aria-hidden="true" tabindex="-1"></a>leaves $a$ unchanged. The regime is "at each time point, draw</span>
+<span id="cb32-229"><a href="#cb32-229" aria-hidden="true" tabindex="-1"></a>independently conditional on history and apply this rule"; because the</span>
+<span id="cb32-230"><a href="#cb32-230" aria-hidden="true" tabindex="-1"></a>draw is independent across time points and units, calling <span class="in">`d()`</span></span>
+<span id="cb32-231"><a href="#cb32-231" aria-hidden="true" tabindex="-1"></a>separately for $A_2$ and $A_1$ is what implements that regime. (By</span>
+<span id="cb32-232"><a href="#cb32-232" aria-hidden="true" tabindex="-1"></a>contrast, the <span class="in">`d1`</span>/<span class="in">`d2`</span> functions used with <span class="in">`lmtp_tmle`</span> below are</span>
+<span id="cb32-233"><a href="#cb32-233" aria-hidden="true" tabindex="-1"></a>*deterministic* static regimes -- always 1 and always 0.)</span>
 <span id="cb32-234"><a href="#cb32-234" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-235"><a href="#cb32-235" aria-hidden="true" tabindex="-1"></a>We start from the last period.  Regress $m_{\tau + 1}$, which is $Y$ on $A_{\tau}$ and $H_{\tau}$.  Then get the predicted value with $A_{\tau}$ changed based on the MTP.  Then regress that predicted value on $A_{\tau - 1}$ and $H_{\tau - 1}$.  Repeat until the first time point.  The average of the predicted value at time 1 is the expected value under this MTP.</span>
+<span id="cb32-235"><a href="#cb32-235" aria-hidden="true" tabindex="-1"></a>This is basically g-formula extended to longitudinal data.</span>
 <span id="cb32-236"><a href="#cb32-236" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-237"><a href="#cb32-237" aria-hidden="true" tabindex="-1"></a><span class="fu">### Estimators</span></span>
+<span id="cb32-237"><a href="#cb32-237" aria-hidden="true" tabindex="-1"></a>In a general case, this is the generalized g-formula to estimate $\theta$:</span>
 <span id="cb32-238"><a href="#cb32-238" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-239"><a href="#cb32-239" aria-hidden="true" tabindex="-1"></a>The authors advocate two estimators, TMLE and SDR (sequentially doubly robust estimator).  The procedures are the same, starting from the last time point, then apply TMLE or SDR, iterate to the first time point.</span>
+<span id="cb32-239"><a href="#cb32-239" aria-hidden="true" tabindex="-1"></a>Set $m_{\tau + 1} = Y$, let $A_t^d = d(A_t, H_t)$.   For $t = \tau, \ldots, 1$, recursively define:</span>
 <span id="cb32-240"><a href="#cb32-240" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-241"><a href="#cb32-241" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-242"><a href="#cb32-242" aria-hidden="true" tabindex="-1"></a><span class="fu">## Using lmtp package</span></span>
-<span id="cb32-243"><a href="#cb32-243" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-246"><a href="#cb32-246" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb32-247"><a href="#cb32-247" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim3</span></span>
-<span id="cb32-248"><a href="#cb32-248" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb32-249"><a href="#cb32-249" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb32-250"><a href="#cb32-250" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb32-251"><a href="#cb32-251" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb32-252"><a href="#cb32-252" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-241"><a href="#cb32-241" aria-hidden="true" tabindex="-1"></a>$$ m_t(a_t, h_t)  = E<span class="co">[</span><span class="ot">m_{t + 1} (A_{t+1}^d, H_{t+1}) | A_t = a_t, H_t =h_t</span><span class="co">]</span> $$</span>
+<span id="cb32-242"><a href="#cb32-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-243"><a href="#cb32-243" aria-hidden="true" tabindex="-1"></a>Then $\theta = E<span class="co">[</span><span class="ot">m_1(A_1^d, L_1)</span><span class="co">]</span>$.</span>
+<span id="cb32-244"><a href="#cb32-244" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-245"><a href="#cb32-245" aria-hidden="true" tabindex="-1"></a>We start from the last period.  Regress $m_{\tau + 1}$, which is $Y$ on $A_{\tau}$ and $H_{\tau}$.  Then get the predicted value with $A_{\tau}$ changed based on the MTP.  Then regress that predicted value on $A_{\tau - 1}$ and $H_{\tau - 1}$.  Repeat until the first time point.  The average of the predicted value at time 1 is the expected value under this MTP.</span>
+<span id="cb32-246"><a href="#cb32-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-247"><a href="#cb32-247" aria-hidden="true" tabindex="-1"></a><span class="fu">### Estimators</span></span>
+<span id="cb32-248"><a href="#cb32-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-249"><a href="#cb32-249" aria-hidden="true" tabindex="-1"></a>The authors advocate two estimators, TMLE and SDR (sequentially doubly robust estimator).  The procedures are the same, starting from the last time point, then apply TMLE or SDR, iterate to the first time point.</span>
+<span id="cb32-250"><a href="#cb32-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-251"><a href="#cb32-251" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-252"><a href="#cb32-252" aria-hidden="true" tabindex="-1"></a><span class="fu">## Using lmtp package</span></span>
 <span id="cb32-253"><a href="#cb32-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-254"><a href="#cb32-254" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb32-255"><a href="#cb32-255" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmtp)</span>
-<span id="cb32-256"><a href="#cb32-256" aria-hidden="true" tabindex="-1"></a>d1 <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) {</span>
-<span id="cb32-257"><a href="#cb32-257" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(data))</span>
-<span id="cb32-258"><a href="#cb32-258" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb32-259"><a href="#cb32-259" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="st">"A_2"</span></span>
-<span id="cb32-260"><a href="#cb32-260" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="st">"Y"</span></span>
-<span id="cb32-261"><a href="#cb32-261" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"L_1"</span>, <span class="st">"L_2"</span>, <span class="st">"A_1"</span>)</span>
-<span id="cb32-262"><a href="#cb32-262" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-263"><a href="#cb32-263" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">34465</span>)</span>
-<span id="cb32-264"><a href="#cb32-264" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-265"><a href="#cb32-265" aria-hidden="true" tabindex="-1"></a>treat <span class="ot">&lt;-</span> <span class="fu">lmtp_tmle</span>(</span>
-<span id="cb32-266"><a href="#cb32-266" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> simulated_data1,</span>
-<span id="cb32-267"><a href="#cb32-267" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="st">"A_2"</span>,</span>
-<span id="cb32-268"><a href="#cb32-268" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb32-269"><a href="#cb32-269" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> W,</span>
-<span id="cb32-270"><a href="#cb32-270" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb32-271"><a href="#cb32-271" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> d1,</span>
-<span id="cb32-272"><a href="#cb32-272" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
-<span id="cb32-273"><a href="#cb32-273" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb32-274"><a href="#cb32-274" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span></span>
-<span id="cb32-275"><a href="#cb32-275" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb32-276"><a href="#cb32-276" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-277"><a href="#cb32-277" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(treat)</span>
-<span id="cb32-278"><a href="#cb32-278" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb32-279"><a href="#cb32-279" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-282"><a href="#cb32-282" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb32-283"><a href="#cb32-283" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim4</span></span>
-<span id="cb32-284"><a href="#cb32-284" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb32-285"><a href="#cb32-285" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb32-286"><a href="#cb32-286" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb32-287"><a href="#cb32-287" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb32-288"><a href="#cb32-288" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-256"><a href="#cb32-256" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb32-257"><a href="#cb32-257" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim3</span></span>
+<span id="cb32-258"><a href="#cb32-258" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb32-259"><a href="#cb32-259" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb32-260"><a href="#cb32-260" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb32-261"><a href="#cb32-261" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb32-262"><a href="#cb32-262" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-263"><a href="#cb32-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-264"><a href="#cb32-264" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb32-265"><a href="#cb32-265" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmtp)</span>
+<span id="cb32-266"><a href="#cb32-266" aria-hidden="true" tabindex="-1"></a>d1 <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) {</span>
+<span id="cb32-267"><a href="#cb32-267" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(data))</span>
+<span id="cb32-268"><a href="#cb32-268" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb32-269"><a href="#cb32-269" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="st">"A_2"</span></span>
+<span id="cb32-270"><a href="#cb32-270" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="st">"Y"</span></span>
+<span id="cb32-271"><a href="#cb32-271" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"L_1"</span>, <span class="st">"L_2"</span>, <span class="st">"A_1"</span>)</span>
+<span id="cb32-272"><a href="#cb32-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-273"><a href="#cb32-273" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">34465</span>)</span>
+<span id="cb32-274"><a href="#cb32-274" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-275"><a href="#cb32-275" aria-hidden="true" tabindex="-1"></a>treat <span class="ot">&lt;-</span> <span class="fu">lmtp_tmle</span>(</span>
+<span id="cb32-276"><a href="#cb32-276" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> simulated_data1,</span>
+<span id="cb32-277"><a href="#cb32-277" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="st">"A_2"</span>,</span>
+<span id="cb32-278"><a href="#cb32-278" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb32-279"><a href="#cb32-279" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> W,</span>
+<span id="cb32-280"><a href="#cb32-280" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb32-281"><a href="#cb32-281" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> d1,</span>
+<span id="cb32-282"><a href="#cb32-282" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
+<span id="cb32-283"><a href="#cb32-283" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb32-284"><a href="#cb32-284" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span></span>
+<span id="cb32-285"><a href="#cb32-285" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb32-286"><a href="#cb32-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-287"><a href="#cb32-287" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(treat)</span>
+<span id="cb32-288"><a href="#cb32-288" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb32-289"><a href="#cb32-289" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-290"><a href="#cb32-290" aria-hidden="true" tabindex="-1"></a>d2 <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) {</span>
-<span id="cb32-291"><a href="#cb32-291" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">nrow</span>(data))</span>
-<span id="cb32-292"><a href="#cb32-292" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb32-293"><a href="#cb32-293" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="st">"A_2"</span></span>
-<span id="cb32-294"><a href="#cb32-294" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="st">"Y"</span></span>
-<span id="cb32-295"><a href="#cb32-295" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"L_1"</span>, <span class="st">"L_2"</span>, <span class="st">"A_1"</span>)</span>
-<span id="cb32-296"><a href="#cb32-296" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-297"><a href="#cb32-297" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">34465</span>)</span>
-<span id="cb32-298"><a href="#cb32-298" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-299"><a href="#cb32-299" aria-hidden="true" tabindex="-1"></a>control <span class="ot">&lt;-</span> <span class="fu">lmtp_tmle</span>(</span>
-<span id="cb32-300"><a href="#cb32-300" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> simulated_data1,</span>
-<span id="cb32-301"><a href="#cb32-301" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="st">"A_2"</span>,</span>
-<span id="cb32-302"><a href="#cb32-302" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
-<span id="cb32-303"><a href="#cb32-303" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> W,</span>
-<span id="cb32-304"><a href="#cb32-304" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb32-305"><a href="#cb32-305" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> d2,</span>
-<span id="cb32-306"><a href="#cb32-306" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
-<span id="cb32-307"><a href="#cb32-307" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb32-308"><a href="#cb32-308" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span></span>
-<span id="cb32-309"><a href="#cb32-309" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb32-310"><a href="#cb32-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-311"><a href="#cb32-311" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(control)</span>
-<span id="cb32-312"><a href="#cb32-312" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-313"><a href="#cb32-313" aria-hidden="true" tabindex="-1"></a><span class="fu">lmtp_contrast</span>(treat, <span class="at">ref =</span> control)</span>
-<span id="cb32-314"><a href="#cb32-314" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb32-315"><a href="#cb32-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-316"><a href="#cb32-316" aria-hidden="true" tabindex="-1"></a><span class="fu">## another example</span></span>
-<span id="cb32-317"><a href="#cb32-317" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-318"><a href="#cb32-318" aria-hidden="true" tabindex="-1"></a>The data set bmi, from the DynTxRegime package, are simulated to reflect a two-stage RCT {A1, A2} that studied the effect of meal replacement (MR) shakes versus a calorie deficit (CD) diet on adolescent</span>
-<span id="cb32-319"><a href="#cb32-319" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-320"><a href="#cb32-320" aria-hidden="true" tabindex="-1"></a><span class="fu">### shift function 1</span></span>
-<span id="cb32-321"><a href="#cb32-321" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-322"><a href="#cb32-322" aria-hidden="true" tabindex="-1"></a>Consider a shift function that assigns meal replacement to all observations at time 1, but only meal replacement at time 2 to those observations whose 4-month BMI is greater than 30.</span>
-<span id="cb32-323"><a href="#cb32-323" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-324"><a href="#cb32-324" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-327"><a href="#cb32-327" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb32-328"><a href="#cb32-328" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim5</span></span>
-<span id="cb32-329"><a href="#cb32-329" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb32-330"><a href="#cb32-330" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb32-331"><a href="#cb32-331" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb32-332"><a href="#cb32-332" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb32-333"><a href="#cb32-333" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-292"><a href="#cb32-292" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb32-293"><a href="#cb32-293" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim4</span></span>
+<span id="cb32-294"><a href="#cb32-294" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb32-295"><a href="#cb32-295" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb32-296"><a href="#cb32-296" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb32-297"><a href="#cb32-297" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb32-298"><a href="#cb32-298" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-299"><a href="#cb32-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-300"><a href="#cb32-300" aria-hidden="true" tabindex="-1"></a>d2 <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) {</span>
+<span id="cb32-301"><a href="#cb32-301" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">nrow</span>(data))</span>
+<span id="cb32-302"><a href="#cb32-302" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb32-303"><a href="#cb32-303" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="st">"A_2"</span></span>
+<span id="cb32-304"><a href="#cb32-304" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="st">"Y"</span></span>
+<span id="cb32-305"><a href="#cb32-305" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"L_1"</span>, <span class="st">"L_2"</span>, <span class="st">"A_1"</span>)</span>
+<span id="cb32-306"><a href="#cb32-306" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-307"><a href="#cb32-307" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">34465</span>)</span>
+<span id="cb32-308"><a href="#cb32-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-309"><a href="#cb32-309" aria-hidden="true" tabindex="-1"></a>control <span class="ot">&lt;-</span> <span class="fu">lmtp_tmle</span>(</span>
+<span id="cb32-310"><a href="#cb32-310" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> simulated_data1,</span>
+<span id="cb32-311"><a href="#cb32-311" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="st">"A_2"</span>,</span>
+<span id="cb32-312"><a href="#cb32-312" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"Y"</span>,</span>
+<span id="cb32-313"><a href="#cb32-313" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> W,</span>
+<span id="cb32-314"><a href="#cb32-314" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb32-315"><a href="#cb32-315" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> d2,</span>
+<span id="cb32-316"><a href="#cb32-316" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
+<span id="cb32-317"><a href="#cb32-317" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb32-318"><a href="#cb32-318" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="st">"SL.glm"</span></span>
+<span id="cb32-319"><a href="#cb32-319" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb32-320"><a href="#cb32-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-321"><a href="#cb32-321" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(control)</span>
+<span id="cb32-322"><a href="#cb32-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-323"><a href="#cb32-323" aria-hidden="true" tabindex="-1"></a><span class="fu">lmtp_contrast</span>(treat, <span class="at">ref =</span> control)</span>
+<span id="cb32-324"><a href="#cb32-324" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb32-325"><a href="#cb32-325" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-326"><a href="#cb32-326" aria-hidden="true" tabindex="-1"></a>Note that <span class="in">`folds = 1`</span> turns off cross-fitting (sample splitting). That is</span>
+<span id="cb32-327"><a href="#cb32-327" aria-hidden="true" tabindex="-1"></a>fine for a small, fast demonstration with <span class="in">`SL.glm`</span>, but in applied work</span>
+<span id="cb32-328"><a href="#cb32-328" aria-hidden="true" tabindex="-1"></a>with flexible learners you should use several folds so the nuisance fits</span>
+<span id="cb32-329"><a href="#cb32-329" aria-hidden="true" tabindex="-1"></a>are cross-fitted; otherwise the standard errors can be anti-conservative.</span>
+<span id="cb32-330"><a href="#cb32-330" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-331"><a href="#cb32-331" aria-hidden="true" tabindex="-1"></a><span class="fu">## another example</span></span>
+<span id="cb32-332"><a href="#cb32-332" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-333"><a href="#cb32-333" aria-hidden="true" tabindex="-1"></a>The data set bmi, from the DynTxRegime package, are simulated to reflect a two-stage RCT {A1, A2} that studied the effect of meal replacement (MR) shakes versus a calorie deficit (CD) diet on adolescent</span>
 <span id="cb32-334"><a href="#cb32-334" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-335"><a href="#cb32-335" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DynTxRegime)</span>
-<span id="cb32-336"><a href="#cb32-336" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(bmiData)</span>
-<span id="cb32-337"><a href="#cb32-337" aria-hidden="true" tabindex="-1"></a>bmi <span class="ot">&lt;-</span> bmiData</span>
-<span id="cb32-338"><a href="#cb32-338" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(bmi)</span>
+<span id="cb32-335"><a href="#cb32-335" aria-hidden="true" tabindex="-1"></a><span class="fu">### shift function 1</span></span>
+<span id="cb32-336"><a href="#cb32-336" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-337"><a href="#cb32-337" aria-hidden="true" tabindex="-1"></a>Consider a shift function that assigns meal replacement to all observations at time 1, but only meal replacement at time 2 to those observations whose 4-month BMI is greater than 30.</span>
+<span id="cb32-338"><a href="#cb32-338" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb32-339"><a href="#cb32-339" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-340"><a href="#cb32-340" aria-hidden="true" tabindex="-1"></a>d_dtr <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) {</span>
-<span id="cb32-341"><a href="#cb32-341" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (trt <span class="sc">==</span> <span class="st">"A1"</span>) <span class="fu">return</span>(<span class="fu">rep</span>(<span class="st">"MR"</span>, <span class="fu">nrow</span>(data)))</span>
-<span id="cb32-342"><a href="#cb32-342" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-343"><a href="#cb32-343" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ifelse</span>(data<span class="sc">$</span>month4BMI <span class="sc">&gt;</span> <span class="dv">30</span>, <span class="st">"MR"</span>, <span class="st">"CD"</span>)</span>
-<span id="cb32-344"><a href="#cb32-344" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb32-345"><a href="#cb32-345" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-346"><a href="#cb32-346" aria-hidden="true" tabindex="-1"></a>fit_dtr <span class="ot">&lt;-</span> <span class="fu">lmtp_sdr</span>(</span>
-<span id="cb32-347"><a href="#cb32-347" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bmi,</span>
-<span id="cb32-348"><a href="#cb32-348" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
-<span id="cb32-349"><a href="#cb32-349" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"month12BMI"</span>,</span>
-<span id="cb32-350"><a href="#cb32-350" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> <span class="fu">c</span>(<span class="st">"gender"</span>, <span class="st">"race"</span>, <span class="st">"parentBMI"</span>),</span>
-<span id="cb32-351"><a href="#cb32-351" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"baselineBMI"</span>, <span class="st">"month4BMI"</span>),</span>
-<span id="cb32-352"><a href="#cb32-352" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> d_dtr,</span>
-<span id="cb32-353"><a href="#cb32-353" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb32-354"><a href="#cb32-354" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
-<span id="cb32-355"><a href="#cb32-355" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb32-356"><a href="#cb32-356" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="fu">c</span>(<span class="st">"SL.mean"</span>, <span class="st">"SL.glm"</span>, <span class="st">"SL.gam"</span>)</span>
-<span id="cb32-357"><a href="#cb32-357" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb32-358"><a href="#cb32-358" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-359"><a href="#cb32-359" aria-hidden="true" tabindex="-1"></a>fit_dtr</span>
-<span id="cb32-360"><a href="#cb32-360" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb32-361"><a href="#cb32-361" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-362"><a href="#cb32-362" aria-hidden="true" tabindex="-1"></a><span class="fu">### shift function 2</span></span>
-<span id="cb32-363"><a href="#cb32-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-364"><a href="#cb32-364" aria-hidden="true" tabindex="-1"></a>Suppose we are interested in comparing the dynamic treatment regime to a static treatment regime where all patients receive meal replacement at both time points. Using the SDR estimator, estimate the effect of this static intervention.</span>
-<span id="cb32-365"><a href="#cb32-365" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-366"><a href="#cb32-366" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-367"><a href="#cb32-367" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-370"><a href="#cb32-370" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb32-371"><a href="#cb32-371" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim6</span></span>
-<span id="cb32-372"><a href="#cb32-372" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb32-373"><a href="#cb32-373" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb32-374"><a href="#cb32-374" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb32-375"><a href="#cb32-375" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb32-376"><a href="#cb32-376" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb32-377"><a href="#cb32-377" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-378"><a href="#cb32-378" aria-hidden="true" tabindex="-1"></a>fit_MR <span class="ot">&lt;-</span> <span class="fu">lmtp_sdr</span>(</span>
-<span id="cb32-379"><a href="#cb32-379" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bmi,</span>
-<span id="cb32-380"><a href="#cb32-380" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
-<span id="cb32-381"><a href="#cb32-381" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"month12BMI"</span>,</span>
-<span id="cb32-382"><a href="#cb32-382" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> <span class="fu">c</span>(<span class="st">"gender"</span>, <span class="st">"race"</span>, <span class="st">"parentBMI"</span>),</span>
-<span id="cb32-383"><a href="#cb32-383" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"baselineBMI"</span>, <span class="st">"month4BMI"</span>),</span>
-<span id="cb32-384"><a href="#cb32-384" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> \(data, trt) <span class="fu">rep</span>(<span class="st">"MR"</span>, <span class="fu">nrow</span>(data)),</span>
-<span id="cb32-385"><a href="#cb32-385" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb32-386"><a href="#cb32-386" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
-<span id="cb32-387"><a href="#cb32-387" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb32-388"><a href="#cb32-388" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="fu">c</span>(<span class="st">"SL.mean"</span>, <span class="st">"SL.glm"</span>, <span class="st">"SL.gam"</span>)</span>
-<span id="cb32-389"><a href="#cb32-389" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb32-390"><a href="#cb32-390" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-391"><a href="#cb32-391" aria-hidden="true" tabindex="-1"></a>fit_MR</span>
-<span id="cb32-392"><a href="#cb32-392" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb32-393"><a href="#cb32-393" aria-hidden="true" tabindex="-1"></a>Let’s also estimate the effect of an intervention where all patients receive a calorie deficit diet at both time points.</span>
-<span id="cb32-394"><a href="#cb32-394" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-397"><a href="#cb32-397" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb32-398"><a href="#cb32-398" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim7</span></span>
-<span id="cb32-399"><a href="#cb32-399" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb32-400"><a href="#cb32-400" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb32-401"><a href="#cb32-401" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb32-402"><a href="#cb32-402" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb32-403"><a href="#cb32-403" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb32-404"><a href="#cb32-404" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-405"><a href="#cb32-405" aria-hidden="true" tabindex="-1"></a>fit_CD <span class="ot">&lt;-</span> <span class="fu">lmtp_sdr</span>(</span>
-<span id="cb32-406"><a href="#cb32-406" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bmi,</span>
-<span id="cb32-407"><a href="#cb32-407" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
-<span id="cb32-408"><a href="#cb32-408" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"month12BMI"</span>,</span>
-<span id="cb32-409"><a href="#cb32-409" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> <span class="fu">c</span>(<span class="st">"gender"</span>, <span class="st">"race"</span>, <span class="st">"parentBMI"</span>),</span>
-<span id="cb32-410"><a href="#cb32-410" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"baselineBMI"</span>, <span class="st">"month4BMI"</span>),</span>
-<span id="cb32-411"><a href="#cb32-411" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> \(data, trt) <span class="fu">rep</span>(<span class="st">"CD"</span>, <span class="fu">nrow</span>(data)),</span>
-<span id="cb32-412"><a href="#cb32-412" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
-<span id="cb32-413"><a href="#cb32-413" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
-<span id="cb32-414"><a href="#cb32-414" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
-<span id="cb32-415"><a href="#cb32-415" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="fu">c</span>(<span class="st">"SL.mean"</span>, <span class="st">"SL.glm"</span>, <span class="st">"SL.gam"</span>)</span>
-<span id="cb32-416"><a href="#cb32-416" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb32-417"><a href="#cb32-417" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-418"><a href="#cb32-418" aria-hidden="true" tabindex="-1"></a>fit_CD</span>
-<span id="cb32-419"><a href="#cb32-419" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb32-420"><a href="#cb32-420" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-421"><a href="#cb32-421" aria-hidden="true" tabindex="-1"></a>Finally, we can compare the three treatment regimes using the <span class="in">`lmtp_contrast`</span> function.</span>
-<span id="cb32-422"><a href="#cb32-422" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-425"><a href="#cb32-425" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb32-426"><a href="#cb32-426" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim8</span></span>
-<span id="cb32-427"><a href="#cb32-427" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb32-428"><a href="#cb32-428" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb32-429"><a href="#cb32-429" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb32-430"><a href="#cb32-430" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb32-431"><a href="#cb32-431" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-342"><a href="#cb32-342" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb32-343"><a href="#cb32-343" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim5</span></span>
+<span id="cb32-344"><a href="#cb32-344" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb32-345"><a href="#cb32-345" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb32-346"><a href="#cb32-346" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb32-347"><a href="#cb32-347" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb32-348"><a href="#cb32-348" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-349"><a href="#cb32-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-350"><a href="#cb32-350" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DynTxRegime)</span>
+<span id="cb32-351"><a href="#cb32-351" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(bmiData)</span>
+<span id="cb32-352"><a href="#cb32-352" aria-hidden="true" tabindex="-1"></a>bmi <span class="ot">&lt;-</span> bmiData</span>
+<span id="cb32-353"><a href="#cb32-353" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(bmi)</span>
+<span id="cb32-354"><a href="#cb32-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-355"><a href="#cb32-355" aria-hidden="true" tabindex="-1"></a>d_dtr <span class="ot">&lt;-</span> <span class="cf">function</span>(data, trt) {</span>
+<span id="cb32-356"><a href="#cb32-356" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (trt <span class="sc">==</span> <span class="st">"A1"</span>) <span class="fu">return</span>(<span class="fu">rep</span>(<span class="st">"MR"</span>, <span class="fu">nrow</span>(data)))</span>
+<span id="cb32-357"><a href="#cb32-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-358"><a href="#cb32-358" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ifelse</span>(data<span class="sc">$</span>month4BMI <span class="sc">&gt;</span> <span class="dv">30</span>, <span class="st">"MR"</span>, <span class="st">"CD"</span>)</span>
+<span id="cb32-359"><a href="#cb32-359" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb32-360"><a href="#cb32-360" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-361"><a href="#cb32-361" aria-hidden="true" tabindex="-1"></a>fit_dtr <span class="ot">&lt;-</span> <span class="fu">lmtp_sdr</span>(</span>
+<span id="cb32-362"><a href="#cb32-362" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bmi,</span>
+<span id="cb32-363"><a href="#cb32-363" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
+<span id="cb32-364"><a href="#cb32-364" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"month12BMI"</span>,</span>
+<span id="cb32-365"><a href="#cb32-365" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> <span class="fu">c</span>(<span class="st">"gender"</span>, <span class="st">"race"</span>, <span class="st">"parentBMI"</span>),</span>
+<span id="cb32-366"><a href="#cb32-366" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"baselineBMI"</span>, <span class="st">"month4BMI"</span>),</span>
+<span id="cb32-367"><a href="#cb32-367" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> d_dtr,</span>
+<span id="cb32-368"><a href="#cb32-368" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb32-369"><a href="#cb32-369" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
+<span id="cb32-370"><a href="#cb32-370" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb32-371"><a href="#cb32-371" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="fu">c</span>(<span class="st">"SL.mean"</span>, <span class="st">"SL.glm"</span>, <span class="st">"SL.gam"</span>)</span>
+<span id="cb32-372"><a href="#cb32-372" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb32-373"><a href="#cb32-373" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-374"><a href="#cb32-374" aria-hidden="true" tabindex="-1"></a>fit_dtr</span>
+<span id="cb32-375"><a href="#cb32-375" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb32-376"><a href="#cb32-376" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-377"><a href="#cb32-377" aria-hidden="true" tabindex="-1"></a><span class="fu">### shift function 2</span></span>
+<span id="cb32-378"><a href="#cb32-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-379"><a href="#cb32-379" aria-hidden="true" tabindex="-1"></a>Suppose we are interested in comparing the dynamic treatment regime to a static treatment regime where all patients receive meal replacement at both time points. Using the SDR estimator, estimate the effect of this static intervention.</span>
+<span id="cb32-380"><a href="#cb32-380" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-381"><a href="#cb32-381" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-382"><a href="#cb32-382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-385"><a href="#cb32-385" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb32-386"><a href="#cb32-386" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim6</span></span>
+<span id="cb32-387"><a href="#cb32-387" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb32-388"><a href="#cb32-388" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb32-389"><a href="#cb32-389" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb32-390"><a href="#cb32-390" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb32-391"><a href="#cb32-391" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-392"><a href="#cb32-392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-393"><a href="#cb32-393" aria-hidden="true" tabindex="-1"></a>fit_MR <span class="ot">&lt;-</span> <span class="fu">lmtp_sdr</span>(</span>
+<span id="cb32-394"><a href="#cb32-394" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bmi,</span>
+<span id="cb32-395"><a href="#cb32-395" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
+<span id="cb32-396"><a href="#cb32-396" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"month12BMI"</span>,</span>
+<span id="cb32-397"><a href="#cb32-397" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> <span class="fu">c</span>(<span class="st">"gender"</span>, <span class="st">"race"</span>, <span class="st">"parentBMI"</span>),</span>
+<span id="cb32-398"><a href="#cb32-398" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"baselineBMI"</span>, <span class="st">"month4BMI"</span>),</span>
+<span id="cb32-399"><a href="#cb32-399" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> \(data, trt) <span class="fu">rep</span>(<span class="st">"MR"</span>, <span class="fu">nrow</span>(data)),</span>
+<span id="cb32-400"><a href="#cb32-400" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb32-401"><a href="#cb32-401" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
+<span id="cb32-402"><a href="#cb32-402" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb32-403"><a href="#cb32-403" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="fu">c</span>(<span class="st">"SL.mean"</span>, <span class="st">"SL.glm"</span>, <span class="st">"SL.gam"</span>)</span>
+<span id="cb32-404"><a href="#cb32-404" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb32-405"><a href="#cb32-405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-406"><a href="#cb32-406" aria-hidden="true" tabindex="-1"></a>fit_MR</span>
+<span id="cb32-407"><a href="#cb32-407" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb32-408"><a href="#cb32-408" aria-hidden="true" tabindex="-1"></a>Let’s also estimate the effect of an intervention where all patients receive a calorie deficit diet at both time points.</span>
+<span id="cb32-409"><a href="#cb32-409" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-412"><a href="#cb32-412" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb32-413"><a href="#cb32-413" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim7</span></span>
+<span id="cb32-414"><a href="#cb32-414" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb32-415"><a href="#cb32-415" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb32-416"><a href="#cb32-416" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb32-417"><a href="#cb32-417" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb32-418"><a href="#cb32-418" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-419"><a href="#cb32-419" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-420"><a href="#cb32-420" aria-hidden="true" tabindex="-1"></a>fit_CD <span class="ot">&lt;-</span> <span class="fu">lmtp_sdr</span>(</span>
+<span id="cb32-421"><a href="#cb32-421" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> bmi,</span>
+<span id="cb32-422"><a href="#cb32-422" aria-hidden="true" tabindex="-1"></a>  <span class="at">trt =</span> <span class="fu">c</span>(<span class="st">"A1"</span>, <span class="st">"A2"</span>),</span>
+<span id="cb32-423"><a href="#cb32-423" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome =</span> <span class="st">"month12BMI"</span>,</span>
+<span id="cb32-424"><a href="#cb32-424" aria-hidden="true" tabindex="-1"></a>  <span class="at">baseline =</span> <span class="fu">c</span>(<span class="st">"gender"</span>, <span class="st">"race"</span>, <span class="st">"parentBMI"</span>),</span>
+<span id="cb32-425"><a href="#cb32-425" aria-hidden="true" tabindex="-1"></a>  <span class="at">time_vary =</span> <span class="fu">list</span>(<span class="st">"baselineBMI"</span>, <span class="st">"month4BMI"</span>),</span>
+<span id="cb32-426"><a href="#cb32-426" aria-hidden="true" tabindex="-1"></a>  <span class="at">shift =</span> \(data, trt) <span class="fu">rep</span>(<span class="st">"CD"</span>, <span class="fu">nrow</span>(data)),</span>
+<span id="cb32-427"><a href="#cb32-427" aria-hidden="true" tabindex="-1"></a>  <span class="at">outcome_type =</span> <span class="st">"continuous"</span>,</span>
+<span id="cb32-428"><a href="#cb32-428" aria-hidden="true" tabindex="-1"></a>  <span class="at">folds =</span> <span class="dv">1</span>,</span>
+<span id="cb32-429"><a href="#cb32-429" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_trt =</span> <span class="st">"SL.glm"</span>,</span>
+<span id="cb32-430"><a href="#cb32-430" aria-hidden="true" tabindex="-1"></a>  <span class="at">learners_outcome =</span> <span class="fu">c</span>(<span class="st">"SL.mean"</span>, <span class="st">"SL.glm"</span>, <span class="st">"SL.gam"</span>)</span>
+<span id="cb32-431"><a href="#cb32-431" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb32-432"><a href="#cb32-432" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-433"><a href="#cb32-433" aria-hidden="true" tabindex="-1"></a><span class="fu">lmtp_contrast</span>(fit_dtr, fit_MR, <span class="at">ref =</span> fit_CD)</span>
-<span id="cb32-434"><a href="#cb32-434" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-435"><a href="#cb32-435" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb32-436"><a href="#cb32-436" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-437"><a href="#cb32-437" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb32-438"><a href="#cb32-438" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb32-439"><a href="#cb32-439" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb32-440"><a href="#cb32-440" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/g-methods.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/g-methods.html).*</span>
+<span id="cb32-433"><a href="#cb32-433" aria-hidden="true" tabindex="-1"></a>fit_CD</span>
+<span id="cb32-434"><a href="#cb32-434" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb32-435"><a href="#cb32-435" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-436"><a href="#cb32-436" aria-hidden="true" tabindex="-1"></a>Finally, we can compare the three treatment regimes using the <span class="in">`lmtp_contrast`</span> function.</span>
+<span id="cb32-437"><a href="#cb32-437" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-440"><a href="#cb32-440" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb32-441"><a href="#cb32-441" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim8</span></span>
+<span id="cb32-442"><a href="#cb32-442" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb32-443"><a href="#cb32-443" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb32-444"><a href="#cb32-444" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb32-445"><a href="#cb32-445" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb32-446"><a href="#cb32-446" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb32-447"><a href="#cb32-447" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-448"><a href="#cb32-448" aria-hidden="true" tabindex="-1"></a><span class="fu">lmtp_contrast</span>(fit_dtr, fit_MR, <span class="at">ref =</span> fit_CD)</span>
+<span id="cb32-449"><a href="#cb32-449" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-450"><a href="#cb32-450" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb32-451"><a href="#cb32-451" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-452"><a href="#cb32-452" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb32-453"><a href="#cb32-453" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-454"><a href="#cb32-454" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb32-455"><a href="#cb32-455" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/g-methods.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/g-methods.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

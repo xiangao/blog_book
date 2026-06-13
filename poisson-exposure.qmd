@@ -26,13 +26,18 @@ standard exposure model: the expected count is proportional to exposure time.
 
 $$\log\!\bigl(E[Y/t]\bigr) = \beta_0 + \beta_1 X$$
 
-This looks similar, but it is not equivalent to the offset model.  Because $t$ is
-a fixed constant for each unit, $E[Y/t] = E[Y]/t$ exactly (linearity of
-expectation), so the difference is not from Jensen's inequality.  Rather, the log
-link is applied to the ratio rather than the count, and the variance of $Y/t$ is
-$\lambda/t$ (it scales with $1/t$), so the Poisson variance assumption no longer
-holds.  In practice the two can give similar point estimates, but the standard
-errors differ because the variance structure changes when you divide by $t$.
+This looks similar, but it is not equivalent to the offset model, and strictly
+speaking $Y/t$ is **not a Poisson outcome at all**: a Poisson likelihood is
+defined for non-negative integer counts, and the continuous ratio $Y/t$ is not
+one. Because $t$ is a fixed constant for each unit, $E[Y/t] = E[Y]/t$ exactly
+(linearity of expectation), so the *conditional mean* is still log-linear in
+$X$; that is why the point estimates are often similar. But the Poisson variance
+assumption fails — $\mathrm{Var}(Y/t) = \lambda/t$ scales with $1/t$, not with
+the mean — so fitting `glm(rate ~ x, family = poisson)` is a quasi-likelihood
+*mean model* rather than a correct Poisson likelihood. If you use it, treat it
+as a workaround: weight by exposure (`weights = t`) so the implied variance is
+right, and/or use robust standard errors. The offset model (Model 1) avoids the
+issue entirely by keeping the integer count as the outcome.
 
 **Model 3 — Unconstrained log-exposure:**
 
@@ -163,7 +168,7 @@ poisson count age_old log_exposure
 |---|---|
 | Counts grow proportionally with time | Model 1 (offset) |
 | Uncertain about proportionality | Model 3 (unconstrained), test $\hat\gamma = 1$ |
-| Rate is the natural estimand | Model 1 or Model 2; both are valid |
+| Rate is the natural estimand | Model 1 (offset) — it estimates a rate directly; Model 2 only as a weighted/robust quasi-model |
 | Long follow-up with declining event rate | Model 3 or negative binomial with offset |
 
 In most health and social-science applications, Model 1 (Poisson with offset)
