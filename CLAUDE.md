@@ -11,7 +11,7 @@ A Quarto book compiled from blogdown posts (2017–2025) and quarto_blog posts (
 
 ## Key Technical Details
 - **Stata posts** use `library(Statamarkdown)` with `find_stata()` for path discovery; chunk options use `*|` (Stata comment char) instead of `#|`
-- **Freeze**: `execute: freeze: auto` in `_quarto.yml` caches all chunk outputs in `_freeze/`. All 44 chapters are frozen as of 2026-03-14.
+- **Freeze**: `execute: freeze: auto` in `_quarto.yml` caches all chunk outputs in `_freeze/`. All code-bearing chapters are frozen (48 `.qmd` files total as of 2026-07-01; `same-data-different-estimators.qmd` has no code chunks, so it has no `_freeze/` entry by design).
 - **Rare events chapter** (`rare-events.qmd`): Originally used `Zelig` package (deprecated), rewritten to use `brglm2` with `method="brglmFit"` and `type="AS_mean"`
 - **TMLE chapter** (`tmle.qmd`): SuperLearner library trimmed to 7 fast algorithms (removed randomForest, gbm, gam, loess) for render performance
 - **Data files**: `wage2015_subsample_inference.csv` (gwg chapter), `osic_pulmonary_fibrosis.csv` (numpyro chapter); all other data from URLs or built-in datasets
@@ -38,6 +38,7 @@ After initial render, `_freeze/` caches all output. Subsequent renders skip exec
 ## Source
 - Original 40 chapters converted from blogdown posts in `../blog/content/post/` using `convert_posts.py`
 - 4 additional chapters (more-cre, gwg, uplift, numpyro) added from `~/projects/myprojects/quarto_blog/posts/`
+- 4 further chapters added since (frengression, partial-interference, same-data-different-estimators, tasc) — 48 total
 
 ## Review pass (2026-06-07)
 Math/code audit + fixes across ~33 chapters (audit trail: ../_review/). Key corrections:
