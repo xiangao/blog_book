@@ -89,7 +89,7 @@ The AIPW estimator augments the IPW estimator with a correction term built from 
 
 The IPWRA estimator uses IPW probability weights when performing RA. The weights do not affect the accuracy of the RA estimator if the treatment model is wrong and the outcome model is correct. The weights correct the RA estimator if the treatment model is correct and the outcome model is wrong.
 
-I have not figured out how to do these two commands manually.  So we'll just run two examples of how they are used.
+Here we run the two commands, then manually replicate both as a two-step ("plug-in") procedure. `teffects` estimates the treatment and outcome models jointly by GMM/ML, using the joint estimation to get standard errors that account for first-stage estimation noise; the manual two-step version below gets essentially the same point estimate but not the correct standard errors (for the same reason noted above for IPW).
 
 ```{r}
 #| label: stata-chunk4
@@ -102,6 +102,55 @@ webuse cattaneo2
 teffects ipwra (bweight mmarried mage prenatal1 fbaby)  (mbsmoke mmarried mage prenatal1 fbaby)
 teffects aipw (bweight mmarried mage prenatal1 fbaby) (mbsmoke mmarried mage prenatal1 fbaby)
 ```
+
+**Manual IPWRA:** first estimate the propensity score, then run *weighted* regression adjustment within each treatment arm, using the inverse probability of the *observed* treatment status as weights:
+
+```{r}
+#| label: stata-chunk4b
+#| engine: 'stata'
+#| engine.path: '/usr/local/bin/stata'
+#| cache: true
+
+clear
+webuse cattaneo2
+logit mbsmoke mmarried mage prenatal1 fbaby
+predict ps
+
+gen wgt1 = mbsmoke/ps
+gen wgt0 = (1-mbsmoke)/(1-ps)
+reg bweight mmarried mage prenatal1 fbaby if mbsmoke==1 [pweight=wgt1]
+predict mu1_ipwra
+reg bweight mmarried mage prenatal1 fbaby if mbsmoke==0 [pweight=wgt0]
+predict mu0_ipwra
+gen tau_ipwra_i = mu1_ipwra - mu0_ipwra
+sum tau_ipwra_i
+```
+
+The mean of `tau_ipwra_i` matches `teffects ipwra`'s ATE.
+
+**Manual AIPW:** estimate outcome models $\hat\mu_1(X)$, $\hat\mu_0(X)$ (unweighted, one per arm) and the propensity score $\hat p(X)$, then combine via the augmented-IPW formula
+$$ \hat\tau_{i}^{aipw} = D_i\frac{Y_i-\hat\mu_1(X_i)}{\hat p(X_i)} + \hat\mu_1(X_i) - (1-D_i)\frac{Y_i-\hat\mu_0(X_i)}{1-\hat p(X_i)} - \hat\mu_0(X_i) $$
+
+```{r}
+#| label: stata-chunk4c
+#| engine: 'stata'
+#| engine.path: '/usr/local/bin/stata'
+#| cache: true
+
+clear
+webuse cattaneo2
+logit mbsmoke mmarried mage prenatal1 fbaby
+predict ps
+
+reg bweight mmarried mage prenatal1 fbaby if mbsmoke==1
+predict mu1_aipw
+reg bweight mmarried mage prenatal1 fbaby if mbsmoke==0
+predict mu0_aipw
+gen aipw_i = mbsmoke*(bweight-mu1_aipw)/ps + mu1_aipw - (1-mbsmoke)*(bweight-mu0_aipw)/(1-ps) - mu0_aipw
+sum aipw_i
+```
+
+The mean of `aipw_i` is close to `teffects aipw`'s ATE (small differences are expected: `teffects` estimates the treatment and outcome models jointly by ML, while this is a two-step plug-in version).
 
 ## Matching
 
@@ -168,6 +217,9 @@ clear
 webuse cattaneo2
 cem  mmarried mage fbaby medu, treatment(mbsmoke)
 reg bweight mbsmoke   [aweight=cem_weights]
+* Note: cem creates the variable "cem_weights" (plural). We spell it out
+* in full here rather than relying on Stata's automatic variable-name
+* abbreviation matching, to keep the reference unambiguous.
 
 ```
 

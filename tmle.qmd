@@ -34,7 +34,11 @@ rawvars <- mvrnorm(n=nobs, mu=mu, Sigma=covarMat)
 df <- as_tibble(rawvars, .name_repair = "minimal")
 names(df) <- c('x','z','w')
 df <- df %>%
-    mutate(log.x=log(x^2), log.z=log(z^2), log.w=log(w^2), z.sqr=z^2, w.sqr=w^2) %>%
+    # A small constant inside each log() keeps log(v^2) from diverging to
+    # large negative values when v is close to 0 (e.g. log(w^2) alone ranges
+    # down to about -15 here), which otherwise pushes the propensity score
+    # P(A=1|W) toward 0/1 for those units and violates positivity.
+    mutate(log.x=log(x^2 + 0.01), log.z=log(z^2 + 0.01), log.w=log(w^2 + 0.01), z.sqr=z^2, w.sqr=w^2) %>%
     mutate(g.var= log.w  + rnorm(nobs)) %>%
     mutate(A = rbinom(nobs, 1, 1/(1+exp((g.var))))) %>%
     mutate(y0=rnorm(nobs) + log.x) %>%

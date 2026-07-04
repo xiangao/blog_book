@@ -393,7 +393,7 @@ try {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./g-estimation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">g-estimation with time varying covariates</span></span></a>
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">G-computation (g-formula) with time varying covariates</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -564,7 +564,11 @@ try {
 <span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/as_tibble.html">as_tibble</a></span><span class="op">(</span><span class="va">rawvars</span>, .name_repair <span class="op">=</span> <span class="st">"minimal"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">'x'</span>,<span class="st">'z'</span>,<span class="st">'w'</span><span class="op">)</span></span>
 <span><span class="va">df</span> <span class="op">&lt;-</span> <span class="va">df</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
-<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>log.x<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">log</a></span><span class="op">(</span><span class="va">x</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span>, log.z<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">log</a></span><span class="op">(</span><span class="va">z</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span>, log.w<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">log</a></span><span class="op">(</span><span class="va">w</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span>, z.sqr<span class="op">=</span><span class="va">z</span><span class="op">^</span><span class="fl">2</span>, w.sqr<span class="op">=</span><span class="va">w</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
+<span>    <span class="co"># A small constant inside each log() keeps log(v^2) from diverging to</span></span>
+<span>    <span class="co"># large negative values when v is close to 0 (e.g. log(w^2) alone ranges</span></span>
+<span>    <span class="co"># down to about -15 here), which otherwise pushes the propensity score</span></span>
+<span>    <span class="co"># P(A=1|W) toward 0/1 for those units and violates positivity.</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>log.x<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">log</a></span><span class="op">(</span><span class="va">x</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="fl">0.01</span><span class="op">)</span>, log.z<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">log</a></span><span class="op">(</span><span class="va">z</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="fl">0.01</span><span class="op">)</span>, log.w<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">log</a></span><span class="op">(</span><span class="va">w</span><span class="op">^</span><span class="fl">2</span> <span class="op">+</span> <span class="fl">0.01</span><span class="op">)</span>, z.sqr<span class="op">=</span><span class="va">z</span><span class="op">^</span><span class="fl">2</span>, w.sqr<span class="op">=</span><span class="va">w</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>g.var<span class="op">=</span> <span class="va">log.w</span>  <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nobs</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>A <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html">rbinom</a></span><span class="op">(</span><span class="va">nobs</span>, <span class="fl">1</span>, <span class="fl">1</span><span class="op">/</span><span class="op">(</span><span class="fl">1</span><span class="op">+</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">exp</a></span><span class="op">(</span><span class="op">(</span><span class="va">g.var</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>y0<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">nobs</span><span class="op">)</span> <span class="op">+</span> <span class="va">log.x</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
@@ -578,20 +582,20 @@ lm(formula = y ~ A + log.w + log.x, data = df)
 
 Residuals:
     Min      1Q  Median      3Q     Max 
--4.5506 -0.8372 -0.0154  0.8502  4.1624 
+-4.5207 -0.8338 -0.0089  0.8386  4.1534 
 
 Coefficients:
             Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept)  0.01267    0.04778   0.265    0.791    
-A            1.93171    0.06580  29.355   &lt;2e-16 ***
-log.w        0.01105    0.01428   0.774    0.439    
-log.x        1.00162    0.01353  74.030   &lt;2e-16 ***
+(Intercept)  0.01311    0.04774   0.275    0.784    
+A            1.95487    0.06703  29.166   &lt;2e-16 ***
+log.w        0.02835    0.01945   1.458    0.145    
+log.x        1.00090    0.01748  57.264   &lt;2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 1.255 on 1996 degrees of freedom
-Multiple R-squared:  0.758, Adjusted R-squared:  0.7576 
-F-statistic:  2084 on 3 and 1996 DF,  p-value: &lt; 2.2e-16</code></pre>
+Residual standard error: 1.253 on 1996 degrees of freedom
+Multiple R-squared:  0.6746,    Adjusted R-squared:  0.6741 
+F-statistic:  1380 on 3 and 1996 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">lm2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">A</span> , data<span class="op">=</span><span class="va">df</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">lm2</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -601,19 +605,19 @@ Call:
 lm(formula = y ~ A, data = df)
 
 Residuals:
-     Min       1Q   Median       3Q      Max 
--15.9102  -1.3822   0.3241   1.6933   6.4046 
+    Min      1Q  Median      3Q     Max 
+-6.1667 -1.4416  0.1372  1.4760  6.1625 
 
 Coefficients:
             Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept) -0.92139    0.08992  -10.25   &lt;2e-16 ***
-A            1.38964    0.11366   12.23   &lt;2e-16 ***
+(Intercept) -0.75733    0.07539  -10.04   &lt;2e-16 ***
+A            1.47007    0.09571   15.36   &lt;2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 2.459 on 1998 degrees of freedom
-Multiple R-squared:  0.06961,   Adjusted R-squared:  0.06915 
-F-statistic: 149.5 on 1 and 1998 DF,  p-value: &lt; 2.2e-16</code></pre>
+Residual standard error: 2.077 on 1998 degrees of freedom
+Multiple R-squared:  0.1056,    Adjusted R-squared:  0.1052 
+F-statistic: 235.9 on 1 and 1998 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">lm3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">A</span> <span class="op">+</span> <span class="va">w</span>, data<span class="op">=</span><span class="va">df</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">lm3</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -623,20 +627,20 @@ Call:
 lm(formula = y ~ A + w, data = df)
 
 Residuals:
-     Min       1Q   Median       3Q      Max 
--15.9112  -1.3795   0.3139   1.6863   6.3468 
+    Min      1Q  Median      3Q     Max 
+-6.1657 -1.4531  0.1338  1.4780  6.0957 
 
 Coefficients:
             Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept) -0.92056    0.08995 -10.234   &lt;2e-16 ***
-A            1.38860    0.11368  12.215   &lt;2e-16 ***
-w           -0.03351    0.05286  -0.634    0.526    
+(Intercept) -0.75631    0.07541 -10.030   &lt;2e-16 ***
+A            1.46876    0.09573  15.343   &lt;2e-16 ***
+w           -0.03874    0.04464  -0.868    0.386    
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 2.46 on 1997 degrees of freedom
-Multiple R-squared:  0.0698,    Adjusted R-squared:  0.06887 
-F-statistic: 74.93 on 2 and 1997 DF,  p-value: &lt; 2.2e-16</code></pre>
+Residual standard error: 2.077 on 1997 degrees of freedom
+Multiple R-squared:  0.1059,    Adjusted R-squared:  0.105 
+F-statistic: 118.3 on 2 and 1997 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">lm4</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">A</span> <span class="op">+</span> <span class="va">w</span> <span class="op">+</span> <span class="va">x</span>, data<span class="op">=</span><span class="va">df</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">lm4</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -646,21 +650,21 @@ Call:
 lm(formula = y ~ A + w + x, data = df)
 
 Residuals:
-     Min       1Q   Median       3Q      Max 
--15.9109  -1.4047   0.3177   1.6926   6.4528 
+   Min     1Q Median     3Q    Max 
+-6.167 -1.445  0.147  1.473  6.205 
 
 Coefficients:
             Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept) -0.91759    0.08995 -10.201   &lt;2e-16 ***
-A            1.38335    0.11372  12.164   &lt;2e-16 ***
-w           -0.09260    0.06827  -1.356    0.175    
-x            0.09947    0.07275   1.367    0.172    
+(Intercept) -0.75360    0.07539  -9.996   &lt;2e-16 ***
+A            1.46387    0.09573  15.292   &lt;2e-16 ***
+w           -0.09981    0.05764  -1.732   0.0835 .  
+x            0.10281    0.06141   1.674   0.0943 .  
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 2.459 on 1996 degrees of freedom
-Multiple R-squared:  0.07067,   Adjusted R-squared:  0.06927 
-F-statistic:  50.6 on 3 and 1996 DF,  p-value: &lt; 2.2e-16</code></pre>
+Residual standard error: 2.076 on 1996 degrees of freedom
+Multiple R-squared:  0.1072,    Adjusted R-squared:  0.1059 
+F-statistic: 79.88 on 3 and 1996 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
 <p>In this example, treatment assignment process is determined by logged w, and outcome is determined by logged x and treatment. However, what we observe is w and x. In observational studies, this happens all the time. In fact, this is an ideal situation, that we observe variables that are determinants of outcome, although we are not sure about the functional form that determines the outcome. However, this example shows that unless we have observed exactly the factors themselves (in this case logged x, w, which determines the DGP), we have biased estimates of the true treatment effect.</p>
@@ -1250,96 +1254,100 @@ F-statistic:  50.6 on 3 and 1996 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(rawvars, <span class="at">.name_repair =</span> <span class="st">"minimal"</span>)</span>
 <span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(df) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'x'</span>,<span class="st">'z'</span>,<span class="st">'w'</span>)</span>
 <span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
-<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">log.x=</span><span class="fu">log</span>(x<span class="sc">^</span><span class="dv">2</span>), <span class="at">log.z=</span><span class="fu">log</span>(z<span class="sc">^</span><span class="dv">2</span>), <span class="at">log.w=</span><span class="fu">log</span>(w<span class="sc">^</span><span class="dv">2</span>), <span class="at">z.sqr=</span>z<span class="sc">^</span><span class="dv">2</span>, <span class="at">w.sqr=</span>w<span class="sc">^</span><span class="dv">2</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">g.var=</span> log.w  <span class="sc">+</span> <span class="fu">rnorm</span>(nobs)) <span class="sc">%&gt;%</span></span>
-<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">A =</span> <span class="fu">rbinom</span>(nobs, <span class="dv">1</span>, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">+</span><span class="fu">exp</span>((g.var))))) <span class="sc">%&gt;%</span></span>
-<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">y0=</span><span class="fu">rnorm</span>(nobs) <span class="sc">+</span> log.x) <span class="sc">%&gt;%</span></span>
-<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">tau.true =</span> <span class="dv">2</span>  <span class="sc">+</span> <span class="fu">rnorm</span>(nobs), <span class="at">y1=</span>y0<span class="sc">+</span>tau.true, <span class="at">treat=</span>A, <span class="at">y =</span> treat<span class="sc">*</span>y1 <span class="sc">+</span> (<span class="dv">1</span><span class="sc">-</span>treat)<span class="sc">*</span>y0)</span>
-<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>lm1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A <span class="sc">+</span> log.w <span class="sc">+</span> log.x , <span class="at">data=</span>df)</span>
-<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm1)</span>
-<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>lm2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A , <span class="at">data=</span>df)</span>
-<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm2)</span>
-<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>lm3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A <span class="sc">+</span> w, <span class="at">data=</span>df)</span>
-<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm3)</span>
-<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>lm4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A <span class="sc">+</span> w <span class="sc">+</span> x, <span class="at">data=</span>df)</span>
-<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm4)</span>
-<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>In this example, treatment assignment process is determined by logged</span>
-<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>w, and outcome is determined by logged x and treatment.  However, what</span>
-<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>we observe is w and x.  In observational studies, this happens all the</span>
-<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>time.  In fact, this is an ideal situation, that we observe variables</span>
-<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>that are determinants of outcome, although we are not sure about the</span>
-<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>functional form that determines the outcome.  However, this example</span>
-<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>shows that unless we have observed exactly the factors themselves (in</span>
-<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>this case logged x, w, which determines the DGP), we have biased</span>
-<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a>estimates of the true treatment effect.</span>
-<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a>Model 1 is the only model with reasonable estimate of treatment effect</span>
-<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>(which is 2 in this case).  Model 2 is a model with endogeneity: A is</span>
-<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a>correlated with the missing variable logged x.  Model 3 and 4 we have</span>
-<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a>x and w, but not logged, therefore still biased.</span>
-<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a>The lesson here is the functional form does matter.  However, we have</span>
-<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>no way of knowing the functional form.  What can we do here?</span>
-<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>    <span class="co"># A small constant inside each log() keeps log(v^2) from diverging to</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>    <span class="co"># large negative values when v is close to 0 (e.g. log(w^2) alone ranges</span></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>    <span class="co"># down to about -15 here), which otherwise pushes the propensity score</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>    <span class="co"># P(A=1|W) toward 0/1 for those units and violates positivity.</span></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">log.x=</span><span class="fu">log</span>(x<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.01</span>), <span class="at">log.z=</span><span class="fu">log</span>(z<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.01</span>), <span class="at">log.w=</span><span class="fu">log</span>(w<span class="sc">^</span><span class="dv">2</span> <span class="sc">+</span> <span class="fl">0.01</span>), <span class="at">z.sqr=</span>z<span class="sc">^</span><span class="dv">2</span>, <span class="at">w.sqr=</span>w<span class="sc">^</span><span class="dv">2</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">g.var=</span> log.w  <span class="sc">+</span> <span class="fu">rnorm</span>(nobs)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">A =</span> <span class="fu">rbinom</span>(nobs, <span class="dv">1</span>, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">+</span><span class="fu">exp</span>((g.var))))) <span class="sc">%&gt;%</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">y0=</span><span class="fu">rnorm</span>(nobs) <span class="sc">+</span> log.x) <span class="sc">%&gt;%</span></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">tau.true =</span> <span class="dv">2</span>  <span class="sc">+</span> <span class="fu">rnorm</span>(nobs), <span class="at">y1=</span>y0<span class="sc">+</span>tau.true, <span class="at">treat=</span>A, <span class="at">y =</span> treat<span class="sc">*</span>y1 <span class="sc">+</span> (<span class="dv">1</span><span class="sc">-</span>treat)<span class="sc">*</span>y0)</span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>lm1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A <span class="sc">+</span> log.w <span class="sc">+</span> log.x , <span class="at">data=</span>df)</span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm1)</span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>lm2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A , <span class="at">data=</span>df)</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm2)</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>lm3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A <span class="sc">+</span> w, <span class="at">data=</span>df)</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm3)</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>lm4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> A <span class="sc">+</span> w <span class="sc">+</span> x, <span class="at">data=</span>df)</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm4)</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>In this example, treatment assignment process is determined by logged</span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>w, and outcome is determined by logged x and treatment.  However, what</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>we observe is w and x.  In observational studies, this happens all the</span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>time.  In fact, this is an ideal situation, that we observe variables</span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a>that are determinants of outcome, although we are not sure about the</span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a>functional form that determines the outcome.  However, this example</span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a>shows that unless we have observed exactly the factors themselves (in</span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a>this case logged x, w, which determines the DGP), we have biased</span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a>estimates of the true treatment effect.</span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>Model 1 is the only model with reasonable estimate of treatment effect</span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a>(which is 2 in this case).  Model 2 is a model with endogeneity: A is</span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>correlated with the missing variable logged x.  Model 3 and 4 we have</span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a>x and w, but not logged, therefore still biased.</span>
 <span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="co"># Algorithm set trimmed to 7 fast learners for render speed.</span></span>
-<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="co"># A production analysis would also include SL.randomForest, SL.gbm, SL.gam.</span></span>
-<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a>Q.SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.glmnet"</span>,<span class="st">"SL.glm"</span>,<span class="st">"SL.glm.interaction"</span>, <span class="st">"SL.rpart"</span>,<span class="st">"SL.bayesglm"</span>,<span class="st">"SL.step"</span>,<span class="st">"SL.mean"</span>)</span>
-<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a>g.SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.glmnet"</span>,<span class="st">"SL.glm"</span>,<span class="st">"SL.glm.interaction"</span>, <span class="st">"SL.rpart"</span>,<span class="st">"SL.bayesglm"</span>,<span class="st">"SL.step"</span>,<span class="st">"SL.mean"</span>)</span>
-<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a><span class="co"># tmle1 uses x and w; tmle2 additionally includes z.  Note z is not in the true</span></span>
-<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a><span class="co"># treatment or outcome DGP -- it is only correlated with x and w -- so adding it</span></span>
-<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a><span class="co"># should not change the estimate much.</span></span>
-<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a>tmle1 <span class="ot">&lt;-</span> <span class="fu">tmle</span>(<span class="at">Y =</span> df<span class="sc">$</span>y, <span class="at">A =</span> df<span class="sc">$</span>treat, <span class="at">W =</span> df[,<span class="fu">c</span>(<span class="st">'x'</span>,<span class="st">'w'</span>)], <span class="at">g.SL.library =</span> g.SL.library , <span class="at">Q.SL.library =</span> Q.SL.library)</span>
-<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>tmle1</span>
-<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a>tmle2 <span class="ot">&lt;-</span> <span class="fu">tmle</span>(<span class="at">Y =</span> df<span class="sc">$</span>y, <span class="at">A =</span> df<span class="sc">$</span>treat, <span class="at">W =</span> df[,<span class="fu">c</span>(<span class="st">'x'</span>,<span class="st">'w'</span>, <span class="st">'z'</span>)], <span class="at">g.SL.library =</span> g.SL.library , <span class="at">Q.SL.library =</span> Q.SL.library)</span>
-<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a>tmle2</span>
-<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>The lesson here is the functional form does matter.  However, we have</span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a>no way of knowing the functional form.  What can we do here?</span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a><span class="co"># Algorithm set trimmed to 7 fast learners for render speed.</span></span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a><span class="co"># A production analysis would also include SL.randomForest, SL.gbm, SL.gam.</span></span>
+<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a>Q.SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.glmnet"</span>,<span class="st">"SL.glm"</span>,<span class="st">"SL.glm.interaction"</span>, <span class="st">"SL.rpart"</span>,<span class="st">"SL.bayesglm"</span>,<span class="st">"SL.step"</span>,<span class="st">"SL.mean"</span>)</span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a>g.SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.glmnet"</span>,<span class="st">"SL.glm"</span>,<span class="st">"SL.glm.interaction"</span>, <span class="st">"SL.rpart"</span>,<span class="st">"SL.bayesglm"</span>,<span class="st">"SL.step"</span>,<span class="st">"SL.mean"</span>)</span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a><span class="co"># tmle1 uses x and w; tmle2 additionally includes z.  Note z is not in the true</span></span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a><span class="co"># treatment or outcome DGP -- it is only correlated with x and w -- so adding it</span></span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a><span class="co"># should not change the estimate much.</span></span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a>tmle1 <span class="ot">&lt;-</span> <span class="fu">tmle</span>(<span class="at">Y =</span> df<span class="sc">$</span>y, <span class="at">A =</span> df<span class="sc">$</span>treat, <span class="at">W =</span> df[,<span class="fu">c</span>(<span class="st">'x'</span>,<span class="st">'w'</span>)], <span class="at">g.SL.library =</span> g.SL.library , <span class="at">Q.SL.library =</span> Q.SL.library)</span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a>tmle1</span>
+<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a>tmle2 <span class="ot">&lt;-</span> <span class="fu">tmle</span>(<span class="at">Y =</span> df<span class="sc">$</span>y, <span class="at">A =</span> df<span class="sc">$</span>treat, <span class="at">W =</span> df[,<span class="fu">c</span>(<span class="st">'x'</span>,<span class="st">'w'</span>, <span class="st">'z'</span>)], <span class="at">g.SL.library =</span> g.SL.library , <span class="at">Q.SL.library =</span> Q.SL.library)</span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a>tmle2</span>
 <span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a>We use <span class="co">[</span><span class="ot">Mark van der Laan's TMLE method</span><span class="co">]</span></span>
-<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>(http://biostats.bepress.com/ucbbiostat/paper275/).  It uses</span>
-<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">SuperLearner</span><span class="co">]</span> (http://biostats.bepress.com/ucbbiostat/paper222/) as</span>
-<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a>the initial estimator.  It's an ensemble of multiple machine learning</span>
-<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a>algorithms.  Therefore it does not need to assume the functional form</span>
-<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>of the DGP.  Even if we don't have the variables that determines the</span>
-<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a>DGP of outcome, if we observe some functions (even nonlinear</span>
-<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>functions) of these variables, we can still get reasonable estimates</span>
-<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>of the treatment effect.</span>
-<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>In this example, we used multiple popular machine learning algorithms</span>
-<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>in modeling both treatment assignment process and the outcome process.</span>
-<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a>The first TMLE model is with x and w (note not the logged x and w</span>
-<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a>which are in the true DGP), the second one with an additional variable</span>
-<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a>z.</span>
-<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a>It seems that TMLE results are less biased than the linear models with</span>
-<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a>x and w.  It may not be better than the linear model with logged x and</span>
-<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a>w, but in empirical studies, we often cannot assume we have the</span>
-<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a>variables in the DGP, but only some proxy of the variables in the DGP.</span>
-<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a>I'll do more simulations to see whether TMLE does perform better in</span>
-<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>the situation that we are not sure about the functional form.  We</span>
-<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a>should expect that is the case.</span>
-<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a>The simple <span class="in">`tmle`</span> package example used here is for a binary treatment. TMLE itself is not limited to binary treatments: there are TMLE estimators for continuous, multivalued, longitudinal, stochastic, and survival settings (e.g. the <span class="in">`ltmle`</span> and <span class="in">`lmtp`</span> packages), though which estimand and package you use differs by setting.</span>
-<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a>It's about time we embrace machine learning techniques into studies of</span>
-<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a>causal effect in observational studies.</span>
-<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/nonparametric.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/nonparametric.html).*</span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a>We use <span class="co">[</span><span class="ot">Mark van der Laan's TMLE method</span><span class="co">]</span></span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>(http://biostats.bepress.com/ucbbiostat/paper275/).  It uses</span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">SuperLearner</span><span class="co">]</span> (http://biostats.bepress.com/ucbbiostat/paper222/) as</span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>the initial estimator.  It's an ensemble of multiple machine learning</span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>algorithms.  Therefore it does not need to assume the functional form</span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a>of the DGP.  Even if we don't have the variables that determines the</span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>DGP of outcome, if we observe some functions (even nonlinear</span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>functions) of these variables, we can still get reasonable estimates</span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a>of the treatment effect.</span>
+<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a>In this example, we used multiple popular machine learning algorithms</span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a>in modeling both treatment assignment process and the outcome process.</span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a>The first TMLE model is with x and w (note not the logged x and w</span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a>which are in the true DGP), the second one with an additional variable</span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a>z.</span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a>It seems that TMLE results are less biased than the linear models with</span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>x and w.  It may not be better than the linear model with logged x and</span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a>w, but in empirical studies, we often cannot assume we have the</span>
+<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a>variables in the DGP, but only some proxy of the variables in the DGP.</span>
+<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a>I'll do more simulations to see whether TMLE does perform better in</span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a>the situation that we are not sure about the functional form.  We</span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a>should expect that is the case.</span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a>The simple <span class="in">`tmle`</span> package example used here is for a binary treatment. TMLE itself is not limited to binary treatments: there are TMLE estimators for continuous, multivalued, longitudinal, stochastic, and survival settings (e.g. the <span class="in">`ltmle`</span> and <span class="in">`lmtp`</span> packages), though which estimand and package you use differs by setting.</span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a>It's about time we embrace machine learning techniques into studies of</span>
+<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a>causal effect in observational studies.</span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/nonparametric.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/nonparametric.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

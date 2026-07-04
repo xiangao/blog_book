@@ -4,7 +4,7 @@ date: "2023-10-26"
 ---
 
 
-This post is a demo for doing the same multi-level models with R and stata.  R's multilevel models are mostly done with lme4 and nlme.  Stata's multilevel models are mostly done with mixed and menl.  The two packages are not exactly the same.  For example, mixed does not allow complicated structure for the residual.  That's why we need menl.  Likewise, in R lme4's "lmer" does not allow this specification.  We have to use nlme.  But it's good to know how to do the same thing in both packages.
+This post is a demo for doing the same multi-level models with R and stata.  R's multilevel models are mostly done with lme4 and nlme.  Stata's multilevel models are mostly done with mixed and menl.  The two packages are not exactly the same.  `mixed` does in fact support several residual covariance structures via its `residuals()` option (e.g. `residuals(exponential, t(year))`, as well as `ar`, `ma`, `toeplitz`, etc.) — so it's not that `mixed` cannot handle a structured residual at all, but `menl`'s nonlinear-mixed-model framework gives more flexibility to combine that with custom nonlinear mean/random-effect specifications (like the CEM model below), which is why we reach for it here.  Likewise, in R lme4's "lmer" does not allow this specification.  We have to use nlme.  But it's good to know how to do the same thing in both packages.
 
 For example, we want to do a consensus emergence model (CEM) as described in Lang et al. 2012(https://core.ac.uk/download/pdf/158346339.pdf).  The CEM model is basically a growth model with the residual being a exponential function of the time variable.  We want to do the same thing in both R and stata.
 
@@ -68,7 +68,13 @@ library(nlme)
 library(lme4)
 data <- read_dta('https://www.stata-press.com/data/r18/productivity.dta')
 # lme4 for three level model
-lmer1 <- lmer(gsp ~ 1 + (1|region) + (1|state), data=data)
+# (1|region) + (1|state) specifies CROSSED random effects; it numerically
+# coincides with the intended nested structure here only because each
+# state's label happens to be unique across the whole dataset (never reused
+# across regions) -- verified: identical logLik to the explicitly nested
+# (1|region/state) below. The nested form is the conceptually correct one
+# and is robust even if state labels were ever reused across regions.
+lmer1 <- lmer(gsp ~ 1 + (1|region/state), data=data)
 summary(lmer1)
 lme1 <- lme(gsp ~ 1, random= list( region=~1, state=~1), data=data)
 #or
@@ -95,8 +101,13 @@ We implement a growth model in R and stata.  The results are somewhat different.
 
 
 * same growth model with mixed and menl
+* Stata's "mixed ... || region: year" defaults to an INDEPENDENT covariance
+* structure for region's random intercept and slope (var(year), var(_cons),
+* cov=0 by construction) -- verified via `estat recovariance`. R's lmer
+* "(year|region)" and lme's "region=~year" both default to an UNSTRUCTURED
+* (correlated) covariance. Add covariance(unstructured) to match R.
 webuse productivity
-mixed gsp year || region: year|| state:
+mixed gsp year || region: year, covariance(unstructured) || state:
 menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region>state])
 
 ```

@@ -89,7 +89,13 @@ fvc   = jnp.array(data["FVC"].values,   dtype=float)
 pat   = jnp.array(patients,              dtype=int)
 ```
 
-The `numpyro` model corresponds to `FVC ~ Weeks + (1 + Weeks | Patient)`:
+Drawing `alpha` and `beta` from independent Normal priors, as below, gives
+patient-level intercepts and slopes with *zero* covariance by construction --
+that corresponds to `FVC ~ Weeks + (1|Patient) + (0+Weeks|Patient)`, not
+`(1+Weeks|Patient)`. `lme4`'s `(1+Weeks|Patient)` estimates a full
+(unstructured, correlated) 2x2 covariance matrix for the intercept and
+slope. To match that in `numpyro`, draw `(alpha, beta)` jointly from a
+`MultivariateNormal` with an LKJ-Cholesky prior on the correlation matrix:
 
 ```{python}
 #| eval: false
@@ -98,15 +104,21 @@ The `numpyro` model corresponds to `FVC ~ Weeks + (1 + Weeks | Patient)`:
 def hierarchical_fvc(pat, weeks, fvc=None):
     # Population-level priors
     mu_alpha    = numpyro.sample("mu_alpha",    dist.Normal(2500., 500.))
-    sigma_alpha = numpyro.sample("sigma_alpha", dist.HalfNormal(300.))
     mu_beta     = numpyro.sample("mu_beta",     dist.Normal(0., 5.))
-    sigma_beta  = numpyro.sample("sigma_beta",  dist.HalfNormal(3.))
     sigma_obs   = numpyro.sample("sigma_obs",   dist.HalfNormal(300.))
 
-    # Patient-level random intercepts and slopes
+    # Correlated patient-level random intercepts and slopes: LKJ prior on
+    # the correlation matrix, HalfNormal priors on the per-parameter scales,
+    # combined into a Cholesky-factorized covariance -- this is the numpyro
+    # analogue of lme4's unstructured (1 + Weeks | Patient).
+    sigma_re = numpyro.sample("sigma_re", dist.HalfNormal(jnp.array([300., 3.])))
+    L_corr   = numpyro.sample("L_corr", dist.LKJCholesky(2, concentration=2.0))
+    L_cov    = jnp.diag(sigma_re) @ L_corr
+
+    mu_re = jnp.stack([mu_alpha, mu_beta])
     with numpyro.plate("patients", n_patients):
-        alpha = numpyro.sample("alpha", dist.Normal(mu_alpha, sigma_alpha))
-        beta  = numpyro.sample("beta",  dist.Normal(mu_beta,  sigma_beta))
+        re = numpyro.sample("re", dist.MultivariateNormal(mu_re, scale_tril=L_cov))
+    alpha, beta = re[:, 0], re[:, 1]
 
     # Likelihood
     mu = alpha[pat] + beta[pat] * weeks

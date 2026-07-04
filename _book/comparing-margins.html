@@ -418,7 +418,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./g-estimation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">g-estimation with time varying covariates</span></span></a>
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">G-computation (g-formula) with time varying covariates</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -681,14 +681,14 @@ file marginsplot2.svg saved as SVG format</code></pre>
 <p><img src="marginsplot2.svg" class="img-fluid"></p>
 <p>Here we run a logit model of diabetes and have female indicator and continuous age variable and their interaction as predictors.</p>
 <p>See my other post about interpreting marginal effects in non-linear model. In general we recommend against going after marginal effects in a non-linear model, instead we should focus on original coefficients. However, in case you still want to do that (many people do), here is an example. Suppose you are interested in comparing the effect of female on probability, at different ages, ranging from 20 to 70. The first margins command above tells you the predicted probability for each gender, the second tells the difference between the two genders.</p>
-<p>People tend to draw conclusions based on the confidence intervals overlapping or not. That is, if the confidence intervals of two effects are overlapped, then there is no statistically significant difference between the two effects. This actually can be wrong. The reason is that the confidence intervals are based on individual variable’s distribution, that is, how big the variance of that estimate. The difference between two effects, however, depends on the joint distribution of the two effects. That is, the variances of the two effects, and the covariance between the two effects. We should expect two effects are correlated, since they are derived from estimates from the same model, and often the same data. Therefore, two effects with overlapping confidence intervals do not necessarily mean the difference between the two is not statistically different from zero.</p>
+<p>People tend to draw conclusions based on the confidence intervals overlapping or not. That is, if the confidence intervals of two effects overlap, then there is no statistically significant difference between the two effects. This actually can be wrong. The reason is that the confidence intervals are based on individual variable’s distribution, that is, how big the variance of that estimate. The difference between two effects, however, depends on the joint distribution of the two effects. That is, the variances of the two effects, and the covariance between the two effects. We should expect two effects are correlated, since they are derived from estimates from the same model, and often the same data. Therefore, two effects with overlapping confidence intervals do not necessarily mean the difference between the two is not statistically different from zero.</p>
 <p>To see this, suppose we are interested in <span class="math inline">\(x-y\)</span>, the difference between two effects <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span>, <span class="math display">\[ Var(x-y)=Var(x) + Var(y) - 2 Cov(x,y) \]</span> The variance of the difference is the sum of the two variances, minus the covariance of <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span>. When we draw confidence intervals of marginal effects, <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span>, they are determined by <span class="math inline">\(Var(x)\)</span> and <span class="math inline">\(Var(y)\)</span>, respectively. But the confidence interval of <span class="math inline">\(x-y\)</span> should be based on <span class="math inline">\(Var(x-y)\)</span>, which is affected by <span class="math inline">\(Cov(x,y)\)</span>. When <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> are highly correlated, the variance of the difference can become small, and therefore the estimated <span class="math inline">\(x-y\)</span> can be statistically significant, even if the two confidence intervals overlap (meaning the variances of <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> can be relatively large).</p>
 <p>For example, we see in the second margins output, the effect of female on probability is .006 at point 1 (age 20), .0087 at point 2 (age 30). If you’d like to compare these two effects, you see their confidence intervals overlap. It’s easy to draw a conclusion that these two effects do not differ statistically because their confidence intervals overlap. However, if we do a statistical test of the difference, we see the difference is significant.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nhanes2f, <span class="kw">clear</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">logit</span> diabetes i.female##c.age, <span class="kw">nolog</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>margins <span class="fu">r</span>.female,  <span class="fu">at</span>(age=(20 30 40 50 60 70)) <span class="kw">post</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>mlincom 2 -1, stat(<span class="kw">est</span> se <span class="kw">p</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">lincom</span> _b[r1vs0.female@2.<span class="kw">_at</span>] - _b[r1vs0.female@1.<span class="kw">_at</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Logistic regression                                     Number of obs = 10,335
                                                         LR chi2(3)    = 353.06
@@ -746,12 +746,17 @@ Expression: Pr(diabetes), predict()
 (Female vs Male) 6  |  -.0041885   .0119155     -.0275425    .0191654
 ---------------------------------------------------------------------
 
-             |   lincom        se    pvalue 
--------------+-----------------------------
-           1 |    0.003     0.001     0.001 </code></pre>
+
+ ( 1)  - r1vs0.female@1bn._at + r1vs0.female@2._at = 0
+
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P&gt;|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0025709   .0007946     3.24   0.001     .0010134    .0041283
+------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>This “mlincom” is a user-written command to test the difference between point 2 and 1 (age 20 and 30).</p>
+<p>We can do this with native Stata syntax: <code>margins ..., post</code> posts the estimated contrasts as if they were regular coefficients (named <code>r1vs0.female@1._at</code>, <code>r1vs0.female@2._at</code>, etc. — check <code>matrix list e(b)</code> to see the exact names), so <code>lincom</code> can test any linear combination of them natively, without depending on a user-written command.</p>
 <p>Fortunately, margins has an option to show this difference, by contrast(atcontrast(r)). This is to say comparing all other points to the reference category.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nhanes2f, <span class="kw">clear</span></span>
@@ -1327,7 +1332,7 @@ file marginsplot3.svg saved as SVG format</code></pre>
 <span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>See my other post about interpreting marginal effects in non-linear model.  In general we recommend against going after marginal effects in a non-linear model, instead we should focus on original coefficients.  However, in case you still want to do that (many people do), here is an example.  Suppose you are interested in comparing the effect of female on probability, at different ages, ranging from 20 to 70.  The first margins command above tells you the predicted probability for each gender, the second tells the difference between the two genders.  </span>
 <span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>People tend to draw conclusions based on the confidence intervals overlapping or not.  That is, if the confidence intervals of two effects are overlapped, then there is no statistically significant difference between the two effects.  This actually can be wrong.  The reason is that the confidence intervals are based on individual variable's distribution, that is, how big the variance of that estimate.  The difference between two effects, however, depends on the joint distribution of the two effects.  That is, the variances of the two effects, and the covariance between the two effects.  We should expect two effects are correlated, since they are derived from estimates from the same model, and often the same data.  Therefore, two effects with overlapping confidence intervals do not necessarily mean the difference between the two is not statistically different from zero.  </span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>People tend to draw conclusions based on the confidence intervals overlapping or not.  That is, if the confidence intervals of two effects overlap, then there is no statistically significant difference between the two effects.  This actually can be wrong.  The reason is that the confidence intervals are based on individual variable's distribution, that is, how big the variance of that estimate.  The difference between two effects, however, depends on the joint distribution of the two effects.  That is, the variances of the two effects, and the covariance between the two effects.  We should expect two effects are correlated, since they are derived from estimates from the same model, and often the same data.  Therefore, two effects with overlapping confidence intervals do not necessarily mean the difference between the two is not statistically different from zero.  </span>
 <span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>To see this, suppose we are interested in $x-y$, the difference between two effects $x$ and $y$,</span>
 <span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>$$ Var(x-y)=Var(x) + Var(y) - 2 Cov(x,y) $$</span>
@@ -1342,10 +1347,10 @@ file marginsplot3.svg saved as SVG format</code></pre>
 <span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
 <span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
 <span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) post</span></span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="in">mlincom 2 -1, stat(est se p)</span></span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="in">lincom _b[r1vs0.female@2._at] - _b[r1vs0.female@1._at]</span></span>
 <span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>This "mlincom" is a user-written command to test the difference between point 2 and 1 (age 20 and 30).</span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>We can do this with native Stata syntax: <span class="in">`margins ..., post`</span> posts the estimated contrasts as if they were regular coefficients (named <span class="in">`r1vs0.female@1._at`</span>, <span class="in">`r1vs0.female@2._at`</span>, etc. — check <span class="in">`matrix list e(b)`</span> to see the exact names), so <span class="in">`lincom`</span> can test any linear combination of them natively, without depending on a user-written command.</span>
 <span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>Fortunately, margins has an option to show this difference, by contrast(atcontrast(r)).  This is to say comparing all other points to the reference category.</span>
 <span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>

@@ -45,7 +45,7 @@ There is also a Mundlak test to choose between RE or CRE.
 
 ## Example
 
-Stata 19 implemented CRE in the `xtreg` command, with "cre" option.  The following example is from Stata's website, using the `nlswork` dataset.
+Stata 18 implemented CRE in the `xtreg` command, with "cre" option.  The following example is from Stata's website, using the `nlswork` dataset.
 
 ```{r}
 #| label: setup
@@ -99,8 +99,14 @@ We can also manually do it by using a RE model on $X$, $\bar X$ and $z$:
 *| collectcode: true
 
 webuse nlswork
-egen age_mean = mean(age), by(idcode)
-egen tenure_mean = mean(tenure), by(idcode)
+* Restrict the mean calculation to the estimation sample (listwise-deleted
+* on the model's variables), matching what xtreg's native cre option does
+* internally. Both tenure and age have missing values in nlswork, so
+* computing age_mean/tenure_mean over all rows for an idcode (rather than
+* only rows with complete data on ln_wage, tenure, age, and race) would
+* make the manual means diverge from cre's.
+egen age_mean = mean(age) if !missing(ln_wage, tenure, age, race), by(idcode)
+egen tenure_mean = mean(tenure) if !missing(ln_wage, tenure, age, race), by(idcode)
 xtreg ln_wage tenure tenure_mean age age_mean i.race, vce(cluster idcode)
 ```
 

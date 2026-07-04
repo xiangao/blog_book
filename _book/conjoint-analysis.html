@@ -393,7 +393,7 @@ try {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./g-estimation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">g-estimation with time varying covariates</span></span></a>
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">G-computation (g-formula) with time varying covariates</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1371,7 +1371,7 @@ F-statistic: 0.6469 on 8 and 141 DF,  p-value: 0.7371</code></pre>
 <span id="cb17-78"><a href="#cb17-78" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a><span class="co"># attribute1, attribute2, etc. are vectors with one element in which we first provide the name of the attribute followed by a semi-colon and then provide all the levels of the attributes separated by semi-colons</span></span>
 <span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a>attribute1 <span class="ot">&lt;-</span> <span class="st">"Flavor; Raspberry; Chocolate; Strawberry; Mango; Vanilla"</span></span>
-<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>attribute2 <span class="ot">&lt;-</span> <span class="st">"Package; Homemade waffle; Cone; Pint"</span></span>
+<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>attribute2 <span class="ot">&lt;-</span> <span class="st">"Packaging; Homemade waffle; Cone; Pint"</span></span>
 <span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a>attribute3 <span class="ot">&lt;-</span> <span class="st">"Light; Low fat; No low fat"</span></span>
 <span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a>attribute4 <span class="ot">&lt;-</span> <span class="st">"Organic; Organic; Not organic"</span></span>
 <span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a></span>
@@ -1466,21 +1466,33 @@ F-statistic: 0.6469 on 8 and 141 DF,  p-value: 0.7371</code></pre>
 <span id="cb17-183"><a href="#cb17-183" aria-hidden="true" tabindex="-1"></a>The partworths are just coefficient from a linear regression:</span>
 <span id="cb17-184"><a href="#cb17-184" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-187"><a href="#cb17-187" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-188"><a href="#cb17-188" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">lm</span>(rating <span class="sc">~</span> Flavor <span class="sc">+</span> Packaging <span class="sc">+</span> Light <span class="sc">+</span> Organic, <span class="at">data =</span> icecream))</span>
-<span id="cb17-189"><a href="#cb17-189" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-190"><a href="#cb17-190" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-191"><a href="#cb17-191" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-192"><a href="#cb17-192" aria-hidden="true" tabindex="-1"></a>The conjoint importance weights are the relative importance of each attribute.  First the range of partworths for each attribute is calculated.  Then the range of partworths for each attribute is divided by the sum of the ranges of all attributes.  In this example, Flavor is the most important attribute, with an importance weight of .597.  </span>
+<span id="cb17-188"><a href="#cb17-188" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb17-189"><a href="#cb17-189" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb17-190"><a href="#cb17-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-191"><a href="#cb17-191" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sandwich)</span>
+<span id="cb17-192"><a href="#cb17-192" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmtest)</span>
 <span id="cb17-193"><a href="#cb17-193" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-194"><a href="#cb17-194" aria-hidden="true" tabindex="-1"></a>There is another package called "conjoint" which I have not played with.   </span>
-<span id="cb17-195"><a href="#cb17-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-196"><a href="#cb17-196" aria-hidden="true" tabindex="-1"></a>In summary, we can use R packages to set up a conjoint experiment, in the sense that we can have partial (fractional) factorial design.  After collecting the data, we can use either the conjoint packages, or just run linear or logit models to analyze it.  The frequentist approach used in conjoint analysis seems nothing special.  Bayesian approach can also be used, but that's another topic.  </span>
-<span id="cb17-197"><a href="#cb17-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-198"><a href="#cb17-198" aria-hidden="true" tabindex="-1"></a><span class="fu">## Causal effect in conjoint analysis</span></span>
-<span id="cb17-199"><a href="#cb17-199" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-200"><a href="#cb17-200" aria-hidden="true" tabindex="-1"></a>Hainmueller, Hopkins, and Yamamoto (2014) defined ACME (average marginal component effect). The basic idea is that once all the assumptions are met (usual assumptions in causal inference), we can have the effect of changing one attribute level to another with a causal interpretation.  Fortunately it is usually just coefficients from a linear model, or linear combinations of the coefficients.  There is a package "cregg" for each calculation and plotting of ACME, but we can just do it manually.  </span>
+<span id="cb17-194"><a href="#cb17-194" aria-hidden="true" tabindex="-1"></a>partworths_lm <span class="ot">&lt;-</span> <span class="fu">lm</span>(rating <span class="sc">~</span> Flavor <span class="sc">+</span> Packaging <span class="sc">+</span> Light <span class="sc">+</span> Organic, <span class="at">data =</span> icecream)</span>
+<span id="cb17-195"><a href="#cb17-195" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(partworths_lm)</span>
+<span id="cb17-196"><a href="#cb17-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-197"><a href="#cb17-197" aria-hidden="true" tabindex="-1"></a><span class="co"># Each of the 15 respondents rates 10 profiles, so observations are clustered</span></span>
+<span id="cb17-198"><a href="#cb17-198" aria-hidden="true" tabindex="-1"></a><span class="co"># by respondent; plain OLS standard errors above assume independence and</span></span>
+<span id="cb17-199"><a href="#cb17-199" aria-hidden="true" tabindex="-1"></a><span class="co"># understate the true uncertainty. Cluster at the respondent level instead.</span></span>
+<span id="cb17-200"><a href="#cb17-200" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(partworths_lm, <span class="at">vcov =</span> <span class="fu">vcovCL</span>(partworths_lm, <span class="at">cluster =</span> icecream<span class="sc">$</span>respondent))</span>
 <span id="cb17-201"><a href="#cb17-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-202"><a href="#cb17-202" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb17-202"><a href="#cb17-202" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-203"><a href="#cb17-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-204"><a href="#cb17-204" aria-hidden="true" tabindex="-1"></a>The conjoint importance weights are the relative importance of each attribute.  First the range of partworths for each attribute is calculated.  Then the range of partworths for each attribute is divided by the sum of the ranges of all attributes.  In this example, Flavor is the most important attribute, with an importance weight of .597.  </span>
+<span id="cb17-205"><a href="#cb17-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-206"><a href="#cb17-206" aria-hidden="true" tabindex="-1"></a>There is another package called "conjoint" which I have not played with.   </span>
+<span id="cb17-207"><a href="#cb17-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-208"><a href="#cb17-208" aria-hidden="true" tabindex="-1"></a>In summary, we can use R packages to set up a conjoint experiment, in the sense that we can have partial (fractional) factorial design.  After collecting the data, we can use either the conjoint packages, or just run linear or logit models to analyze it.  The frequentist approach used in conjoint analysis seems nothing special.  Bayesian approach can also be used, but that's another topic.  </span>
+<span id="cb17-209"><a href="#cb17-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-210"><a href="#cb17-210" aria-hidden="true" tabindex="-1"></a><span class="fu">## Causal effect in conjoint analysis</span></span>
+<span id="cb17-211"><a href="#cb17-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-212"><a href="#cb17-212" aria-hidden="true" tabindex="-1"></a>Hainmueller, Hopkins, and Yamamoto (2014) defined AMCE (average marginal component effect) -- not to be confused with ACME (average causal mediation effect, Imai et al.), a different causal estimand from the mediation-analysis literature. The basic idea is that once all the assumptions are met (usual assumptions in causal inference), we can have the effect of changing one attribute level to another with a causal interpretation.  Fortunately it is usually just coefficients from a linear model, or linear combinations of the coefficients.  There is a package "cregg" for each calculation and plotting of AMCE, but we can just do it manually.</span>
+<span id="cb17-213"><a href="#cb17-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-214"><a href="#cb17-214" aria-hidden="true" tabindex="-1"></a> </span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

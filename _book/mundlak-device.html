@@ -418,7 +418,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./g-estimation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">g-estimation with time varying covariates</span></span></a>
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">G-computation (g-formula) with time varying covariates</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -575,7 +575,7 @@ window.Quarto = {
 <p>For a linear model, we know we can put in <span class="math inline">\(k\)</span> unit dummies and <span class="math inline">\(T\)</span> time dummies to estimate the model. When we have a lot of dummies, this becomes inefficient, sometimes infeasible. When we have nonlinear models, such as Poisson, or logit, then this becomes even more difficult.</p>
 </section><section id="twm" class="level2" data-number="8.2"><h2 data-number="8.2" class="anchored" data-anchor-id="twm">
 <span class="header-section-number">8.2</span> TWM</h2>
-<p>The recent Wooldrige paper (https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) showed that two-way Mundlak regression (TWM) can be useful, not only in the common event time situation, but also in staggered TWFE situation. But in this post I’ll only talk about common event time situation (which is the case that all treated units get treated at the same period, and stay treated afterwards). The staggered situation (treated units get treated at different periods) will be a different post.</p>
+<p>The recent Wooldridge paper (https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) showed that two-way Mundlak regression (TWM) can be useful, not only in the common event time situation, but also in staggered TWFE situation. But in this post I’ll only talk about common event time situation (which is the case that all treated units get treated at the same period, and stay treated afterwards). The staggered situation (treated units get treated at different periods) will be a different post.</p>
 <p>The idea of Mundlak (1978) is the following.</p>
 <p>In the one-way fixed effect case,</p>
 <p><span class="math display">\[ y_{it} = x_{it} \beta + c_i + u_{it} \]</span></p>
@@ -691,7 +691,7 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
 <p>That is, for the TWFE, <span class="math display">\[ y_{it} = X_{it} \beta + c_i + f_t + u_{it} \]</span> it’s equivalent to estimate</p>
 <p><span class="math display">\[ y_{it} = X_{it} \beta + X_{i \cdot} \lambda + X_{\cdot t} \theta + u_{it} \]</span></p>
 <p>where <span class="math inline">\(X_{i \cdot}\)</span> is the unit specific averages over time, and <span class="math inline">\(X_{\cdot t}\)</span> is the time specific averages over units. This is basically some kind of control function approach. That is, from FWL theorem, these two models are equivalent. See Wooldridge 2021 for proof.</p>
-<p>Wooldrige calls this POLS of regressing <span class="math inline">\(y_{it}\)</span> on regressors <span class="math inline">\(X_{it}\)</span> and two sets of additional controls <span class="math inline">\(X_{i \cdot}\)</span> and <span class="math inline">\(X_{\cdot t}\)</span> Two-way Mundlak (TWM) model.</p>
+<p>Wooldridge calls this POLS of regressing <span class="math inline">\(y_{it}\)</span> on regressors <span class="math inline">\(X_{it}\)</span> and two sets of additional controls <span class="math inline">\(X_{i \cdot}\)</span> and <span class="math inline">\(X_{\cdot t}\)</span> Two-way Mundlak (TWM) model.</p>
 <p>One advantage of TWM is that it has potentially huge cut on the number of regressors, if you use the dummy variable approach for the TWFE.</p>
 <p>The other advantage is that you can actually include time-invariant or unit-invariant variables in the regression and the <span class="math inline">\(\beta\)</span>’s remain unchanged. We all know that in TWFE model you cannot include those time-invariant or unit-invariant variables in the model.</p>
 <p>We can see in the following example of POLS (which is TWM), we add in “race” which is unit-invariant. It can be estimated in TWM, but would not be estimable in TWFE. Notice that coefficients on age and union remain unchanged. This is basically to say that race is orthogonal to the surface of all the <span class="math inline">\(X\)</span>’s and the means of <span class="math inline">\(X\)</span>’s. We did not add in time invariant variables, but that would be the same story.</p>
@@ -892,932 +892,49 @@ Panel variable: id (strongly balanced)
 <span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a><span class="kw">estat</span> ptrends</span>
 <span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>* With <span class="kw">two</span> control periods, same <span class="kw">as</span> the following:</span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a><span class="kw">sort</span> id <span class="fu">year</span></span>
-<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> D.logy <span class="kw">d</span> <span class="kw">if</span> <span class="fu">year</span> &lt;= 2013, <span class="kw">vce</span>(<span class="kw">robust</span>)</span>
-<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>* Test/correct <span class="kw">for</span> common trends <span class="kw">in</span> a general equation:</span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a>* Note: since the pre-period only spans 2012-2013, D.logy is non-<span class="fu">missing</span></span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>* only <span class="kw">for</span> <span class="fu">year</span>==2013, so <span class="kw">this</span> is a single <span class="kw">cross</span>-section <span class="kw">of</span> first</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>* differences (2013 vs 2012), <span class="kw">not</span> a multi-period trend <span class="kw">test</span> — it's a</span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a>* valid <span class="kw">two</span>-period parallel-trends check, but should <span class="kw">not</span> <span class="kw">be</span> read <span class="kw">as</span></span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>* testing trends across <span class="kw">more</span> than <span class="kw">two</span> pre-periods.</span>
 <span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="kw">gen</span> t = <span class="fu">year</span> - 2011</span>
-<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="kw">xtreg</span> logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.<span class="fu">year</span> i.year#c.x1 c.d#c.t,  <span class="kw">fe</span> <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
-<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.<span class="fu">year</span> i.year#c.x1 <span class="kw">d</span> x1 c.d#c.x1 c.d#c.t, <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
-<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>* Allow the trend to also vary with x1:</span>
-<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.<span class="fu">year</span> i.year#c.x1 <span class="kw">d</span> x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
-<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> c.d#c.t c.d#c.t#c.x1</span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="kw">sort</span> id <span class="fu">year</span></span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> D.logy <span class="kw">d</span> <span class="kw">if</span> <span class="fu">year</span> &lt;= 2013, <span class="kw">vce</span>(<span class="kw">robust</span>)</span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a>* Test/correct <span class="kw">for</span> common trends <span class="kw">in</span> a general equation:</span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a><span class="kw">gen</span> t = <span class="fu">year</span> - 2011</span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="kw">xtreg</span> logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.<span class="fu">year</span> i.year#c.x1 c.d#c.t,  <span class="kw">fe</span> <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.<span class="fu">year</span> i.year#c.x1 <span class="kw">d</span> x1 c.d#c.x1 c.d#c.t, <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
 <span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>* Imputation. Note that the <span class="kw">estimates</span> <span class="kw">on</span> c.d#c.t and c.d#c.t#c.x1</span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>* are the same <span class="kw">as</span> full regression with <span class="ot">all</span> <span class="kw">data</span>, <span class="kw">as</span> is the joint</span>
-<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>* <span class="fu">F</span> statistic:</span>
-<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a><span class="kw">drop</span> tetilda</span>
-<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> logy i.<span class="fu">year</span> i.year#c.x1 <span class="kw">d</span> x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 <span class="kw">if</span> <span class="fu">w</span> == 0, <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
-<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> c.d#c.t c.d#c.t#c.x1</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>* Allow the trend to also vary with x1:</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.<span class="fu">year</span> i.year#c.x1 <span class="kw">d</span> x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> c.d#c.t c.d#c.t#c.x1</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a>* Imputation. Note that the <span class="kw">estimates</span> <span class="kw">on</span> c.d#c.t and c.d#c.t#c.x1</span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a>* are the same <span class="kw">as</span> full regression with <span class="ot">all</span> <span class="kw">data</span>, <span class="kw">as</span> is the joint</span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>* <span class="fu">F</span> statistic:</span>
 <span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="kw">predict</span> tetilda, <span class="kw">resid</span></span>
-<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a><span class="kw">sum</span> tetilda <span class="kw">if</span> (<span class="kw">d</span> &amp; f2014)</span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="kw">sum</span> tetilda <span class="kw">if</span> (<span class="kw">d</span> &amp; f2015)</span>
-<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>* Again, can <span class="kw">use</span> regression to obtain the <span class="kw">estimates</span> but <span class="kw">not</span> the standard errors:</span>
-<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 <span class="kw">if</span> <span class="fu">w</span> == 1, <span class="kw">nocons</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="kw">drop</span> tetilda</span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> logy i.<span class="fu">year</span> i.year#c.x1 <span class="kw">d</span> x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 <span class="kw">if</span> <span class="fu">w</span> == 0, <span class="kw">vce</span>(<span class="kw">cluster</span> id)</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> c.d#c.t c.d#c.t#c.x1</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="kw">predict</span> tetilda, <span class="kw">resid</span></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="kw">sum</span> tetilda <span class="kw">if</span> (<span class="kw">d</span> &amp; f2014)</span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a><span class="kw">sum</span> tetilda <span class="kw">if</span> (<span class="kw">d</span> &amp; f2015)</span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>* Again, can <span class="kw">use</span> regression to obtain the <span class="kw">estimates</span> but <span class="kw">not</span> the standard errors:</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 <span class="kw">if</span> <span class="fu">w</span> == 1, <span class="kw">nocons</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Unknown #command
+<pre><code>no variables defined
+r(111);
 
-
-
-Linear regression                               Number of obs     =        400
-                                                F(3, 99)          =      34.04
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.0348
-                                                Root MSE          =     7.0626
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-  c.d#c.post |   3.206857   .4314949     7.43   0.000     2.350677    4.063036
-             |
-           d |  -.0636461   1.356731    -0.05   0.963    -2.755695    2.628403
-        post |  -.1255431   .3021942    -0.42   0.679     -.725162    .4740758
-       _cons |     .11305   .9272947     0.12   0.903    -1.726904    1.953004
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(3, 99)          =      34.04
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.0348
-                                                Root MSE          =     7.0626
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   3.206857   .4314949     7.43   0.000     2.350677    4.063036
-           d |  -.0636461   1.356731    -0.05   0.963    -2.755695    2.628403
-        post |  -.1255431   .3021942    -0.42   0.679     -.725162    .4740758
-       _cons |     .11305   .9272947     0.12   0.903    -1.726904    1.953004
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(4, 99)          =      27.19
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.0381
-                                                Root MSE          =     7.0597
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   3.206857   .4320407     7.42   0.000     2.349594    4.064119
-           d |  -.0636461   1.358447    -0.05   0.963      -2.7591    2.631808
-       f2014 |  -.7011363   .3419429    -2.05   0.043    -1.379625   -.0226474
-       f2015 |   .4500501   .3583234     1.26   0.212    -.2609413    1.161041
-       _cons |     .11305   .9284678     0.12   0.903    -1.729232    1.955331
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(5, 99)          =      21.95
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.0383
-                                                Root MSE          =     7.0677
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   3.206857   .4325887     7.41   0.000     2.348507    4.065207
-           d |  -.0636461    1.36017    -0.05   0.963    -2.762519    2.635227
-             |
-        year |
-       2013  |   .3260046   .3325494     0.98   0.329    -.3338456    .9858548
-       2014  |   -.538134   .3934578    -1.37   0.175     -1.31884    .2425716
-       2015  |   .6130524   .3830314     1.60   0.113     -.146965     1.37307
-             |
-       _cons |  -.0499523   .9214237    -0.05   0.957    -1.878257    1.778352
-------------------------------------------------------------------------------
-
-
-Fixed-effects (within) regression               Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.2539                                         min =          4
-     Between = 0.0129                                         avg =        4.0
-     Overall = 0.0383                                         max =          4
-
-                                                F(4, 99)          =      27.29
-corr(u_i, Xb) = -0.0027                         Prob &gt; F          =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   3.206857   .4320407     7.42   0.000     2.349594    4.064119
-             |
-        year |
-       2013  |   .3260046   .3321282     0.98   0.329    -.3330098     .985019
-       2014  |   -.538134   .3929594    -1.37   0.174    -1.317851    .2415828
-       2015  |   .6130524   .3825463     1.60   0.112    -.1460024    1.372107
-             |
-       _cons |  -.0817754   .2003881    -0.41   0.684    -.4793889    .3158381
--------------+----------------------------------------------------------------
-     sigma_u |  6.7557992
-     sigma_e |  2.3305153
-         rho |  .89365429   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Fixed-effects (within) regression               Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.2207                                         min =          4
-     Between = 0.0129                                         avg =        4.0
-     Overall = 0.0348                                         max =          4
-
-                                                F(2, 99)          =      50.25
-corr(u_i, Xb) = -0.0028                         Prob &gt; F          =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   3.206857   .4309511     7.44   0.000     2.351756    4.061957
-        post |  -.1255431   .3018134    -0.42   0.678    -.7244064    .4733201
-       _cons |   .0812269   .1077378     0.75   0.453    -.1325482     .295002
--------------+----------------------------------------------------------------
-     sigma_u |  6.7557992
-     sigma_e |  2.3738231
-         rho |  .89010353   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Random-effects GLS regression                   Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.2207                                         min =          4
-     Between = 0.0129                                         avg =        4.0
-     Overall = 0.0348                                         max =          4
-
-                                                Wald chi2(3)      =     102.12
-corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      z    P&gt;|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   3.206857   .4314949     7.43   0.000     2.361142    4.052571
-           d |  -.0636461   1.356731    -0.05   0.963     -2.72279    2.595498
-        post |  -.1255431   .3021942    -0.42   0.678    -.7178329    .4667467
-       _cons |     .11305   .9272947     0.12   0.903    -1.704414    1.930514
--------------+----------------------------------------------------------------
-     sigma_u |   6.685563
-     sigma_e |  2.3738231
-         rho |  .88804221   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Fixed-effects (within) regression               Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.2575                                         min =          4
-     Between = 0.0129                                         avg =        4.0
-     Overall = 0.0387                                         max =          4
-
-                                                F(5, 99)          =      21.98
-corr(u_i, Xb) = -0.0027                         Prob &gt; F          =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.813593   .5368268     5.24   0.000     1.748412    3.878774
-             |
- c.w#c.f2015 |   3.600121   .5765523     6.24   0.000     2.456116    4.744126
-             |
-        year |
-       2013  |   .3260046   .3325494     0.98   0.329    -.3338456    .9858548
-       2014  |   -.341502   .4488412    -0.76   0.449      -1.2321    .5490964
-       2015  |   .4164204   .4300378     0.97   0.335    -.4368679    1.269709
-             |
-       _cons |  -.0817754   .2006423    -0.41   0.684    -.4798932    .3163424
--------------+----------------------------------------------------------------
-     sigma_u |  6.7557992
-     sigma_e |  2.3288408
-         rho |  .89379082   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Fixed-effects (within) regression               Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.2575                                         min =          4
-     Between = 0.0129                                         avg =        4.0
-     Overall = 0.0387                                         max =          4
-
-                                                F(5, 99)          =      21.98
-corr(u_i, Xb) = -0.0027                         Prob &gt; F          =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.d#c.f2014 |   2.813593   .5368268     5.24   0.000     1.748412    3.878774
-             |
- c.d#c.f2015 |   3.600121   .5765523     6.24   0.000     2.456116    4.744126
-             |
-        year |
-       2013  |   .3260046   .3325494     0.98   0.329    -.3338456    .9858548
-       2014  |   -.341502   .4488412    -0.76   0.449      -1.2321    .5490964
-       2015  |   .4164204   .4300378     0.97   0.335    -.4368679    1.269709
-             |
-       _cons |  -.0817754   .2006423    -0.41   0.684    -.4798932    .3163424
--------------+----------------------------------------------------------------
-     sigma_u |  6.7557992
-     sigma_e |  2.3288408
-         rho |  .89379082   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(5, 99)          =      21.97
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.0384
-                                                Root MSE          =     7.0672
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.813593   .5368268     5.24   0.000     1.748412    3.878774
-             |
- c.w#c.f2015 |   3.600121   .5765523     6.24   0.000     2.456116    4.744126
-             |
-           d |  -.0636461    1.36017    -0.05   0.963    -2.762519    2.635227
-       f2014 |  -.5045043   .3923088    -1.29   0.201     -1.28293    .2739216
-       f2015 |   .2534181   .4206018     0.60   0.548    -.5811472    1.087983
-       _cons |     .11305   .9296453     0.12   0.903    -1.731568    1.957668
-------------------------------------------------------------------------------
-
-
- ( 1)  .5*c.w#c.f2014 + .5*c.w#c.f2015 = 0
-
-------------------------------------------------------------------------------
-        logy | Coefficient  Std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-         (1) |   3.206857   .4325887     7.41   0.000     2.348507    4.065207
-------------------------------------------------------------------------------
-
-
-Random-effects GLS regression                   Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.2550                                         min =          4
-     Between = 0.0129                                         avg =        4.0
-     Overall = 0.0384                                         max =          4
-
-                                                Wald chi2(5)      =     109.84
-corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      z    P&gt;|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.813593   .5368268     5.24   0.000     1.761432    3.865754
-             |
- c.w#c.f2015 |   3.600121   .5765523     6.24   0.000     2.470099    4.730143
-             |
-           d |  -.0636461    1.36017    -0.05   0.963    -2.729531    2.602239
-       f2014 |  -.5045043   .3923088    -1.29   0.198    -1.273415    .2644069
-       f2015 |   .2534181   .4206018     0.60   0.547    -.5709463    1.077782
-       _cons |     .11305   .9296453     0.12   0.903    -1.709021    1.935121
--------------+----------------------------------------------------------------
-     sigma_u |  6.6895238
-     sigma_e |  2.3287614
-         rho |  .89191109   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(7, 99)          =     182.67
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8438
-                                                Root MSE          =     2.8557
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.503103   .3066694     8.16   0.000     1.894605    3.111602
-             |
- c.w#c.f2015 |   3.327274   .2902385    11.46   0.000     2.751378     3.90317
-             |
-           d |    .881691   .5285779     1.67   0.098    -.1671223    1.930504
-       f2014 |   .0840872   .2215839     0.38   0.705    -.3555834    .5237578
-       f2015 |   .2391039   .2082552     1.15   0.254    -.1741196    .6523275
-          x1 |   2.506694   .1327049    18.89   0.000     2.243379     2.77001
-             |
-    c.d#c.x1 |   .0743163   .1915921     0.39   0.699     -.305844    .4544765
-             |
-       _cons |   .2148708   .3676352     0.58   0.560    -.5145972    .9443389
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(8, 99)          =     166.57
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8438
-                                                Root MSE          =     2.8593
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.503013   .3070762     8.15   0.000     1.893707    3.112319
-             |
- c.w#c.f2015 |   3.327292   .2906341    11.45   0.000     2.750611    3.903973
-             |
-           d |   .8816195   .5292507     1.67   0.099    -.1685288    1.931768
-             |
-        year |
-       2013  |  -.0324553   .1709047    -0.19   0.850    -.3715673    .3066568
-       2014  |    .067934   .2343565     0.29   0.773    -.3970801    .5329482
-       2015  |   .2228745   .2273177     0.98   0.329    -.2281732    .6739222
-             |
-          x1 |   2.507011   .1335155    18.78   0.000     2.242087    2.771935
-             |
-    c.d#c.x1 |   .0738548   .1927512     0.38   0.702    -.3086053    .4563149
-             |
-       _cons |   .2311113     .37362     0.62   0.538    -.5102317    .9724544
-------------------------------------------------------------------------------
-
-    Variable |        Obs        Mean    Std. dev.       Min        Max
--------------+---------------------------------------------------------
-          x1 |        200   -.4048388    2.493319   -6.95061   4.588676
-
-
-
-Fixed-effects (within) regression               Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.3620                                         min =          4
-     Between = 0.4276                                         avg =        4.0
-     Overall = 0.2782                                         max =          4
-
-                                                F(9, 99)          =      23.70
-corr(u_i, Xb) = 0.3305                          Prob &gt; F          =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.938834   .5031086     5.84   0.000     1.940557     3.93711
-             |
- c.w#c.f2015 |   3.742608    .534969     7.00   0.000     2.681113    4.804102
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.2243583   .1904085    -1.18   0.242      -.60217    .1534535
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |   .0296616   .2431933     0.12   0.903    -.4528867    .5122099
-             |
-        year |
-       2013  |   .3260046   .3342504     0.98   0.332    -.3372208      .98923
-       2014  |    -.16839   .3880607    -0.43   0.665    -.9383866    .6016067
-       2015  |   .4360252   .3954162     1.10   0.273    -.3485664    1.220617
-             |
-c.f2014#c.x1 |   .6285213   .1342955     4.68   0.000     .3620499    .8949926
-             |
-c.f2015#c.x1 |   .5615944   .1919492     2.93   0.004     .1807255    .9424633
-             |
-       _cons |  -.0817754   .1900787    -0.43   0.668    -.4589327    .2953819
--------------+----------------------------------------------------------------
-     sigma_u |  6.1628203
-     sigma_e |  2.1734897
-         rho |  .88937776   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(12, 99)         =     112.09
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8445
-                                                Root MSE          =     2.8679
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.496168   .3173129     7.87   0.000      1.86655    3.125785
-             |
- c.w#c.f2015 |   3.349012   .3132217    10.69   0.000     2.727513    3.970512
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.2701343   .1759396    -1.54   0.128    -.6192367    .0789681
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |  -.0683301   .1502763    -0.45   0.650    -.3665108    .2298506
-             |
-        year |
-       2013  |  -.0188111   .1738311    -0.11   0.914    -.3637298    .3261075
-       2014  |   .0787158   .2377676     0.33   0.741    -.3930668    .5504984
-       2015  |   .2325892   .2297992     1.01   0.314    -.2233823    .6885607
-             |
-c.f2014#c.x1 |   .0404883   .1103324     0.37   0.714    -.1784352    .2594118
-             |
-c.f2015#c.x1 |   .0778513   .1061898     0.73   0.465    -.1328523    .2885549
-             |
-           d |    .904209   .5311615     1.70   0.092    -.1497307    1.958149
-          x1 |   2.476382   .1544607    16.03   0.000     2.169899    2.782866
-             |
-    c.d#c.x1 |   .1570952   .2113815     0.74   0.459    -.2623316     .576522
-             |
-       _cons |   .2230452   .3747574     0.60   0.553    -.5205549    .9666452
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(13, 99)         =     103.22
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8445
-                                                Root MSE          =     2.8715
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.500641   .3196658     7.82   0.000     1.866354    3.134927
-             |
- c.w#c.f2015 |   3.353485   .3142809    10.67   0.000     2.729884    3.977087
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.2674635    .177262    -1.51   0.135    -.6191897    .0842627
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |  -.0656593   .1506332    -0.44   0.664    -.3645482    .2332296
-             |
-        year |
-       2013  |  -.0261778   .1756818    -0.15   0.882    -.3747686    .3224129
-       2014  |     .07109   .2439251     0.29   0.771    -.4129104    .5550904
-       2015  |   .2249634   .2325834     0.97   0.336    -.2365326    .6864593
-             |
-   year#c.x1 |
-       2013  |  -.0298874   .0910807    -0.33   0.743    -.2106112    .1508364
-       2014  |   .0227905   .1348423     0.17   0.866    -.2447658    .2903469
-       2015  |   .0601535   .1180653     0.51   0.612    -.1741137    .2944207
-             |
-           d |   .8986549   .5321658     1.69   0.094    -.1572776    1.954587
-          x1 |    2.49408   .1726029    14.45   0.000     2.151599    2.836562
-             |
-    c.d#c.x1 |   .1544244   .2128387     0.73   0.470    -.2678938    .5767426
-             |
-       _cons |    .230671   .3794753     0.61   0.545    -.5222904    .9836324
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(12, 99)         =     112.09
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8445
-                                                Root MSE          =     2.8679
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.386807   .3096756     7.71   0.000     1.772343    3.001271
-             |
- c.w#c.f2015 |    3.32135   .2964989    11.20   0.000     2.733032    3.909668
-             |
- c.w#c.f2014#|
-        c.x1 |  -.2701343   .1759396    -1.54   0.128    -.6192367    .0789681
-             |
- c.w#c.f2015#|
-        c.x1 |  -.0683301   .1502763    -0.45   0.650    -.3665109    .2298506
-             |
-        year |
-       2013  |  -.0188111   .1738311    -0.11   0.914    -.3637298    .3261075
-       2014  |   .0787158   .2377676     0.33   0.741    -.3930668    .5504984
-       2015  |   .2325892   .2297992     1.01   0.314    -.2233823    .6885607
-             |
-c.f2014#c.x1 |   .0404883   .1103324     0.37   0.714    -.1784352    .2594118
-             |
-c.f2015#c.x1 |   .0778513   .1061898     0.73   0.465    -.1328523    .2885549
-             |
-           d |    .904209   .5311615     1.70   0.092    -.1497307    1.958149
-          x1 |   2.476382   .1544607    16.03   0.000     2.169899    2.782866
-             |
-    c.d#c.x1 |   .1570952   .2113815     0.74   0.459    -.2623316     .576522
-             |
-       _cons |   .2230452   .3747574     0.60   0.553    -.5205549    .9666452
-------------------------------------------------------------------------------
-
-
-Average marginal effects                                 Number of obs   = 400
-                                                         Subpop. no. obs = 200
-
-Expression: Linear prediction, predict()
-dy/dx wrt:  w
-At: f2014 = 1
-    f2015 = 0
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |            Unconditional
-             |      dy/dx   std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   2.496168   .3059971     8.16   0.000     1.889003    3.103333
-------------------------------------------------------------------------------
-
-
-Average marginal effects                                 Number of obs   = 400
-                                                         Subpop. no. obs = 200
-
-Expression: Linear prediction, predict()
-dy/dx wrt:  w
-At: f2014 = 0
-    f2015 = 1
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |            Unconditional
-             |      dy/dx   std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           w |   3.349012   .3110518    10.77   0.000     2.731818    3.966207
-------------------------------------------------------------------------------
-
-
-(200 real changes made)
-
-...
-Difference-in-difference with Multiple Time Periods
-
-                                                           Number of obs = 400
-Outcome model  : least squares
-Treatment model: inverse probability
-------------------------------------------------------------------------------
-             | Coefficient  Std. err.      z    P&gt;|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-g2014        |
- t_2012_2013 |  -1.401593   .6428278    -2.18   0.029    -2.661512   -.1416737
- t_2013_2014 |   3.388112   .5850216     5.79   0.000     2.241491    4.534734
- t_2013_2015 |   3.915051   .6484609     6.04   0.000     2.644091    5.186011
-------------------------------------------------------------------------------
-Control: Never Treated
-
-See Callaway and Sant'Anna (2021) for details
-
-      Source |       SS           df       MS      Number of obs   =       300
--------------+----------------------------------   F(8, 291)       =    210.00
-       Model |  12568.7919         8  1571.09898   Prob &gt; F        =    0.0000
-    Residual |  2177.12159       291  7.48151749   R-squared       =    0.8524
--------------+----------------------------------   Adj R-squared   =    0.8483
-       Total |  14745.9135       299  49.3174363   Root MSE        =    2.7352
-
-------------------------------------------------------------------------------
-        logy | Coefficient  Std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-        year |
-       2013  |  -.0188111   .3880383    -0.05   0.961    -.7825286    .7449063
-       2014  |   .0787158    .513587     0.15   0.878    -.9321002    1.089532
-       2015  |   .2325892   .5121166     0.45   0.650    -.7753329    1.240511
-             |
-c.f2014#c.x1 |   .0404883   .1798899     0.23   0.822    -.3135619    .3945385
-             |
-c.f2015#c.x1 |   .0778513   .1879703     0.41   0.679    -.2921023    .4478049
-             |
-           d |    .904209   .3894073     2.32   0.021     .1377972    1.670621
-          x1 |   2.476382   .1100309    22.51   0.000     2.259825     2.69294
-             |
-    c.d#c.x1 |   .1570952   .1556659     1.01   0.314    -.1492786     .463469
-             |
-       _cons |   .2230452   .3355663     0.66   0.507    -.4373996    .8834899
-------------------------------------------------------------------------------
-
-    Variable |        Obs        Mean    Std. dev.       Min        Max
--------------+---------------------------------------------------------
-     tetilda |         50    2.525512    3.370158  -5.463166   10.58631
-
-    Variable |        Obs        Mean    Std. dev.       Min        Max
--------------+---------------------------------------------------------
-     tetilda |         50     3.34147    3.105354  -3.463709   10.24051
-
-      Source |       SS           df       MS      Number of obs   =       100
--------------+----------------------------------   F(4, 96)        =     21.48
-       Model |  900.277122         4   225.06928   Prob &gt; F        =    0.0000
-    Residual |  1005.96245        96  10.4787755   R-squared       =    0.4723
--------------+----------------------------------   Adj R-squared   =    0.4503
-       Total |  1906.23957       100  19.0623957   Root MSE        =    3.2371
-
-------------------------------------------------------------------------------
-     tetilda | Coefficient  Std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.496168   .4582501     5.45   0.000     1.586549    3.405787
-             |
- c.w#c.f2015 |   3.349012   .4582306     7.31   0.000     2.439432    4.258593
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.2701343   .1881329    -1.44   0.154    -.6435751    .1033065
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |  -.0683301   .1811302    -0.38   0.707    -.4278707    .2912104
-------------------------------------------------------------------------------
-
-
-Treatment and time information
-
-Time variable: year
-Control:       w = 0
-Treatment:     w = 1
------------------------------------
-             |   Control  Treatment
--------------+---------------------
-Group        |
-          id |        50         50
--------------+---------------------
-Time         |
-     Minimum |      2012       2014
-     Maximum |      2012       2014
------------------------------------
-
-Difference-in-differences regression                       Number of obs = 400
-Data type: Longitudinal
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-ATET         |
-           w |
-   (1 vs 0)  |   3.206857   .4320407     7.42   0.000     2.349594    4.064119
-------------------------------------------------------------------------------
-Note: ATET estimate adjusted for panel effects and time effects.
-
-
-Parallel-trends test (pretreatment time period)
-H0: Linear trends are parallel
-
-F(1, 99) =   4.64
-Prob &gt; F = 0.0337
-
-
-
-Linear regression                               Number of obs     =        100
-                                                F(1, 98)          =       4.66
-                                                Prob &gt; F          =     0.0332
-                                                R-squared         =     0.0454
-                                                Root MSE          =     3.2451
-
-------------------------------------------------------------------------------
-             |               Robust
-      D.logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-           d |  -1.401579   .6490187    -2.16   0.033    -2.689536   -.1136226
-       _cons |   1.026794   .4697368     2.19   0.031     .0946167    1.958972
-------------------------------------------------------------------------------
-
-
-
-Fixed-effects (within) regression               Number of obs     =        400
-Group variable: id                              Number of groups  =        100
-
-R-squared:                                      Obs per group:
-     Within  = 0.8680                                         min =          4
-     Between = 0.8466                                         avg =        4.0
-     Overall = 0.8412                                         max =          4
-
-                                                F(12, 99)         =     157.25
-corr(u_i, Xb) = 0.4488                          Prob &gt; F          =     0.0000
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   2.456402   .5067512     4.85   0.000     1.450898    3.461907
-             |
- c.w#c.f2015 |   3.208291   .7927064     4.05   0.000      1.63539    4.781193
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.0503407   .1059229    -0.48   0.636    -.2605148    .1598333
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |   .0924389   .0842389     1.10   0.275    -.0747095    .2595872
-             |
-        year |
-       2013  |   .0205346   .1993658     0.10   0.918    -.3750504    .4161195
-       2014  |   -.009636   .2174468    -0.04   0.965    -.4410976    .4218256
-       2015  |   .2623215   .1940125     1.35   0.179    -.1226414    .6472845
-             |
-   year#c.x1 |
-       2012  |   1.933064   .0764551    25.28   0.000     1.781361    2.084768
-       2013  |   2.003714   .0662191    30.26   0.000     1.872321    2.135107
-       2014  |    2.01687   .0849868    23.73   0.000     1.848238    2.185502
-       2015  |   1.991922    .072964    27.30   0.000     1.847146    2.136699
-             |
-     c.d#c.t |   .0668116   .2957253     0.23   0.822    -.5199715    .6535946
-             |
-       _cons |   .4575496   .1764897     2.59   0.011     .1073557    .8077434
--------------+----------------------------------------------------------------
-     sigma_u |  3.0627341
-     sigma_e |  .99359271
-         rho |  .90477742   (fraction of variance due to u_i)
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(14, 99)         =     101.72
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8446
-                                                Root MSE          =     2.8741
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   1.833542   .6136741     2.99   0.004      .615879    3.051204
-             |
- c.w#c.f2015 |   2.243344   .9499793     2.36   0.020      .358379    4.128309
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.2653456    .177891    -1.49   0.139    -.6183199    .0876287
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |  -.0635414    .150658    -0.42   0.674    -.3624795    .2353968
-             |
-        year |
-       2013  |  -.2472397   .2421693    -1.02   0.310    -.7277561    .2332767
-       2014  |  -.0388673   .2538858    -0.15   0.879    -.5426319    .4648973
-       2015  |   .1150061   .2472402     0.47   0.643     -.375572    .6055842
-             |
-   year#c.x1 |
-       2013  |  -.0241251   .0913453    -0.26   0.792    -.2053741    .1571239
-       2014  |   .0216128   .1358993     0.16   0.874     -.248041    .2912665
-       2015  |   .0589757   .1180401     0.50   0.618    -.1752415     .293193
-             |
-           d |     .23577   .7209278     0.33   0.744    -1.194707    1.666247
-          x1 |   2.495258   .1736213    14.37   0.000     2.150756     2.83976
-             |
-    c.d#c.x1 |   .1523065   .2136548     0.71   0.478    -.2716309    .5762438
-             |
-     c.d#c.t |   .4430422   .3468509     1.28   0.204    -.2451853     1.13127
-             |
-       _cons |   .3406282   .3823786     0.89   0.375     -.418094     1.09935
-------------------------------------------------------------------------------
-
-
-Linear regression                               Number of obs     =        400
-                                                F(15, 99)         =      95.45
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8450
-                                                Root MSE          =     2.8744
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   1.917612   .6348799     3.02   0.003     .6578725    3.177352
-             |
- c.w#c.f2015 |   2.378839   .9651184     2.46   0.015     .4638351    4.293844
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.7263424   .2927708    -2.48   0.015    -1.307263   -.1454217
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |  -.8415862   .4868867    -1.73   0.087    -1.807675    .1245027
-             |
-        year |
-       2013  |  -.2611685   .2476914    -1.05   0.294    -.7526419    .2303049
-       2014  |  -.0671335   .2642967    -0.25   0.800    -.5915555    .4572885
-       2015  |   .0867399   .2545516     0.34   0.734    -.4183457    .5918255
-             |
-   year#c.x1 |
-       2013  |  -.1857772   .1396877    -1.33   0.187    -.4629479    .0913934
-       2014  |  -.0735746   .1623912    -0.45   0.651     -.395794    .2486448
-       2015  |  -.0362116   .1317686    -0.27   0.784    -.2976691    .2252458
-             |
-           d |   .1075441    .732768     0.15   0.884    -1.346427    1.561515
-          x1 |   2.590445   .1878499    13.79   0.000      2.21771     2.96318
-             |
-    c.d#c.x1 |  -.3378406   .3669519    -0.92   0.359    -1.065953    .3902716
-             |
-     c.d#c.t |   .5199705   .3447009     1.51   0.135    -.1639908    1.203932
-             |
-c.d#c.t#c.x1 |    .317048   .1852193     1.71   0.090    -.0504673    .6845633
-             |
-       _cons |   .3688944   .3868765     0.95   0.343    -.3987525    1.136541
-------------------------------------------------------------------------------
-
-
- ( 1)  c.d#c.t = 0
- ( 2)  c.d#c.t#c.x1 = 0
-
-       F(  2,    99) =    2.47
-            Prob &gt; F =    0.0898
-
-
-
-Linear regression                               Number of obs     =        300
-                                                F(11, 99)         =      82.82
-                                                Prob &gt; F          =     0.0000
-                                                R-squared         =     0.8531
-                                                Root MSE          =     2.7429
-
-                                   (Std. err. adjusted for 100 clusters in id)
-------------------------------------------------------------------------------
-             |               Robust
-        logy | Coefficient  std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
-        year |
-       2013  |  -.2611685   .2475879    -1.05   0.294    -.7524366    .2300996
-       2014  |  -.0671335   .2641863    -0.25   0.800    -.5913364    .4570694
-       2015  |   .0867399   .2544452     0.34   0.734    -.4181347    .5916145
-             |
-   year#c.x1 |
-       2013  |  -.1857773   .1396293    -1.33   0.186    -.4628321    .0912775
-       2014  |  -.0735746   .1623234    -0.45   0.651    -.3956594    .2485101
-       2015  |  -.0362116   .1317135    -0.27   0.784    -.2975599    .2251366
-             |
-           d |    .107544   .7324618     0.15   0.884    -1.345819    1.560907
-          x1 |   2.590445   .1877714    13.80   0.000     2.217866    2.963025
-             |
-    c.d#c.x1 |  -.3378407   .3667986    -0.92   0.359    -1.065649    .3899672
-             |
-     c.d#c.t |   .5199705   .3445569     1.51   0.134    -.1637051    1.203646
-             |
-c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
-             |
-       _cons |   .3688944   .3867149     0.95   0.342    -.3984318    1.136221
-------------------------------------------------------------------------------
-
-
- ( 1)  c.d#c.t = 0
- ( 2)  c.d#c.t#c.x1 = 0
-
-       F(  2,    99) =    2.47
-            Prob &gt; F =    0.0896
-
-    Variable |        Obs        Mean    Std. dev.       Min        Max
--------------+---------------------------------------------------------
-     tetilda |         50    1.996512    3.755621  -5.357233   9.968782
-
-    Variable |        Obs        Mean    Std. dev.       Min        Max
--------------+---------------------------------------------------------
-     tetilda |         50    2.285944    3.772198  -4.526336   10.79229
-
-      Source |       SS           df       MS      Number of obs   =       100
--------------+----------------------------------   F(4, 96)        =     20.11
-       Model |  842.991546         4  210.747887   Prob &gt; F        =    0.0000
-    Residual |  1005.96248        96  10.4787758   R-squared       =    0.4559
--------------+----------------------------------   Adj R-squared   =    0.4333
-       Total |  1848.95402       100  18.4895402   Root MSE        =    3.2371
-
-------------------------------------------------------------------------------
-     tetilda | Coefficient  Std. err.      t    P&gt;|t|     [95% conf. interval]
--------------+----------------------------------------------------------------
- c.w#c.f2014 |   1.917612   .4582501     4.18   0.000     1.007993    2.827231
-             |
- c.w#c.f2015 |   2.378839   .4582306     5.19   0.000     1.469259     3.28842
-             |
- c.w#c.f2014#|
-   c.x1_dm_1 |  -.7263426   .1881329    -3.86   0.000    -1.099783   -.3529017
-             |
- c.w#c.f2015#|
-   c.x1_dm_1 |  -.8415865   .1811302    -4.65   0.000    -1.201127   -.4820459
-------------------------------------------------------------------------------</code></pre>
+r(111);</code></pre>
 </div>
 </div>
 
@@ -2305,7 +1422,7 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="fu">## TWM</span></span>
 <span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>The recent Wooldrige paper (https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) showed that two-way Mundlak regression (TWM) can be useful, not only in the common event time situation, but also in staggered TWFE situation.  But in this post I'll only talk about common event time situation (which is the case that all treated units get treated at the same period, and stay treated afterwards).  The staggered situation (treated units get treated at different periods) will be a different post.</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>The recent Wooldridge paper (https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) showed that two-way Mundlak regression (TWM) can be useful, not only in the common event time situation, but also in staggered TWFE situation.  But in this post I'll only talk about common event time situation (which is the case that all treated units get treated at the same period, and stay treated afterwards).  The staggered situation (treated units get treated at different periods) will be a different post.</span>
 <span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>The idea of Mundlak (1978) is the following.</span>
 <span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
@@ -2368,7 +1485,7 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb9-85"><a href="#cb9-85" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-86"><a href="#cb9-86" aria-hidden="true" tabindex="-1"></a>where $X_{i \cdot}$ is the unit specific averages over time, and $X_{\cdot t}$ is the time specific averages over units.  This is basically some kind of control function approach.  That is, from FWL theorem, these two models are equivalent.  See Wooldridge 2021 for proof.</span>
 <span id="cb9-87"><a href="#cb9-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-88"><a href="#cb9-88" aria-hidden="true" tabindex="-1"></a>Wooldrige calls this POLS of regressing $y_{it}$ on regressors $X_{it}$ and two sets of additional controls $X_{i \cdot}$ and $X_{\cdot t}$ Two-way Mundlak (TWM) model.</span>
+<span id="cb9-88"><a href="#cb9-88" aria-hidden="true" tabindex="-1"></a>Wooldridge calls this POLS of regressing $y_{it}$ on regressors $X_{it}$ and two sets of additional controls $X_{i \cdot}$ and $X_{\cdot t}$ Two-way Mundlak (TWM) model.</span>
 <span id="cb9-89"><a href="#cb9-89" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-90"><a href="#cb9-90" aria-hidden="true" tabindex="-1"></a>One advantage of TWM is that it has potentially huge cut on the number of regressors, if you use the dummy variable approach for the TWFE.</span>
 <span id="cb9-91"><a href="#cb9-91" aria-hidden="true" tabindex="-1"></a></span>
@@ -2557,41 +1674,46 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb9-280"><a href="#cb9-280" aria-hidden="true" tabindex="-1"></a><span class="in">estat ptrends</span></span>
 <span id="cb9-281"><a href="#cb9-281" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-282"><a href="#cb9-282" aria-hidden="true" tabindex="-1"></a><span class="in">* With two control periods, same as the following:</span></span>
-<span id="cb9-283"><a href="#cb9-283" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-284"><a href="#cb9-284" aria-hidden="true" tabindex="-1"></a><span class="in">sort id year</span></span>
-<span id="cb9-285"><a href="#cb9-285" aria-hidden="true" tabindex="-1"></a><span class="in">reg D.logy d if year &lt;= 2013, vce(robust)</span></span>
-<span id="cb9-286"><a href="#cb9-286" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-287"><a href="#cb9-287" aria-hidden="true" tabindex="-1"></a><span class="in">* Test/correct for common trends in a general equation:</span></span>
+<span id="cb9-283"><a href="#cb9-283" aria-hidden="true" tabindex="-1"></a><span class="in">* Note: since the pre-period only spans 2012-2013, D.logy is non-missing</span></span>
+<span id="cb9-284"><a href="#cb9-284" aria-hidden="true" tabindex="-1"></a><span class="in">* only for year==2013, so this is a single cross-section of first</span></span>
+<span id="cb9-285"><a href="#cb9-285" aria-hidden="true" tabindex="-1"></a><span class="in">* differences (2013 vs 2012), not a multi-period trend test — it's a</span></span>
+<span id="cb9-286"><a href="#cb9-286" aria-hidden="true" tabindex="-1"></a><span class="in">* valid two-period parallel-trends check, but should not be read as</span></span>
+<span id="cb9-287"><a href="#cb9-287" aria-hidden="true" tabindex="-1"></a><span class="in">* testing trends across more than two pre-periods.</span></span>
 <span id="cb9-288"><a href="#cb9-288" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-289"><a href="#cb9-289" aria-hidden="true" tabindex="-1"></a><span class="in">gen t = year - 2011</span></span>
-<span id="cb9-290"><a href="#cb9-290" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-291"><a href="#cb9-291" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 c.d#c.t,  fe vce(cluster id)</span></span>
-<span id="cb9-292"><a href="#cb9-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-293"><a href="#cb9-293" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t, vce(cluster id)</span></span>
-<span id="cb9-294"><a href="#cb9-294" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-295"><a href="#cb9-295" aria-hidden="true" tabindex="-1"></a><span class="in">* Allow the trend to also vary with x1:</span></span>
-<span id="cb9-296"><a href="#cb9-296" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-297"><a href="#cb9-297" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, vce(cluster id)</span></span>
-<span id="cb9-298"><a href="#cb9-298" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
+<span id="cb9-289"><a href="#cb9-289" aria-hidden="true" tabindex="-1"></a><span class="in">sort id year</span></span>
+<span id="cb9-290"><a href="#cb9-290" aria-hidden="true" tabindex="-1"></a><span class="in">reg D.logy d if year &lt;= 2013, vce(robust)</span></span>
+<span id="cb9-291"><a href="#cb9-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-292"><a href="#cb9-292" aria-hidden="true" tabindex="-1"></a><span class="in">* Test/correct for common trends in a general equation:</span></span>
+<span id="cb9-293"><a href="#cb9-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-294"><a href="#cb9-294" aria-hidden="true" tabindex="-1"></a><span class="in">gen t = year - 2011</span></span>
+<span id="cb9-295"><a href="#cb9-295" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-296"><a href="#cb9-296" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 c.d#c.t,  fe vce(cluster id)</span></span>
+<span id="cb9-297"><a href="#cb9-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-298"><a href="#cb9-298" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t, vce(cluster id)</span></span>
 <span id="cb9-299"><a href="#cb9-299" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-300"><a href="#cb9-300" aria-hidden="true" tabindex="-1"></a><span class="in">* Imputation. Note that the estimates on c.d#c.t and c.d#c.t#c.x1</span></span>
-<span id="cb9-301"><a href="#cb9-301" aria-hidden="true" tabindex="-1"></a><span class="in">* are the same as full regression with all data, as is the joint</span></span>
-<span id="cb9-302"><a href="#cb9-302" aria-hidden="true" tabindex="-1"></a><span class="in">* F statistic:</span></span>
-<span id="cb9-303"><a href="#cb9-303" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-304"><a href="#cb9-304" aria-hidden="true" tabindex="-1"></a><span class="in">drop tetilda</span></span>
-<span id="cb9-305"><a href="#cb9-305" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-306"><a href="#cb9-306" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 if w == 0, vce(cluster id)</span></span>
-<span id="cb9-307"><a href="#cb9-307" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
+<span id="cb9-300"><a href="#cb9-300" aria-hidden="true" tabindex="-1"></a><span class="in">* Allow the trend to also vary with x1:</span></span>
+<span id="cb9-301"><a href="#cb9-301" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-302"><a href="#cb9-302" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, vce(cluster id)</span></span>
+<span id="cb9-303"><a href="#cb9-303" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
+<span id="cb9-304"><a href="#cb9-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-305"><a href="#cb9-305" aria-hidden="true" tabindex="-1"></a><span class="in">* Imputation. Note that the estimates on c.d#c.t and c.d#c.t#c.x1</span></span>
+<span id="cb9-306"><a href="#cb9-306" aria-hidden="true" tabindex="-1"></a><span class="in">* are the same as full regression with all data, as is the joint</span></span>
+<span id="cb9-307"><a href="#cb9-307" aria-hidden="true" tabindex="-1"></a><span class="in">* F statistic:</span></span>
 <span id="cb9-308"><a href="#cb9-308" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-309"><a href="#cb9-309" aria-hidden="true" tabindex="-1"></a><span class="in">predict tetilda, resid</span></span>
-<span id="cb9-310"><a href="#cb9-310" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2014)</span></span>
-<span id="cb9-311"><a href="#cb9-311" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2015)</span></span>
-<span id="cb9-312"><a href="#cb9-312" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-313"><a href="#cb9-313" aria-hidden="true" tabindex="-1"></a><span class="in">* Again, can use regression to obtain the estimates but not the standard errors:</span></span>
-<span id="cb9-314"><a href="#cb9-314" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-315"><a href="#cb9-315" aria-hidden="true" tabindex="-1"></a><span class="in">reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons</span></span>
-<span id="cb9-316"><a href="#cb9-316" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-309"><a href="#cb9-309" aria-hidden="true" tabindex="-1"></a><span class="in">drop tetilda</span></span>
+<span id="cb9-310"><a href="#cb9-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-311"><a href="#cb9-311" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 if w == 0, vce(cluster id)</span></span>
+<span id="cb9-312"><a href="#cb9-312" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
+<span id="cb9-313"><a href="#cb9-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-314"><a href="#cb9-314" aria-hidden="true" tabindex="-1"></a><span class="in">predict tetilda, resid</span></span>
+<span id="cb9-315"><a href="#cb9-315" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2014)</span></span>
+<span id="cb9-316"><a href="#cb9-316" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2015)</span></span>
 <span id="cb9-317"><a href="#cb9-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-318"><a href="#cb9-318" aria-hidden="true" tabindex="-1"></a><span class="in">* Again, can use regression to obtain the estimates but not the standard errors:</span></span>
+<span id="cb9-319"><a href="#cb9-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-320"><a href="#cb9-320" aria-hidden="true" tabindex="-1"></a><span class="in">reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons</span></span>
+<span id="cb9-321"><a href="#cb9-321" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-322"><a href="#cb9-322" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

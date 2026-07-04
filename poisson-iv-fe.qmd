@@ -95,12 +95,21 @@ Suppose we need clustered standard errors on "ad".
 *| collectcode: true
 
 * bootstrap, suppose we need to cluster by "ad"
+* Note: bootstrap's idcluster(newid) below gives each resampled COPY of a
+* cluster its own unique id -- necessary because a cluster can be drawn more
+* than once within a replicate, and those duplicates must be treated as
+* distinct groups. The regressions inside this program must absorb "newid",
+* not the original "ad": absorbing "ad" would pool resampled duplicates of
+* the same cluster back into a single fixed effect, which violates the
+* cluster-bootstrap logic (verified empirically: within a replicate, the
+* number of distinct "ad" values is consistently below the true cluster
+* count, while "newid" always has exactly that many distinct values).
 clear all
 capture program drop ppmlhdfe_cf
  program ppmlhdfe_cf, rclass
-  reghdfe time phone frfam , absorb(ad female) resid
+  reghdfe time phone frfam , absorb(newid female) resid
   predict double u2h_fe, resid
-  ppmlhdfe visits time u2h_fe frfam , absorb(ad female)
+  ppmlhdfe visits time u2h_fe frfam , absorb(newid female)
   return scalar b_time = _b[time]
   drop u2h_fe
   xtset, clear

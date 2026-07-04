@@ -7,7 +7,7 @@ date: "2017-12-07"
 
 ## Interaction term in a non-linear model
 
-In a non-linear model (for example, logit or poisson model), the interpretation of the coefficient on the interaction term is tricky.  [Ai and Norton (2003)](https://pdfs.semanticscholar.org/6285/8e64d9a337504d72cb862c4cc1e7fd27a7a0.pdf) points out that the interaction term coefficient is not the same as people can interpret as in a linear model; that is, how much effect of $x1$ changes with the value of $x2$.  They interpret this as a cross 
+In a non-linear model (for example, logit or poisson model), the interpretation of the coefficient on the interaction term is tricky.  [Ai and Norton (2003)](https://pdfs.semanticscholar.org/6285/8e64d9a337504d72cb862c4cc1e7fd27a7a0.pdf) points out that the interaction term coefficient is not the same as people can interpret as in a linear model; that is, how much effect of $x1$ changes with the value of $x2$.  They interpret this as a cross partial derivative of the nonlinear response function $E(y)$ with respect to $x_1$ and $x_2$ — a quantity that involves the model's other coefficients and the values of all covariates, not just the estimated interaction coefficient $\beta_{12}$. As a result, this cross partial derivative can differ in magnitude, sign, and even statistical significance from $\beta_{12}$ itself.
 
 If we have a linear model with interaction:
 
@@ -17,7 +17,7 @@ Then, the marginal effect
 
 $$ \frac{\partial^2 E(y)}{\partial x_1 \partial x_2} = \beta_{12} $$
 
-That is, $\beta_{12}$ is the second derivative of $E(y)$ on $x_1$ and $x_2$.  The marginal effect of $x_1$ 
+That is, $\beta_{12}$ is the second derivative of $E(y)$ on $x_1$ and $x_2$.  The marginal effect of $x_1$ is $\frac{\partial E(y)}{\partial x_1} = \beta_1 + \beta_{12} x_2$, which is linear in $x_2$ but does not itself depend on any nonlinear transformation, since the model is linear.
 
 In a non-linear model,
 
@@ -31,7 +31,7 @@ $$ \frac{\partial^2 E(y)}{\partial x_1 \partial x_2} = \beta_{12} G'(\eta) + (\b
 
 where $G()$ is the inverse function of $F()$ and $\eta$ is the linear predictor.
 
-It is true that in a non-linear model with interaction, the marginal effect of $x_1$ differs with different values of $x_2$.  However, even if we have a non-linear model without interaction, the marginal effect of $x_1$ is still different with different values of $x_2$. To see this, 
+It is true that in a non-linear model with interaction, the marginal effect of $x_1$ differs with different values of $x_2$.  However, even if we have a non-linear model without interaction, the marginal effect of $x_1$ is still different with different values of $x_2$. To see this, consider a nonlinear model with no interaction term at all:
 
 $$ F(E(y)) = \beta_1 x_1 + \beta_2 x_2 $$
 
@@ -74,5 +74,40 @@ That is, the log of odds is a linear function of $x_1$ and $x_2$ and interaction
 
 Or, it becomes multiplicative effect when we talk about odds ratios.  Stata's "margins" command is a great tool to calculate marginal effects in various situations, as shown in [Maarten Buis 2010](http://www.stata-journal.com/sjpdf.html?articlenum=st0194).
 
+## A worked example
 
+Let's illustrate the Ai-Norton point directly: in a logit model with an interaction term, the cross partial derivative $\frac{\partial^2 E(y)}{\partial x_1 \partial x_2}$ (what we actually care about) is not the same object as the estimated coefficient $\beta_{12}$ on $x_1 x_2$ in the linear index. We simulate data with a true interaction effect on the log-odds scale, fit a logit model, and use the `marginaleffects` package to compute the cross partial derivative (the interaction effect on the probability scale) at several values of $x_2$.
+
+```{r}
+#| label: ai-norton-example
+#| cache: true
+#| warning: false
+#| message: false
+library(dplyr)
+library(marginaleffects)
+
+set.seed(42)
+n <- 2000
+x1 <- rnorm(n)
+x2 <- rnorm(n)
+eta <- -0.3 + 0.8 * x1 + 0.5 * x2 + 0.6 * x1 * x2
+p <- plogis(eta)
+y <- rbinom(n, 1, p)
+dat <- data.frame(y, x1, x2)
+
+m <- glm(y ~ x1 * x2, data = dat, family = binomial)
+summary(m)$coefficients
+```
+
+The coefficient on `x1:x2` above is $\hat\beta_{12}$, the interaction effect on the log-odds (linear index) scale — constant by construction. The cross partial derivative on the *probability* scale, however, varies with $x_1$ and $x_2$ and must be computed numerically:
+
+```{r}
+#| label: ai-norton-slopes
+#| cache: true
+#| warning: false
+#| message: false
+slopes(m, variables = "x1", by = "x2", newdata = datagrid(x2 = c(-1, 0, 1)))
+```
+
+Note how the estimated marginal effect of $x_1$ on $P(y=1)$ changes across the three values of $x_2$, and need not track $\hat\beta_{12}$ in magnitude or significance — exactly the Ai and Norton (2003) point.
 

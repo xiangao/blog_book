@@ -43,15 +43,26 @@ In a nonlinear model, we need to be more careful:
 #| cache: true
 
 clear
-sysuse auto
-xtset rep78
-xtpoisson price mpg trunk, fe
+set seed 42
+set obs 250
+gen id = ceil(_n/5)
+bys id: gen t = _n
+gen mpg = rnormal(20,4)
+gen trunk = rnormal(15,3)
+gen alpha = rnormal(0,1)
+bys id: replace alpha = alpha[1]
+gen lambda = exp(0.5 + 0.05*mpg - 0.03*trunk + alpha)
+gen accidents = rpoisson(lambda)
+xtset id
+xtpoisson accidents mpg trunk, fe
 margins , dydx(mpg)
 margins , dydx(mpg) predict(nu0)
-poisson price mpg trunk i.rep78
+poisson accidents mpg trunk i.id
 margins , dydx(mpg)
 
 ```
+
+(We use a simulated count outcome `accidents` and a proper panel with 50 units of 5 periods each, rather than `auto`'s continuous `price` and its 5-category `rep78` — a true panel needs many units, and a fixed-effect count model needs an actual count dependent variable.)
 
 In this example, "xtpoisson, fe" and "poisson i.rep78" returns the
 same results.  Fixed effect Poisson model (sometimes called
@@ -109,9 +120,16 @@ that case, the marginal effects of $x_1$ or $x_2$ on $Y$ has nothing
 to do with $\alpha_i$.
 
 Therefore, we can use margins command to calculate effects on the
-logged odds, which will be "predict(xb)" option.  This is in fact, not
-different from the original coefficients; but allow you to make linear
-extrapolations.
+logged odds, which will be "predict(xb)" option.  Note that `xb` here
+is $X_{it}\beta$ only — the individual fixed effect $\alpha_i$ is not
+estimated in conditional logit and so is not part of the prediction.
+The logged-odds *effect* of a covariate ($\partial(X\beta)/\partial x$)
+therefore matches the original coefficient exactly and does not depend
+on $\alpha_i$, but `xb` itself is a log-odds relative to each
+individual's (unidentified) baseline, not the individual's absolute
+log-odds. This lets you make linear extrapolations of relative
+log-odds across values of the covariates, but not of absolute
+predicted probabilities, since those would require $\alpha_i$.
 
 ```{r}
 #| label: stata-chunk3

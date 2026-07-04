@@ -1,12 +1,12 @@
 ---
-title: "g-estimation with time varying covariates"
+title: "G-computation (g-formula) with time varying covariates"
 date: "2024-04-20"
 ---
 
 
 ## The problem
 
-g-estimation is a method to estimate the causal effect of a time varying treatment or covariates. The method is developed by Robins (1986) and Robins and Rotnitzky (1992).  The method is also known as the g-methods.
+The g-formula (g-computation algorithm) is a method to estimate the causal effect of a time varying treatment or covariates, developed by Robins (1986). Note this is distinct from **g-estimation** of structural nested models (Robins and Rotnitzky, 1992), a different g-methods estimator that uses instrumental-variable-like estimating equations and does not require modeling the joint distribution of all time-varying confounders. This chapter — and the `gfoRmula`/`gmethods` packages used below — implements the g-formula, not g-estimation.
 
 We can imagine such a scenario.  Suppose $A0$ and $A1$ are time 0 and time 1 treatment, can be binary or continuous.  $L1$ is a time 1 covariate.  It can be some intermediate outcome.  Say HbA1c.  HbA1c can be a result of treatment $A0$.  Then it can be a cause for the next period treatment $A1$.   $Y$ is the outcome.  $U$ is the unmeasured confounder.  The causal diagram is shown below.  How do we estimate the effect of treatment?
 
@@ -148,8 +148,14 @@ dat <- uncount(hw3_freq, N) %>%
 
 
 # create lagged variables
+# group_by(id) makes this robust to row order -- lag() would otherwise
+# silently lag across a different person's rows if dat were ever re-sorted
+# (e.g. by time first). Currently harmless here since dat is in id-major
+# order with exactly one row per id per time, but safer to be explicit.
 t1 <- dat %>%
+  group_by(id) %>%
   mutate(lag_A = lag(A)) %>%
+  ungroup() %>%
   filter(time == 1)
 ```
 

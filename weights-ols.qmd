@@ -71,7 +71,7 @@ Therefore, $\hat \tau_{reg}$ is another weighted average of the outcome, which i
 
 ##  Strata level weights
 
-Angrist 1998 has the strata-wise weights for OLS:
+Angrist ([1998](https://doi.org/10.2307/2999578), *Econometrica*) has the strata-wise weights for OLS:
 
 $$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} $$
 
@@ -92,7 +92,7 @@ Hazlett and Shinkre suggested relaxing the assumption to separate linearity.  Ba
 
 If that is true, then the following estimators are unbiased:  interaction, imputation, g-computation, and stratification.
 
-Interaction estimator is the Lin (2013) estimator, basically running a regression of $Y$ on $D$, $\tilde X$, and $D*\tilde X$.  $\tilde X$ is the demeaned $X$.  The coefficient of $D$ is the ATE.
+Interaction estimator is the Lin ([2013](https://doi.org/10.1214/12-AOAS583), *Annals of Applied Statistics*) estimator, basically running a regression of $Y$ on $D$, $\tilde X$, and $D*\tilde X$.  $\tilde X$ is the demeaned $X$.  The coefficient of $D$ is the ATE.
 
 Imputation is to run separate regressions for treatment and control group, then use the results to predict outcomes for the other group.  The ATE is the difference in the predicted outcomes.  It turns out the imputation estimator is the same as the interaction estimator.
 
@@ -101,6 +101,53 @@ Stratification and g-computation work when $X$ is discrete.  Basically get the d
 The above mentioned estimators all depend on the linearity assumption.  If that is not the case, then we can use matching, such as "mean balancing" matching.
 
 Nonparametric estimation is another option if the linearity assumption fails.
+
+## A worked example
+
+Let's make the regression weights $\omega_i$ concrete and compare them to IPW weights $1/\hat d(X_i)$ (treated) and $1/(1-\hat d(X_i))$ (control).
+
+```{r}
+#| label: fwl-weights-example
+#| cache: true
+#| warning: false
+#| message: false
+library(dplyr)
+
+set.seed(1)
+n <- 500
+X <- rnorm(n)
+d_prob <- plogis(0.5 * X)
+D <- rbinom(n, 1, d_prob)
+Y <- 1 + 2 * D + 1.5 * X + rnorm(n)
+dat <- data.frame(Y, D, X)
+
+# Regression-implied weights via the FWL residualization of D on X.
+d_hat <- fitted(lm(D ~ X, data = dat))
+resid_D <- dat$D - d_hat
+omega_reg <- resid_D / sum(resid_D^2)
+
+# IPW weights (Horvitz-Thompson), using the same linear-probability d_hat
+# purely for comparability with the regression weights above.
+ipw <- ifelse(dat$D == 1, 1 / d_hat, 1 / (1 - d_hat))
+ipw <- ipw / sum(ipw[dat$D == 1]) * sum(dat$D == 1) # normalize within arm for comparability
+
+tau_reg <- sum(omega_reg * dat$Y)
+tau_lm  <- coef(lm(Y ~ D + X, data = dat))["D"]
+
+data.frame(tau_reg_from_weights = tau_reg, tau_from_lm_coef = tau_lm)
+```
+
+The two are numerically identical (up to floating point), confirming $\hat\tau_{reg} = \sum \omega_i Y_i$. Plotting `omega_reg` against `ipw` for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.
+
+```{r}
+#| label: fwl-weights-plot
+#| cache: true
+#| warning: false
+#| message: false
+plot(ipw[dat$D == 1], omega_reg[dat$D == 1],
+     xlab = "IPW weight", ylab = "Regression (FWL) weight",
+     main = "Treated units: regression vs. IPW weights")
+```
 
 
 

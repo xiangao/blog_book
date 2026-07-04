@@ -119,6 +119,13 @@ data.train$firm <- factor(data.train$firm, levels = all_firms)
 data.test$firm <- factor(data.test$firm, levels = all_firms)
 
 # a is a data set of firm dummies
+# Caution: this one-hot-encodes all ~400 firms into individual dummy columns
+# of X. Random forests split poorly on such a high-cardinality sparse block
+# of binary columns (each dummy is only informative for a tiny fraction of
+# observations). A fixed-effects forest (demean y, W, and the continuous
+# covariates within firm first, then run causal_forest on the demeaned
+# variables) or a method that handles unit effects natively would typically
+# perform better than including firm as raw dummies.
 a <- as.data.frame(model.matrix(y~firm, data.train))
 X <- as.matrix(bind_cols(data.train[,c(5,7:16)],a))
 Y <- data.train$y
@@ -275,7 +282,7 @@ X.test <- as.matrix(bind_cols(data.test[,c(5,7:16)],a))
 Y.test <- data.test$y
 W.test <- data.test$W
 
-tau.forest3 = causal_forest(X, Y, W)
+tau.forest3 = causal_forest(X, Y, W, clusters = as.integer(data.train$firm))
 
 average_treatment_effect(tau.forest3, target.sample = "all")
 average_treatment_effect(tau.forest3, target.sample = "treated")
@@ -418,7 +425,7 @@ X.test <- as.matrix(bind_cols(data.test[,c(5,7:16)],a))
 Y.test <- data.test$y
 W.test <- data.test$W
 
-tau.forest4 = causal_forest(X, Y, W)
+tau.forest4 = causal_forest(X, Y, W, clusters = as.integer(data.train$firm))
 
 average_treatment_effect(tau.forest4, target.sample = "all")
 average_treatment_effect(tau.forest4, target.sample = "treated")

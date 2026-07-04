@@ -393,7 +393,7 @@ try {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./g-estimation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">g-estimation with time varying covariates</span></span></a>
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">G-computation (g-formula) with time varying covariates</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -560,7 +560,7 @@ try {
   
 
 
-</header><p>This post is a demo for doing the same multi-level models with R and stata. R’s multilevel models are mostly done with lme4 and nlme. Stata’s multilevel models are mostly done with mixed and menl. The two packages are not exactly the same. For example, mixed does not allow complicated structure for the residual. That’s why we need menl. Likewise, in R lme4’s “lmer” does not allow this specification. We have to use nlme. But it’s good to know how to do the same thing in both packages.</p>
+</header><p>This post is a demo for doing the same multi-level models with R and stata. R’s multilevel models are mostly done with lme4 and nlme. Stata’s multilevel models are mostly done with mixed and menl. The two packages are not exactly the same. <code>mixed</code> does in fact support several residual covariance structures via its <code><a href="https://rdrr.io/r/stats/residuals.html">residuals()</a></code> option (e.g.&nbsp;<code>residuals(exponential, t(year))</code>, as well as <code>ar</code>, <code>ma</code>, <code>toeplitz</code>, etc.) — so it’s not that <code>mixed</code> cannot handle a structured residual at all, but <code>menl</code>’s nonlinear-mixed-model framework gives more flexibility to combine that with custom nonlinear mean/random-effect specifications (like the CEM model below), which is why we reach for it here. Likewise, in R lme4’s “lmer” does not allow this specification. We have to use nlme. But it’s good to know how to do the same thing in both packages.</p>
 <p>For example, we want to do a consensus emergence model (CEM) as described in Lang et al.&nbsp;2012(https://core.ac.uk/download/pdf/158346339.pdf). The CEM model is basically a growth model with the residual being a exponential function of the time variable. We want to do the same thing in both R and stata.</p>
 <p>We start with simpler models.</p>
 <section id="stata-and-r-syntax-comparison-for-the-same-three-level-model" class="level2" data-number="36.1"><h2 data-number="36.1" class="anchored" data-anchor-id="stata-and-r-syntax-comparison-for-the-same-three-level-model">
@@ -681,11 +681,17 @@ region&gt;state: Identity       |
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/lme4/lme4/">lme4</a></span><span class="op">)</span></span>
 <span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://haven.tidyverse.org/reference/read_dta.html">read_dta</a></span><span class="op">(</span><span class="st">'https://www.stata-press.com/data/r18/productivity.dta'</span><span class="op">)</span></span>
 <span><span class="co"># lme4 for three level model</span></span>
-<span><span class="va">lmer1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/lme4/man/lmer.html">lmer</a></span><span class="op">(</span><span class="va">gsp</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">region</span><span class="op">)</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">state</span><span class="op">)</span>, data<span class="op">=</span><span class="va">data</span><span class="op">)</span></span>
+<span><span class="co"># (1|region) + (1|state) specifies CROSSED random effects; it numerically</span></span>
+<span><span class="co"># coincides with the intended nested structure here only because each</span></span>
+<span><span class="co"># state's label happens to be unique across the whole dataset (never reused</span></span>
+<span><span class="co"># across regions) -- verified: identical logLik to the explicitly nested</span></span>
+<span><span class="co"># (1|region/state) below. The nested form is the conceptually correct one</span></span>
+<span><span class="co"># and is robust even if state labels were ever reused across regions.</span></span>
+<span><span class="va">lmer1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/lme4/man/lmer.html">lmer</a></span><span class="op">(</span><span class="va">gsp</span> <span class="op">~</span> <span class="fl">1</span> <span class="op">+</span> <span class="op">(</span><span class="fl">1</span><span class="op">|</span><span class="va">region</span><span class="op">/</span><span class="va">state</span><span class="op">)</span>, data<span class="op">=</span><span class="va">data</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">lmer1</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Linear mixed model fit by REML ['lmerMod']
-Formula: gsp ~ 1 + (1 | region) + (1 | state)
+Formula: gsp ~ 1 + (1 | region/state)
    Data: data
 
 REML criterion at convergence: -400.9
@@ -695,11 +701,11 @@ Scaled residuals:
 -2.8328 -0.6757  0.0474  0.6382  3.3928 
 
 Random effects:
- Groups   Name        Variance Std.Dev.
- state    (Intercept) 0.60775  0.7796  
- region   (Intercept) 0.50977  0.7140  
- Residual             0.02466  0.1570  
-Number of obs: 816, groups:  state, 48; region, 9
+ Groups       Name        Variance Std.Dev.
+ state:region (Intercept) 0.60775  0.7796  
+ region       (Intercept) 0.50977  0.7140  
+ Residual                 0.02466  0.1570  
+Number of obs: 816, groups:  state:region, 48; region, 9
 
 Fixed effects:
             Estimate Std. Error t value
@@ -751,9 +757,14 @@ Number of Groups:
 <div class="cell" data-collectcode="true">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>* same growth <span class="kw">model</span> with mixed and menl</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> productivity</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>mixed gsp <span class="fu">year</span> || region: <span class="fu">year</span>|| state:</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>menl gsp =  {b2:} + {U1[region]}*<span class="fu">year</span>, <span class="kw">define</span>(b2: <span class="fu">year</span> U0[region]  U11[region&gt;state])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>* Stata's <span class="st">"mixed ... || region: year"</span> defaults to an INDEPENDENT <span class="kw">covariance</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>* structure <span class="kw">for</span> region's random intercept and slope (<span class="kw">var</span>(<span class="fu">year</span>), <span class="kw">var</span>(<span class="dt">_cons</span>),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>* cov=0 <span class="kw">by</span> construction) -- verified via <span class="ot">`estat recovariance`. R'</span>s lmer</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>* <span class="st">"(year|region)"</span> and lme's <span class="st">"region=~year"</span> both <span class="kw">default</span> to an UNSTRUCTURED</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>* (correlated) <span class="kw">covariance</span>. Add <span class="kw">covariance</span>(<span class="kw">unstructured</span>) to <span class="fu">match</span> R.</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> productivity</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>mixed gsp <span class="fu">year</span> || region: <span class="fu">year</span>, <span class="kw">covariance</span>(<span class="kw">unstructured</span>) || state:</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>menl gsp =  {b2:} + {U1[region]}*<span class="fu">year</span>, <span class="kw">define</span>(b2: <span class="fu">year</span> U0[region]  U11[region&gt;state])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>(Public capital productivity)
 
@@ -761,15 +772,20 @@ Number of Groups:
 Performing EM optimization ...
 
 Performing gradient-based optimization: 
-Iteration 0:  Log likelihood =  784.59336  
-Iteration 1:  Log likelihood =  784.64562  
-Iteration 2:  Log likelihood =  784.65341  
-Iteration 3:  Log likelihood =  784.65343  
-Iteration 4:  Log likelihood =  784.65344  
+Iteration 0:  Log likelihood =  782.11459  (not concave)
+Iteration 1:  Log likelihood =  803.58071  (not concave)
+Iteration 2:  Log likelihood =   813.1017  (not concave)
+Iteration 3:  Log likelihood =  816.56892  
+Iteration 4:  Log likelihood =  885.27225  (not concave)
+Iteration 5:  Log likelihood =  888.29208  
+Iteration 6:  Log likelihood =  888.79472  
+Iteration 7:  Log likelihood =  888.82395  
+Iteration 8:  Log likelihood =  888.82404  
+Iteration 9:  Log likelihood =  888.82404  
 
 Computing standard errors ...
 
-Mixed-effects ML regression                            Number of obs =     816
+Mixed-effects ML regression                             Number of obs =    816
 
         Grouping information
         -------------------------------------------------------------
@@ -780,29 +796,30 @@ Mixed-effects ML regression                            Number of obs =     816
                   state |         48         17       17.0         17
         -------------------------------------------------------------
 
-                                                       Wald chi2(1)  = 2744.51
-Log likelihood =  784.65344                            Prob &gt; chi2   =  0.0000
+                                                        Wald chi2(1)  = 107.46
+Log likelihood =  888.82404                             Prob &gt; chi2   = 0.0000
 
 ------------------------------------------------------------------------------
          gsp | Coefficient  Std. err.      z    P&gt;|z|     [95% conf. interval]
 -------------+----------------------------------------------------------------
-        year |   .0274903   .0005247    52.39   0.000     .0264618    .0285188
-       _cons |  -43.71613   1.067739   -40.94   0.000    -45.80886    -41.6234
+        year |   .0263275   .0025397    10.37   0.000     .0213497    .0313053
+       _cons |  -41.43216    5.20712    -7.96   0.000    -51.63793   -31.22639
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
   Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
 -----------------------------+------------------------------------------------
-region: Independent          |
-                   var(year) |   5.44e-16   5.06e-13             0           .
-                  var(_cons) |   .4380961   .2700722      .1308672    1.466587
+region: Unstructured         |
+                   var(year) |    .000056   .0000274      .0000215     .000146
+                  var(_cons) |   235.7658     115.06      90.58819    613.6066
+             cov(year,_cons) |  -.1148543    .056104     -.2248162   -.0048923
 -----------------------------+------------------------------------------------
 state: Identity              |
-                  var(_cons) |   .6091766   .1382625      .3904355    .9504672
+                  var(_cons) |   .6121886    .139357        .39185    .9564242
 -----------------------------+------------------------------------------------
-               var(Residual) |   .0053926   .0002752      .0048793    .0059598
+               var(Residual) |   .0039862   .0002046      .0036046    .0044081
 ------------------------------------------------------------------------------
-LR test vs. linear model: chi2(3) = 3903.81               Prob &gt; chi2 = 0.0000
+LR test vs. linear model: chi2(4) = 4112.15               Prob &gt; chi2 = 0.0000
 
 Note: LR test is conservative and provided only for reference.
 
@@ -992,30 +1009,55 @@ Residual variance:           |
 <span class="header-section-number">36.3.2</span> R</h3>
 <p>As in stata, it has some convergence problem. So the results can differ somewhat between R and stata.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">lme_growth1</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/lme.html">lme</a></span><span class="op">(</span><span class="va">gsp</span> <span class="op">~</span> <span class="va">year</span>, random <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>region<span class="op">=</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/pdSymm.html">pdSymm</a></span><span class="op">(</span><span class="op">~</span><span class="va">year</span><span class="op">)</span>, state<span class="op">=</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/pdIdent.html">pdIdent</a></span><span class="op">(</span><span class="op">~</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span>,data<span class="op">=</span><span class="va">data</span>, method<span class="op">=</span><span class="st">"ML"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-error">
-<pre><code>Error in `lme()`:
-! could not find function "lme"</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">lme_growth1</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/lme.html">lme</a></span><span class="op">(</span><span class="va">gsp</span> <span class="op">~</span> <span class="va">year</span>, random <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>region<span class="op">=</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/pdSymm.html">pdSymm</a></span><span class="op">(</span><span class="op">~</span><span class="va">year</span><span class="op">)</span>, state<span class="op">=</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/pdIdent.html">pdIdent</a></span><span class="op">(</span><span class="op">~</span><span class="fl">1</span><span class="op">)</span><span class="op">)</span>,data<span class="op">=</span><span class="va">data</span>, method<span class="op">=</span><span class="st">"ML"</span><span class="op">)</span></span>
+<span><span class="va">lme_growth2</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html">update</a></span><span class="op">(</span><span class="va">lme_growth1</span>,weights<span class="op">=</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/varExp.html">varExp</a></span><span class="op">(</span> form <span class="op">=</span> <span class="op">~</span> <span class="va">year</span><span class="op">)</span>, method<span class="op">=</span><span class="st">"ML"</span>, control <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/nlme/man/lmeControl.html">lmeControl</a></span><span class="op">(</span>opt <span class="op">=</span> <span class="st">"optim"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">lme_growth2</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed-effects model fit by maximum likelihood
+  Data: data 
+        AIC       BIC   logLik
+  -1548.244 -1510.608 782.1218
+
+Random effects:
+ Formula: ~year | region
+ Structure: General positive-definite
+            StdDev       Corr  
+(Intercept) 0.2937615870 (Intr)
+year        0.0001436049 0.995 
+
+ Formula: ~1 | state %in% region
+        (Intercept)  Residual
+StdDev:   0.8046618 0.0736431
+
+Variance function:
+ Structure: Exponential of variance covariate
+ Formula: ~year 
+ Parameter estimates:
+        expon 
+-2.165027e-16 
+Fixed effects:  gsp ~ year 
+                Value Std.Error  DF   t-value p-value
+(Intercept) -43.80206 1.0533833 767 -41.58226       0
+year          0.02752 0.0005291 767  52.01290       0
+ Correlation: 
+     (Intr)
+year -0.976
+
+Standardized Within-Group Residuals:
+        Min          Q1         Med          Q3         Max 
+-3.24679735 -0.58919213  0.03104216  0.61843888  4.27977261 
+
+Number of Observations: 816
+Number of Groups: 
+           region state %in% region 
+                9                48 </code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">lme_growth2</span><span class="op">&lt;-</span><span class="fu"><a href="https://rdrr.io/r/stats/update.html">update</a></span><span class="op">(</span><span class="va">lme_growth1</span>,weights<span class="op">=</span><span class="fu"><a href="https://rdrr.io/pkg/nlme/man/varExp.html">varExp</a></span><span class="op">(</span> form <span class="op">=</span> <span class="op">~</span> <span class="va">year</span><span class="op">)</span>, method<span class="op">=</span><span class="st">"ML"</span>, control <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/nlme/man/lmeControl.html">lmeControl</a></span><span class="op">(</span>opt <span class="op">=</span> <span class="st">"optim"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-error">
-<pre><code>Error in `lme.formula()`:
-! could not find function "lme.formula"</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">lme_growth2</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-error">
-<pre><code>Error:
-! object 'lme_growth2' not found</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">delta1</span><span class="op">&lt;-</span><span class="va">lme_growth2</span><span class="op">$</span><span class="va">modelStruct</span><span class="op">$</span><span class="va">varStruct</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-error">
-<pre><code>Error:
-! object 'lme_growth2' not found</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">delta1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-error">
-<pre><code>Error:
-! object 'delta1' not found</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">delta1</span><span class="op">&lt;-</span><span class="va">lme_growth2</span><span class="op">$</span><span class="va">modelStruct</span><span class="op">$</span><span class="va">varStruct</span></span>
+<span><span class="va">delta1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Variance function structure of class varExp representing
+        expon 
+-2.165027e-16 </code></pre>
 </div>
 </div>
 
@@ -1483,164 +1525,175 @@ Residual variance:           |
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Doing the same multi-level model with R and stata"</span></span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2023-10-26"</span></span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>This post is a demo for doing the same multi-level models with R and stata.  R's multilevel models are mostly done with lme4 and nlme.  Stata's multilevel models are mostly done with mixed and menl.  The two packages are not exactly the same.  For example, mixed does not allow complicated structure for the residual.  That's why we need menl.  Likewise, in R lme4's "lmer" does not allow this specification.  We have to use nlme.  But it's good to know how to do the same thing in both packages.</span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>For example, we want to do a consensus emergence model (CEM) as described in Lang et al. 2012(https://core.ac.uk/download/pdf/158346339.pdf).  The CEM model is basically a growth model with the residual being a exponential function of the time variable.  We want to do the same thing in both R and stata.</span>
-<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>We start with simpler models.</span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
-<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
-<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">echo =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a><span class="fu">## Stata and R syntax comparison for the same three level model</span></span>
-<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>We run a three level model specified in stata with mixed and menl.   In R with nlme and lme4.  This is a random intercept model.  Only intercept is varying for each unit at each level.  In this data set supposedly state is nested within region.  There are situations that levels are not nested, then we need to specify cross effect models.  We do not discuss that here.  One point to watch: <span class="in">`nlme`</span>'s <span class="in">`lme`</span> function expects the grouping factors in the <span class="in">`random`</span> specification ordered from the *highest* level down. Here <span class="in">`state`</span> is nested within <span class="in">`region`</span>, so <span class="in">`region`</span> must be listed before <span class="in">`state`</span>; reversing the order leads <span class="in">`lme`</span> to treat regions as nested within states, which is not the intended structure.</span>
-<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>There are different ways to specify this model in nlme.  I show two ways here (including lme2 which is commented out). </span>
-<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a><span class="fu">### Stata</span></span>
-<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
-<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
-<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>stataexe <span class="ot">&lt;-</span> <span class="fu">find_stata</span>()</span>
-<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a><span class="co">#stataexe &lt;- "/usr/local/bin/stata"</span></span>
-<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">engine.path=</span><span class="fu">list</span>(<span class="at">stata=</span>stataexe))</span>
-<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata1</span></span>
-<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a><span class="in">* let's see how to use menl</span></span>
-<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a><span class="in">webuse productivity</span></span>
-<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a><span class="in">* to replicate mixed with menl</span></span>
-<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a><span class="in">mixed gsp || region: || state:</span></span>
-<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a><span class="in">menl gsp = {b1:},  define(b1: U1[region] UU1[region&gt;state])</span></span>
-<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb25-57"><a href="#cb25-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-58"><a href="#cb25-58" aria-hidden="true" tabindex="-1"></a><span class="fu">### R</span></span>
-<span id="cb25-59"><a href="#cb25-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-60"><a href="#cb25-60" aria-hidden="true" tabindex="-1"></a>These two R packages return same results.  Note that lmer reports variance, while lme reports standard deviation.</span>
-<span id="cb25-61"><a href="#cb25-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-64"><a href="#cb25-64" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb25-65"><a href="#cb25-65" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r1</span></span>
-<span id="cb25-66"><a href="#cb25-66" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb25-67"><a href="#cb25-67" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb25-68"><a href="#cb25-68" aria-hidden="true" tabindex="-1"></a><span class="co">#| collectcode: true</span></span>
-<span id="cb25-69"><a href="#cb25-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-70"><a href="#cb25-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-71"><a href="#cb25-71" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb25-72"><a href="#cb25-72" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(haven)</span>
-<span id="cb25-73"><a href="#cb25-73" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb25-74"><a href="#cb25-74" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
-<span id="cb25-75"><a href="#cb25-75" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(nlme)</span>
-<span id="cb25-76"><a href="#cb25-76" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
-<span id="cb25-77"><a href="#cb25-77" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_dta</span>(<span class="st">'https://www.stata-press.com/data/r18/productivity.dta'</span>)</span>
-<span id="cb25-78"><a href="#cb25-78" aria-hidden="true" tabindex="-1"></a><span class="co"># lme4 for three level model</span></span>
-<span id="cb25-79"><a href="#cb25-79" aria-hidden="true" tabindex="-1"></a>lmer1 <span class="ot">&lt;-</span> <span class="fu">lmer</span>(gsp <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region) <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>state), <span class="at">data=</span>data)</span>
-<span id="cb25-80"><a href="#cb25-80" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lmer1)</span>
-<span id="cb25-81"><a href="#cb25-81" aria-hidden="true" tabindex="-1"></a>lme1 <span class="ot">&lt;-</span> <span class="fu">lme</span>(gsp <span class="sc">~</span> <span class="dv">1</span>, <span class="at">random=</span> <span class="fu">list</span>( <span class="at">region=</span><span class="sc">~</span><span class="dv">1</span>, <span class="at">state=</span><span class="sc">~</span><span class="dv">1</span>), <span class="at">data=</span>data)</span>
-<span id="cb25-82"><a href="#cb25-82" aria-hidden="true" tabindex="-1"></a><span class="co">#or</span></span>
-<span id="cb25-83"><a href="#cb25-83" aria-hidden="true" tabindex="-1"></a><span class="co">#lme1 &lt;- lme(gsp ~ 1, random= list(region = pdSymm(~1), state=pdSymm(~1)), data=data)</span></span>
-<span id="cb25-84"><a href="#cb25-84" aria-hidden="true" tabindex="-1"></a><span class="co">#but</span></span>
-<span id="cb25-85"><a href="#cb25-85" aria-hidden="true" tabindex="-1"></a><span class="co">#lme1 &lt;- lme(gsp ~ 1, random= list( state=~1, region=~1), data=data)</span></span>
-<span id="cb25-86"><a href="#cb25-86" aria-hidden="true" tabindex="-1"></a><span class="co">#would be a different result!</span></span>
-<span id="cb25-87"><a href="#cb25-87" aria-hidden="true" tabindex="-1"></a><span class="co">#The other way to specify:</span></span>
-<span id="cb25-88"><a href="#cb25-88" aria-hidden="true" tabindex="-1"></a><span class="co">#lme2 &lt;- lme(gsp ~ 1, random= ~ 1 | region/state, data=data)</span></span>
-<span id="cb25-89"><a href="#cb25-89" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lme1)</span>
-<span id="cb25-90"><a href="#cb25-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-91"><a href="#cb25-91" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb25-92"><a href="#cb25-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-93"><a href="#cb25-93" aria-hidden="true" tabindex="-1"></a><span class="fu">## A growth model in R and stata</span></span>
-<span id="cb25-94"><a href="#cb25-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-95"><a href="#cb25-95" aria-hidden="true" tabindex="-1"></a>We implement a growth model in R and stata.  The results are somewhat different.  The results may not be that reliable given that the year slope random component is tiny.  </span>
-<span id="cb25-96"><a href="#cb25-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-97"><a href="#cb25-97" aria-hidden="true" tabindex="-1"></a><span class="fu">### Stata</span></span>
-<span id="cb25-100"><a href="#cb25-100" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb25-101"><a href="#cb25-101" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
-<span id="cb25-102"><a href="#cb25-102" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb25-103"><a href="#cb25-103" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb25-104"><a href="#cb25-104" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb25-105"><a href="#cb25-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-106"><a href="#cb25-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-107"><a href="#cb25-107" aria-hidden="true" tabindex="-1"></a><span class="in">* same growth model with mixed and menl</span></span>
-<span id="cb25-108"><a href="#cb25-108" aria-hidden="true" tabindex="-1"></a><span class="in">webuse productivity</span></span>
-<span id="cb25-109"><a href="#cb25-109" aria-hidden="true" tabindex="-1"></a><span class="in">mixed gsp year || region: year|| state:</span></span>
-<span id="cb25-110"><a href="#cb25-110" aria-hidden="true" tabindex="-1"></a><span class="in">menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region&gt;state])</span></span>
-<span id="cb25-111"><a href="#cb25-111" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-112"><a href="#cb25-112" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb25-113"><a href="#cb25-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-114"><a href="#cb25-114" aria-hidden="true" tabindex="-1"></a><span class="fu">### R</span></span>
-<span id="cb25-115"><a href="#cb25-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-118"><a href="#cb25-118" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb25-119"><a href="#cb25-119" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r2</span></span>
-<span id="cb25-120"><a href="#cb25-120" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb25-121"><a href="#cb25-121" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb25-122"><a href="#cb25-122" aria-hidden="true" tabindex="-1"></a><span class="co">#| collectcode: true</span></span>
-<span id="cb25-123"><a href="#cb25-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-124"><a href="#cb25-124" aria-hidden="true" tabindex="-1"></a><span class="co"># lme4 for three level model, growth model</span></span>
-<span id="cb25-125"><a href="#cb25-125" aria-hidden="true" tabindex="-1"></a>lmer_growth1 <span class="ot">&lt;-</span> <span class="fu">lmer</span>(gsp <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> year <span class="sc">+</span> (year<span class="sc">|</span>region) <span class="sc">+</span>  (<span class="dv">1</span><span class="sc">|</span>state), <span class="at">data=</span>data,  <span class="at">REML=</span><span class="cn">FALSE</span>)</span>
-<span id="cb25-126"><a href="#cb25-126" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lmer_growth1)</span>
-<span id="cb25-127"><a href="#cb25-127" aria-hidden="true" tabindex="-1"></a><span class="co"># nlme for three level model, growth model</span></span>
-<span id="cb25-128"><a href="#cb25-128" aria-hidden="true" tabindex="-1"></a><span class="co">#lme_growth1&lt;-lme(gsp ~ year, random = list(region=pdSymm(~year), state=pdIdent(~1)),data=data, method="ML")</span></span>
-<span id="cb25-129"><a href="#cb25-129" aria-hidden="true" tabindex="-1"></a>lme_growth1<span class="ot">&lt;-</span><span class="fu">lme</span>(gsp <span class="sc">~</span> year, <span class="at">random =</span> <span class="fu">list</span>(<span class="at">region=</span><span class="sc">~</span>year, <span class="at">state=</span><span class="sc">~</span><span class="dv">1</span>),<span class="at">data=</span>data, <span class="at">method=</span><span class="st">"ML"</span>)</span>
-<span id="cb25-130"><a href="#cb25-130" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lme_growth1)</span>
-<span id="cb25-131"><a href="#cb25-131" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb25-132"><a href="#cb25-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-133"><a href="#cb25-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-134"><a href="#cb25-134" aria-hidden="true" tabindex="-1"></a><span class="fu">## cem in R and stata</span></span>
-<span id="cb25-135"><a href="#cb25-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-136"><a href="#cb25-136" aria-hidden="true" tabindex="-1"></a>"CEM" is a growth model with the residual being a exponential function of the time variable.  </span>
-<span id="cb25-137"><a href="#cb25-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-138"><a href="#cb25-138" aria-hidden="true" tabindex="-1"></a><span class="fu">### stata</span></span>
-<span id="cb25-139"><a href="#cb25-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-140"><a href="#cb25-140" aria-hidden="true" tabindex="-1"></a>This mode has some convergence problem.  I still use it for demonstration purpose.</span>
-<span id="cb25-141"><a href="#cb25-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-144"><a href="#cb25-144" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb25-145"><a href="#cb25-145" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
-<span id="cb25-146"><a href="#cb25-146" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb25-147"><a href="#cb25-147" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb25-148"><a href="#cb25-148" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb25-149"><a href="#cb25-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-150"><a href="#cb25-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-151"><a href="#cb25-151" aria-hidden="true" tabindex="-1"></a><span class="in">webuse productivity, clear</span></span>
-<span id="cb25-152"><a href="#cb25-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-153"><a href="#cb25-153" aria-hidden="true" tabindex="-1"></a><span class="in">* this replicates the results from R</span></span>
-<span id="cb25-154"><a href="#cb25-154" aria-hidden="true" tabindex="-1"></a><span class="in">menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region&gt;state]) resvariance(exponential year) nolog</span></span>
-<span id="cb25-155"><a href="#cb25-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-156"><a href="#cb25-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-157"><a href="#cb25-157" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb25-158"><a href="#cb25-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-159"><a href="#cb25-159" aria-hidden="true" tabindex="-1"></a><span class="fu">### R</span></span>
-<span id="cb25-160"><a href="#cb25-160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-161"><a href="#cb25-161" aria-hidden="true" tabindex="-1"></a>As in stata, it has some convergence problem.  So the results can differ somewhat between R and stata.</span>
-<span id="cb25-162"><a href="#cb25-162" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-165"><a href="#cb25-165" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb25-166"><a href="#cb25-166" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: cem1</span></span>
-<span id="cb25-167"><a href="#cb25-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-168"><a href="#cb25-168" aria-hidden="true" tabindex="-1"></a>lme_growth1<span class="ot">&lt;-</span><span class="fu">lme</span>(gsp <span class="sc">~</span> year, <span class="at">random =</span> <span class="fu">list</span>(<span class="at">region=</span><span class="fu">pdSymm</span>(<span class="sc">~</span>year), <span class="at">state=</span><span class="fu">pdIdent</span>(<span class="sc">~</span><span class="dv">1</span>)),<span class="at">data=</span>data, <span class="at">method=</span><span class="st">"ML"</span>)</span>
-<span id="cb25-169"><a href="#cb25-169" aria-hidden="true" tabindex="-1"></a>lme_growth2<span class="ot">&lt;-</span><span class="fu">update</span>(lme_growth1,<span class="at">weights=</span><span class="fu">varExp</span>( <span class="at">form =</span> <span class="sc">~</span> year), <span class="at">method=</span><span class="st">"ML"</span>, <span class="at">control =</span> <span class="fu">lmeControl</span>(<span class="at">opt =</span> <span class="st">"optim"</span>))</span>
-<span id="cb25-170"><a href="#cb25-170" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lme_growth2)</span>
-<span id="cb25-171"><a href="#cb25-171" aria-hidden="true" tabindex="-1"></a>delta1<span class="ot">&lt;-</span>lme_growth2<span class="sc">$</span>modelStruct<span class="sc">$</span>varStruct</span>
-<span id="cb25-172"><a href="#cb25-172" aria-hidden="true" tabindex="-1"></a>delta1</span>
-<span id="cb25-173"><a href="#cb25-173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-174"><a href="#cb25-174" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Doing the same multi-level model with R and stata"</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2023-10-26"</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>This post is a demo for doing the same multi-level models with R and stata.  R's multilevel models are mostly done with lme4 and nlme.  Stata's multilevel models are mostly done with mixed and menl.  The two packages are not exactly the same.  <span class="in">`mixed`</span> does in fact support several residual covariance structures via its <span class="in">`residuals()`</span> option (e.g. <span class="in">`residuals(exponential, t(year))`</span>, as well as <span class="in">`ar`</span>, <span class="in">`ma`</span>, <span class="in">`toeplitz`</span>, etc.) — so it's not that <span class="in">`mixed`</span> cannot handle a structured residual at all, but <span class="in">`menl`</span>'s nonlinear-mixed-model framework gives more flexibility to combine that with custom nonlinear mean/random-effect specifications (like the CEM model below), which is why we reach for it here.  Likewise, in R lme4's "lmer" does not allow this specification.  We have to use nlme.  But it's good to know how to do the same thing in both packages.</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>For example, we want to do a consensus emergence model (CEM) as described in Lang et al. 2012(https://core.ac.uk/download/pdf/158346339.pdf).  The CEM model is basically a growth model with the residual being a exponential function of the time variable.  We want to do the same thing in both R and stata.</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>We start with simpler models.</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">echo =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a><span class="fu">## Stata and R syntax comparison for the same three level model</span></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>We run a three level model specified in stata with mixed and menl.   In R with nlme and lme4.  This is a random intercept model.  Only intercept is varying for each unit at each level.  In this data set supposedly state is nested within region.  There are situations that levels are not nested, then we need to specify cross effect models.  We do not discuss that here.  One point to watch: <span class="in">`nlme`</span>'s <span class="in">`lme`</span> function expects the grouping factors in the <span class="in">`random`</span> specification ordered from the *highest* level down. Here <span class="in">`state`</span> is nested within <span class="in">`region`</span>, so <span class="in">`region`</span> must be listed before <span class="in">`state`</span>; reversing the order leads <span class="in">`lme`</span> to treat regions as nested within states, which is not the intended structure.</span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>There are different ways to specify this model in nlme.  I show two ways here (including lme2 which is commented out). </span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a><span class="fu">### Stata</span></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>stataexe <span class="ot">&lt;-</span> <span class="fu">find_stata</span>()</span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a><span class="co">#stataexe &lt;- "/usr/local/bin/stata"</span></span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">engine.path=</span><span class="fu">list</span>(<span class="at">stata=</span>stataexe))</span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata1</span></span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a><span class="in">* let's see how to use menl</span></span>
+<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a><span class="in">webuse productivity</span></span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a><span class="in">* to replicate mixed with menl</span></span>
+<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a><span class="in">mixed gsp || region: || state:</span></span>
+<span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a><span class="in">menl gsp = {b1:},  define(b1: U1[region] UU1[region&gt;state])</span></span>
+<span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-58"><a href="#cb19-58" aria-hidden="true" tabindex="-1"></a><span class="fu">### R</span></span>
+<span id="cb19-59"><a href="#cb19-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-60"><a href="#cb19-60" aria-hidden="true" tabindex="-1"></a>These two R packages return same results.  Note that lmer reports variance, while lme reports standard deviation.</span>
+<span id="cb19-61"><a href="#cb19-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r1</span></span>
+<span id="cb19-66"><a href="#cb19-66" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb19-67"><a href="#cb19-67" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb19-68"><a href="#cb19-68" aria-hidden="true" tabindex="-1"></a><span class="co">#| collectcode: true</span></span>
+<span id="cb19-69"><a href="#cb19-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-70"><a href="#cb19-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-71"><a href="#cb19-71" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb19-72"><a href="#cb19-72" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(haven)</span>
+<span id="cb19-73"><a href="#cb19-73" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb19-74"><a href="#cb19-74" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb19-75"><a href="#cb19-75" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(nlme)</span>
+<span id="cb19-76"><a href="#cb19-76" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
+<span id="cb19-77"><a href="#cb19-77" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_dta</span>(<span class="st">'https://www.stata-press.com/data/r18/productivity.dta'</span>)</span>
+<span id="cb19-78"><a href="#cb19-78" aria-hidden="true" tabindex="-1"></a><span class="co"># lme4 for three level model</span></span>
+<span id="cb19-79"><a href="#cb19-79" aria-hidden="true" tabindex="-1"></a><span class="co"># (1|region) + (1|state) specifies CROSSED random effects; it numerically</span></span>
+<span id="cb19-80"><a href="#cb19-80" aria-hidden="true" tabindex="-1"></a><span class="co"># coincides with the intended nested structure here only because each</span></span>
+<span id="cb19-81"><a href="#cb19-81" aria-hidden="true" tabindex="-1"></a><span class="co"># state's label happens to be unique across the whole dataset (never reused</span></span>
+<span id="cb19-82"><a href="#cb19-82" aria-hidden="true" tabindex="-1"></a><span class="co"># across regions) -- verified: identical logLik to the explicitly nested</span></span>
+<span id="cb19-83"><a href="#cb19-83" aria-hidden="true" tabindex="-1"></a><span class="co"># (1|region/state) below. The nested form is the conceptually correct one</span></span>
+<span id="cb19-84"><a href="#cb19-84" aria-hidden="true" tabindex="-1"></a><span class="co"># and is robust even if state labels were ever reused across regions.</span></span>
+<span id="cb19-85"><a href="#cb19-85" aria-hidden="true" tabindex="-1"></a>lmer1 <span class="ot">&lt;-</span> <span class="fu">lmer</span>(gsp <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>region<span class="sc">/</span>state), <span class="at">data=</span>data)</span>
+<span id="cb19-86"><a href="#cb19-86" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lmer1)</span>
+<span id="cb19-87"><a href="#cb19-87" aria-hidden="true" tabindex="-1"></a>lme1 <span class="ot">&lt;-</span> <span class="fu">lme</span>(gsp <span class="sc">~</span> <span class="dv">1</span>, <span class="at">random=</span> <span class="fu">list</span>( <span class="at">region=</span><span class="sc">~</span><span class="dv">1</span>, <span class="at">state=</span><span class="sc">~</span><span class="dv">1</span>), <span class="at">data=</span>data)</span>
+<span id="cb19-88"><a href="#cb19-88" aria-hidden="true" tabindex="-1"></a><span class="co">#or</span></span>
+<span id="cb19-89"><a href="#cb19-89" aria-hidden="true" tabindex="-1"></a><span class="co">#lme1 &lt;- lme(gsp ~ 1, random= list(region = pdSymm(~1), state=pdSymm(~1)), data=data)</span></span>
+<span id="cb19-90"><a href="#cb19-90" aria-hidden="true" tabindex="-1"></a><span class="co">#but</span></span>
+<span id="cb19-91"><a href="#cb19-91" aria-hidden="true" tabindex="-1"></a><span class="co">#lme1 &lt;- lme(gsp ~ 1, random= list( state=~1, region=~1), data=data)</span></span>
+<span id="cb19-92"><a href="#cb19-92" aria-hidden="true" tabindex="-1"></a><span class="co">#would be a different result!</span></span>
+<span id="cb19-93"><a href="#cb19-93" aria-hidden="true" tabindex="-1"></a><span class="co">#The other way to specify:</span></span>
+<span id="cb19-94"><a href="#cb19-94" aria-hidden="true" tabindex="-1"></a><span class="co">#lme2 &lt;- lme(gsp ~ 1, random= ~ 1 | region/state, data=data)</span></span>
+<span id="cb19-95"><a href="#cb19-95" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lme1)</span>
+<span id="cb19-96"><a href="#cb19-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-97"><a href="#cb19-97" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb19-98"><a href="#cb19-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-99"><a href="#cb19-99" aria-hidden="true" tabindex="-1"></a><span class="fu">## A growth model in R and stata</span></span>
+<span id="cb19-100"><a href="#cb19-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-101"><a href="#cb19-101" aria-hidden="true" tabindex="-1"></a>We implement a growth model in R and stata.  The results are somewhat different.  The results may not be that reliable given that the year slope random component is tiny.  </span>
+<span id="cb19-102"><a href="#cb19-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-103"><a href="#cb19-103" aria-hidden="true" tabindex="-1"></a><span class="fu">### Stata</span></span>
+<span id="cb19-106"><a href="#cb19-106" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb19-107"><a href="#cb19-107" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
+<span id="cb19-108"><a href="#cb19-108" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb19-109"><a href="#cb19-109" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb19-110"><a href="#cb19-110" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb19-111"><a href="#cb19-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-112"><a href="#cb19-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-113"><a href="#cb19-113" aria-hidden="true" tabindex="-1"></a><span class="in">* same growth model with mixed and menl</span></span>
+<span id="cb19-114"><a href="#cb19-114" aria-hidden="true" tabindex="-1"></a><span class="in">* Stata's "mixed ... || region: year" defaults to an INDEPENDENT covariance</span></span>
+<span id="cb19-115"><a href="#cb19-115" aria-hidden="true" tabindex="-1"></a><span class="in">* structure for region's random intercept and slope (var(year), var(_cons),</span></span>
+<span id="cb19-116"><a href="#cb19-116" aria-hidden="true" tabindex="-1"></a><span class="in">* cov=0 by construction) -- verified via `estat recovariance`. R's lmer</span></span>
+<span id="cb19-117"><a href="#cb19-117" aria-hidden="true" tabindex="-1"></a><span class="in">* "(year|region)" and lme's "region=~year" both default to an UNSTRUCTURED</span></span>
+<span id="cb19-118"><a href="#cb19-118" aria-hidden="true" tabindex="-1"></a><span class="in">* (correlated) covariance. Add covariance(unstructured) to match R.</span></span>
+<span id="cb19-119"><a href="#cb19-119" aria-hidden="true" tabindex="-1"></a><span class="in">webuse productivity</span></span>
+<span id="cb19-120"><a href="#cb19-120" aria-hidden="true" tabindex="-1"></a><span class="in">mixed gsp year || region: year, covariance(unstructured) || state:</span></span>
+<span id="cb19-121"><a href="#cb19-121" aria-hidden="true" tabindex="-1"></a><span class="in">menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region&gt;state])</span></span>
+<span id="cb19-122"><a href="#cb19-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-123"><a href="#cb19-123" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb19-124"><a href="#cb19-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-125"><a href="#cb19-125" aria-hidden="true" tabindex="-1"></a><span class="fu">### R</span></span>
+<span id="cb19-126"><a href="#cb19-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-129"><a href="#cb19-129" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb19-130"><a href="#cb19-130" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r2</span></span>
+<span id="cb19-131"><a href="#cb19-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb19-132"><a href="#cb19-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb19-133"><a href="#cb19-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| collectcode: true</span></span>
+<span id="cb19-134"><a href="#cb19-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-135"><a href="#cb19-135" aria-hidden="true" tabindex="-1"></a><span class="co"># lme4 for three level model, growth model</span></span>
+<span id="cb19-136"><a href="#cb19-136" aria-hidden="true" tabindex="-1"></a>lmer_growth1 <span class="ot">&lt;-</span> <span class="fu">lmer</span>(gsp <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> year <span class="sc">+</span> (year<span class="sc">|</span>region) <span class="sc">+</span>  (<span class="dv">1</span><span class="sc">|</span>state), <span class="at">data=</span>data,  <span class="at">REML=</span><span class="cn">FALSE</span>)</span>
+<span id="cb19-137"><a href="#cb19-137" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lmer_growth1)</span>
+<span id="cb19-138"><a href="#cb19-138" aria-hidden="true" tabindex="-1"></a><span class="co"># nlme for three level model, growth model</span></span>
+<span id="cb19-139"><a href="#cb19-139" aria-hidden="true" tabindex="-1"></a><span class="co">#lme_growth1&lt;-lme(gsp ~ year, random = list(region=pdSymm(~year), state=pdIdent(~1)),data=data, method="ML")</span></span>
+<span id="cb19-140"><a href="#cb19-140" aria-hidden="true" tabindex="-1"></a>lme_growth1<span class="ot">&lt;-</span><span class="fu">lme</span>(gsp <span class="sc">~</span> year, <span class="at">random =</span> <span class="fu">list</span>(<span class="at">region=</span><span class="sc">~</span>year, <span class="at">state=</span><span class="sc">~</span><span class="dv">1</span>),<span class="at">data=</span>data, <span class="at">method=</span><span class="st">"ML"</span>)</span>
+<span id="cb19-141"><a href="#cb19-141" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lme_growth1)</span>
+<span id="cb19-142"><a href="#cb19-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb19-143"><a href="#cb19-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-144"><a href="#cb19-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-145"><a href="#cb19-145" aria-hidden="true" tabindex="-1"></a><span class="fu">## cem in R and stata</span></span>
+<span id="cb19-146"><a href="#cb19-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-147"><a href="#cb19-147" aria-hidden="true" tabindex="-1"></a>"CEM" is a growth model with the residual being a exponential function of the time variable.  </span>
+<span id="cb19-148"><a href="#cb19-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-149"><a href="#cb19-149" aria-hidden="true" tabindex="-1"></a><span class="fu">### stata</span></span>
+<span id="cb19-150"><a href="#cb19-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-151"><a href="#cb19-151" aria-hidden="true" tabindex="-1"></a>This mode has some convergence problem.  I still use it for demonstration purpose.</span>
+<span id="cb19-152"><a href="#cb19-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-155"><a href="#cb19-155" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb19-156"><a href="#cb19-156" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
+<span id="cb19-157"><a href="#cb19-157" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb19-158"><a href="#cb19-158" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb19-159"><a href="#cb19-159" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb19-160"><a href="#cb19-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-161"><a href="#cb19-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-162"><a href="#cb19-162" aria-hidden="true" tabindex="-1"></a><span class="in">webuse productivity, clear</span></span>
+<span id="cb19-163"><a href="#cb19-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-164"><a href="#cb19-164" aria-hidden="true" tabindex="-1"></a><span class="in">* this replicates the results from R</span></span>
+<span id="cb19-165"><a href="#cb19-165" aria-hidden="true" tabindex="-1"></a><span class="in">menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region&gt;state]) resvariance(exponential year) nolog</span></span>
+<span id="cb19-166"><a href="#cb19-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-167"><a href="#cb19-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-168"><a href="#cb19-168" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb19-169"><a href="#cb19-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-170"><a href="#cb19-170" aria-hidden="true" tabindex="-1"></a><span class="fu">### R</span></span>
+<span id="cb19-171"><a href="#cb19-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-172"><a href="#cb19-172" aria-hidden="true" tabindex="-1"></a>As in stata, it has some convergence problem.  So the results can differ somewhat between R and stata.</span>
+<span id="cb19-173"><a href="#cb19-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-176"><a href="#cb19-176" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb19-177"><a href="#cb19-177" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: cem1</span></span>
+<span id="cb19-178"><a href="#cb19-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-179"><a href="#cb19-179" aria-hidden="true" tabindex="-1"></a>lme_growth1<span class="ot">&lt;-</span><span class="fu">lme</span>(gsp <span class="sc">~</span> year, <span class="at">random =</span> <span class="fu">list</span>(<span class="at">region=</span><span class="fu">pdSymm</span>(<span class="sc">~</span>year), <span class="at">state=</span><span class="fu">pdIdent</span>(<span class="sc">~</span><span class="dv">1</span>)),<span class="at">data=</span>data, <span class="at">method=</span><span class="st">"ML"</span>)</span>
+<span id="cb19-180"><a href="#cb19-180" aria-hidden="true" tabindex="-1"></a>lme_growth2<span class="ot">&lt;-</span><span class="fu">update</span>(lme_growth1,<span class="at">weights=</span><span class="fu">varExp</span>( <span class="at">form =</span> <span class="sc">~</span> year), <span class="at">method=</span><span class="st">"ML"</span>, <span class="at">control =</span> <span class="fu">lmeControl</span>(<span class="at">opt =</span> <span class="st">"optim"</span>))</span>
+<span id="cb19-181"><a href="#cb19-181" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lme_growth2)</span>
+<span id="cb19-182"><a href="#cb19-182" aria-hidden="true" tabindex="-1"></a>delta1<span class="ot">&lt;-</span>lme_growth2<span class="sc">$</span>modelStruct<span class="sc">$</span>varStruct</span>
+<span id="cb19-183"><a href="#cb19-183" aria-hidden="true" tabindex="-1"></a>delta1</span>
+<span id="cb19-184"><a href="#cb19-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-185"><a href="#cb19-185" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

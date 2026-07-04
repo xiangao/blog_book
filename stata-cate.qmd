@@ -135,18 +135,21 @@ data <- read_dta("https://www.stata-press.com/data/r19/assets3.dta") |>
   zap_labels()
 
 
-  # mutate(incomecat=as.factor(incomecat),
-  #        pension=as.factor(pension),
-  #        married=as.factor(married),
-  #        twoearn=as.factor(twoearn),
-  #        ira=as.factor(ira),
-  #        ownhome=as.factor(ownhome))
+  # pension, married, twoearn, ira, ownhome are already binary 0/1, so
+  # passing them as numeric is fine. incomecat, however, has 5 unordered
+  # categories (0-4) -- passing it as a single numeric column would force
+  # the ML learners (especially the linear regr.glmnet below) to treat
+  # category 2 as twice category 1, which is not a meaningful assumption
+  # for a nominal variable. One-hot encode it into dummy columns instead.
+incomecat_dummies <- model.matrix(~ as.factor(incomecat) - 1, data = data)
+colnames(incomecat_dummies) <- paste0("incomecat_", 0:(ncol(incomecat_dummies) - 1))
+data <- cbind(data, incomecat_dummies)
 
 assets3 <- data.table::setDT(data)
 dml_data = DoubleMLData$new(data = assets3,
                              y_col = "assets",
                              d_cols = "e401k",
-                             x_cols = c("age","educ", "incomecat","pension", "married","twoearn","ira","ownhome"))
+                             x_cols = c("age","educ", colnames(incomecat_dummies),"pension", "married","twoearn","ira","ownhome"))
 
 print(dml_data)
 
@@ -239,7 +242,10 @@ SL.library <- c("SL.lasso")
 
 Y <- data$assets
 A <- data$e401k
-W <- data[, c("age", "educ", "incomecat", "pension", "married", "twoearn", "ira", "ownhome")]
+# incomecat is nominal (5 categories); use the one-hot dummies created above
+# rather than the raw numeric column, for the same reason as in the
+# DoubleML example.
+W <- data[, c("age", "educ", grep("^incomecat_", names(data), value = TRUE), "pension", "married", "twoearn", "ira", "ownhome")]
 aipw<- ate(y=Y, a=A, x=W, nsplits=10, sl.lib=SL.library)
 
 

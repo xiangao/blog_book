@@ -76,7 +76,7 @@ The disadvantage of a fractional factorial design is that some effects are confo
 
 # attribute1, attribute2, etc. are vectors with one element in which we first provide the name of the attribute followed by a semi-colon and then provide all the levels of the attributes separated by semi-colons
 attribute1 <- "Flavor; Raspberry; Chocolate; Strawberry; Mango; Vanilla"
-attribute2 <- "Package; Homemade waffle; Cone; Pint"
+attribute2 <- "Packaging; Homemade waffle; Cone; Pint"
 attribute3 <- "Light; Low fat; No low fat"
 attribute4 <- "Organic; Organic; Not organic"
 
@@ -175,8 +175,19 @@ plot(conjoint)
 The partworths are just coefficient from a linear regression:
 
 ```{r}
+#| message: false
+#| warning: false
 
-summary(lm(rating ~ Flavor + Packaging + Light + Organic, data = icecream))
+library(sandwich)
+library(lmtest)
+
+partworths_lm <- lm(rating ~ Flavor + Packaging + Light + Organic, data = icecream)
+summary(partworths_lm)
+
+# Each of the 15 respondents rates 10 profiles, so observations are clustered
+# by respondent; plain OLS standard errors above assume independence and
+# understate the true uncertainty. Cluster at the respondent level instead.
+coeftest(partworths_lm, vcov = vcovCL(partworths_lm, cluster = icecream$respondent))
 
 ```
 
@@ -188,6 +199,6 @@ In summary, we can use R packages to set up a conjoint experiment, in the sense 
 
 ## Causal effect in conjoint analysis
 
-Hainmueller, Hopkins, and Yamamoto (2014) defined ACME (average marginal component effect). The basic idea is that once all the assumptions are met (usual assumptions in causal inference), we can have the effect of changing one attribute level to another with a causal interpretation.  Fortunately it is usually just coefficients from a linear model, or linear combinations of the coefficients.  There is a package "cregg" for each calculation and plotting of ACME, but we can just do it manually.  
+Hainmueller, Hopkins, and Yamamoto (2014) defined AMCE (average marginal component effect) -- not to be confused with ACME (average causal mediation effect, Imai et al.), a different causal estimand from the mediation-analysis literature. The basic idea is that once all the assumptions are met (usual assumptions in causal inference), we can have the effect of changing one attribute level to another with a causal interpretation.  Fortunately it is usually just coefficients from a linear model, or linear combinations of the coefficients.  There is a package "cregg" for each calculation and plotting of AMCE, but we can just do it manually.
 
  

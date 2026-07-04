@@ -418,7 +418,7 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./g-estimation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">g-estimation with time varying covariates</span></span></a>
+ <span class="menu-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">G-computation (g-formula) with time varying covariates</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -634,11 +634,15 @@ window.Quarto = {
 <span><span class="va">data</span><span class="op">$</span><span class="va">eta</span><span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>,<span class="fl">1</span><span class="op">)</span></span>
 <span><span class="co"># generate T*</span></span>
 <span><span class="co"># T* is normally distributed</span></span>
-<span><span class="co"># Here I generate Y as a function of T*, we can also do a function of T.</span></span>
+<span><span class="co"># Y depends on the OBSERVED (censored) treatment T, not the latent T_star --</span></span>
+<span><span class="co"># matching the structural equation Y = beta*T + Z*gamma + delta*eta + epsilon</span></span>
+<span><span class="co"># above. If Y depended on T_star directly, T=0 would not fully "block" the</span></span>
+<span><span class="co"># latent variable's effect on Y, and the treatment effect of T would not even</span></span>
+<span><span class="co"># be well defined.</span></span>
 <span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>T_star<span class="op">=</span><span class="va">Z1</span> <span class="op">+</span> <span class="fl">2</span><span class="op">*</span><span class="va">Z2</span> <span class="op">+</span> <span class="fl">1.5</span><span class="op">*</span><span class="va">eta</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>T<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/ifelse.html">ifelse</a></span><span class="op">(</span><span class="va">T_star</span><span class="op">&gt;</span><span class="fl">0</span>, <span class="va">T_star</span>, <span class="fl">0</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>Y<span class="op">=</span><span class="fl">2</span><span class="op">*</span><span class="va">T_star</span> <span class="op">+</span> <span class="fl">0.5</span><span class="op">*</span><span class="va">Z1</span> <span class="op">+</span> <span class="fl">0.5</span><span class="op">*</span><span class="va">Z2</span> <span class="op">+</span> <span class="fl">2</span><span class="op">*</span><span class="va">eta</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>Y<span class="op">=</span><span class="fl">2</span><span class="op">*</span><span class="cn">T</span> <span class="op">+</span> <span class="fl">0.5</span><span class="op">*</span><span class="va">Z1</span> <span class="op">+</span> <span class="fl">0.5</span><span class="op">*</span><span class="va">Z2</span> <span class="op">+</span> <span class="fl">2</span><span class="op">*</span><span class="va">eta</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># regress Y on T, Z1, Z2</span></span>
 <span><span class="va">lm1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="cn">T</span> <span class="op">+</span> <span class="va">Z1</span> <span class="op">+</span> <span class="va">Z2</span>, data<span class="op">=</span><span class="va">data</span><span class="op">)</span></span>
@@ -649,21 +653,21 @@ Call:
 lm(formula = Y ~ T + Z1 + Z2, data = data)
 
 Residuals:
-     Min       1Q   Median       3Q      Max 
--19.3015  -1.5531   0.4095   2.1631   7.1942 
+    Min      1Q  Median      3Q     Max 
+-8.2706 -0.8700  0.1009  1.0955  4.0476 
 
 Coefficients:
             Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept) -1.04656    0.19279  -5.429 7.14e-08 ***
-T            2.87428    0.07855  36.592  &lt; 2e-16 ***
-Z1           0.50270    0.13406   3.750 0.000187 ***
-Z2           0.41043    0.16207   2.532 0.011480 *  
+(Intercept) -0.42394    0.09588  -4.422 1.09e-05 ***
+T            3.14972    0.03906  80.631  &lt; 2e-16 ***
+Z1          -0.29574    0.06667  -4.436 1.02e-05 ***
+Z2          -1.14069    0.08060 -14.153  &lt; 2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 3.295 on 996 degrees of freedom
-Multiple R-squared:  0.8273,    Adjusted R-squared:  0.8268 
-F-statistic:  1591 on 3 and 996 DF,  p-value: &lt; 2.2e-16</code></pre>
+Residual standard error: 1.639 on 996 degrees of freedom
+Multiple R-squared:  0.9343,    Adjusted R-squared:  0.9341 
+F-statistic:  4719 on 3 and 996 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
 <p>Without including <span class="math inline">\(eta\)</span>, the effect estimate is biased. Let’s do a dummy test.</p>
@@ -676,39 +680,43 @@ Call:
 lm(formula = Y ~ T + Z1 + Z2 + I(T &gt; 0), data = data)
 
 Residuals:
-     Min       1Q   Median       3Q      Max 
--18.8425  -1.1792   0.0749   1.5244   7.5902 
+    Min      1Q  Median      3Q     Max 
+-8.0768 -0.8363  0.0406  0.9126  4.8213 
 
 Coefficients:
              Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept)  -4.02290    0.22946 -17.532  &lt; 2e-16 ***
-T             2.66253    0.06848  38.880  &lt; 2e-16 ***
-Z1           -0.03057    0.11874  -0.257  0.79688    
-Z2           -0.39400    0.14581  -2.702  0.00701 ** 
-I(T &gt; 0)TRUE  4.99664    0.26634  18.760  &lt; 2e-16 ***
+(Intercept)  -1.68077    0.11961 -14.052   &lt;2e-16 ***
+T             3.06030    0.03570  85.728   &lt;2e-16 ***
+Z1           -0.52092    0.06189  -8.416   &lt;2e-16 ***
+Z2           -1.48038    0.07601 -19.476   &lt;2e-16 ***
+I(T &gt; 0)TRUE  2.10995    0.13884  15.197   &lt;2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 2.834 on 995 degrees of freedom
-Multiple R-squared:  0.8724,    Adjusted R-squared:  0.8719 
-F-statistic:  1701 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
+Residual standard error: 1.477 on 995 degrees of freedom
+Multiple R-squared:  0.9466,    Adjusted R-squared:  0.9464 
+F-statistic:  4414 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
 <p>It shows that the dummy variable is significant. It means that <span class="math inline">\(T\)</span> is endogenous.</p>
 <section id="correcting-for-endogeneity" class="level3" data-number="29.3.1"><h3 data-number="29.3.1" class="anchored" data-anchor-id="correcting-for-endogeneity">
 <span class="header-section-number">29.3.1</span> Correcting for endogeneity</h3>
-<p>Now let’s assume <span class="math inline">\(T^*\)</span> is symmetrically distributed. It is left censored. We assume it is less than half censored. So the median remains the same for <span class="math inline">\(T^*\)</span> and <span class="math inline">\(T\)</span>. We can use the right tail to estimate the left tail. Suppose there is a point at left tail <span class="math inline">\(x\)</span>, then the corresponding point at the right tail is <span class="math inline">\(2 M -x\)</span>, where <span class="math inline">\(M\)</span> is the median of <span class="math inline">\(T^*\)</span>.</p>
+<p>The correction term is <span class="math inline">\(E[T^* \mid T^* \le 0, Z]\)</span>, on the scale of the <em>treatment</em> <span class="math inline">\(T^*\)</span> — so we need to model <span class="math inline">\(T^*\)</span> given <span class="math inline">\(Z\)</span>, not <span class="math inline">\(Y\)</span> given <span class="math inline">\(T\)</span> and <span class="math inline">\(Z\)</span>. Let’s assume <span class="math inline">\(T^*\)</span> is normally distributed given <span class="math inline">\(Z\)</span>: <span class="math inline">\(T^* \mid Z \sim N(Z\pi, \sigma^2)\)</span>. Since we observe <span class="math inline">\(T=T^*\)</span> whenever <span class="math inline">\(T^*&gt;0\)</span> and <span class="math inline">\(T=0\)</span> otherwise, this is exactly a (left-)censored (Tobit) regression of <span class="math inline">\(T\)</span> on <span class="math inline">\(Z\)</span>, using <strong>all</strong> observations (not just the right tail): the censored observations still inform <span class="math inline">\(\pi\)</span> and <span class="math inline">\(\sigma\)</span> through the likelihood, they just don’t reveal <span class="math inline">\(T^*\)</span>’s value directly. Given <span class="math inline">\(\hat\pi\)</span> and <span class="math inline">\(\hat\sigma\)</span>, the standard truncated-normal mean formula gives us <span class="math inline">\(E[T^* \mid T^* \le 0, Z]\)</span> directly, with no separate mirroring step needed:</p>
+<p><span class="math display">\[ E[T^* \mid T^* \le 0, Z] = Z\hat\pi - \hat\sigma\,\frac{\phi(-Z\hat\pi/\hat\sigma)}{\Phi(-Z\hat\pi/\hat\sigma)} \]</span></p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">M</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/median.html">median</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="cn">T</span><span class="op">)</span></span>
-<span><span class="va">data2</span> <span class="op">&lt;-</span> <span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html">filter</a></span><span class="op">(</span><span class="cn">T</span><span class="op">&gt;</span><span class="fl">2</span><span class="op">*</span><span class="va">M</span><span class="op">)</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">AER</span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">lm3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="cn">T</span> <span class="op">+</span> <span class="va">Z1</span> <span class="op">+</span> <span class="va">Z2</span>, data<span class="op">=</span><span class="va">data2</span><span class="op">)</span></span>
+<span><span class="va">tob</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/AER/man/tobit.html">tobit</a></span><span class="op">(</span><span class="cn">T</span> <span class="op">~</span> <span class="va">Z1</span> <span class="op">+</span> <span class="va">Z2</span>, left <span class="op">=</span> <span class="fl">0</span>, data <span class="op">=</span> <span class="va">data</span><span class="op">)</span></span>
+<span><span class="va">lin_pred</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="va">tob</span><span class="op">)</span><span class="op">[</span><span class="st">"(Intercept)"</span><span class="op">]</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="va">tob</span><span class="op">)</span><span class="op">[</span><span class="st">"Z1"</span><span class="op">]</span> <span class="op">*</span> <span class="va">data</span><span class="op">$</span><span class="va">Z1</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="va">tob</span><span class="op">)</span><span class="op">[</span><span class="st">"Z2"</span><span class="op">]</span> <span class="op">*</span> <span class="va">data</span><span class="op">$</span><span class="va">Z2</span></span>
+<span><span class="va">sigma_hat</span> <span class="op">&lt;-</span> <span class="va">tob</span><span class="op">$</span><span class="va">scale</span></span>
+<span><span class="va">alpha</span>     <span class="op">&lt;-</span> <span class="op">-</span><span class="va">lin_pred</span> <span class="op">/</span> <span class="va">sigma_hat</span></span>
+<span><span class="va">E_Tstar_below0</span> <span class="op">&lt;-</span> <span class="va">lin_pred</span> <span class="op">-</span> <span class="va">sigma_hat</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">dnorm</a></span><span class="op">(</span><span class="va">alpha</span><span class="op">)</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">pnorm</a></span><span class="op">(</span><span class="va">alpha</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># here I create an extra term for the correction</span></span>
-<span><span class="co"># when T is 0, it is T, otherwise, it's 2M - the prediction from the right tail.</span></span>
+<span><span class="co"># here I create an extra term for the correction:</span></span>
+<span><span class="co"># when T is 0, it is T (=0); otherwise it's the truncated-normal conditional</span></span>
+<span><span class="co"># mean of T* given T* &lt;= 0 and Z, computed above.</span></span>
 <span><span class="va">data</span> <span class="op">&lt;-</span> <span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>extra<span class="op">=</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html">if_else</a></span><span class="op">(</span><span class="cn">T</span><span class="op">&gt;</span><span class="fl">0</span>,<span class="cn">T</span>,<span class="fl">2</span><span class="op">*</span><span class="va">M</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/stats/predict.html">predict</a></span><span class="op">(</span><span class="va">lm3</span>, newdata<span class="op">=</span><span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>T<span class="op">=</span><span class="fl">2</span><span class="op">*</span><span class="va">M</span> <span class="op">-</span><span class="cn">T</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>extra <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html">if_else</a></span><span class="op">(</span><span class="cn">T</span> <span class="op">&gt;</span> <span class="fl">0</span>, <span class="cn">T</span>, <span class="va">E_Tstar_below0</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">lm4</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="cn">T</span> <span class="op">+</span> <span class="va">Z1</span> <span class="op">+</span> <span class="va">Z2</span> <span class="op">+</span> <span class="va">extra</span>, data<span class="op">=</span><span class="va">data</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">lm4</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -718,25 +726,25 @@ Call:
 lm(formula = Y ~ T + Z1 + Z2 + extra, data = data)
 
 Residuals:
-     Min       1Q   Median       3Q      Max 
--17.6228  -1.0492  -0.0294   1.1924   8.3056 
+    Min      1Q  Median      3Q     Max 
+-5.8902 -0.7686  0.0480  0.7935  5.4430 
 
 Coefficients:
             Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept)  0.94824    0.17624   5.380 9.26e-08 ***
-T            2.20954    0.06901  32.020  &lt; 2e-16 ***
-Z1          -0.31782    0.11298  -2.813    0.005 ** 
-Z2          -1.14267    0.14570  -7.843 1.13e-14 ***
-extra        0.64428    0.02735  23.553  &lt; 2e-16 ***
+(Intercept)  0.03693    0.07979   0.463    0.644    
+T            1.98735    0.05917  33.585   &lt;2e-16 ***
+Z1          -0.82513    0.05838 -14.133   &lt;2e-16 ***
+Z2          -2.31062    0.08224 -28.097   &lt;2e-16 ***
+extra        1.36256    0.05873  23.200   &lt;2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 2.642 on 995 degrees of freedom
-Multiple R-squared:  0.8891,    Adjusted R-squared:  0.8887 
-F-statistic:  1995 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
+Residual standard error: 1.321 on 995 degrees of freedom
+Multiple R-squared:  0.9573,    Adjusted R-squared:  0.9572 
+F-statistic:  5582 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
-<p>It does not seem to get the answer right 100%. But it’s better than the model without the correction term.</p>
+<p>Under the normality assumption, this recovers <span class="math inline">\(\beta\)</span> (the true coefficient on <span class="math inline">\(T\)</span> is 2) very closely — much better than a naive symmetric-mirroring heuristic that estimates the right-tail conditional mean by an unweighted linear regression of <span class="math inline">\(T\)</span> on <span class="math inline">\(Z\)</span> restricted to a somewhat arbitrary right-tail cutoff: that heuristic’s accuracy turns out to be quite sensitive to the cutoff and sample used, because the true conditional mean of <span class="math inline">\(T^*\)</span> given <span class="math inline">\(T^*\)</span> beyond a cutoff is a nonlinear (inverse-Mills-ratio) function of <span class="math inline">\(Z\)</span>, not linear — so a plain linear regression on the selected right-tail subsample is itself misspecified. The parametric (Tobit) route sidesteps that by modeling the untruncated latent distribution directly and using the exact conditional-mean formula.</p>
 </section></section><section id="conclusion" class="level2" data-number="29.4"><h2 data-number="29.4" class="anchored" data-anchor-id="conclusion">
 <span class="header-section-number">29.4</span> Conclusion</h2>
 <p>We are making assumptions for the distribution of the continuous treatment variable. Symmetry is the minimum assumption. We can make other parametric assumptions on the distribution of <span class="math inline">\(T^*\)</span>. This is a trade-off between making distribution assumptions and ignoring endogeneity. The good news is that we don’t need an instrument. We are using the censoring part of the treatment variable to deal with endogeneity.</p>
@@ -1200,8 +1208,8 @@ F-statistic:  1995 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./g-estimation.html" class="pagination-link" aria-label="g-estimation with time varying covariates">
-        <span class="nav-page-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">g-estimation with time varying covariates</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./g-estimation.html" class="pagination-link" aria-label="G-computation (g-formula) with time varying covariates">
+        <span class="nav-page-text"><span class="chapter-number">30</span>&nbsp; <span class="chapter-title">G-computation (g-formula) with time varying covariates</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
@@ -1294,55 +1302,65 @@ F-statistic:  1995 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>eta<span class="ot">=</span><span class="fu">rnorm</span>(n, <span class="dv">1</span>,<span class="dv">1</span>)</span>
 <span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a><span class="co"># generate T*</span></span>
 <span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="co"># T* is normally distributed</span></span>
-<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="co"># Here I generate Y as a function of T*, we can also do a function of T.</span></span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T_star=</span>Z1 <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>Z2 <span class="sc">+</span> <span class="fl">1.5</span><span class="sc">*</span>eta) <span class="sc">%&gt;%</span></span>
-<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T=</span><span class="fu">ifelse</span>(T_star<span class="sc">&gt;</span><span class="dv">0</span>, T_star, <span class="dv">0</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Y=</span><span class="dv">2</span><span class="sc">*</span>T_star <span class="sc">+</span> <span class="fl">0.5</span><span class="sc">*</span>Z1 <span class="sc">+</span> <span class="fl">0.5</span><span class="sc">*</span>Z2 <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>eta <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="dv">1</span>))</span>
-<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="co"># regress Y on T, Z1, Z2</span></span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>lm1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> T <span class="sc">+</span> Z1 <span class="sc">+</span> Z2, <span class="at">data=</span>data)</span>
-<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm1)</span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="co"># Y depends on the OBSERVED (censored) treatment T, not the latent T_star --</span></span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="co"># matching the structural equation Y = beta*T + Z*gamma + delta*eta + epsilon</span></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a><span class="co"># above. If Y depended on T_star directly, T=0 would not fully "block" the</span></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a><span class="co"># latent variable's effect on Y, and the treatment effect of T would not even</span></span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a><span class="co"># be well defined.</span></span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T_star=</span>Z1 <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>Z2 <span class="sc">+</span> <span class="fl">1.5</span><span class="sc">*</span>eta) <span class="sc">%&gt;%</span></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">T=</span><span class="fu">ifelse</span>(T_star<span class="sc">&gt;</span><span class="dv">0</span>, T_star, <span class="dv">0</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Y=</span><span class="dv">2</span><span class="sc">*</span>T <span class="sc">+</span> <span class="fl">0.5</span><span class="sc">*</span>Z1 <span class="sc">+</span> <span class="fl">0.5</span><span class="sc">*</span>Z2 <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>eta <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, <span class="dv">1</span>))</span>
 <span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>Without including $eta$, the effect estimate is biased.  Let's do a dummy test.</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a><span class="co"># regress Y on T, Z1, Z2</span></span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>lm1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> T <span class="sc">+</span> Z1 <span class="sc">+</span> Z2, <span class="at">data=</span>data)</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm1)</span>
 <span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>lm2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> T <span class="sc">+</span> Z1 <span class="sc">+</span> Z2 <span class="sc">+</span> <span class="fu">I</span>(T<span class="sc">&gt;</span><span class="dv">0</span>), <span class="at">data=</span>data)</span>
-<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm2)</span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>It shows that the dummy variable is significant.  It means that $T$ is endogenous.</span>
-<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="fu">### Correcting for endogeneity</span></span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a>Without including $eta$, the effect estimate is biased.  Let's do a dummy test.</span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>lm2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> T <span class="sc">+</span> Z1 <span class="sc">+</span> Z2 <span class="sc">+</span> <span class="fu">I</span>(T<span class="sc">&gt;</span><span class="dv">0</span>), <span class="at">data=</span>data)</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm2)</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>Now let's assume $T^*$ is symmetrically distributed.  It is left censored.  We assume it is less than half censored.  So the median remains the same for $T^*$ and $T$.  We can use the right tail to estimate the left tail.  Suppose there is a point at left tail $x$, then the corresponding point at the right tail is $2 M -x$, where $M$ is the median of $T^*$.</span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>It shows that the dummy variable is significant.  It means that $T$ is endogenous.</span>
 <span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>M <span class="ot">&lt;-</span> <span class="fu">median</span>(data<span class="sc">$</span>T)</span>
-<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>data2 <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(T<span class="sc">&gt;</span><span class="dv">2</span><span class="sc">*</span>M)</span>
-<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>lm3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> T <span class="sc">+</span> Z1 <span class="sc">+</span> Z2, <span class="at">data=</span>data2)</span>
-<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a><span class="co"># here I create an extra term for the correction</span></span>
-<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a><span class="co"># when T is 0, it is T, otherwise, it's 2M - the prediction from the right tail.</span></span>
-<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">extra=</span><span class="fu">if_else</span>(T<span class="sc">&gt;</span><span class="dv">0</span>,T,<span class="dv">2</span><span class="sc">*</span>M<span class="sc">-</span><span class="fu">predict</span>(lm3, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">T=</span><span class="dv">2</span><span class="sc">*</span>M <span class="sc">-</span>T))))</span>
-<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a>lm4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> T <span class="sc">+</span> Z1 <span class="sc">+</span> Z2 <span class="sc">+</span> extra, <span class="at">data=</span>data)</span>
-<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm4)</span>
-<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a>It does not seem to get the answer right 100%.  But it's better than the model without the correction term.</span>
-<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conclusion</span></span>
-<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a>We are making assumptions for the distribution of the continuous treatment variable.  Symmetry is the minimum assumption.  We can make other parametric assumptions on the distribution of $T^*$.  This is a trade-off between making distribution assumptions and ignoring endogeneity.  The good news is that we don't need an instrument.  We are using the censoring part of the treatment variable to deal with endogeneity.</span>
-<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a><span class="fu">### Correcting for endogeneity</span></span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>The correction term is $E<span class="co">[</span><span class="ot">T^* \mid T^* \le 0, Z</span><span class="co">]</span>$, on the scale of the *treatment* $T^*$ — so we need to model $T^*$ given $Z$, not $Y$ given $T$ and $Z$. Let's assume $T^*$ is normally distributed given $Z$: $T^* \mid Z \sim N(Z\pi, \sigma^2)$. Since we observe $T=T^*$ whenever $T^*&gt;0$ and $T=0$ otherwise, this is exactly a (left-)censored (Tobit) regression of $T$ on $Z$, using **all** observations (not just the right tail): the censored observations still inform $\pi$ and $\sigma$ through the likelihood, they just don't reveal $T^*$'s value directly. Given $\hat\pi$ and $\hat\sigma$, the standard truncated-normal mean formula gives us $E[T^* \mid T^* \le 0, Z]$ directly, with no separate mirroring step needed:</span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">T^* \mid T^* \le 0, Z</span><span class="co">]</span> = Z\hat\pi - \hat\sigma\,\frac{\phi(-Z\hat\pi/\hat\sigma)}{\Phi(-Z\hat\pi/\hat\sigma)} $$</span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AER)</span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a>tob <span class="ot">&lt;-</span> <span class="fu">tobit</span>(T <span class="sc">~</span> Z1 <span class="sc">+</span> Z2, <span class="at">left =</span> <span class="dv">0</span>, <span class="at">data =</span> data)</span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a>lin_pred  <span class="ot">&lt;-</span> <span class="fu">coef</span>(tob)[<span class="st">"(Intercept)"</span>] <span class="sc">+</span> <span class="fu">coef</span>(tob)[<span class="st">"Z1"</span>] <span class="sc">*</span> data<span class="sc">$</span>Z1 <span class="sc">+</span> <span class="fu">coef</span>(tob)[<span class="st">"Z2"</span>] <span class="sc">*</span> data<span class="sc">$</span>Z2</span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a>sigma_hat <span class="ot">&lt;-</span> tob<span class="sc">$</span>scale</span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a>alpha     <span class="ot">&lt;-</span> <span class="sc">-</span>lin_pred <span class="sc">/</span> sigma_hat</span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a>E_Tstar_below0 <span class="ot">&lt;-</span> lin_pred <span class="sc">-</span> sigma_hat <span class="sc">*</span> <span class="fu">dnorm</span>(alpha) <span class="sc">/</span> <span class="fu">pnorm</span>(alpha)</span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a><span class="co"># here I create an extra term for the correction:</span></span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a><span class="co"># when T is 0, it is T (=0); otherwise it's the truncated-normal conditional</span></span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a><span class="co"># mean of T* given T* &lt;= 0 and Z, computed above.</span></span>
+<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">extra =</span> <span class="fu">if_else</span>(T <span class="sc">&gt;</span> <span class="dv">0</span>, T, E_Tstar_below0))</span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a>lm4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> T <span class="sc">+</span> Z1 <span class="sc">+</span> Z2 <span class="sc">+</span> extra, <span class="at">data=</span>data)</span>
+<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm4)</span>
+<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a>Under the normality assumption, this recovers $\beta$ (the true coefficient on $T$ is 2) very closely — much better than a naive symmetric-mirroring heuristic that estimates the right-tail conditional mean by an unweighted linear regression of $T$ on $Z$ restricted to a somewhat arbitrary right-tail cutoff: that heuristic's accuracy turns out to be quite sensitive to the cutoff and sample used, because the true conditional mean of $T^*$ given $T^*$ beyond a cutoff is a nonlinear (inverse-Mills-ratio) function of $Z$, not linear — so a plain linear regression on the selected right-tail subsample is itself misspecified. The parametric (Tobit) route sidesteps that by modeling the untruncated latent distribution directly and using the exact conditional-mean formula.</span>
+<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conclusion</span></span>
+<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a>We are making assumptions for the distribution of the continuous treatment variable.  Symmetry is the minimum assumption.  We can make other parametric assumptions on the distribution of $T^*$.  This is a trade-off between making distribution assumptions and ignoring endogeneity.  The good news is that we don't need an instrument.  We are using the censoring part of the treatment variable to deal with endogeneity.</span>
+<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

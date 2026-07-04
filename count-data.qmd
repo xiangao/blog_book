@@ -77,7 +77,7 @@ gen.sim <- function(df) {
 
   c(zip1       = coef(m1, "count")["x"] - 2,
     poisson     = coef(m2)["x"] - 2,
-    log.linear  = exp(coef(m3)["x"]) - 2,
+    log.linear  = coef(m3)["x"] - 2,
     zip2        = coef(m4, "count")["x"] - 2,
     nb          = coef(m5)["x"] - 2,
     hurdle      = coef(m6, "count")["x"] - 2)
@@ -109,6 +109,8 @@ Since there are many simulations, we use base R's `parallel` library to speed th
 For raw code, please visit [case1: poisson](https://github.com/xiangao/poisson) and [case2: normal](https://github.com/xiangao/poisson2). The code above updates the original `snowfall`-based version to use base R `parallel`.
 
 **Summary of simulation findings:** With large samples, plain Poisson outperforms NB and log-linear even with extra zeros. Zero-inflated Poisson with correct specification of the zero process is best, but that relies on knowing what drives the zeros. Hurdle and ZIP without correct zero-model specification are similar and not much worse than Poisson. Log-linear (`log(y+1)`) is consistently the worst.
+
+(Note: the `log.linear` bias line above previously read `exp(coef(m3)["x"]) - 2` instead of `coef(m3)["x"] - 2`, which — since the log-linear coefficient is already on the log scale — manufactured a spurious ≈5.4 apparent bias regardless of the model's actual performance. That has been corrected here to match the other rows. Log-linear regression on `log(y+1)` is still expected to be biased relative to Poisson-family models in a zero-inflated count setting, for real reasons (the log transform's nonlinearity near zero, and the fact that $E[\log(y+1)] \neq \log(E[y]+1)$), but the *magnitude* of "consistently the worst" above reflects the original (buggy) run and has not been re-verified against a corrected simulation.)
 
 ## Quick worked example
 
@@ -171,9 +173,16 @@ the key point of *this* DGP: the zero-inflation process depends on `z`, which
 is generated **independently of `x`**, so omitting the zero model distorts the
 zero mass and the intercept, not the slope on `x`. The hurdle model and even
 the ZIP with a *misspecified* (x-only) zero model still recover the slope
-closely; only the plain Poisson shows a mild upward bias, because the unmodeled
-excess zeros create overdispersion that it can absorb only through the
-conditional mean. A misspecified zero process biases the count *slope* only when
+closely; the plain Poisson shows a small upward bias *in this particular
+sample* (n = 1000), but that is finite-sample noise, not a systematic property
+of the model. Since the zero-inflation driver `z` is independent of `x`, the
+conditional mean here is correctly specified for Poisson QMLE — increasing `n`
+from 1,000 to 1,000,000 shrinks the Poisson `x`-coefficient bias from about
++0.04 to effectively 0, confirming consistency. The unmodeled excess zeros
+create overdispersion, but overdispersion under a correctly-specified
+conditional mean affects only the standard errors (which should be corrected
+with a robust/sandwich estimator), not the consistency of the slope
+coefficient. A misspecified zero process biases the count *slope* only when
 the zero process is correlated with the count covariates — which is not the case
 here. (Change `z` to depend on `x` and the omitted-zero-process slope bias
 appears.)

@@ -89,6 +89,12 @@ gen hours2=hours*(subsample==2)
 reg Y wage? hours? subsample
 test _b[wage1]-_b[wage2]=0
 est sto stacked
+* Note: suest stores coefficients under equation-qualified names (e.g.
+* south:hours), while the single-sample models store the same
+* coefficient simply as "hours"; esttab matches by exact coefficient
+* name, so these land on separate rows instead of being aligned. Use
+* esttab's coeflabel()/eqlabel() options, or rename coefficients on the
+* stored estimates first, to get a directly comparable table.
 esttab south smsa suest stacked, nogaps mti
 
 ```
@@ -121,8 +127,12 @@ preserve
 expand 2
 bys idcode: g n=_n
 keep if (n==1&south)|(n==2&smsa)
-g hours1=hours*!(n==1&south)
-g hours2=hours*!(n==2&smsa)
+* hours1 is hours in the south subsample (n==1), hours2 is hours in the
+* smsa subsample (n==2); within this restricted sample n==1 <=> south==1
+* and n==2 <=> smsa==1, so this is equivalent to but clearer than negating
+* the complementary condition.
+g hours1=hours*(n==1)
+g hours2=hours*(n==2)
 reg wage hours? n, cl(idcode)
 est sto stacked
 restore
@@ -158,6 +168,10 @@ We can see same Chow kind of test works, with IV regression, if we have the righ
 ## IV with fixed effects
 
 However, when doing with a fixed effect IV, I seem to have difficulties.  In this example, I use "reghdfe" to do an IV regression with fixed effect.  We can also use "xtivreg2", but "ivreghdfe" is supposed to be faster.
+
+::: {.callout-warning}
+The examples below cluster standard errors on `race`, which in `nlsw88` has only three categories (White, Black, Other). Cluster-robust standard errors rely on asymptotics in the number of clusters $G \to \infty$; with $G=3$ they are severely downward-biased, inflating t-statistics and false-positive rates. These chunks use `race` purely to illustrate the fixed-effect/IV mechanics — in an actual analysis, cluster on a variable with many more categories (e.g., `industry` or `occupation`), or on the true level of treatment assignment/sampling design.
+:::
 
 
 ```{stata}

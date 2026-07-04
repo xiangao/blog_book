@@ -47,18 +47,29 @@ gen.sim <- function(df){
   y = rbinom(df['nobs'], 1, pr)
   df = data.frame(y=y, x=x)
 
+  # With small nobs and small p (e.g. nobs=10, p=.01), y can easily come out
+  # all-zero (>90% chance in that cell), which makes glm/logistf unable to
+  # estimate a coefficient on x. Guard against that rather than letting a
+  # single degenerate draw crash the whole parallel simulation loop.
+  if (var(y) == 0) {
+    return(c(logit=NA, brglm2=NA, logistf=NA))
+  }
+
   # logit
-  m1 <- glm(y ~ x, family='binomial')
-  m1.x <- summary(m1)$coefficients['x','Estimate'] - 2
+  m1 <- tryCatch(glm(y ~ x, family='binomial'), error = function(e) NULL)
+  m1.x <- if (!is.null(m1)) summary(m1)$coefficients['x','Estimate'] - 2 else NA
 
   # bias-reduced logistic regression (brglm2)
-  m2 <- glm(y ~ x, family = binomial(link = "logit"), data = df,
-            method = "brglmFit", type = "AS_mean")
-  m2.x <- coef(m2)['x'] - 2
+  m2 <- tryCatch(
+    glm(y ~ x, family = binomial(link = "logit"), data = df,
+        method = "brglmFit", type = "AS_mean"),
+    error = function(e) NULL
+  )
+  m2.x <- if (!is.null(m2)) coef(m2)['x'] - 2 else NA
 
   # logistf (Firth)
-  m3 <- logistf(y ~ x, data=df)
-  m3.x <- coef(m3)['x'] - 2
+  m3 <- tryCatch(logistf(y ~ x, data=df), error = function(e) NULL)
+  m3.x <- if (!is.null(m3)) coef(m3)['x'] - 2 else NA
 
   return(c(logit=m1.x, brglm2=m2.x, logistf=m3.x))
 }
@@ -89,7 +100,7 @@ We simulate 100 times with sample size from 10 to 10000, event probability .01, 
 
 Since there are many simulations, we used the `snowfall` library to speed things up.
 
-In the graphs are two vertical lines.  The lighter one is the bias, the other one is MSE.
+(The original post plotted bias and MSE by sample size and event probability from the `results.csv` output above; those figures are not reproduced here — the findings are summarized in prose below.)
 
 In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well.  This is understandable, after all, the rarer of the two groups has only less than 5 observations.  When the product is more than 50, there is not much difference between these three models.  For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that the bias-reduced logistic regression (brglm2) and logistf perform better than logit.  In most cases, logistf is the best.
 

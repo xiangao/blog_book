@@ -106,17 +106,37 @@ summary(coldist)
 
 Spatial models in sphet are fitted by the functions stslshac and gstslshet. "stslshac" is Spatial two stages least square with HAC standard errors. "gstslshet" is GM estimation of a Cliff-Ord type model with Heteroskedastic Innovations, which is the general model we discussed before, with spatially correlated errors.
 
-The function stslshac is used to estimate the S2SLS model.
+The theoretical model above is the Spatial Durbin Model (SDM), which includes
+$WX$ as regressors (with their own coefficient $\gamma$), not just as
+instruments for $Wy$. If we only pass $X$ (no $WX$) in the formula below,
+`stslshac`'s `W2X` argument still uses spatial lags of $X$ internally, but
+only as *instruments* for the endogenous $Wy$ -- $\gamma$ is never estimated,
+so the fitted model is actually the simpler Spatial Autoregressive (SAR)
+model ($\gamma=0$), not SDM. To match the SDM specification, include $WX$
+explicitly as regressors:
+
 ```{r}
 
-res <- stslshac(log(CMEDV) ~ CRIM + ZN + INDUS + CHAS + I(NOX^2) + I(RM^2)
-                + AGE + log(DIS) + log(RAD) + TAX + PTRATIO + B + log(LSTAT),
-                data = boston.c, listw,
+boston_x_vars <- c("CRIM","ZN","INDUS","CHAS","NOX","RM","AGE","DIS","RAD","TAX","PTRATIO","B","LSTAT")
+boston.c2 <- boston.c
+for (v in boston_x_vars) {
+  xv <- boston.c[[v]]
+  if (is.factor(xv)) xv <- as.numeric(as.character(xv))
+  boston.c2[[paste0("W_", v)]] <- lag.listw(listw, xv)
+}
+
+sdm_formula <- as.formula(paste(
+  "log(CMEDV) ~ CRIM + ZN + INDUS + CHAS + I(NOX^2) + I(RM^2) + AGE + log(DIS) + log(RAD) + TAX + PTRATIO + B + log(LSTAT) +",
+  paste0("W_", boston_x_vars, collapse = " + ")
+))
+
+res <- stslshac(sdm_formula,
+                data = boston.c2, listw,
                 distance = coldist, type = "Triangular", HAC = TRUE)
 summary(res)
 ```
 
-The function gstslshet is used to estimate the GS2SLS model.
+The function gstslshet is used to estimate the GS2SLS model. Unlike `stslshac`, `gstslshet`'s GMM machinery hits an exactly-singular matrix on this dataset once the $WX$ regressors are added (likely due to near-collinearity introduced by the additional lagged terms combined with its own internal instrument construction), so we keep the original (SAR, no $WX$) specification here — this estimates the spatial-error model with $\gamma=0$, not the full Durbin extension shown above for `stslshac`.
 
 ```{r}
 

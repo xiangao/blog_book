@@ -88,11 +88,15 @@ names(data) <- c("Z1", "Z2")
 data$eta=rnorm(n, 1,1)
 # generate T*
 # T* is normally distributed
-# Here I generate Y as a function of T*, we can also do a function of T.
+# Y depends on the OBSERVED (censored) treatment T, not the latent T_star --
+# matching the structural equation Y = beta*T + Z*gamma + delta*eta + epsilon
+# above. If Y depended on T_star directly, T=0 would not fully "block" the
+# latent variable's effect on Y, and the treatment effect of T would not even
+# be well defined.
 data <- data %>%
   mutate(T_star=Z1 + 2*Z2 + 1.5*eta) %>%
   mutate(T=ifelse(T_star>0, T_star, 0)) %>%
-  mutate(Y=2*T_star + 0.5*Z1 + 0.5*Z2 + 2*eta + rnorm(n, 0, 1))
+  mutate(Y=2*T + 0.5*Z1 + 0.5*Z2 + 2*eta + rnorm(n, 0, 1))
 
 # regress Y on T, Z1, Z2
 lm1 <- lm(Y ~ T + Z1 + Z2, data=data)
@@ -112,27 +116,32 @@ It shows that the dummy variable is significant.  It means that $T$ is endogenou
 
 ### Correcting for endogeneity
 
-Now let's assume $T^*$ is symmetrically distributed.  It is left censored.  We assume it is less than half censored.  So the median remains the same for $T^*$ and $T$.  We can use the right tail to estimate the left tail.  Suppose there is a point at left tail $x$, then the corresponding point at the right tail is $2 M -x$, where $M$ is the median of $T^*$.
+The correction term is $E[T^* \mid T^* \le 0, Z]$, on the scale of the *treatment* $T^*$ — so we need to model $T^*$ given $Z$, not $Y$ given $T$ and $Z$. Let's assume $T^*$ is normally distributed given $Z$: $T^* \mid Z \sim N(Z\pi, \sigma^2)$. Since we observe $T=T^*$ whenever $T^*>0$ and $T=0$ otherwise, this is exactly a (left-)censored (Tobit) regression of $T$ on $Z$, using **all** observations (not just the right tail): the censored observations still inform $\pi$ and $\sigma$ through the likelihood, they just don't reveal $T^*$'s value directly. Given $\hat\pi$ and $\hat\sigma$, the standard truncated-normal mean formula gives us $E[T^* \mid T^* \le 0, Z]$ directly, with no separate mirroring step needed:
+
+$$ E[T^* \mid T^* \le 0, Z] = Z\hat\pi - \hat\sigma\,\frac{\phi(-Z\hat\pi/\hat\sigma)}{\Phi(-Z\hat\pi/\hat\sigma)} $$
 
 ```{r}
+#| message: false
+library(AER)
 
-M <- median(data$T)
-data2 <- data %>%
-  filter(T>2*M)
+tob <- tobit(T ~ Z1 + Z2, left = 0, data = data)
+lin_pred  <- coef(tob)["(Intercept)"] + coef(tob)["Z1"] * data$Z1 + coef(tob)["Z2"] * data$Z2
+sigma_hat <- tob$scale
+alpha     <- -lin_pred / sigma_hat
+E_Tstar_below0 <- lin_pred - sigma_hat * dnorm(alpha) / pnorm(alpha)
 
-lm3 <- lm(Y ~ T + Z1 + Z2, data=data2)
-
-# here I create an extra term for the correction
-# when T is 0, it is T, otherwise, it's 2M - the prediction from the right tail.
+# here I create an extra term for the correction:
+# when T is 0, it is T (=0); otherwise it's the truncated-normal conditional
+# mean of T* given T* <= 0 and Z, computed above.
 data <- data %>%
-  mutate(extra=if_else(T>0,T,2*M-predict(lm3, newdata=data %>% mutate(T=2*M -T))))
+  mutate(extra = if_else(T > 0, T, E_Tstar_below0))
 
 lm4 <- lm(Y ~ T + Z1 + Z2 + extra, data=data)
 summary(lm4)
 
 ```
 
-It does not seem to get the answer right 100%.  But it's better than the model without the correction term.
+Under the normality assumption, this recovers $\beta$ (the true coefficient on $T$ is 2) very closely — much better than a naive symmetric-mirroring heuristic that estimates the right-tail conditional mean by an unweighted linear regression of $T$ on $Z$ restricted to a somewhat arbitrary right-tail cutoff: that heuristic's accuracy turns out to be quite sensitive to the cutoff and sample used, because the true conditional mean of $T^*$ given $T^*$ beyond a cutoff is a nonlinear (inverse-Mills-ratio) function of $Z$, not linear — so a plain linear regression on the selected right-tail subsample is itself misspecified. The parametric (Tobit) route sidesteps that by modeling the untruncated latent distribution directly and using the exact conditional-mean formula.
 
 ## Conclusion
 
