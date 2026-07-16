@@ -1,0 +1,476 @@
+---
+title: "Modeling variation, not just the mean, in Likert-scale data"
+date: "2026-07-16"
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# Loaded here (uncached) rather than inside a cache: true chunk below, so
+# these packages are attached to the search path even when downstream
+# chunks are skipped and lazy-loaded from a valid cache.
+library(ggplot2)
+library(dplyr)
+library(brms)
+```
+
+## Why bother modeling the variance of a Likert item
+
+Most of the time, when we regress a Likert-scale outcome (a 1--7 satisfaction
+item, a 1--5 agreement item, a peer-evaluation rating) on some covariates, we
+only model the mean. But plenty of real questions are about the *spread*, not
+the average: do evaluators agree more about some employees than others? Does
+one group of raters show more disagreement than another? Is a training
+program tightening or loosening the distribution of responses, not just
+shifting its center?
+
+The natural instinct is to compute an SD (or variance) for each unit --- each
+subject's ratings across raters, each respondent's answers across items --- and
+regress *that* on your covariates, the same way you'd regress a mean. This
+chapter is about why that instinct runs into a specific, avoidable problem on
+a bounded scale, and what to do about it instead.
+
+## The problem: on a bounded scale, variance is mechanically tied to the mean
+
+Here is the part that is easy to miss: on a scale with a hard floor and
+ceiling, the *maximum possible* variance a set of responses can have depends
+on where their mean sits. This isn't a tendency in typical data -- it's a
+mathematical fact, true for any distribution on a bounded interval.
+
+For any random variable $X$ confined to $[a,b]$, both $(X-a)$ and $(b-X)$ are
+non-negative for every draw, so their product is too:
+
+$$(X-a)(b-X) \geq 0 \quad \text{for every } X \in [a,b]$$
+
+Taking expectations preserves the inequality, and expanding the left side
+gives $E[X^2] \leq (a+b)\mu - ab$ where $\mu = E[X]$. Substituting into
+$\text{Var}(X) = E[X^2] - \mu^2$:
+
+$$\text{Var}(X) \leq (a+b)\mu - ab - \mu^2 = (\mu - a)(b - \mu)$$
+
+This is the **Bhatia--Davis inequality** (Bhatia and Davis 2000). Equality is
+achieved, not just approached: put all the mass at the two endpoints, with
+$P(X=a) = (b-\mu)/(b-a)$ and $P(X=b) = (\mu-a)/(b-a)$, and you get variance
+exactly $(\mu-a)(b-\mu)$ -- the most polarized a set of responses can possibly
+be, given that mean.
+
+On a 1--7 Likert item, that's
+
+$$\text{SD}_{\max}(\mu) = \sqrt{(\mu-1)(7-\mu)}$$
+
+a downward parabola, widest at the scale's midpoint ($\mu=4$, where
+$\text{SD}_{\max}=3$) and pinched to exactly zero at both ends. A respondent
+whose raters all pick 7 has, by definition, zero disagreement -- there's
+nowhere else for a rating to go.
+
+```{r}
+#| label: bound-curve
+#| echo: true
+#| message: false
+#| warning: false
+#| fig-cap: "The mechanical ceiling on SD, given the mean, for a 1--7 scale."
+
+mu_grid <- seq(1, 7, length.out = 200)
+sd_max  <- sqrt(pmax((mu_grid - 1) * (7 - mu_grid), 0))
+
+ggplot(data.frame(mu = mu_grid, sd_max = sd_max), aes(mu, sd_max)) +
+  geom_line(linewidth = 1, color = "#2d5fa3") +
+  labs(x = "mean rating (μ)", y = expression(SD[max](mu)),
+       title = "Maximum possible SD, as a function of the mean") +
+  theme_minimal(base_size = 12)
+```
+
+The consequence: any two groups whose *means* differ will have different
+*ceilings* on their SD, whether or not anything about their true dispersion
+differs. If most of your respondents already sit near one end of the scale
+(a very common situation -- satisfaction items, performance ratings, and
+health scales are all typically skewed toward one end), this isn't a
+corner case. It's the region where the curve above is steepest, and where
+raw SD comparisons are most likely to mislead.
+
+::: {.callout-note}
+## A finite-sample refinement
+
+The curve above is the *population* bound. For a genuinely finite sample of
+$n$ real numbers with mean $\mu$, the true maximum is strictly tighter still:
+Ellis (2025) gives it exactly as $\text{Var}_{\max}(n,\mu) = (\mu-1)(7-\mu) -
+\tfrac{36}{n}a(1-a)$, where $a$ is the fractional part of $n(\mu-1)/6$, which
+simplifies to $(\mu-1)(7-\mu) - 9/n \leq \text{Var}_{\max}(n,\mu) \leq
+(\mu-1)(7-\mu)$. At $n=5$ raters, that's up to 1.8 points$^2$ of extra
+slack -- worth knowing if your groups are rated by only a handful of people
+each, since the population curve above then understates how tight the true
+ceiling is.
+:::
+
+A natural first fix is to divide the SD (or variance) by the mean, the way
+you would for a coefficient of variation. This doesn't work here, because
+that correction is designed for a *different* mechanism -- variance scaling
+proportionally with the mean, as in count data -- not a ceiling that pinches
+toward zero at *both* ends. $\text{SD}_{\max}(\mu)/\mu$ is still a curve
+(zero at $\mu=1$, a peak of $0.75$ at $\mu=4$, back to zero at $\mu=7$), just
+a differently-shaped one. Dividing by the mean doesn't remove the
+mean-dependence; it just relabels it.
+
+## Three ways to actually model it
+
+### Gaussian location-scale model (MELSM)
+
+The simplest fix that people reach for is a mixed-effects location-scale
+model: model the mean as usual, and *also* model the residual SD as a
+function of covariates.
+
+```r
+library(brms)
+
+fit_gaussian <- brm(
+  bf(rating ~ group + (1 | subject),
+     sigma ~ group),                 # model the SD, not just the mean
+  data = df, family = gaussian()
+)
+```
+
+`brms` puts a log link on `sigma` by default, so the `group` coefficient on
+the `sigma` part is a difference in *log*-SD; exponentiate it to get an
+SD ratio between groups.
+
+**The catch:** a Gaussian model has no boundary in it. It doesn't know the
+scale stops at 1 and 7, so it has no way to distinguish "this group's raters
+genuinely agree more" from "this group's mean happens to sit closer to the
+ceiling." Both produce the identical signature in the fitted `sigma`.
+
+### Beta regression: model precision instead of variance directly
+
+If your outcome can be rescaled to $(0,1)$ (e.g. $(y-1)/6$ for a 1--7 item),
+Beta regression gives you a mean/precision parameterization built exactly for
+bounded outcomes (Ferrari and Cribari-Neto 2004; R implementation in
+Cribari-Neto and Zeileis 2010's `betareg` package). With mean $\mu$ and
+precision $\varphi$:
+
+$$\text{Var}(Y) = \frac{(\mu-1)(7-\mu)}{1+\varphi} \qquad \Longrightarrow
+\qquad \varphi = \frac{(\mu-1)(7-\mu)}{\text{Var}(Y)} - 1$$
+
+Set $\varphi = 0$ and this *is* the Bhatia--Davis bound -- the maximum
+possible variance given $\mu$. So $\varphi$ is dispersion measured *after*
+the boundary effect is divided out, and $\varphi \sim \text{group}$ is a
+comparison that doesn't inherit the ceiling confound the way raw SD does.
+
+The catch here is smaller but real: it's a continuous distributional
+assumption grafted onto what is usually genuinely discrete, ordinal data
+(a 1--7 Likert response isn't a continuous proportion), and dividing by a
+small-sample variance estimate can behave badly when a handful of raters
+happen to agree by chance.
+
+$\varphi$ itself is awkward to report -- it lives on $(0,\infty)$ with no
+natural reference point. Its bounded, more interpretable twin is
+
+$$R := \frac{\text{Var}(Y)}{\text{Var}_{\max}(\mu)} = \frac{1}{1+\varphi}$$
+
+By Bhatia--Davis, $\text{Var}(Y) \leq \text{Var}_{\max}(\mu)$ for *any*
+distribution on $[1,7]$ -- not just Beta ones -- so $R \in [0,1]$ always,
+with no distributional assumption required. $R=1$ means a subject's raters
+are as polarized as the ceiling allows, given their mean; $R=0$ means
+perfect consensus. It's just $(\mu, \text{Var}(Y))$ re-expressed in
+mean-neutral units. We'll come back to $R$ in the worked example below,
+because it turns out to illustrate the small-sample catch *very* concretely.
+
+### Ordinal cumulative-probit MELSM: put the boundary inside the model
+
+The cleanest fix treats the 1--7 response as what it is: a discretized slice
+of a latent continuous trait, cut by six ordered thresholds. `brms` supports
+this directly, and lets you model *both* the location and the "discrimination"
+(inverse latent SD) as functions of covariates (Bürkner and Vuorre 2019):
+
+```r
+fit_ordinal <- brm(
+  bf(rating ~ group + (1 | subject),
+     disc ~ 0 + group),           # discrimination = 1 / latent SD
+  data = df, family = cumulative("probit"), init = 0,
+  prior = c(
+    prior(constant(0), class = "b", coef = "groupA", dpar = "disc"),
+    prior(normal(0, 1), class = "b", coef = "groupB", dpar = "disc")
+  )
+)
+```
+
+The `constant(0)` prior pins the reference group's discrimination at zero
+(latent SD = 1); only the comparison group's `disc` is estimated. Because the
+boundary is now an explicit part of the model -- six estimated cutpoints on an
+*unbounded* latent scale -- a group whose mean sits near 7 doesn't
+mechanically show a tighter latent SD the way its raw SD is forced to.
+
+## Worked example: two groups, identical true dispersion, different means
+
+To see the confound in action, simulate two groups of 100 subjects each,
+6 raters per subject. Both groups' raters draw from a **latent** continuous
+opinion with the *same* true SD ($\sigma = 1$) -- there is no real
+disagreement difference to find. Group A's latent mean sits high (near the
+ceiling once discretized); Group B's sits in the middle of the range.
+
+```{r}
+#| label: simulate
+#| echo: true
+#| message: false
+#| warning: false
+#| cache: true
+
+set.seed(42)
+
+n_per_group <- 100
+n_raters    <- 6
+sigma_true  <- 1.0   # SAME latent SD in both groups -- no real difference
+mu_A <- 2.4          # group A's latent mean sits near the ceiling
+mu_B <- 0.6          # group B's sits mid-range
+
+subjects <- data.frame(
+  subject = 1:(2 * n_per_group),
+  group   = rep(c("A", "B"), each = n_per_group),
+  mu      = rep(c(mu_A, mu_B), each = n_per_group)
+)
+
+df <- subjects[rep(seq_len(nrow(subjects)), each = n_raters), ]
+df$latent <- rnorm(nrow(df), mean = df$mu, sd = sigma_true)
+
+# six fixed cutpoints -> seven observed categories, 1 through 7
+cuts <- c(-2, -1.2, -0.5, 0.2, 1.0, 1.8)
+df$rating     <- as.integer(cut(df$latent, breaks = c(-Inf, cuts, Inf), labels = 1:7))
+df$rating_ord <- factor(df$rating, ordered = TRUE, levels = 1:7)
+```
+
+The raw, per-subject summary already shows exactly the pattern that tempts
+people into thinking there's a real disagreement difference:
+
+```{r}
+#| label: raw-summary
+#| echo: true
+#| message: false
+#| warning: false
+
+subj_summary <- df |>
+  group_by(subject, group) |>
+  summarise(mean_rating = mean(rating), sd_rating = sd(rating), .groups = "drop")
+
+knitr::kable(
+  subj_summary |> group_by(group) |>
+    summarise(mean_of_means = round(mean(mean_rating), 2),
+              mean_of_sds   = round(mean(sd_rating), 2)),
+  caption = "Raw per-subject summary by group -- true latent SD is IDENTICAL in both."
+)
+```
+
+```{r}
+#| label: scatter
+#| echo: true
+#| message: false
+#| warning: false
+#| fig-cap: "Subject-level mean vs. SD, with the theoretical ceiling overlaid."
+
+ggplot(subj_summary, aes(mean_rating, sd_rating, color = group)) +
+  geom_jitter(width = 0.05, height = 0, alpha = 0.5) +
+  geom_line(data = data.frame(mean_rating = mu_grid, sd_rating = sd_max),
+            aes(mean_rating, sd_rating), color = "grey40", inherit.aes = FALSE) +
+  labs(x = "subject mean rating", y = "subject SD",
+       title = "Group A's raw SD looks smaller -- purely because its mean sits\nnear the grey ceiling curve, not because raters agree more") +
+  theme_minimal(base_size = 12)
+```
+
+Now fit both a Gaussian MELSM and the ordinal cumulative-probit MELSM to the
+same data.
+
+```{r}
+#| label: fit-gaussian
+#| echo: true
+#| message: false
+#| warning: false
+#| cache: true
+
+fit_gaussian <- brm(
+  bf(rating ~ group + (1 | subject), sigma ~ group),
+  data = df, family = gaussian(),
+  chains = 2, iter = 2000, warmup = 1000, cores = 2, seed = 1,
+  refresh = 0, silent = 2
+)
+```
+
+```{r}
+#| label: fit-ordinal
+#| echo: true
+#| message: false
+#| warning: false
+#| cache: true
+
+fit_ordinal <- brm(
+  bf(rating_ord ~ group + (1 | subject), disc ~ 0 + group),
+  data = df, family = cumulative("probit"), init = 0,
+  prior = c(
+    prior(constant(0), class = "b", coef = "groupA", dpar = "disc"),
+    prior(normal(0, 1), class = "b", coef = "groupB", dpar = "disc")
+  ),
+  chains = 2, iter = 2000, warmup = 1000, cores = 2, seed = 1,
+  refresh = 0, silent = 2
+)
+```
+
+```{r}
+#| label: compare-results
+#| echo: true
+#| message: false
+#| warning: false
+
+knitr::kable(round(fixef(fit_gaussian), 2), caption = "Gaussian MELSM fixed effects (sigma part is on the log-SD scale)")
+knitr::kable(round(fixef(fit_ordinal), 2), caption = "Ordinal MELSM fixed effects (disc part: 0 = same as reference group)")
+```
+
+On the raw scale, Group A averages 6.64 with an SD of 0.58; Group B averages
+4.89 with an SD of 1.22 -- the pooled correlation between subject-level mean
+and SD is $-0.74$. That pattern looks like a real, sizable disagreement gap,
+and the Gaussian MELSM agrees with it: the fitted `sigma_groupB` coefficient
+of 0.68 (on the log-SD scale) implies Group B's SD is **1.97 times** Group
+A's (95% CI: 1.82--2.14) -- a difference whose credible interval is nowhere
+near zero.
+
+But there is no true difference. Both groups' raters were drawn from a
+latent distribution with the *same* SD ($\sigma=1$) by construction --
+the only thing that differs between the groups is where their mean sits
+relative to the ceiling. The ordinal cumulative-probit model's
+`disc_groupB` estimate is $-0.015$ (95% CI: $-0.171$ to $0.146$) --
+indistinguishable from zero, correctly recovering the fact that the two
+groups' underlying dispersion is identical. The Gaussian model's "Group B
+disagrees twice as much" is not a finding about the raters; it's the
+mechanical ceiling effect from the previous section, expressed as a
+regression coefficient.
+
+### What about R, on this same data?
+
+$R$ was introduced above as mean-independent by construction -- so it should
+land on the same answer as the ordinal model: no real group difference.
+Compute it per subject, using the exact finite-sample bound from the earlier
+callout ($n=6$ raters):
+
+```{r}
+#| label: r-measure
+#| echo: true
+#| message: false
+#| warning: false
+
+var_max_finite <- function(n, mu) {
+  c <- (mu - 1) / 6
+  a <- (n * c) %% 1
+  36 * (c * (1 - c) - (1 / n) * a * (1 - a))
+}
+
+subj_R <- df |>
+  group_by(subject, group) |>
+  summarise(mean_rating = mean(rating),
+            var_pop = mean((rating - mean(rating))^2),   # population (1/n) convention
+            .groups = "drop") |>
+  mutate(var_max = var_max_finite(n_raters, mean_rating),
+         R = ifelse(var_max > 1e-8, var_pop / var_max, NA_real_))
+
+knitr::kable(
+  subj_R |> group_by(group) |>
+    summarise(n_undefined = sum(is.na(R)), mean_R = round(mean(R, na.rm = TRUE), 3)),
+  caption = "Per-subject R, using each subject's own 6 ratings for both mean and variance."
+)
+```
+
+This is worse than the raw SD comparison, not better: Group A's per-subject
+$R$ averages 0.63, Group B's 0.20 -- an even larger apparent gap, and in the
+opposite direction from what the ceiling artifact would predict. Fourteen
+Group A subjects even have an *undefined* $R$ (all six raters happened to
+pick 7, so both the observed variance and the mechanical ceiling are
+simultaneously zero). Has $R$ failed?
+
+No -- the theoretical guarantee ($R\in[0,1]$ at every $\mu$, no forced
+relationship to the mean) is about the *population* quantity. Plugging in a
+mean estimated from only 6 raters breaks it, because the finite-sample bound
+in the denominator is itself estimated from that same noisy mean, and it is
+far more sensitive near the ceiling than in the middle of the scale:
+
+```{r}
+#| label: r-diagnostic
+#| echo: true
+#| message: false
+#| warning: false
+
+knitr::kable(
+  subj_R |> group_by(group) |>
+    summarise(mean_var_pop = round(mean(var_pop), 3),
+              mean_var_max = round(mean(var_max, na.rm = TRUE), 3)),
+  caption = "The denominator (mean_var_max) is nearly 7x smaller for Group A -- not because Group A's true ceiling is that much tighter, but because a 6-rater sample mean near 7 makes the *estimated* ceiling collapse."
+)
+```
+
+A Group A subject's 6 raters average close to 7 purely because that's where
+their true mean sits -- but exactly *how* close is noisy, and the
+finite-sample bound shrinks fast as the sample mean approaches the boundary.
+A modest, unremarkable observed variance divided by an unluckily tiny
+denominator produces a large $R$, for no reason connected to real
+disagreement. Swapping in the simpler continuous bound (no finite-sample
+correction) shrinks the gap a great deal -- 0.181 vs. 0.173 -- but each
+value is still an average of 100 individually noisy single-subject
+estimates. Only pooling each group's full 600 ratings into one mean and one
+variance before computing $R$ removes the small-sample noise entirely:
+
+```{r}
+#| label: r-pooled
+#| echo: true
+#| message: false
+#| warning: false
+
+pooled <- df |> group_by(group) |>
+  summarise(mean_rating = mean(rating), var_pop = mean((rating - mean(rating))^2)) |>
+  mutate(var_max_cont = (mean_rating - 1) * (7 - mean_rating),
+         R_pooled = round(var_pop / var_max_cont, 3))
+
+knitr::kable(pooled |> select(group, mean_rating, R_pooled),
+             caption = "R computed once per group, from all 600 ratings pooled.")
+```
+
+Pooled, $R$ is 0.22 for Group A and 0.21 for Group B -- essentially
+identical, agreeing with the ordinal model's null finding. The lesson isn't
+"don't use $R$" -- it's that $R$, like $\varphi$, is only as trustworthy as
+the sample size behind the mean and variance plugged into it. A hand-computed
+per-subject $R$ with 6 raters can manufacture a *larger* spurious gap than
+raw SD, in the opposite direction. The ordinal model never has this problem
+in the first place, because it never computes a per-subject summary
+statistic at all -- `disc_groupB` is estimated directly from the full,
+pooled 600-observation likelihood per group, with the same effect as the
+"pooled" calculation above but done coherently, and with a proper posterior
+interval instead of an average of point estimates.
+
+## Takeaways
+
+::: {.callout-note}
+## Summary
+
+- On any bounded scale, the *maximum possible* variance is a function of the
+  mean -- the Bhatia--Davis inequality, $\text{Var}(X) \leq (\mu-a)(b-\mu)$ --
+  not a tendency to check for, a fact to design around.
+- Dividing SD (or variance) by the mean does not remove this confound; the
+  mechanism isn't proportional scaling, it's a ceiling that pinches at both
+  ends.
+- A Gaussian location-scale model can estimate `sigma ~ x`, but inherits the
+  confound, because it has no boundary in it.
+- Beta regression's precision parameter $\varphi$ (and its bounded twin $R$)
+  remove the confound algebraically, at the cost of a continuous
+  approximation to discrete data -- and $R$ is only as trustworthy as the
+  sample size behind the numbers plugged into it. With few raters per
+  subject, a hand-computed per-subject $R$ can manufacture a *larger*
+  spurious group gap than raw SD, in the opposite direction.
+- An ordinal cumulative-link mixed model puts the boundary where it belongs
+  -- as estimated thresholds on a latent scale -- and is the cleanest way to
+  ask "is this dispersion difference real?" on Likert data, because it never
+  needs a per-unit summary statistic at all.
+:::
+
+**References** -- Bhatia, R., and Davis, C. (2000). "A Better Bound on the
+Variance." *American Mathematical Monthly* 107(4): 353--357. Ellis, J. L.
+(2025). "The maximum variance of a finite dataset, given its mean, minimum,
+and maximum." [arXiv:2508.17525](https://arxiv.org/abs/2508.17525). Ferrari,
+S. L. P., and Cribari-Neto, F. (2004). "Beta Regression for Modelling Rates
+and Proportions." *Journal of Applied Statistics* 31(7): 799--815.
+Cribari-Neto, F., and Zeileis, A. (2010). "Beta Regression in R." *Journal of
+Statistical Software* 34(2): 1--24. Bürkner, P.-C., and Vuorre, M. (2019).
+"Ordinal Regression Models in Psychology: A Tutorial." *Advances in Methods
+and Practices in Psychological Science* 2(1): 77--101.
