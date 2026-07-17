@@ -15,7 +15,7 @@ library(dplyr)
 library(brms)
 ```
 
-## Why bother modeling the variance of a Likert item
+## When you model the variance of a Likert item
 
 Most of the time, when we regress a Likert-scale outcome (a 1--7 satisfaction
 item, a 1--5 agreement item, a peer-evaluation rating) on some covariates, we
@@ -34,7 +34,7 @@ a bounded scale, and what to do about it instead.
 ## The problem: on a bounded scale, variance is mechanically tied to the mean
 
 Here is the part that is easy to miss: on a scale with a hard floor and
-ceiling, the *maximum possible* variance a set of responses can have depends
+ceiling, the *maximum possible* variance a set of responses can depend
 on where their mean sits. This isn't a tendency in typical data -- it's a
 mathematical fact, true for any distribution on a bounded interval.
 
@@ -139,6 +139,34 @@ scale stops at 1 and 7, so it has no way to distinguish "this group's raters
 genuinely agree more" from "this group's mean happens to sit closer to the
 ceiling." Both produce the identical signature in the fitted `sigma`.
 
+### What belongs in the dispersion submodel?
+
+A natural worry at this point: why does `sigma ~ group` (or, further below,
+`disc ~ group` and $\varphi \sim \text{group}$) only include `group`, when
+the *mean* model might include other covariates too -- shouldn't the
+dispersion submodel be "whatever is in the model for the mean"? Not
+necessarily. There is no requirement that the two submodels share a
+right-hand side, and in general they *shouldn't* automatically, because they
+answer different questions. The mean model asks what predicts the average
+rating; the dispersion model asks what predicts how spread out the ratings
+are. In this chapter's simulation `group` is the only variable in the
+data-generating process at all -- there is nothing else *to* include, on
+either side.
+
+In a real dataset, though, this is a substantive modeling choice, not a
+mechanical one, and getting it wrong has a real cost -- symmetric to the
+familiar one for the mean. If some covariate $Z$ (rater experience, item
+wording, subject-level traits) genuinely affects dispersion and happens to be
+correlated with `group`, but $Z$ is left out of the dispersion submodel, its
+effect is absorbed into the `group` coefficient on `sigma` (or `disc`, or
+$\varphi$) -- an omitted-variable problem for the *variance*, exactly
+analogous to the ordinary one for the mean. The fix is the same one you'd
+already apply on the mean side: include, in the dispersion submodel,
+whichever covariates you have a substantive reason to think shift dispersion,
+and give that specification the same scrutiny you'd give the mean model --
+neither reflexively copying its formula nor stripping the dispersion
+submodel down to only the one comparison you happen to be interested in.
+
 ### Beta regression: model precision instead of variance directly
 
 If your outcome can be rescaled to $(0,1)$ (e.g. $(y-1)/6$ for a 1--7 item),
@@ -177,14 +205,49 @@ because it turns out to illustrate the small-sample catch *very* concretely.
 ### Ordinal cumulative-probit MELSM: put the boundary inside the model
 
 The cleanest fix treats the 1--7 response as what it is: a discretized slice
-of a latent continuous trait, cut by six ordered thresholds. `brms` supports
-this directly, and lets you model *both* the location and the "discrimination"
-(inverse latent SD) as functions of covariates (Bürkner and Vuorre 2019):
+of a latent continuous trait, cut by six ordered thresholds.
+
+**The latent-variable model.** Posit an unobserved continuous $Y_i^*$ behind
+each rating,
+
+$$Y_i^* = \eta_i + \sigma_i \epsilon_i, \qquad \epsilon_i \sim N(0,1),$$
+
+where $\eta_i$ is the usual linear predictor for *location* (`group` plus a
+subject random intercept, say) and $\sigma_i$ is the latent residual SD,
+which we will also let depend on covariates. The observed 1--7 rating is a
+coarsened version of $Y_i^*$, cut at six fixed thresholds $\theta_1 < \cdots
+< \theta_6$ (with $\theta_0=-\infty$, $\theta_7=\infty$):
+
+$$Y_i = k \iff \theta_{k-1} < Y_i^* \leq \theta_k.$$
+
+The probability of falling at or below category $k$ is then
+
+$$P(Y_i \leq k) = P(Y_i^* \leq \theta_k) = P\!\left(\epsilon_i \leq
+\frac{\theta_k - \eta_i}{\sigma_i}\right) = \Phi\!\left(\frac{\theta_k -
+\eta_i}{\sigma_i}\right),$$
+
+using $\Phi$, the standard normal CDF, for the probit link. Writing
+$\text{disc}_i := 1/\sigma_i$ turns this into `brms`'s parameterization
+exactly:
+
+$$P(Y_i \leq k) = \Phi\bigl(\text{disc}_i\,(\theta_k - \eta_i)\bigr).$$
+
+So "discrimination" is *literally* the reciprocal of the latent residual SD
+-- not an analogy, an algebraic identity -- reached by rescaling the argument
+of $\Phi$ rather than dividing by $\sigma_i$ directly. Letting $\text{disc}$
+depend on covariates is the ordinal-probit analogue of `sigma ~ group` in the
+Gaussian model above, just written in reciprocal form: a positivity-friendly
+way to let dispersion vary ($\text{disc} > 0$ everywhere, with no constraint
+needed on $\sigma_i$ itself). `brms` puts a log link on `disc`, exactly as it
+does on Gaussian `sigma`, so a `disc ~ 0 + group` submodel really means
+$\log(\text{disc}_i) = \gamma_{\text{group}[i]}$: a group difference in
+*log*-discrimination, parallel to the Gaussian model's log-SD coefficients
+(Bürkner and Vuorre 2019).
 
 ```r
 fit_ordinal <- brm(
   bf(rating ~ group + (1 | subject),
-     disc ~ 0 + group),           # discrimination = 1 / latent SD
+     disc ~ 0 + group),           # log(disc) = 0 + group; disc = 1 / latent SD
   data = df, family = cumulative("probit"), init = 0,
   prior = c(
     prior(constant(0), class = "b", coef = "groupA", dpar = "disc"),
@@ -193,9 +256,17 @@ fit_ordinal <- brm(
 )
 ```
 
-The `constant(0)` prior pins the reference group's discrimination at zero
-(latent SD = 1); only the comparison group's `disc` is estimated. Because the
-boundary is now an explicit part of the model -- six estimated cutpoints on an
+The `constant(0)` prior pins the reference group's **log**-discrimination --
+the linear predictor $\gamma_A$, not $\text{disc}$ itself -- at zero, so
+$\text{disc}_A = \exp(0) = 1$ and the reference group's latent SD is
+$1/\text{disc}_A = 1$. (Fixing $\gamma_A=0$ is what makes `disc = 1` and
+`SD = 1` coincide for the reference group; it is not a claim that
+discrimination itself is zero, which would instead mean an infinite latent
+SD.) Only $\gamma_B$, the comparison group's log-discrimination, is estimated
+freely: $\text{disc}_B = \exp(\gamma_B)$, so $\gamma_B=0$ means identical
+dispersion, $\gamma_B>0$ means Group B is *more* discriminating (a
+*smaller* latent SD), and $\gamma_B<0$ the reverse. Because the boundary is
+now an explicit part of the model -- six estimated cutpoints on an
 *unbounded* latent scale -- a group whose mean sits near 7 doesn't
 mechanically show a tighter latent SD the way its raw SD is forced to.
 
@@ -318,7 +389,7 @@ fit_ordinal <- brm(
 #| warning: false
 
 knitr::kable(round(fixef(fit_gaussian), 2), caption = "Gaussian MELSM fixed effects (sigma part is on the log-SD scale)")
-knitr::kable(round(fixef(fit_ordinal), 2), caption = "Ordinal MELSM fixed effects (disc part: 0 = same as reference group)")
+knitr::kable(round(fixef(fit_ordinal), 2), caption = "Ordinal MELSM fixed effects (disc part is on the log scale: 0 = same latent SD as the reference group)")
 ```
 
 On the raw scale, Group A averages 6.64 with an SD of 0.58; Group B averages
@@ -333,9 +404,11 @@ But there is no true difference. Both groups' raters were drawn from a
 latent distribution with the *same* SD ($\sigma=1$) by construction --
 the only thing that differs between the groups is where their mean sits
 relative to the ceiling. The ordinal cumulative-probit model's
-`disc_groupB` estimate is $-0.015$ (95% CI: $-0.171$ to $0.146$) --
-indistinguishable from zero, correctly recovering the fact that the two
-groups' underlying dispersion is identical. The Gaussian model's "Group B
+`disc_groupB` estimate -- $\gamma_B = -0.015$ on the log scale (95% CI:
+$-0.171$ to $0.146$) -- is indistinguishable from zero, i.e.
+$\text{disc}_B = e^{-0.015} \approx 0.985$, a latent SD of $\approx 1.015$
+against the reference group's $1$: correctly recovering the fact that the
+two groups' underlying dispersion is identical. The Gaussian model's "Group B
 disagrees twice as much" is not a finding about the raters; it's the
 mechanical ceiling effect from the previous section, expressed as a
 regression coefficient.
@@ -464,13 +537,22 @@ interval instead of an average of point estimates.
   needs a per-unit summary statistic at all.
 :::
 
-**References** -- Bhatia, R., and Davis, C. (2000). "A Better Bound on the
-Variance." *American Mathematical Monthly* 107(4): 353--357. Ellis, J. L.
-(2025). "The maximum variance of a finite dataset, given its mean, minimum,
-and maximum." [arXiv:2508.17525](https://arxiv.org/abs/2508.17525). Ferrari,
-S. L. P., and Cribari-Neto, F. (2004). "Beta Regression for Modelling Rates
-and Proportions." *Journal of Applied Statistics* 31(7): 799--815.
-Cribari-Neto, F., and Zeileis, A. (2010). "Beta Regression in R." *Journal of
-Statistical Software* 34(2): 1--24. Bürkner, P.-C., and Vuorre, M. (2019).
-"Ordinal Regression Models in Psychology: A Tutorial." *Advances in Methods
-and Practices in Psychological Science* 2(1): 77--101.
+## References
+
+- Bhatia, R., and Davis, C. (2000). "A Better Bound on the Variance."
+  *American Mathematical Monthly* 107(4): 353--357.
+
+- Bürkner, P.-C., and Vuorre, M. (2019). "Ordinal Regression Models in
+  Psychology: A Tutorial." *Advances in Methods and Practices in
+  Psychological Science* 2(1): 77--101.
+
+- Cribari-Neto, F., and Zeileis, A. (2010). "Beta Regression in R." *Journal
+  of Statistical Software* 34(2): 1--24.
+
+- Ellis, J. L. (2025). "The maximum variance of a finite dataset, given its
+  mean, minimum, and maximum."
+  [arXiv:2508.17525](https://arxiv.org/abs/2508.17525).
+
+- Ferrari, S. L. P., and Cribari-Neto, F. (2004). "Beta Regression for
+  Modelling Rates and Proportions." *Journal of Applied Statistics* 31(7):
+  799--815.
