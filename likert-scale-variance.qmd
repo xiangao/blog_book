@@ -308,6 +308,46 @@ df$rating     <- as.integer(cut(df$latent, breaks = c(-Inf, cuts, Inf), labels =
 df$rating_ord <- factor(df$rating, ordered = TRUE, levels = 1:7)
 ```
 
+Before looking at the raw summary, it is worth seeing exactly where the
+group difference enters the code, because it is easy to miss: `rnorm(...,
+sd = sigma_true)` uses one `sigma_true` for every row, in both groups --
+`group` never touches the standard deviation, only the mean, via `df$mu`.
+The two groups differ *only* in where their latent mean sits relative to
+the six fixed cutpoints, which are the same `cuts` object for both groups.
+That is enough, on its own, to produce very different observed spreads:
+
+```{r}
+#| label: category-probs
+#| echo: true
+#| message: false
+#| warning: false
+
+edges <- c(-Inf, cuts, Inf)
+tibble(
+  category = 1:7,
+  prob_A = round(diff(pnorm(edges, mean = mu_A, sd = sigma_true)), 3),
+  prob_B = round(diff(pnorm(edges, mean = mu_B, sd = sigma_true)), 3)
+) |>
+  knitr::kable(caption = "Category probabilities implied by each group's latent mean, with the same cutpoints and the same sigma.")
+```
+
+Group A's latent mean (2.4) sits 0.6 SDs above the highest cutpoint (1.8),
+so `pnorm(0.6)` $\approx 0.73$: nearly three-quarters of Group A's
+individual ratings are collapsed into the single top category, and fewer
+than 2% fall below category 5. Group B's latent mean (0.6) sits close to
+the middle of the cutpoint range, so its ratings spread across all seven
+categories, with no single category exceeding about 30%.
+
+That imbalance -- not a difference in $\sigma$ -- is what shrinks Group A's
+raw SD. When roughly three-quarters of a subject's six ratings are forced
+into the same top bin by `cut()`, the *discrete* variance across those six
+ratings is mechanically small, even though the *continuous* latent draws
+behind them are exactly as dispersed as Group B's ($\sigma=1$ for both,
+by construction). It is the same Bhatia--Davis mechanism from the
+introduction, now visible subject-by-subject through `cut()`'s fixed
+boundaries rather than through the population-level $\text{SD}_{\max}(\mu)$
+curve directly.
+
 The raw, per-subject summary already shows exactly the pattern that tempts
 people into thinking there's a real disagreement difference:
 
