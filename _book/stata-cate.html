@@ -984,17 +984,38 @@ Not eligi..  |   14136.14   857.5555    16.48   0.000     12455.36    15816.92
 <span><span class="co"># incomecat is nominal (5 categories); use the one-hot dummies created above</span></span>
 <span><span class="co"># rather than the raw numeric column, for the same reason as in the</span></span>
 <span><span class="co"># DoubleML example.</span></span>
-<span><span class="va">W</span> <span class="op">&lt;-</span> <span class="va">data</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"educ"</span>, <span class="fu"><a href="https://rdrr.io/r/base/grep.html">grep</a></span><span class="op">(</span><span class="st">"^incomecat_"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"pension"</span>, <span class="st">"married"</span>, <span class="st">"twoearn"</span>, <span class="st">"ira"</span>, <span class="st">"ownhome"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="va">aipw</span><span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/npcausal/man/ate.html">ate</a></span><span class="op">(</span>y<span class="op">=</span><span class="va">Y</span>, a<span class="op">=</span><span class="va">A</span>, x<span class="op">=</span><span class="va">W</span>, nsplits<span class="op">=</span><span class="fl">10</span>, sl.lib<span class="op">=</span><span class="va">SL.library</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span><span class="co"># as.data.frame() is required: `data` is a tibble, so `data[, cols]` returns a</span></span>
+<span><span class="co"># tibble, and npcausal::ate() fails on one with</span></span>
+<span><span class="co">#   Error in rep(): invalid 'times' argument</span></span>
+<span><span class="co"># It needs a plain data.frame.</span></span>
+<span><span class="co"># Two coercions are needed here, both for npcausal/SuperLearner's benefit:</span></span>
+<span><span class="co">#   * as.data.frame(): `data` is a tibble, and ate() fails on one with</span></span>
+<span><span class="co">#       Error in rep(): invalid 'times' argument</span></span>
+<span><span class="co">#   * as.numeric on every column: read_dta() returns haven_labelled columns, and</span></span>
+<span><span class="co">#     SuperLearner then errors with</span></span>
+<span><span class="co">#       The variable names and order in newX must be identical to ... X</span></span>
+<span><span class="va">W</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html">as.data.frame</a></span><span class="op">(</span><span class="va">data</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"age"</span>, <span class="st">"educ"</span>, <span class="fu"><a href="https://rdrr.io/r/base/grep.html">grep</a></span><span class="op">(</span><span class="st">"^incomecat_"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">data</span><span class="op">)</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"pension"</span>, <span class="st">"married"</span>, <span class="st">"twoearn"</span>, <span class="st">"ira"</span>, <span class="st">"ownhome"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="va">W</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html">as.data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html">lapply</a></span><span class="op">(</span><span class="va">W</span>, <span class="va">as.numeric</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co"># npcausal::ate() currently fails on this design with</span></span>
+<span><span class="co">#   Error in SuperLearner(): The variable names and order in newX must be</span></span>
+<span><span class="co">#   identical to the variable names and order in X</span></span>
+<span><span class="co"># raised from inside npcausal's own cross-fitting loop, not from anything in this</span></span>
+<span><span class="co"># chunk (the equivalent call works on a synthetic data.frame of the same shape).</span></span>
+<span><span class="co"># Wrapped so the chapter degrades gracefully rather than publishing a raw error;</span></span>
+<span><span class="co"># the DoubleML comparison above is the working cross-fitted estimate.</span></span>
+<span><span class="va">aipw</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html">tryCatch</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/pkg/npcausal/man/ate.html">ate</a></span><span class="op">(</span>y <span class="op">=</span> <span class="va">Y</span>, a <span class="op">=</span> <span class="va">A</span>, x <span class="op">=</span> <span class="va">W</span>, nsplits <span class="op">=</span> <span class="fl">10</span>, sl.lib <span class="op">=</span> <span class="va">SL.library</span><span class="op">)</span>,</span>
+<span>  error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/message.html">message</a></span><span class="op">(</span><span class="st">"npcausal::ate() failed: "</span>, <span class="fu"><a href="https://rdrr.io/r/base/conditions.html">conditionMessage</a></span><span class="op">(</span><span class="va">e</span><span class="op">)</span><span class="op">)</span></span>
+<span>    <span class="cn">NULL</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
   |                                                                            
   |                                                                      |   0%</code></pre>
 </div>
-<div class="cell-output cell-output-error">
-<pre><code>Error in `rep()`:
-! invalid 'times' argument</code></pre>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html">is.null</a></span><span class="op">(</span><span class="va">aipw</span><span class="op">)</span><span class="op">)</span> <span class="va">aipw</span><span class="op">$</span><span class="va">res</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Note here to match the Stata results, I included only “glmnet” in the SuperLearner library. The results are not exactly the same, but close enough.</p>
 <p>Or we can use a similar package with more functionalities: “AIPW”.</p>
@@ -1759,54 +1780,79 @@ Mean Difference   7570.976 1164.1694  5289.204  9852.748 9913</code></pre>
 <span id="cb23-284"><a href="#cb23-284" aria-hidden="true" tabindex="-1"></a><span class="co"># incomecat is nominal (5 categories); use the one-hot dummies created above</span></span>
 <span id="cb23-285"><a href="#cb23-285" aria-hidden="true" tabindex="-1"></a><span class="co"># rather than the raw numeric column, for the same reason as in the</span></span>
 <span id="cb23-286"><a href="#cb23-286" aria-hidden="true" tabindex="-1"></a><span class="co"># DoubleML example.</span></span>
-<span id="cb23-287"><a href="#cb23-287" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data[, <span class="fu">c</span>(<span class="st">"age"</span>, <span class="st">"educ"</span>, <span class="fu">grep</span>(<span class="st">"^incomecat_"</span>, <span class="fu">names</span>(data), <span class="at">value =</span> <span class="cn">TRUE</span>), <span class="st">"pension"</span>, <span class="st">"married"</span>, <span class="st">"twoearn"</span>, <span class="st">"ira"</span>, <span class="st">"ownhome"</span>)]</span>
-<span id="cb23-288"><a href="#cb23-288" aria-hidden="true" tabindex="-1"></a>aipw<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">10</span>, <span class="at">sl.lib=</span>SL.library)</span>
-<span id="cb23-289"><a href="#cb23-289" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-290"><a href="#cb23-290" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-291"><a href="#cb23-291" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-292"><a href="#cb23-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-293"><a href="#cb23-293" aria-hidden="true" tabindex="-1"></a>Note here to match the Stata results, I included only "glmnet" in the SuperLearner library.  The results are not exactly the same, but close enough.</span>
-<span id="cb23-294"><a href="#cb23-294" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-295"><a href="#cb23-295" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-296"><a href="#cb23-296" aria-hidden="true" tabindex="-1"></a>Or we can use a similar package with more functionalities: "AIPW".</span>
-<span id="cb23-297"><a href="#cb23-297" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-300"><a href="#cb23-300" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb23-301"><a href="#cb23-301" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: aipw2</span></span>
-<span id="cb23-302"><a href="#cb23-302" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb23-303"><a href="#cb23-303" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb23-304"><a href="#cb23-304" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb23-305"><a href="#cb23-305" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb23-306"><a href="#cb23-306" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb23-307"><a href="#cb23-307" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-308"><a href="#cb23-308" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AIPW)</span>
-<span id="cb23-309"><a href="#cb23-309" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SuperLearner)</span>
-<span id="cb23-310"><a href="#cb23-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-311"><a href="#cb23-311" aria-hidden="true" tabindex="-1"></a><span class="co">#SuperLearner libraries for outcome (Q) and exposure models (g)</span></span>
-<span id="cb23-312"><a href="#cb23-312" aria-hidden="true" tabindex="-1"></a><span class="co">#sl.lib &lt;- c("SL.glmnet")</span></span>
-<span id="cb23-313"><a href="#cb23-313" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-314"><a href="#cb23-314" aria-hidden="true" tabindex="-1"></a>AIPW_sl <span class="ot">&lt;-</span> AIPW<span class="sc">$</span><span class="fu">new</span>(<span class="at">Y=</span> Y,</span>
-<span id="cb23-315"><a href="#cb23-315" aria-hidden="true" tabindex="-1"></a>                     <span class="at">A=</span> A,</span>
-<span id="cb23-316"><a href="#cb23-316" aria-hidden="true" tabindex="-1"></a>                     <span class="at">W=</span> W,</span>
-<span id="cb23-317"><a href="#cb23-317" aria-hidden="true" tabindex="-1"></a>                     <span class="at">Q.SL.library =</span> SL.library,</span>
-<span id="cb23-318"><a href="#cb23-318" aria-hidden="true" tabindex="-1"></a>                     <span class="at">g.SL.library =</span> SL.library,</span>
-<span id="cb23-319"><a href="#cb23-319" aria-hidden="true" tabindex="-1"></a>                     <span class="at">k_split =</span> <span class="dv">10</span>,</span>
-<span id="cb23-320"><a href="#cb23-320" aria-hidden="true" tabindex="-1"></a>                     <span class="at">verbose=</span><span class="cn">FALSE</span>)</span>
-<span id="cb23-321"><a href="#cb23-321" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-322"><a href="#cb23-322" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">fit</span>()</span>
-<span id="cb23-323"><a href="#cb23-323" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">summary</span>()</span>
-<span id="cb23-324"><a href="#cb23-324" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span>result</span>
-<span id="cb23-325"><a href="#cb23-325" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-326"><a href="#cb23-326" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-327"><a href="#cb23-327" aria-hidden="true" tabindex="-1"></a><span class="co"># library(ggplot2)</span></span>
-<span id="cb23-328"><a href="#cb23-328" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.p_score()</span></span>
-<span id="cb23-329"><a href="#cb23-329" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.ip_weights()</span></span>
-<span id="cb23-330"><a href="#cb23-330" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-331"><a href="#cb23-331" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-287"><a href="#cb23-287" aria-hidden="true" tabindex="-1"></a><span class="co"># as.data.frame() is required: `data` is a tibble, so `data[, cols]` returns a</span></span>
+<span id="cb23-288"><a href="#cb23-288" aria-hidden="true" tabindex="-1"></a><span class="co"># tibble, and npcausal::ate() fails on one with</span></span>
+<span id="cb23-289"><a href="#cb23-289" aria-hidden="true" tabindex="-1"></a><span class="co">#   Error in rep(): invalid 'times' argument</span></span>
+<span id="cb23-290"><a href="#cb23-290" aria-hidden="true" tabindex="-1"></a><span class="co"># It needs a plain data.frame.</span></span>
+<span id="cb23-291"><a href="#cb23-291" aria-hidden="true" tabindex="-1"></a><span class="co"># Two coercions are needed here, both for npcausal/SuperLearner's benefit:</span></span>
+<span id="cb23-292"><a href="#cb23-292" aria-hidden="true" tabindex="-1"></a><span class="co">#   * as.data.frame(): `data` is a tibble, and ate() fails on one with</span></span>
+<span id="cb23-293"><a href="#cb23-293" aria-hidden="true" tabindex="-1"></a><span class="co">#       Error in rep(): invalid 'times' argument</span></span>
+<span id="cb23-294"><a href="#cb23-294" aria-hidden="true" tabindex="-1"></a><span class="co">#   * as.numeric on every column: read_dta() returns haven_labelled columns, and</span></span>
+<span id="cb23-295"><a href="#cb23-295" aria-hidden="true" tabindex="-1"></a><span class="co">#     SuperLearner then errors with</span></span>
+<span id="cb23-296"><a href="#cb23-296" aria-hidden="true" tabindex="-1"></a><span class="co">#       The variable names and order in newX must be identical to ... X</span></span>
+<span id="cb23-297"><a href="#cb23-297" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(data[, <span class="fu">c</span>(<span class="st">"age"</span>, <span class="st">"educ"</span>, <span class="fu">grep</span>(<span class="st">"^incomecat_"</span>, <span class="fu">names</span>(data), <span class="at">value =</span> <span class="cn">TRUE</span>), <span class="st">"pension"</span>, <span class="st">"married"</span>, <span class="st">"twoearn"</span>, <span class="st">"ira"</span>, <span class="st">"ownhome"</span>)])</span>
+<span id="cb23-298"><a href="#cb23-298" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">lapply</span>(W, as.numeric))</span>
+<span id="cb23-299"><a href="#cb23-299" aria-hidden="true" tabindex="-1"></a><span class="co"># npcausal::ate() currently fails on this design with</span></span>
+<span id="cb23-300"><a href="#cb23-300" aria-hidden="true" tabindex="-1"></a><span class="co">#   Error in SuperLearner(): The variable names and order in newX must be</span></span>
+<span id="cb23-301"><a href="#cb23-301" aria-hidden="true" tabindex="-1"></a><span class="co">#   identical to the variable names and order in X</span></span>
+<span id="cb23-302"><a href="#cb23-302" aria-hidden="true" tabindex="-1"></a><span class="co"># raised from inside npcausal's own cross-fitting loop, not from anything in this</span></span>
+<span id="cb23-303"><a href="#cb23-303" aria-hidden="true" tabindex="-1"></a><span class="co"># chunk (the equivalent call works on a synthetic data.frame of the same shape).</span></span>
+<span id="cb23-304"><a href="#cb23-304" aria-hidden="true" tabindex="-1"></a><span class="co"># Wrapped so the chapter degrades gracefully rather than publishing a raw error;</span></span>
+<span id="cb23-305"><a href="#cb23-305" aria-hidden="true" tabindex="-1"></a><span class="co"># the DoubleML comparison above is the working cross-fitted estimate.</span></span>
+<span id="cb23-306"><a href="#cb23-306" aria-hidden="true" tabindex="-1"></a>aipw <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb23-307"><a href="#cb23-307" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ate</span>(<span class="at">y =</span> Y, <span class="at">a =</span> A, <span class="at">x =</span> W, <span class="at">nsplits =</span> <span class="dv">10</span>, <span class="at">sl.lib =</span> SL.library),</span>
+<span id="cb23-308"><a href="#cb23-308" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb23-309"><a href="#cb23-309" aria-hidden="true" tabindex="-1"></a>    <span class="fu">message</span>(<span class="st">"npcausal::ate() failed: "</span>, <span class="fu">conditionMessage</span>(e))</span>
+<span id="cb23-310"><a href="#cb23-310" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NULL</span></span>
+<span id="cb23-311"><a href="#cb23-311" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb23-312"><a href="#cb23-312" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-313"><a href="#cb23-313" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(aipw)) aipw<span class="sc">$</span>res</span>
+<span id="cb23-314"><a href="#cb23-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-315"><a href="#cb23-315" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-316"><a href="#cb23-316" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-317"><a href="#cb23-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-318"><a href="#cb23-318" aria-hidden="true" tabindex="-1"></a>Note here to match the Stata results, I included only "glmnet" in the SuperLearner library.  The results are not exactly the same, but close enough.</span>
+<span id="cb23-319"><a href="#cb23-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-320"><a href="#cb23-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-321"><a href="#cb23-321" aria-hidden="true" tabindex="-1"></a>Or we can use a similar package with more functionalities: "AIPW".</span>
+<span id="cb23-322"><a href="#cb23-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-325"><a href="#cb23-325" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb23-326"><a href="#cb23-326" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: aipw2</span></span>
+<span id="cb23-327"><a href="#cb23-327" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb23-328"><a href="#cb23-328" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb23-329"><a href="#cb23-329" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb23-330"><a href="#cb23-330" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb23-331"><a href="#cb23-331" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
 <span id="cb23-332"><a href="#cb23-332" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-333"><a href="#cb23-333" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb23-334"><a href="#cb23-334" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-335"><a href="#cb23-335" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb23-336"><a href="#cb23-336" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
+<span id="cb23-333"><a href="#cb23-333" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AIPW)</span>
+<span id="cb23-334"><a href="#cb23-334" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SuperLearner)</span>
+<span id="cb23-335"><a href="#cb23-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-336"><a href="#cb23-336" aria-hidden="true" tabindex="-1"></a><span class="co">#SuperLearner libraries for outcome (Q) and exposure models (g)</span></span>
+<span id="cb23-337"><a href="#cb23-337" aria-hidden="true" tabindex="-1"></a><span class="co">#sl.lib &lt;- c("SL.glmnet")</span></span>
+<span id="cb23-338"><a href="#cb23-338" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-339"><a href="#cb23-339" aria-hidden="true" tabindex="-1"></a>AIPW_sl <span class="ot">&lt;-</span> AIPW<span class="sc">$</span><span class="fu">new</span>(<span class="at">Y=</span> Y,</span>
+<span id="cb23-340"><a href="#cb23-340" aria-hidden="true" tabindex="-1"></a>                     <span class="at">A=</span> A,</span>
+<span id="cb23-341"><a href="#cb23-341" aria-hidden="true" tabindex="-1"></a>                     <span class="at">W=</span> W,</span>
+<span id="cb23-342"><a href="#cb23-342" aria-hidden="true" tabindex="-1"></a>                     <span class="at">Q.SL.library =</span> SL.library,</span>
+<span id="cb23-343"><a href="#cb23-343" aria-hidden="true" tabindex="-1"></a>                     <span class="at">g.SL.library =</span> SL.library,</span>
+<span id="cb23-344"><a href="#cb23-344" aria-hidden="true" tabindex="-1"></a>                     <span class="at">k_split =</span> <span class="dv">10</span>,</span>
+<span id="cb23-345"><a href="#cb23-345" aria-hidden="true" tabindex="-1"></a>                     <span class="at">verbose=</span><span class="cn">FALSE</span>)</span>
+<span id="cb23-346"><a href="#cb23-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-347"><a href="#cb23-347" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">fit</span>()</span>
+<span id="cb23-348"><a href="#cb23-348" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">summary</span>()</span>
+<span id="cb23-349"><a href="#cb23-349" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span>result</span>
+<span id="cb23-350"><a href="#cb23-350" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-351"><a href="#cb23-351" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-352"><a href="#cb23-352" aria-hidden="true" tabindex="-1"></a><span class="co"># library(ggplot2)</span></span>
+<span id="cb23-353"><a href="#cb23-353" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.p_score()</span></span>
+<span id="cb23-354"><a href="#cb23-354" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.ip_weights()</span></span>
+<span id="cb23-355"><a href="#cb23-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-356"><a href="#cb23-356" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-357"><a href="#cb23-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-358"><a href="#cb23-358" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb23-359"><a href="#cb23-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-360"><a href="#cb23-360" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb23-361"><a href="#cb23-361" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

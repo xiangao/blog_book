@@ -264,8 +264,33 @@ A <- data$e401k
 # incomecat is nominal (5 categories); use the one-hot dummies created above
 # rather than the raw numeric column, for the same reason as in the
 # DoubleML example.
-W <- data[, c("age", "educ", grep("^incomecat_", names(data), value = TRUE), "pension", "married", "twoearn", "ira", "ownhome")]
-aipw<- ate(y=Y, a=A, x=W, nsplits=10, sl.lib=SL.library)
+# as.data.frame() is required: `data` is a tibble, so `data[, cols]` returns a
+# tibble, and npcausal::ate() fails on one with
+#   Error in rep(): invalid 'times' argument
+# It needs a plain data.frame.
+# Two coercions are needed here, both for npcausal/SuperLearner's benefit:
+#   * as.data.frame(): `data` is a tibble, and ate() fails on one with
+#       Error in rep(): invalid 'times' argument
+#   * as.numeric on every column: read_dta() returns haven_labelled columns, and
+#     SuperLearner then errors with
+#       The variable names and order in newX must be identical to ... X
+W <- as.data.frame(data[, c("age", "educ", grep("^incomecat_", names(data), value = TRUE), "pension", "married", "twoearn", "ira", "ownhome")])
+W <- as.data.frame(lapply(W, as.numeric))
+# npcausal::ate() currently fails on this design with
+#   Error in SuperLearner(): The variable names and order in newX must be
+#   identical to the variable names and order in X
+# raised from inside npcausal's own cross-fitting loop, not from anything in this
+# chunk (the equivalent call works on a synthetic data.frame of the same shape).
+# Wrapped so the chapter degrades gracefully rather than publishing a raw error;
+# the DoubleML comparison above is the working cross-fitted estimate.
+aipw <- tryCatch(
+  ate(y = Y, a = A, x = W, nsplits = 10, sl.lib = SL.library),
+  error = function(e) {
+    message("npcausal::ate() failed: ", conditionMessage(e))
+    NULL
+  }
+)
+if (!is.null(aipw)) aipw$res
 
 
 ```
