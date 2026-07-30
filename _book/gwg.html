@@ -610,8 +610,8 @@ E[y_i | a_i =1] - E[y_i | a_i=0] &amp;= E[X_i | a_i=1]  (\beta_1 - \beta_0) + (E
 &amp;= \tau_{PATT} + (E[y_i(0) | a_i=1] - E[y_i(0) | a_i=0])
 \end{align}
 \]</span></p>
-<p>That is, the observed difference is the sum of <span class="math inline">\(\tau_{PATT}\)</span> and selection bias. It is also know in the OB decomposition literature as unexplained component and explained component. The former as “discrimination”.</p>
-<p>We can simply use Regression Adjustment for <span class="math inline">\(\tau_{PATT}\)</span>. The easiest would be an OLS of <span class="math inline">\(y_i\)</span> on demeaned <span class="math inline">\(X_i\)</span> and <span class="math inline">\(a_i\)</span> and interaction, then the coefficient on <span class="math inline">\(a_i\)</span> is <span class="math inline">\(\tau_{PATT}\)</span>.</p>
+<p>That is, the observed difference is the sum of <span class="math inline">\(\tau_{PATT}\)</span> and selection bias. It is also known in the OB decomposition literature as the unexplained component and the explained component. The former as “discrimination”.</p>
+<p>We can simply use Regression Adjustment for these quantities. The easiest is an OLS of <span class="math inline">\(y_i\)</span> on <span class="math inline">\(a_i\)</span>, the demeaned <span class="math inline">\(X_i\)</span>, and their interaction; the coefficient on <span class="math inline">\(a_i\)</span> is then the effect evaluated at the mean of the covariates used for the demeaning. Demean at the <strong>overall</strong> mean and that coefficient is <span class="math inline">\(\tau_{PAGE}\)</span> (the ATE), which is what the example below does; demean at the mean among <strong>women</strong> instead and it is <span class="math inline">\(\tau_{PATT}\)</span>. The choice of centring is what selects the estimand, so it is worth being explicit about which one you have.</p>
 <p>He also advocates the “population average gender effect” (PAGE):</p>
 <p><span class="math display">\[ \tau_{PAGE} = E[\tau(X_i)] \]</span></p>
 <p>which is basically ATE, or conditional average effect (CATE), then average over the <span class="math inline">\(X\)</span>’s.</p>
@@ -891,7 +891,26 @@ Comparison: 1 - 0</code></pre>
 3 E{Y-Y(0)|A=1} -0.06741019 0.01409116 -0.09502886 -0.03979152    0</code></pre>
 </div>
 </div>
-<p>We can see this effect is about -6.6%, similar to the regression adjustment result -7.5%.</p>
+<p>The two fits above print only SuperLearner’s progress bars, so the estimates themselves have to be asked for:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">aipw_ate</span><span class="op">$</span><span class="va">res</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     parameter         est         se       ci.ll       ci.ul pval
+1      E{Y(0)}  2.99695506 0.01093465  2.97552315  3.01838697    0
+2      E{Y(1)}  2.93906408 0.01327342  2.91304817  2.96507999    0
+3 E{Y(1)-Y(0)} -0.05789098 0.01597522 -0.08920241 -0.02657955    0</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">aipw_att</span><span class="op">$</span><span class="va">res</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      parameter         est         se       ci.ll       ci.ul pval
+1      E(Y|A=1)  2.94948490 0.01160804  2.92673314  2.97223666    0
+2   E{Y(0)|A=1}  3.01689509 0.01221863  2.99294658  3.04084360    0
+3 E{Y-Y(0)|A=1} -0.06741019 0.01409116 -0.09502886 -0.03979152    0</code></pre>
+</div>
+</div>
+<p>Two estimates come out of this: an AIPW <strong>ATE</strong> of <span class="math inline">\(-5.8\%\)</span> (95% CI <span class="math inline">\(-8.9\%\)</span> to <span class="math inline">\(-2.7\%\)</span>) and an AIPW <strong>ATT</strong> of <span class="math inline">\(-6.7\%\)</span> (95% CI <span class="math inline">\(-9.5\%\)</span> to <span class="math inline">\(-3.9\%\)</span>).</p>
+<p>The comparison worth making is like with like. The <span class="math inline">\(-7.5\%\)</span> from the fully interacted linear model above was an ATT (it was computed on <code>newdata = subset(data, female == 1)</code>), so it should be set against the nonparametric <strong>ATT</strong> of <span class="math inline">\(-6.7\%\)</span>, not against the ATE. Those two agree closely, which is reassuring: dropping the linearity assumption altogether moves the estimate by less than a percentage point, and both use the same covariate set including occupation and industry.</p>
+<p>The ATE and ATT point estimates do differ a little, in the direction of a larger gap among women than in the sample as a whole — which would indicate effect heterogeneity across the covariates. Their confidence intervals overlap heavily, though, so this data cannot really distinguish them.</p>
 
 
 <!-- -->
@@ -1357,207 +1376,233 @@ Comparison: 1 - 0</code></pre>
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Gender Wage Gap Analysis Using US Current Population Survey Data"</span></span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Xiang Ao"</span></span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2025-11-17"</span></span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>Traditionally Oaxaca-Blinder decomposition is used to decompose the wage gap into explained and unexplained parts. The explained part is due to differences in observable characteristics, such as education, experience, occupation, etc. The unexplained part is due to discrimination or other unobserved factors.</span>
-<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>It has a problem that when decomposing, using female as reference group or male as reference group will give different results.</span>
-<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>Słoczyński (2015) and Słoczyński (2013) have shown that a regression adjustment type of analysis is equivalent to Oaxaca-Blinder decomposition in a nonstandard way.</span>
-<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="fu">## Oaxaca-Blinder decomposition</span></span>
-<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>Assume the regression model is different for male and female: $$ y_i = X_i \beta_a + \epsilon_a $$</span>
-<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>where $a$ is gender (female is 1), $X$'s are person characteristics.</span>
-<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">y_i | a_i = 1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i | a_i = 0</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">X_i | a_i=1</span><span class="co">]</span>  (\beta_1 - \beta_0) + (E<span class="co">[</span><span class="ot">X_i | a_i =1 </span><span class="co">]</span> - E<span class="co">[</span><span class="ot">X_i | a_i = 0</span><span class="co">]</span>) \beta_0 $$</span>
-<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a>or</span>
-<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">y_i | a_i = 1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i | a_i = 0</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">X_i | a_i=0</span><span class="co">]</span>  (\beta_1 - \beta_0) + (E<span class="co">[</span><span class="ot">X_i | a_i =1 </span><span class="co">]</span> - E<span class="co">[</span><span class="ot">X_i | a_i = 0</span><span class="co">]</span>) \beta_1 $$ These two equations are different forms of the Oaxaca-Blinder decomposition. The first element is the "unexplained component", which is the difference in the coefficients, and the second element is the "explained component", which is the difference in the means of the covariates.</span>
-<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a>These two equations can give different results for the two components, one has a baseline of male, and other one female.</span>
-<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a>We can further shows that</span>
-<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>\begin{align}</span>
-<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>E<span class="co">[</span><span class="ot">y_i | a_i =1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i | a_i=0</span><span class="co">]</span> &amp;= E<span class="co">[</span><span class="ot">X_i | a_i=1</span><span class="co">]</span>  (\beta_1 - \beta_0) + (E<span class="co">[</span><span class="ot">X_i | a_i =1 </span><span class="co">]</span> - E<span class="co">[</span><span class="ot">X_i | a_i = 0</span><span class="co">]</span>) \beta_0  <span class="sc">\\</span></span>
-<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>&amp;= E<span class="co">[</span><span class="ot">y_i(1) - y_i(0) | a_i=1</span><span class="co">]</span> + (E<span class="co">[</span><span class="ot">y_i(0) | a_i=1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i(0) | a_i = 0</span><span class="co">]</span>) <span class="sc">\\</span></span>
-<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>&amp;= \tau_{PATT} + (E<span class="co">[</span><span class="ot">y_i(0) | a_i=1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i(0) | a_i=0</span><span class="co">]</span>)</span>
-<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a>\end{align}</span>
-<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a>That is, the observed difference is the sum of $\tau_{PATT}$ and selection bias. It is also know in the OB decomposition literature as unexplained component and explained component. The former as "discrimination".</span>
-<span id="cb21-38"><a href="#cb21-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-39"><a href="#cb21-39" aria-hidden="true" tabindex="-1"></a>We can simply use Regression Adjustment for $\tau_{PATT}$.  The easiest would be an OLS of $y_i$ on demeaned $X_i$ and $a_i$ and interaction, then the coefficient on $a_i$ is $\tau_{PATT}$.</span>
-<span id="cb21-40"><a href="#cb21-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-41"><a href="#cb21-41" aria-hidden="true" tabindex="-1"></a>He also advocates the "population average gender effect" (PAGE):</span>
-<span id="cb21-42"><a href="#cb21-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-43"><a href="#cb21-43" aria-hidden="true" tabindex="-1"></a>$$ \tau_{PAGE} = E<span class="co">[</span><span class="ot">\tau(X_i)</span><span class="co">]</span> $$</span>
-<span id="cb21-44"><a href="#cb21-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-45"><a href="#cb21-45" aria-hidden="true" tabindex="-1"></a>which is basically ATE, or conditional average effect (CATE), then average over the $X$'s.</span>
-<span id="cb21-46"><a href="#cb21-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-47"><a href="#cb21-47" aria-hidden="true" tabindex="-1"></a>In this version, the two forms of OB decomposition can be $\tau_{PAGM}$ and $\tau_{PAGW}$, for men and women.</span>
-<span id="cb21-48"><a href="#cb21-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-49"><a href="#cb21-49" aria-hidden="true" tabindex="-1"></a>The nice thing about this estimator $\tau_{PAGE}$ is that first, it is consistent with the treatment effect (causal inference) literature, and it is invariant to the choice of reference group.</span>
-<span id="cb21-50"><a href="#cb21-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-51"><a href="#cb21-51" aria-hidden="true" tabindex="-1"></a>The second advantage is that we also do not need to assume homogeneity of treatment effect, which is a strong assumption in the Oaxaca-Blinder decomposition.</span>
-<span id="cb21-52"><a href="#cb21-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-53"><a href="#cb21-53" aria-hidden="true" tabindex="-1"></a>The third advantage is that we can use nonparametric methods to estimate the treatment effect. Traditional OB decomposition is based on linear regression, which assumes a linear relationship between the covariates and the outcome.</span>
-<span id="cb21-54"><a href="#cb21-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-55"><a href="#cb21-55" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
-<span id="cb21-56"><a href="#cb21-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-57"><a href="#cb21-57" aria-hidden="true" tabindex="-1"></a>I am using the data from https://github.com/d2cml-ai/CausalAI-Course/tree/main/data.</span>
-<span id="cb21-58"><a href="#cb21-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-59"><a href="#cb21-59" aria-hidden="true" tabindex="-1"></a>"The data set we consider is from the 2015 March Supplement of the U.S. Current Population Survey. We select white non-hispanic individuals, aged 25 to 64 years, and working more than 35 hours per week for at least 50 weeks of the year. We exclude self-employed workers; individuals living in group quarters; individuals in the military, agricultural or private household sectors; individuals with inconsistent reports on earnings and employment status; individuals with allocated or missing information in any of the variables used in the analysis; and individuals with hourly wage below 3. "</span>
-<span id="cb21-60"><a href="#cb21-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-61"><a href="#cb21-61" aria-hidden="true" tabindex="-1"></a>I am using this data to study gender wage gap (GWP).</span>
-<span id="cb21-62"><a href="#cb21-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-63"><a href="#cb21-63" aria-hidden="true" tabindex="-1"></a>We can model GWP using the potential outcome framework, with some care about what plays the role of "treatment." Gender itself is an immutable characteristic, not something that can be manipulated or randomized — the standard "no causation without manipulation" principle (Holland, 1986) says we should not treat gender itself as a causal treatment. What we really have in mind, and what the "treatment" indicator below is best understood as a proxy for, is something like *being perceived/treated as female by employers* (e.g., employer discrimination), which is at least conceptually manipulable even though we cannot experimentally assign it here. With that caveat in mind, we let $D=1$ if female, $D=0$ if male, and outcome $Y$ is logged wage.</span>
-<span id="cb21-64"><a href="#cb21-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-65"><a href="#cb21-65" aria-hidden="true" tabindex="-1"></a>The ATE would be</span>
-<span id="cb21-66"><a href="#cb21-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-67"><a href="#cb21-67" aria-hidden="true" tabindex="-1"></a>$$ \delta_{ATE} = E<span class="co">[</span><span class="ot">Y(1) - Y(0)</span><span class="co">]</span> $$</span>
-<span id="cb21-68"><a href="#cb21-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-69"><a href="#cb21-69" aria-hidden="true" tabindex="-1"></a>where $Y(1)$ is the potential outcome if treated, and $Y(0)$ is the potential outcome if not treated.</span>
-<span id="cb21-70"><a href="#cb21-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-71"><a href="#cb21-71" aria-hidden="true" tabindex="-1"></a><span class="fu">### Regression adjustment</span></span>
-<span id="cb21-72"><a href="#cb21-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-73"><a href="#cb21-73" aria-hidden="true" tabindex="-1"></a>Since this is to estimate ATE, we can use regression adjustment to estimate the ATE. First let's use de-meaned $X$'s. Then the coefficient on gender is the ATE.</span>
-<span id="cb21-74"><a href="#cb21-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-75"><a href="#cb21-75" aria-hidden="true" tabindex="-1"></a>We use These variables as $X$'s:</span>
-<span id="cb21-76"><a href="#cb21-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-77"><a href="#cb21-77" aria-hidden="true" tabindex="-1"></a>"shs","hsg","scl","clg","ad","ne","mw","so","we","exp1", "occ", "occ2", "ind", and "ind2".</span>
-<span id="cb21-78"><a href="#cb21-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-79"><a href="#cb21-79" aria-hidden="true" tabindex="-1"></a>They are:</span>
-<span id="cb21-80"><a href="#cb21-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-81"><a href="#cb21-81" aria-hidden="true" tabindex="-1"></a>"Less then High School","High School Graduate","Some College","College Graduate","Advanced Degree", "Northeast","Midwest","South","West","Experience", "occupation", "occupation 2", "industry", and "industry 2".</span>
-<span id="cb21-82"><a href="#cb21-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-83"><a href="#cb21-83" aria-hidden="true" tabindex="-1"></a>I decide to use "occ2" and "ind2" as they are broader categories of occupation and industry. We don't have enough data for finer categories "occ" and "ind".</span>
-<span id="cb21-84"><a href="#cb21-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-85"><a href="#cb21-85" aria-hidden="true" tabindex="-1"></a>"exp1" seems to be the only variable that is continuous, let's demean it first. Let's also input "occ2" and "ind2" as factors.</span>
-<span id="cb21-86"><a href="#cb21-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-87"><a href="#cb21-87" aria-hidden="true" tabindex="-1"></a>Let's include demeaned "exp1", "sohs", "hsg", "socl", "clg", "mw", "sout", and "we" first.  I leave out "occ2" and "ind2" since there are too many levels to demean.</span>
-<span id="cb21-88"><a href="#cb21-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-91"><a href="#cb21-91" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb21-92"><a href="#cb21-92" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra1</span></span>
-<span id="cb21-93"><a href="#cb21-93" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb21-94"><a href="#cb21-94" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb21-95"><a href="#cb21-95" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb21-96"><a href="#cb21-96" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb21-97"><a href="#cb21-97" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
-<span id="cb21-98"><a href="#cb21-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-99"><a href="#cb21-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-100"><a href="#cb21-100" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"wage2015_subsample_inference.csv"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb21-101"><a href="#cb21-101" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">socl =</span> scl, <span class="at">sohs =</span> shs, <span class="at">sout =</span> so) <span class="sc">|&gt;</span></span>
-<span id="cb21-102"><a href="#cb21-102" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">exp_dm =</span> exp1 <span class="sc">-</span> <span class="fu">mean</span>(exp1, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="at">female=</span>sex, <span class="at">occ2 =</span> <span class="fu">factor</span>(occ2), <span class="at">ind2 =</span> <span class="fu">factor</span>(ind2)) <span class="sc">|&gt;</span></span>
-<span id="cb21-103"><a href="#cb21-103" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sohs_dm =</span> sohs <span class="sc">-</span> <span class="fu">mean</span>(sohs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb21-104"><a href="#cb21-104" aria-hidden="true" tabindex="-1"></a>         <span class="at">hsg_dm =</span> hsg <span class="sc">-</span> <span class="fu">mean</span>(hsg, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb21-105"><a href="#cb21-105" aria-hidden="true" tabindex="-1"></a>         <span class="at">socl_dm =</span> socl <span class="sc">-</span> <span class="fu">mean</span>(socl, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb21-106"><a href="#cb21-106" aria-hidden="true" tabindex="-1"></a>         <span class="at">clg_dm =</span> clg <span class="sc">-</span> <span class="fu">mean</span>(clg, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb21-107"><a href="#cb21-107" aria-hidden="true" tabindex="-1"></a>         <span class="at">mw_dm =</span> mw <span class="sc">-</span> <span class="fu">mean</span>(mw, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb21-108"><a href="#cb21-108" aria-hidden="true" tabindex="-1"></a>         <span class="at">sout_dm =</span> sout <span class="sc">-</span> <span class="fu">mean</span>(sout, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb21-109"><a href="#cb21-109" aria-hidden="true" tabindex="-1"></a>         <span class="at">we_dm =</span> we <span class="sc">-</span> <span class="fu">mean</span>(we, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb21-110"><a href="#cb21-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-111"><a href="#cb21-111" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(data)</span>
-<span id="cb21-112"><a href="#cb21-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-113"><a href="#cb21-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-114"><a href="#cb21-114" aria-hidden="true" tabindex="-1"></a><span class="co"># construct matrices for estimation from the data</span></span>
-<span id="cb21-115"><a href="#cb21-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-116"><a href="#cb21-116" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. basic model</span></span>
-<span id="cb21-117"><a href="#cb21-117" aria-hidden="true" tabindex="-1"></a>reg1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female, <span class="at">data=</span>data)</span>
-<span id="cb21-118"><a href="#cb21-118" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(reg1)</span>
-<span id="cb21-119"><a href="#cb21-119" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-120"><a href="#cb21-120" aria-hidden="true" tabindex="-1"></a>reg2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female<span class="sc">*</span>(exp_dm <span class="sc">+</span> sohs_dm <span class="sc">+</span> hsg_dm <span class="sc">+</span> socl_dm <span class="sc">+</span> clg_dm <span class="sc">+</span> mw_dm <span class="sc">+</span> sout_dm <span class="sc">+</span> we_dm), <span class="at">data=</span>data)</span>
-<span id="cb21-121"><a href="#cb21-121" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(reg2)</span>
-<span id="cb21-122"><a href="#cb21-122" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb21-123"><a href="#cb21-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-124"><a href="#cb21-124" aria-hidden="true" tabindex="-1"></a>We see the raw gap is 3.8%.  Adjusting for some covariates we have 11% gap.</span>
-<span id="cb21-125"><a href="#cb21-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-126"><a href="#cb21-126" aria-hidden="true" tabindex="-1"></a>Or, we can use "marginaleffects" instead of demeaning.</span>
-<span id="cb21-127"><a href="#cb21-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-130"><a href="#cb21-130" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb21-131"><a href="#cb21-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra2</span></span>
-<span id="cb21-132"><a href="#cb21-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb21-133"><a href="#cb21-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb21-134"><a href="#cb21-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb21-135"><a href="#cb21-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-136"><a href="#cb21-136" aria-hidden="true" tabindex="-1"></a>reg3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female<span class="sc">*</span>(exp1 <span class="sc">+</span> sohs <span class="sc">+</span> hsg<span class="sc">+</span> socl <span class="sc">+</span> clg <span class="sc">+</span> mw <span class="sc">+</span> sout <span class="sc">+</span> we ), <span class="at">data=</span>data)</span>
-<span id="cb21-137"><a href="#cb21-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-138"><a href="#cb21-138" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
-<span id="cb21-139"><a href="#cb21-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-140"><a href="#cb21-140" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(reg3,</span>
-<span id="cb21-141"><a href="#cb21-141" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"female"</span>)</span>
-<span id="cb21-142"><a href="#cb21-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb21-143"><a href="#cb21-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-144"><a href="#cb21-144" aria-hidden="true" tabindex="-1"></a>We get the same result as the demeaned regression.</span>
-<span id="cb21-145"><a href="#cb21-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-146"><a href="#cb21-146" aria-hidden="true" tabindex="-1"></a>If we want $\tau_{ATT}$, then we can use the "newdata" argument to specify the treatment group,</span>
-<span id="cb21-149"><a href="#cb21-149" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb21-150"><a href="#cb21-150" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra3</span></span>
-<span id="cb21-151"><a href="#cb21-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb21-152"><a href="#cb21-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb21-153"><a href="#cb21-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb21-154"><a href="#cb21-154" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(reg3,</span>
-<span id="cb21-155"><a href="#cb21-155" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"female"</span>,</span>
-<span id="cb21-156"><a href="#cb21-156" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(data, female <span class="sc">==</span> <span class="dv">1</span>))</span>
-<span id="cb21-157"><a href="#cb21-157" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb21-158"><a href="#cb21-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-159"><a href="#cb21-159" aria-hidden="true" tabindex="-1"></a>Next, we adjust for occupation and industry. We can use "occ2" and "ind2" as factors.</span>
-<span id="cb21-160"><a href="#cb21-160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-163"><a href="#cb21-163" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb21-164"><a href="#cb21-164" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra4</span></span>
-<span id="cb21-165"><a href="#cb21-165" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb21-166"><a href="#cb21-166" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb21-167"><a href="#cb21-167" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb21-168"><a href="#cb21-168" aria-hidden="true" tabindex="-1"></a>reg4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female<span class="sc">*</span>(exp1 <span class="sc">+</span> sohs <span class="sc">+</span> hsg<span class="sc">+</span> socl <span class="sc">+</span> clg <span class="sc">+</span> mw <span class="sc">+</span> sout <span class="sc">+</span> we <span class="sc">+</span> occ2 <span class="sc">+</span> ind2), <span class="at">data=</span>data)</span>
-<span id="cb21-169"><a href="#cb21-169" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(reg4,</span>
-<span id="cb21-170"><a href="#cb21-170" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"female"</span>,</span>
-<span id="cb21-171"><a href="#cb21-171" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(data, female <span class="sc">==</span> <span class="dv">1</span>))</span>
-<span id="cb21-172"><a href="#cb21-172" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb21-173"><a href="#cb21-173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-174"><a href="#cb21-174" aria-hidden="true" tabindex="-1"></a>So in the model with full interaction, we have a gap of 7.5%.</span>
-<span id="cb21-175"><a href="#cb21-175" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-176"><a href="#cb21-176" aria-hidden="true" tabindex="-1"></a>Now let's try nonparametric estimation.</span>
-<span id="cb21-177"><a href="#cb21-177" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-178"><a href="#cb21-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-179"><a href="#cb21-179" aria-hidden="true" tabindex="-1"></a><span class="fu">### Nonparametric estimation</span></span>
-<span id="cb21-180"><a href="#cb21-180" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-181"><a href="#cb21-181" aria-hidden="true" tabindex="-1"></a>If we'd like to go for nonparametric, relaxing linearity assumption, then we can use "npcausal". Note this may take a while, depending on which machine learning packages you decide to include. We can also use other nonparametric estimators, such as TMLE or doubleML.</span>
-<span id="cb21-182"><a href="#cb21-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-185"><a href="#cb21-185" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb21-186"><a href="#cb21-186" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: npcausal1</span></span>
-<span id="cb21-187"><a href="#cb21-187" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb21-188"><a href="#cb21-188" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb21-189"><a href="#cb21-189" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb21-190"><a href="#cb21-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-191"><a href="#cb21-191" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-192"><a href="#cb21-192" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
-<span id="cb21-193"><a href="#cb21-193" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-194"><a href="#cb21-194" aria-hidden="true" tabindex="-1"></a><span class="co">#SL.library &lt;- c("SL.earth","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")</span></span>
-<span id="cb21-195"><a href="#cb21-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-196"><a href="#cb21-196" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-197"><a href="#cb21-197" aria-hidden="true" tabindex="-1"></a>SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.earth"</span>,<span class="st">"SL.glmnet"</span>,<span class="st">"SL.mean"</span>,<span class="st">"SL.ranger"</span>, <span class="st">"SL.xgboost"</span>)</span>
-<span id="cb21-198"><a href="#cb21-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-199"><a href="#cb21-199" aria-hidden="true" tabindex="-1"></a><span class="co"># construct W from model matrix of reg3</span></span>
-<span id="cb21-200"><a href="#cb21-200" aria-hidden="true" tabindex="-1"></a>reg3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> exp_dm <span class="sc">+</span> sohs <span class="sc">+</span> hsg<span class="sc">+</span> socl <span class="sc">+</span> clg <span class="sc">+</span> mw <span class="sc">+</span> sout <span class="sc">+</span> we <span class="sc">+</span> occ2 <span class="sc">+</span> ind2, <span class="at">data=</span>data)</span>
-<span id="cb21-201"><a href="#cb21-201" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(reg3)[, <span class="sc">-</span><span class="dv">1</span>]) <span class="co"># remove intercept</span></span>
-<span id="cb21-202"><a href="#cb21-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-203"><a href="#cb21-203" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data<span class="sc">$</span>lwage</span>
-<span id="cb21-204"><a href="#cb21-204" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> data<span class="sc">$</span>female</span>
-<span id="cb21-205"><a href="#cb21-205" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb21-206"><a href="#cb21-206" aria-hidden="true" tabindex="-1"></a>aipw_ate <span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">5</span>, <span class="at">sl.lib=</span>SL.library)</span>
-<span id="cb21-207"><a href="#cb21-207" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-208"><a href="#cb21-208" aria-hidden="true" tabindex="-1"></a>aipw_att <span class="ot">&lt;-</span> <span class="fu">att</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">5</span>, <span class="at">sl.lib=</span>SL.library)</span>
-<span id="cb21-209"><a href="#cb21-209" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb21-210"><a href="#cb21-210" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-211"><a href="#cb21-211" aria-hidden="true" tabindex="-1"></a>We can see this effect is about -6.6%, similar to the regression adjustment result -7.5%.</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Gender Wage Gap Analysis Using US Current Population Survey Data"</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Xiang Ao"</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2025-11-17"</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>Traditionally Oaxaca-Blinder decomposition is used to decompose the wage gap into explained and unexplained parts. The explained part is due to differences in observable characteristics, such as education, experience, occupation, etc. The unexplained part is due to discrimination or other unobserved factors.</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>It has a problem that when decomposing, using female as reference group or male as reference group will give different results.</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>Słoczyński (2015) and Słoczyński (2013) have shown that a regression adjustment type of analysis is equivalent to Oaxaca-Blinder decomposition in a nonstandard way.</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="fu">## Oaxaca-Blinder decomposition</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>Assume the regression model is different for male and female: $$ y_i = X_i \beta_a + \epsilon_a $$</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>where $a$ is gender (female is 1), $X$'s are person characteristics.</span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">y_i | a_i = 1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i | a_i = 0</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">X_i | a_i=1</span><span class="co">]</span>  (\beta_1 - \beta_0) + (E<span class="co">[</span><span class="ot">X_i | a_i =1 </span><span class="co">]</span> - E<span class="co">[</span><span class="ot">X_i | a_i = 0</span><span class="co">]</span>) \beta_0 $$</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>or</span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">y_i | a_i = 1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i | a_i = 0</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">X_i | a_i=0</span><span class="co">]</span>  (\beta_1 - \beta_0) + (E<span class="co">[</span><span class="ot">X_i | a_i =1 </span><span class="co">]</span> - E<span class="co">[</span><span class="ot">X_i | a_i = 0</span><span class="co">]</span>) \beta_1 $$ These two equations are different forms of the Oaxaca-Blinder decomposition. The first element is the "unexplained component", which is the difference in the coefficients, and the second element is the "explained component", which is the difference in the means of the covariates.</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>These two equations can give different results for the two components, one has a baseline of male, and other one female.</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>We can further shows that</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>\begin{align}</span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>E<span class="co">[</span><span class="ot">y_i | a_i =1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i | a_i=0</span><span class="co">]</span> &amp;= E<span class="co">[</span><span class="ot">X_i | a_i=1</span><span class="co">]</span>  (\beta_1 - \beta_0) + (E<span class="co">[</span><span class="ot">X_i | a_i =1 </span><span class="co">]</span> - E<span class="co">[</span><span class="ot">X_i | a_i = 0</span><span class="co">]</span>) \beta_0  <span class="sc">\\</span></span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>&amp;= E<span class="co">[</span><span class="ot">y_i(1) - y_i(0) | a_i=1</span><span class="co">]</span> + (E<span class="co">[</span><span class="ot">y_i(0) | a_i=1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i(0) | a_i = 0</span><span class="co">]</span>) <span class="sc">\\</span></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>&amp;= \tau_{PATT} + (E<span class="co">[</span><span class="ot">y_i(0) | a_i=1</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">y_i(0) | a_i=0</span><span class="co">]</span>)</span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>\end{align}</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>That is, the observed difference is the sum of $\tau_{PATT}$ and selection bias. It is also known in the OB decomposition literature as the unexplained component and the explained component. The former as "discrimination".</span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>We can simply use Regression Adjustment for these quantities.  The easiest is an OLS of $y_i$ on $a_i$, the demeaned $X_i$, and their interaction; the coefficient on $a_i$ is then the effect evaluated at the mean of the covariates used for the demeaning.  Demean at the **overall** mean and that coefficient is $\tau_{PAGE}$ (the ATE), which is what the example below does; demean at the mean among **women** instead and it is $\tau_{PATT}$.  The choice of centring is what selects the estimand, so it is worth being explicit about which one you have.</span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>He also advocates the "population average gender effect" (PAGE):</span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>$$ \tau_{PAGE} = E<span class="co">[</span><span class="ot">\tau(X_i)</span><span class="co">]</span> $$</span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>which is basically ATE, or conditional average effect (CATE), then average over the $X$'s.</span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a>In this version, the two forms of OB decomposition can be $\tau_{PAGM}$ and $\tau_{PAGW}$, for men and women.</span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a>The nice thing about this estimator $\tau_{PAGE}$ is that first, it is consistent with the treatment effect (causal inference) literature, and it is invariant to the choice of reference group.</span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a>The second advantage is that we also do not need to assume homogeneity of treatment effect, which is a strong assumption in the Oaxaca-Blinder decomposition.</span>
+<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a>The third advantage is that we can use nonparametric methods to estimate the treatment effect. Traditional OB decomposition is based on linear regression, which assumes a linear relationship between the covariates and the outcome.</span>
+<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
+<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-57"><a href="#cb25-57" aria-hidden="true" tabindex="-1"></a>I am using the data from https://github.com/d2cml-ai/CausalAI-Course/tree/main/data.</span>
+<span id="cb25-58"><a href="#cb25-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-59"><a href="#cb25-59" aria-hidden="true" tabindex="-1"></a>"The data set we consider is from the 2015 March Supplement of the U.S. Current Population Survey. We select white non-hispanic individuals, aged 25 to 64 years, and working more than 35 hours per week for at least 50 weeks of the year. We exclude self-employed workers; individuals living in group quarters; individuals in the military, agricultural or private household sectors; individuals with inconsistent reports on earnings and employment status; individuals with allocated or missing information in any of the variables used in the analysis; and individuals with hourly wage below 3. "</span>
+<span id="cb25-60"><a href="#cb25-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-61"><a href="#cb25-61" aria-hidden="true" tabindex="-1"></a>I am using this data to study gender wage gap (GWP).</span>
+<span id="cb25-62"><a href="#cb25-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-63"><a href="#cb25-63" aria-hidden="true" tabindex="-1"></a>We can model GWP using the potential outcome framework, with some care about what plays the role of "treatment." Gender itself is an immutable characteristic, not something that can be manipulated or randomized — the standard "no causation without manipulation" principle (Holland, 1986) says we should not treat gender itself as a causal treatment. What we really have in mind, and what the "treatment" indicator below is best understood as a proxy for, is something like *being perceived/treated as female by employers* (e.g., employer discrimination), which is at least conceptually manipulable even though we cannot experimentally assign it here. With that caveat in mind, we let $D=1$ if female, $D=0$ if male, and outcome $Y$ is logged wage.</span>
+<span id="cb25-64"><a href="#cb25-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-65"><a href="#cb25-65" aria-hidden="true" tabindex="-1"></a>The ATE would be</span>
+<span id="cb25-66"><a href="#cb25-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-67"><a href="#cb25-67" aria-hidden="true" tabindex="-1"></a>$$ \delta_{ATE} = E<span class="co">[</span><span class="ot">Y(1) - Y(0)</span><span class="co">]</span> $$</span>
+<span id="cb25-68"><a href="#cb25-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-69"><a href="#cb25-69" aria-hidden="true" tabindex="-1"></a>where $Y(1)$ is the potential outcome if treated, and $Y(0)$ is the potential outcome if not treated.</span>
+<span id="cb25-70"><a href="#cb25-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-71"><a href="#cb25-71" aria-hidden="true" tabindex="-1"></a><span class="fu">### Regression adjustment</span></span>
+<span id="cb25-72"><a href="#cb25-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-73"><a href="#cb25-73" aria-hidden="true" tabindex="-1"></a>Since this is to estimate ATE, we can use regression adjustment to estimate the ATE. First let's use de-meaned $X$'s. Then the coefficient on gender is the ATE.</span>
+<span id="cb25-74"><a href="#cb25-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-75"><a href="#cb25-75" aria-hidden="true" tabindex="-1"></a>We use These variables as $X$'s:</span>
+<span id="cb25-76"><a href="#cb25-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-77"><a href="#cb25-77" aria-hidden="true" tabindex="-1"></a>"shs","hsg","scl","clg","ad","ne","mw","so","we","exp1", "occ", "occ2", "ind", and "ind2".</span>
+<span id="cb25-78"><a href="#cb25-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-79"><a href="#cb25-79" aria-hidden="true" tabindex="-1"></a>They are:</span>
+<span id="cb25-80"><a href="#cb25-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-81"><a href="#cb25-81" aria-hidden="true" tabindex="-1"></a>"Less then High School","High School Graduate","Some College","College Graduate","Advanced Degree", "Northeast","Midwest","South","West","Experience", "occupation", "occupation 2", "industry", and "industry 2".</span>
+<span id="cb25-82"><a href="#cb25-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-83"><a href="#cb25-83" aria-hidden="true" tabindex="-1"></a>I decide to use "occ2" and "ind2" as they are broader categories of occupation and industry. We don't have enough data for finer categories "occ" and "ind".</span>
+<span id="cb25-84"><a href="#cb25-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-85"><a href="#cb25-85" aria-hidden="true" tabindex="-1"></a>"exp1" seems to be the only variable that is continuous, let's demean it first. Let's also input "occ2" and "ind2" as factors.</span>
+<span id="cb25-86"><a href="#cb25-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-87"><a href="#cb25-87" aria-hidden="true" tabindex="-1"></a>Let's include demeaned "exp1", "sohs", "hsg", "socl", "clg", "mw", "sout", and "we" first.  I leave out "occ2" and "ind2" since there are too many levels to demean.</span>
+<span id="cb25-88"><a href="#cb25-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-91"><a href="#cb25-91" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb25-92"><a href="#cb25-92" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra1</span></span>
+<span id="cb25-93"><a href="#cb25-93" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb25-94"><a href="#cb25-94" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb25-95"><a href="#cb25-95" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb25-96"><a href="#cb25-96" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb25-97"><a href="#cb25-97" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb25-98"><a href="#cb25-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-99"><a href="#cb25-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-100"><a href="#cb25-100" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"wage2015_subsample_inference.csv"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb25-101"><a href="#cb25-101" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">socl =</span> scl, <span class="at">sohs =</span> shs, <span class="at">sout =</span> so) <span class="sc">|&gt;</span></span>
+<span id="cb25-102"><a href="#cb25-102" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">exp_dm =</span> exp1 <span class="sc">-</span> <span class="fu">mean</span>(exp1, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="at">female=</span>sex, <span class="at">occ2 =</span> <span class="fu">factor</span>(occ2), <span class="at">ind2 =</span> <span class="fu">factor</span>(ind2)) <span class="sc">|&gt;</span></span>
+<span id="cb25-103"><a href="#cb25-103" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sohs_dm =</span> sohs <span class="sc">-</span> <span class="fu">mean</span>(sohs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb25-104"><a href="#cb25-104" aria-hidden="true" tabindex="-1"></a>         <span class="at">hsg_dm =</span> hsg <span class="sc">-</span> <span class="fu">mean</span>(hsg, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb25-105"><a href="#cb25-105" aria-hidden="true" tabindex="-1"></a>         <span class="at">socl_dm =</span> socl <span class="sc">-</span> <span class="fu">mean</span>(socl, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb25-106"><a href="#cb25-106" aria-hidden="true" tabindex="-1"></a>         <span class="at">clg_dm =</span> clg <span class="sc">-</span> <span class="fu">mean</span>(clg, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb25-107"><a href="#cb25-107" aria-hidden="true" tabindex="-1"></a>         <span class="at">mw_dm =</span> mw <span class="sc">-</span> <span class="fu">mean</span>(mw, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb25-108"><a href="#cb25-108" aria-hidden="true" tabindex="-1"></a>         <span class="at">sout_dm =</span> sout <span class="sc">-</span> <span class="fu">mean</span>(sout, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb25-109"><a href="#cb25-109" aria-hidden="true" tabindex="-1"></a>         <span class="at">we_dm =</span> we <span class="sc">-</span> <span class="fu">mean</span>(we, <span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb25-110"><a href="#cb25-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-111"><a href="#cb25-111" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(data)</span>
+<span id="cb25-112"><a href="#cb25-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-113"><a href="#cb25-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-114"><a href="#cb25-114" aria-hidden="true" tabindex="-1"></a><span class="co"># construct matrices for estimation from the data</span></span>
+<span id="cb25-115"><a href="#cb25-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-116"><a href="#cb25-116" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. basic model</span></span>
+<span id="cb25-117"><a href="#cb25-117" aria-hidden="true" tabindex="-1"></a>reg1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female, <span class="at">data=</span>data)</span>
+<span id="cb25-118"><a href="#cb25-118" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(reg1)</span>
+<span id="cb25-119"><a href="#cb25-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-120"><a href="#cb25-120" aria-hidden="true" tabindex="-1"></a>reg2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female<span class="sc">*</span>(exp_dm <span class="sc">+</span> sohs_dm <span class="sc">+</span> hsg_dm <span class="sc">+</span> socl_dm <span class="sc">+</span> clg_dm <span class="sc">+</span> mw_dm <span class="sc">+</span> sout_dm <span class="sc">+</span> we_dm), <span class="at">data=</span>data)</span>
+<span id="cb25-121"><a href="#cb25-121" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(reg2)</span>
+<span id="cb25-122"><a href="#cb25-122" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb25-123"><a href="#cb25-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-124"><a href="#cb25-124" aria-hidden="true" tabindex="-1"></a>We see the raw gap is 3.8%.  Adjusting for some covariates we have 11% gap.</span>
+<span id="cb25-125"><a href="#cb25-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-126"><a href="#cb25-126" aria-hidden="true" tabindex="-1"></a>Or, we can use "marginaleffects" instead of demeaning.</span>
+<span id="cb25-127"><a href="#cb25-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-130"><a href="#cb25-130" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb25-131"><a href="#cb25-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra2</span></span>
+<span id="cb25-132"><a href="#cb25-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb25-133"><a href="#cb25-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb25-134"><a href="#cb25-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb25-135"><a href="#cb25-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-136"><a href="#cb25-136" aria-hidden="true" tabindex="-1"></a>reg3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female<span class="sc">*</span>(exp1 <span class="sc">+</span> sohs <span class="sc">+</span> hsg<span class="sc">+</span> socl <span class="sc">+</span> clg <span class="sc">+</span> mw <span class="sc">+</span> sout <span class="sc">+</span> we ), <span class="at">data=</span>data)</span>
+<span id="cb25-137"><a href="#cb25-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-138"><a href="#cb25-138" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
+<span id="cb25-139"><a href="#cb25-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-140"><a href="#cb25-140" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(reg3,</span>
+<span id="cb25-141"><a href="#cb25-141" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"female"</span>)</span>
+<span id="cb25-142"><a href="#cb25-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb25-143"><a href="#cb25-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-144"><a href="#cb25-144" aria-hidden="true" tabindex="-1"></a>We get the same result as the demeaned regression.</span>
+<span id="cb25-145"><a href="#cb25-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-146"><a href="#cb25-146" aria-hidden="true" tabindex="-1"></a>If we want $\tau_{ATT}$, then we can use the "newdata" argument to specify the treatment group,</span>
+<span id="cb25-149"><a href="#cb25-149" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb25-150"><a href="#cb25-150" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra3</span></span>
+<span id="cb25-151"><a href="#cb25-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb25-152"><a href="#cb25-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb25-153"><a href="#cb25-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb25-154"><a href="#cb25-154" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(reg3,</span>
+<span id="cb25-155"><a href="#cb25-155" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"female"</span>,</span>
+<span id="cb25-156"><a href="#cb25-156" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(data, female <span class="sc">==</span> <span class="dv">1</span>))</span>
+<span id="cb25-157"><a href="#cb25-157" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb25-158"><a href="#cb25-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-159"><a href="#cb25-159" aria-hidden="true" tabindex="-1"></a>Next, we adjust for occupation and industry. We can use "occ2" and "ind2" as factors.</span>
+<span id="cb25-160"><a href="#cb25-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-163"><a href="#cb25-163" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb25-164"><a href="#cb25-164" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ra4</span></span>
+<span id="cb25-165"><a href="#cb25-165" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb25-166"><a href="#cb25-166" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb25-167"><a href="#cb25-167" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb25-168"><a href="#cb25-168" aria-hidden="true" tabindex="-1"></a>reg4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> female<span class="sc">*</span>(exp1 <span class="sc">+</span> sohs <span class="sc">+</span> hsg<span class="sc">+</span> socl <span class="sc">+</span> clg <span class="sc">+</span> mw <span class="sc">+</span> sout <span class="sc">+</span> we <span class="sc">+</span> occ2 <span class="sc">+</span> ind2), <span class="at">data=</span>data)</span>
+<span id="cb25-169"><a href="#cb25-169" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(reg4,</span>
+<span id="cb25-170"><a href="#cb25-170" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"female"</span>,</span>
+<span id="cb25-171"><a href="#cb25-171" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(data, female <span class="sc">==</span> <span class="dv">1</span>))</span>
+<span id="cb25-172"><a href="#cb25-172" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb25-173"><a href="#cb25-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-174"><a href="#cb25-174" aria-hidden="true" tabindex="-1"></a>So in the model with full interaction, we have a gap of 7.5%.</span>
+<span id="cb25-175"><a href="#cb25-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-176"><a href="#cb25-176" aria-hidden="true" tabindex="-1"></a>Now let's try nonparametric estimation.</span>
+<span id="cb25-177"><a href="#cb25-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-178"><a href="#cb25-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-179"><a href="#cb25-179" aria-hidden="true" tabindex="-1"></a><span class="fu">### Nonparametric estimation</span></span>
+<span id="cb25-180"><a href="#cb25-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-181"><a href="#cb25-181" aria-hidden="true" tabindex="-1"></a>If we'd like to go for nonparametric, relaxing linearity assumption, then we can use "npcausal". Note this may take a while, depending on which machine learning packages you decide to include. We can also use other nonparametric estimators, such as TMLE or doubleML.</span>
+<span id="cb25-182"><a href="#cb25-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-185"><a href="#cb25-185" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb25-186"><a href="#cb25-186" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: npcausal1</span></span>
+<span id="cb25-187"><a href="#cb25-187" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb25-188"><a href="#cb25-188" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb25-189"><a href="#cb25-189" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb25-190"><a href="#cb25-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-191"><a href="#cb25-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-192"><a href="#cb25-192" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
+<span id="cb25-193"><a href="#cb25-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-194"><a href="#cb25-194" aria-hidden="true" tabindex="-1"></a><span class="co">#SL.library &lt;- c("SL.earth","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")</span></span>
+<span id="cb25-195"><a href="#cb25-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-196"><a href="#cb25-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-197"><a href="#cb25-197" aria-hidden="true" tabindex="-1"></a>SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.earth"</span>,<span class="st">"SL.glmnet"</span>,<span class="st">"SL.mean"</span>,<span class="st">"SL.ranger"</span>, <span class="st">"SL.xgboost"</span>)</span>
+<span id="cb25-198"><a href="#cb25-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-199"><a href="#cb25-199" aria-hidden="true" tabindex="-1"></a><span class="co"># construct W from model matrix of reg3</span></span>
+<span id="cb25-200"><a href="#cb25-200" aria-hidden="true" tabindex="-1"></a>reg3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(lwage <span class="sc">~</span> exp_dm <span class="sc">+</span> sohs <span class="sc">+</span> hsg<span class="sc">+</span> socl <span class="sc">+</span> clg <span class="sc">+</span> mw <span class="sc">+</span> sout <span class="sc">+</span> we <span class="sc">+</span> occ2 <span class="sc">+</span> ind2, <span class="at">data=</span>data)</span>
+<span id="cb25-201"><a href="#cb25-201" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(reg3)[, <span class="sc">-</span><span class="dv">1</span>]) <span class="co"># remove intercept</span></span>
+<span id="cb25-202"><a href="#cb25-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-203"><a href="#cb25-203" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data<span class="sc">$</span>lwage</span>
+<span id="cb25-204"><a href="#cb25-204" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> data<span class="sc">$</span>female</span>
+<span id="cb25-205"><a href="#cb25-205" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb25-206"><a href="#cb25-206" aria-hidden="true" tabindex="-1"></a>aipw_ate <span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">5</span>, <span class="at">sl.lib=</span>SL.library)</span>
+<span id="cb25-207"><a href="#cb25-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-208"><a href="#cb25-208" aria-hidden="true" tabindex="-1"></a>aipw_att <span class="ot">&lt;-</span> <span class="fu">att</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">5</span>, <span class="at">sl.lib=</span>SL.library)</span>
+<span id="cb25-209"><a href="#cb25-209" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb25-210"><a href="#cb25-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-211"><a href="#cb25-211" aria-hidden="true" tabindex="-1"></a>The two fits above print only SuperLearner's progress bars, so the estimates</span>
+<span id="cb25-212"><a href="#cb25-212" aria-hidden="true" tabindex="-1"></a>themselves have to be asked for:</span>
+<span id="cb25-213"><a href="#cb25-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-216"><a href="#cb25-216" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb25-217"><a href="#cb25-217" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: npcausal-results</span></span>
+<span id="cb25-218"><a href="#cb25-218" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb25-219"><a href="#cb25-219" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb25-220"><a href="#cb25-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-221"><a href="#cb25-221" aria-hidden="true" tabindex="-1"></a>aipw_ate<span class="sc">$</span>res</span>
+<span id="cb25-222"><a href="#cb25-222" aria-hidden="true" tabindex="-1"></a>aipw_att<span class="sc">$</span>res</span>
+<span id="cb25-223"><a href="#cb25-223" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb25-224"><a href="#cb25-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-225"><a href="#cb25-225" aria-hidden="true" tabindex="-1"></a>Two estimates come out of this: an AIPW **ATE** of $-5.8\%$ (95% CI $-8.9\%$ to</span>
+<span id="cb25-226"><a href="#cb25-226" aria-hidden="true" tabindex="-1"></a>$-2.7\%$) and an AIPW **ATT** of $-6.7\%$ (95% CI $-9.5\%$ to $-3.9\%$).</span>
+<span id="cb25-227"><a href="#cb25-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-228"><a href="#cb25-228" aria-hidden="true" tabindex="-1"></a>The comparison worth making is like with like. The $-7.5\%$ from the fully</span>
+<span id="cb25-229"><a href="#cb25-229" aria-hidden="true" tabindex="-1"></a>interacted linear model above was an ATT (it was computed on</span>
+<span id="cb25-230"><a href="#cb25-230" aria-hidden="true" tabindex="-1"></a><span class="in">`newdata = subset(data, female == 1)`</span>), so it should be set against the</span>
+<span id="cb25-231"><a href="#cb25-231" aria-hidden="true" tabindex="-1"></a>nonparametric **ATT** of $-6.7\%$, not against the ATE. Those two agree closely,</span>
+<span id="cb25-232"><a href="#cb25-232" aria-hidden="true" tabindex="-1"></a>which is reassuring: dropping the linearity assumption altogether moves the</span>
+<span id="cb25-233"><a href="#cb25-233" aria-hidden="true" tabindex="-1"></a>estimate by less than a percentage point, and both use the same covariate set</span>
+<span id="cb25-234"><a href="#cb25-234" aria-hidden="true" tabindex="-1"></a>including occupation and industry.</span>
+<span id="cb25-235"><a href="#cb25-235" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-236"><a href="#cb25-236" aria-hidden="true" tabindex="-1"></a>The ATE and ATT point estimates do differ a little, in the direction of a larger</span>
+<span id="cb25-237"><a href="#cb25-237" aria-hidden="true" tabindex="-1"></a>gap among women than in the sample as a whole — which would indicate effect</span>
+<span id="cb25-238"><a href="#cb25-238" aria-hidden="true" tabindex="-1"></a>heterogeneity across the covariates. Their confidence intervals overlap heavily,</span>
+<span id="cb25-239"><a href="#cb25-239" aria-hidden="true" tabindex="-1"></a>though, so this data cannot really distinguish them.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

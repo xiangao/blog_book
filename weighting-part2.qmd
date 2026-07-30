@@ -30,7 +30,7 @@ There are a few other weighting methods that are gaining popularity.
 
 ### Inverse probability of treatment weighting (IPTW)
 
-IPTW is the most common weighting method.  It uses the inverse of the propensity score as weights.  The idea is to weight each treated unit by $1/p$ and each control unit by $1/(1-p)$, where $p$ is the propensity score.  This way, we can create a pseudo population where the distribution of $X$ is balanced between treatment and control groups.
+IPTW is the most common weighting method.  It uses the inverse of the propensity score as weights.  For the **ATE**, weight each treated unit by $1/p$ and each control unit by $1/(1-p)$, where $p$ is the propensity score.  For the **ATT** --- which is what the examples below request via `estimand = "ATT"` --- the treated units all get weight $1$ and the controls get $p/(1-p)$; you can see this in the weight summaries, where the treated range is exactly $1$ to $1$.  Either way the point is the same: create a pseudo population in which the distribution of $X$ is balanced between the groups.
 
 ### Covariate balancing propensity score (CBPS)
 
@@ -38,7 +38,7 @@ The same idea, but with a different way to estimate the propensity score.  CBPS 
 
 ### Entropy balancing
 
-Entropy balancing involves the specification of an optimization problem, the solution to which is then used to compute the weights. The constraints of the primal optimization problem correspond to covariate balance on the means (for binary and multi-category treatments) or treatment-covariate covariances (for continuous treatments), positivity of the weights, and that the weights sum to a certain value.  Entropy balancing is doubly robust (for the ATT) in the sense that it is consistent either when the true propensity score model is a logistic regression of the treatment on the covariates or when the true outcome model for the control units is a linear regression of the outcome on the covariates, and it attains a semi-parametric efficiency bound when both are true. Entropy balancing will always yield exact mean balance on the included terms (not necessarily on the distribution of the covariates)
+Entropy balancing involves the specification of an optimization problem, the solution to which is then used to compute the weights. The constraints of the primal optimization problem correspond to covariate balance on the means (for binary and multi-category treatments) or treatment-covariate covariances (for continuous treatments), positivity of the weights, and that the weights sum to a certain value.  Entropy balancing is doubly robust (for the ATT) in the sense that it is consistent either when the true propensity score model is a logistic regression of the treatment on the covariates or when the true outcome model for the control units is a linear regression of the outcome on the covariates, and it attains a semi-parametric efficiency bound when both are true. Entropy balancing will always yield exact mean balance on the included terms (not necessarily on the distribution of the covariates).
 
 ### Energy balancing
 
@@ -124,6 +124,18 @@ if (!is.null(w.out3)) {
 }
 
 ```
+
+Two things are worth noticing in that output rather than passing over it. First,
+the estimand changed: `w.out3` requests the **ATE**, while the entropy-balancing
+fit above targeted the **ATT**, so the two numbers ($-73$ against $1273$) are not
+competing estimates of the same quantity. Second, look at the weight summary.
+Entropy balancing gives every treated unit a weight of exactly $1$, as the ATT
+requires. Energy balancing spreads the treated weights from $0$ to $14.0$ --- one
+treated unit is effectively discarded and another counts as fourteen --- and the
+resulting standard error ($1085$) is much larger than entropy balancing's ($770$).
+Balancing the whole covariate *distribution* rather than just its means is a
+genuine advantage, but it is bought with weight variability, and that shows up
+directly in the precision of the estimate.
 
 ## comparing matching and weighting
 

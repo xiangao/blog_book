@@ -34,9 +34,9 @@ E[y_i | a_i =1] - E[y_i | a_i=0] &= E[X_i | a_i=1]  (\beta_1 - \beta_0) + (E[X_i
 \end{align}
 $$
 
-That is, the observed difference is the sum of $\tau_{PATT}$ and selection bias. It is also know in the OB decomposition literature as unexplained component and explained component. The former as "discrimination".
+That is, the observed difference is the sum of $\tau_{PATT}$ and selection bias. It is also known in the OB decomposition literature as the unexplained component and the explained component. The former as "discrimination".
 
-We can simply use Regression Adjustment for $\tau_{PATT}$.  The easiest would be an OLS of $y_i$ on demeaned $X_i$ and $a_i$ and interaction, then the coefficient on $a_i$ is $\tau_{PATT}$.
+We can simply use Regression Adjustment for these quantities.  The easiest is an OLS of $y_i$ on $a_i$, the demeaned $X_i$, and their interaction; the coefficient on $a_i$ is then the effect evaluated at the mean of the covariates used for the demeaning.  Demean at the **overall** mean and that coefficient is $\tau_{PAGE}$ (the ATE), which is what the example below does; demean at the mean among **women** instead and it is $\tau_{PATT}$.  The choice of centring is what selects the estimand, so it is worth being explicit about which one you have.
 
 He also advocates the "population average gender effect" (PAGE):
 
@@ -198,4 +198,30 @@ aipw_ate <- ate(y=Y, a=A, x=W, nsplits=5, sl.lib=SL.library)
 aipw_att <- att(y=Y, a=A, x=W, nsplits=5, sl.lib=SL.library)
 ```
 
-We can see this effect is about -6.6%, similar to the regression adjustment result -7.5%.
+The two fits above print only SuperLearner's progress bars, so the estimates
+themselves have to be asked for:
+
+```{r}
+#| label: npcausal-results
+#| warning: false
+#| message: false
+
+aipw_ate$res
+aipw_att$res
+```
+
+Two estimates come out of this: an AIPW **ATE** of $-5.8\%$ (95% CI $-8.9\%$ to
+$-2.7\%$) and an AIPW **ATT** of $-6.7\%$ (95% CI $-9.5\%$ to $-3.9\%$).
+
+The comparison worth making is like with like. The $-7.5\%$ from the fully
+interacted linear model above was an ATT (it was computed on
+`newdata = subset(data, female == 1)`), so it should be set against the
+nonparametric **ATT** of $-6.7\%$, not against the ATE. Those two agree closely,
+which is reassuring: dropping the linearity assumption altogether moves the
+estimate by less than a percentage point, and both use the same covariate set
+including occupation and industry.
+
+The ATE and ATT point estimates do differ a little, in the direction of a larger
+gap among women than in the sample as a whole — which would indicate effect
+heterogeneity across the covariates. Their confidence intervals overlap heavily,
+though, so this data cannot really distinguish them.

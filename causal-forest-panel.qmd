@@ -14,9 +14,25 @@ Suppose we have a panel of firms over time, treatment assignment is random.  We 
 
 $$y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it} $$
 
-Here $\alpha_i$ is not observed, and it is correlated with $V1$.  If we don't control for it, we are going to have a biased estimator.
+Here $\alpha_i$ is not observed, and it is correlated with $V1$, so leaving it out is in principle a source of bias.
 
-We run a fixed effect model, and a random effect model and an OLS model.  We expect fixed effect model will do well, but not the other two.  This is because the other two models do not control for $\alpha_i$ directly.
+It is worth being precise about how much bias, though, because the results below
+are less dramatic than that setup suggests. The unit effect is the *firm mean* of
+$V2$ over all $t=10$ periods, and averaging attenuates its correlation with
+contemporaneous $V1$ by a factor of $t$: with
+$\mathrm{Cor}(V1_{it}, V2_{it}) = 0.9025$ we get
+$\mathrm{Cov}(V1_{it}, \bar V2_i) = 0.9025/10$, and
+$\mathrm{Cor}(V1_{it}, \alpha_i) \approx 0.29$. So the omitted-variable bias on
+$V1$ is only about $0.05$--$0.09$, not a qualitative failure.
+
+That is what the three models show: FE, RE and OLS all recover $V1 \approx 1$,
+$W \approx 1$ and $V1{:}W \approx 1.05$, essentially the truth. Note in
+particular that the *treatment* coefficients are unbiased in all three, because
+$W$ is randomized and so independent of $\alpha_i$ — omitting a unit effect
+cannot bias the effect of a randomly assigned treatment. If you want a panel
+example where FE visibly beats OLS, the unit effect has to be correlated with
+$V1$ *contemporaneously* (or $t$ has to be small), and the treatment has to be
+non-random.
 
 ```{r}
 #| label: chunk1
@@ -256,7 +272,13 @@ summary(re)
 summary(ols)
 ```
 
-Apparently none of these model will return anything meaningful.
+These linear models miss the *shape* of the effect, but it overstates things to
+say they return nothing. Each recovers the best linear approximation to the true
+CATE $\max(V1,0)$, which is $0.3989 + 0.5\,V1$: the fitted $W$ coefficients are
+$0.40$--$0.43$ and the $V1{:}W$ interactions are $0.53$--$0.55$. In particular the
+$W$ coefficient is essentially the true ATE, $E[\max(V1,0)] = \phi(0) = 0.3989$.
+What a linear specification cannot do is see the kink at $V1 = 0$ — and that is
+what the forest is for.
 
 Now we use Causal Forest.  The first graph is the predicted CATE against $V1$; the second graph is the predicted CATE against true CATE.  The third one adds in error bars.
 
@@ -316,9 +338,12 @@ ggplot() + geom_errorbar(graph.data3, mapping=aes(x=cate,  ymin=lower,ymax=upper
 
 In the second situation, we assume DGP:
 
-$$y_{it} = 1 +  \alpha_i + log(V1_{it}^2)*W_{it} +  \epsilon_{it} $$
+$$y_{it} = 1 +  \alpha_i + \log(V1_{it}^2)*W_{it} + \min(X3_{it}, 0) + \epsilon_{it} $$
 
-But we only observe $V1$, not the log of the squared $V1$.
+But we only observe $V1$, not the log of the squared $V1$.  The extra
+$\min(X3_{it},0)$ term is a nonlinearity in the *outcome* rather than in the
+treatment effect, so it leaves the CATE equal to $\log(V1^2)$; it is there to give
+the forest's nuisance models something nonlinear to fit.
 
 ```{r}
 #| label: chunk6
@@ -329,7 +354,7 @@ But we only observe $V1$, not the log of the squared $V1$.
 
 # if we have a nonlinear effect
 # suppose we have the same X, but y is generated nonlinearly.
-# another example, suppose we observe log(V1), but the true effect is V1
+# another example: we observe V1, but the true treatment effect is log(V1^2)
 set.seed(666)
 rm(list = ls())
 # t is no. of periods. p is no. of variables, n is no. of firms.
@@ -398,7 +423,13 @@ summary(ols)
 
 ```
 
-Again, these models do not work.
+Here the linear models fail more completely, and instructively so. Because
+$\log(V1^2)$ is *even* in $V1$, its linear interaction with $V1$ is zero by
+construction: the fitted $V1{:}W$ terms come out at $0.015$, $-0.019$ and
+$-0.020$, i.e. no detectable heterogeneity at all, even though the true CATE
+varies enormously with $V1$. The $W$ coefficients ($\approx -1.18$) still
+approximate the true ATE, $E[\log(V1^2)] = \psi(1/2) + \log 2 = -1.2704$. So a
+linear model gets the average right and the heterogeneity completely wrong.
 
 Now we run Causal Forest.  Again, first graph is predicted CATE against $V1$, the second one is the predicted CATE against true CATE, the third one adds error bars.
 

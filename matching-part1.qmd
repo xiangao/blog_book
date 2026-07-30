@@ -30,7 +30,7 @@ The idea of matching is to find a set of control units that are similar(close) t
 
 The most common distance measure is the propensity score (PS), which is the probability of being treated given $X$.  The benefit is that when there is high dimension of $X$, we can reduce the dimension to a single number, the PS.
 
-There are many ways to estimate the propensity score, such as logit, or more flexible parametric "gam", or other machine learning methods, such as "gbm", "lasso", "rpart", "randomforest", "cbps", etc.  Here CBPS has seen more popularity.  The propensity scores are estimated using the covariate balancing propensity score (CBPS) algorithm, which is a form of logistic regression where balance constraints are incorporated to a generalized method of moments estimation of of the model coefficients.
+There are many ways to estimate the propensity score, such as logit, or more flexible parametric "gam", or other machine learning methods, such as "gbm", "lasso", "rpart", "randomforest", "cbps", etc.  Here CBPS has seen more popularity.  The propensity scores are estimated using the covariate balancing propensity score (CBPS) algorithm, which is a form of logistic regression where balance constraints are incorporated into a generalized method of moments estimation of the model coefficients.
 
 ### Distance from covariates
 
@@ -57,9 +57,14 @@ OFM assigns each unit (treated or control) to a subclass.  For each subclass the
 
 GFM is a variant of OFM.  It uses a faster algorithm for large datasets.
 
-### Generic matching
+### Genetic matching
 
-Generic matching is to use NNM on the scaled generalized Mahalanobis distance.
+Genetic matching (`method = "genetic"`, Diamond and Sekhon 2013) runs nearest
+neighbor matching on a *scaled* generalized Mahalanobis distance, where the
+scaling weights on the covariates are not fixed in advance but chosen by a
+genetic algorithm that searches for the weighting giving the best covariate
+balance.  That search is the point of the method --- and also why it is far
+slower than the alternatives above.
 
 ### Exact matching
 
@@ -85,7 +90,7 @@ Here is an example with Lalonde data, we are interested in the effect of treatme
 
 
 ```{r}
-#| include: false
+#| message: false
 
 library("MatchIt")
 data("lalonde")
@@ -102,7 +107,7 @@ summary(m.out0)
 Or use "cobalt" to see the balance:
 
 ```{r}
-#| include: false
+#| message: false
 
 library("cobalt")
 bal.tab(treat ~ age + educ + race + married + nodegree + re74 + re75,
@@ -219,7 +224,7 @@ avg_comparisons(fit,
 
 ```
 
-Note we allow interaction of treatment and covariates, but we do no need to demean the covariates here, since we are relying on "marginaleffects" and its "avg_comparisons" function to compute the average treatment effect.  The "newdata" argument is used to specify the effect, in this case ATT.  Note the weights are generated this way:  since it's ATT, all treated units are weighted by 1, and control units are weighted by $p/(1-p)$, where $p$ is proportion of treated units in the subclass.  Anyway, for full matching, we get the comparison of potential outcomes for the treated, with weights, and clustered standard errors on subclasses, because that the level the comparison is conducted.
+Note we allow interaction of treatment and covariates, but we do not need to demean the covariates here, since we are relying on "marginaleffects" and its "avg_comparisons" function to compute the average treatment effect.  The "newdata" argument is used to specify the effect, in this case ATT.  Note the weights are generated this way:  since it's ATT, all treated units are weighted by 1, and control units are weighted by $p/(1-p)$, where $p$ is proportion of treated units in the subclass.  Anyway, for full matching, we get the comparison of potential outcomes for the treated, with weights, and clustered standard errors on subclasses, because that the level the comparison is conducted.
 
 ---
 
