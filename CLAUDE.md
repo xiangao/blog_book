@@ -255,3 +255,26 @@ The selection subsection was the only part of the bad-control argument carried b
 **Note on the two graph objects.** The chunk defines `g3` (for drawing) and `g3_sel` (with `[selected]`, `[latent]`, `[exposure]`, `[outcome]` for the checks) rather than one object. ggdag drawing and dagitty selection semantics want different declarations; splitting them keeps both honest and the text explains why.
 
 Chapter now has three DAGs: occupation as simultaneous mediator and collider; treatment re-dated to perceived sex at hiring (with the positivity result); and sample selection. Full book re-rendered, 49/49.
+
+## Selection-simulation pass (2026-07-30, gwg)
+
+The selection subsection argued open/closed paths and empty adjustment sets but never said how much the problem costs. Two new cached chunks fix that. The extract has no non-workers, so a simulation is the only honest route.
+
+**`selection-sim`.** DGP mirrors the third DAG: sex randomly assigned, $U$ unobserved, women less likely employed FT/FY, higher $U$ more likely employed, true $\tau = -0.10$. Results (N = 300,000):
+- full population regression: −0.0960 (recovers truth up to noise)
+- selected sample, naive: **−0.0389** — off by ~2.5x, attenuated toward zero
+- sex ratio reweighted to 50/50: **−0.0389** — identical to four decimals
+- men randomly subsampled to equal n: **−0.0393** — no help
+- inverse-probability-of-selection weighted: −0.1014 (recovers truth, needs $U$)
+
+Diagnostics printed alongside: employment rates 0.671 men / 0.479 women, and mean $U$ among the employed 0.205 men / 0.332 women. That second pair is the mechanism in one line, and it is unchanged by reweighting.
+
+**The general rule the chunk earns:** no random sampling operation can remove a bias. Bias is a property of a distribution; random sampling preserves distributions. A random subsample of men has the same mean $U$ as all men. The problem is not that women are outnumbered but that employed women are a differently-selected subset of women than employed men are of men — reweighting on sex moves the marginal distribution of sex while the bias lives in the conditional distribution of $U$ given sex. Worth remembering as a general answer to "can we not just balance the sample?"
+
+**`lee-bounds`.** Lee (2009) trims the over-selected group on the *outcome* rather than the unobservable, in both extreme directions, with trim fraction $q = (p_m - p_w)/p_m$. Swept across five selection strengths. Bounds cover the true −0.10 in all five rows, so validity holds; but width tracks $q$ almost proportionally, and `signed` only becomes "yes" at $q \lesssim 0.03$. At $q = 0.29$ the interval is [−0.337, +0.265].
+
+**The inversion worth keeping:** the `naive` column degrades in lockstep with `width` (−0.037, −0.067, −0.086, −0.096, −0.096 reading down). So Lee bounds are tight exactly when they are not needed and wide exactly when they are. That is not a fatal criticism — it means the width measures how much the selection is costing, which is information otherwise unavailable. Value here is diagnostic more than inferential.
+
+**Caveats now in the text:** monotonicity is the load-bearing assumption and it is individual-level (being female never *raises* anyone's employment probability), stronger than the average pattern; the estimand becomes the effect among the **always-employed**, not the population; and the method needs both selection rates, so it cannot be run on `wage2015_subsample_inference.csv` at all — that file has only employed people, and one would need the unfiltered CPS. Real US FT/FY rates differ by roughly 10--15 points for ages 25--64, putting $q$ near 0.2, so doing this properly would likely yield an interval containing zero. Stated as a defensible finding rather than a failure.
+
+**Two label fixes after first render:** the summary row read "full population (truth)" while printing −0.0960 against $\tau=-0.10$ (Monte Carlo noise at ~1.7 SE) — relabelled "full population regression" with the prose noting it recovers the truth up to noise; and a prose list of the naive column had been written in reverse order relative to the table. Both corrected against the rendered output rather than assumed.

@@ -341,6 +341,175 @@ Zero valid adjustment sets, and the raw comparison is no longer among them. Cond
 
 The direction is unusually easy to sign here. Women are less likely to hold full-year full-time jobs, so clearing that bar takes more of whatever else helps --- meaning employed women are *positively* selected on wage-raising unobservables relative to employed men. If so, the observed gap **understates** the true one. Olivetti and Petrongolo (2008) find exactly this signature across countries: measured gender wage gaps are smaller where female employment rates are lower, and imputing wages for non-workers widens them most in the low-participation countries.
 
+#### How much does this actually cost? A simulation
+
+Everything above is graph-theoretic: the paths are open or closed, the adjustment
+sets exist or do not. It says nothing about magnitude. Because the non-workers
+are missing from this extract by construction, the honest way to put numbers on
+it is to simulate a population where the truth is known, apply the selection, and
+see what survives.
+
+The design mirrors the graph: sex is randomly assigned, $U$ is an unobserved wage
+determinant, women are less likely to be employed full-year full-time, and higher
+$U$ makes employment more likely. The true effect is set at $-0.10$ log points.
+
+```{r}
+#| label: selection-sim
+#| cache: true
+#| warning: false
+#| message: false
+
+set.seed(42)
+N   <- 300000
+tau <- -0.10                       # TRUE effect of sex on log wage
+
+sex  <- rbinom(N, 1, 0.5)          # birth sex, randomly assigned
+U    <- rnorm(N)                   # unobserved: health, drive, reservation wage
+wage <- 2.5 + tau * sex + 0.5 * U + rnorm(N, 0, 0.4)
+
+pi_sel <- plogis(0.8 - 0.9 * sex + 0.7 * U)   # women less likely; high U more likely
+emp    <- rbinom(N, 1, pi_sel)
+
+d <- data.frame(wage, sex, U, pi_sel)[emp == 1, ]
+
+b <- function(fit) coef(fit)[["sex"]]
+
+# 1. the truth, from the full population
+full  <- b(lm(wage ~ sex))
+
+# 2. the selected sample, as an analyst would see it
+naive <- b(lm(wage ~ sex, data = d))
+
+# 3. reweight so the sex ratio is exactly 50/50
+w_bal <- ifelse(d$sex == 1, 0.5 / mean(d$sex), 0.5 / (1 - mean(d$sex)))
+rewt  <- b(lm(wage ~ sex, data = d, weights = w_bal))
+
+# 4. randomly drop men until the counts match
+n_w   <- sum(d$sex == 1)
+men   <- d[d$sex == 0, ]
+kept  <- men[sample(nrow(men), n_w), ]
+subs  <- b(lm(wage ~ sex, data = rbind(kept, d[d$sex == 1, ])))
+
+# 5. weight by the inverse probability of selection (needs U -- infeasible in practice)
+ipsw  <- b(lm(wage ~ sex, data = d, weights = 1 / d$pi_sel))
+
+data.frame(
+  approach = c("full population regression", "selected sample, naive",
+               "sex ratio reweighted to 50/50", "men randomly subsampled to equal n",
+               "inverse-probability-of-selection weighted"),
+  estimate = round(c(full, naive, rewt, subs, ipsw), 4)
+)
+
+c(employment_rate_men   = round(mean(emp[sex == 0]), 3),
+  employment_rate_women = round(mean(emp[sex == 1]), 3))
+
+c(mean_U_employed_men   = round(mean(d$U[d$sex == 0]), 3),
+  mean_U_employed_women = round(mean(d$U[d$sex == 1]), 3))
+```
+
+Three things to take from that table.
+
+The full-population regression recovers the true $-0.10$ up to sampling noise, as
+it must --- sex is randomly assigned, so nothing confounds it. The naive
+selected-sample estimate is **wrong by a factor of about two and a half**, and in
+the direction the graph predicted: attenuated toward zero, because employed women
+are positively selected on $U$ (mean $+0.33$ against $+0.21$ for employed men).
+The signed prediction of the previous section is not merely plausible; it is what
+happens.
+
+Balancing does nothing. Reweighting the sex ratio to exactly 50/50 leaves the
+estimate unchanged to four decimal places, and randomly discarding men until the
+counts match leaves it unchanged as well. The reason is worth stating as a
+general rule: **no random sampling operation can remove a bias.** Bias is a
+property of a distribution, and random sampling preserves distributions --- a
+random subsample of men has the same mean $U$ as all men, $+0.21$ either way. The
+problem is not that women are outnumbered; it is that the employed women are a
+*differently selected* subset of women than the employed men are of men.
+Reweighting on sex changes the marginal distribution of sex, while the bias lives
+in the conditional distribution of $U$ given sex.
+
+Only the last row recovers the truth, and it does so by weighting on the
+probability of selection --- which requires $U$. That is exactly what is
+unavailable.
+
+#### Lee bounds: what you can get without $U$
+
+Lee (2009) avoids needing $U$ by trimming the over-selected group on the
+*outcome* rather than on the unobservable, in both extreme directions. The trim
+fraction is fixed by the selection rates, $q = (p_{\text{men}} -
+p_{\text{women}})/p_{\text{men}}$: drop the lowest-paid $q$ of men to make them
+look as good as possible, then the highest-paid $q$ to make them look as bad as
+possible. The two results bracket the effect.
+
+The important question is not whether the bounds are valid --- they are --- but
+how wide they are. That depends entirely on how unbalanced the selection is:
+
+```{r}
+#| label: lee-bounds
+#| cache: true
+#| warning: false
+#| message: false
+
+lee_run <- function(b_sex, N = 300000, tau = -0.10) {
+  sex  <- rbinom(N, 1, 0.5)
+  U    <- rnorm(N)
+  wage <- 2.5 + tau * sex + 0.5 * U + rnorm(N, 0, 0.4)
+  emp  <- rbinom(N, 1, plogis(0.8 + b_sex * sex + 0.7 * U))
+  d    <- data.frame(wage, sex)[emp == 1, ]
+
+  p_m <- mean(emp[sex == 0]); p_w <- mean(emp[sex == 1])
+  q   <- (p_m - p_w) / p_m
+
+  men  <- d$wage[d$sex == 0]
+  wbar <- mean(d$wage[d$sex == 1])
+  lo   <- wbar - mean(men[men >= quantile(men, q,     names = FALSE)])
+  hi   <- wbar - mean(men[men <= quantile(men, 1 - q, names = FALSE)])
+
+  data.frame(p_men = round(p_m, 3), p_women = round(p_w, 3), q = round(q, 3),
+             naive = round(coef(lm(wage ~ sex, data = d))[["sex"]], 4),
+             lower = round(lo, 3), upper = round(hi, 3),
+             width = round(hi - lo, 3),
+             signed = ifelse(hi < 0, "yes", "no"),
+             covers_truth = (lo <= tau && tau <= hi))
+}
+
+set.seed(7)
+do.call(rbind, lapply(c(-0.9, -0.5, -0.25, -0.10, -0.03), lee_run))
+```
+
+The bounds cover the true $-0.10$ in every row, so the method does what it
+promises. But the width scales almost proportionally with the trim fraction, and
+the effect can only be *signed* once the employment rates differ by a couple of
+percentage points. At a 19-point gap the interval runs from $-0.34$ to $+0.26$
+and contains zero: valid, and useless.
+
+Now read the `naive` column alongside `width`. The naive estimate degrades in
+lockstep with the bounds widening --- reading down the table, $-0.037$, $-0.067$,
+$-0.086$, $-0.096$, $-0.096$ against a truth of $-0.10$. So Lee bounds are tight
+exactly when they are not needed and wide exactly when they are. That inverts into what they are actually for here: the
+width is a **measure of how much the selection problem is costing**, and it is
+information one otherwise does not have at all. Their value in this setting is
+more diagnostic than inferential. No method manufactures information; this one
+stops a badly selected point estimate from passing as a precise one.
+
+Three caveats before anyone reaches for it. The load-bearing assumption is
+**monotonicity** --- being female never *increases* anyone's employment
+probability, which is an individual-level claim, stronger than the average
+pattern. The target quantity changes: the bounds are for the effect among the
+**always-employed**, whoever they happen to be, not the population. And the
+procedure needs both selection rates, so it cannot be run on
+`wage2015_subsample_inference.csv` at all --- that file contains only employed
+people. One would have to go back to the unfiltered CPS for men's and women's
+full-year full-time employment rates.
+
+On real US data those rates differ by something on the order of ten to fifteen
+percentage points for ages 25--64, putting $q$ near $0.2$ --- the second row of
+the table, where the interval contains zero. So the likely honest conclusion from
+doing this properly is that the selected-sample gender gap is consistent with
+anything from a large penalty to a modest premium, and that no covariate
+adjustment narrows it. That is a stronger and more useful statement than the
+$-3.8\%$ point estimate, even though it names no number.
+
 A note on notation, since $U$ now appears in two graphs doing two different jobs. In the occupation graph, $U$ has to drive *occupational sorting* --- drive, negotiation propensity, expected career continuity. In the selection graph it has to drive *labour supply* --- health, reservation wage (non-labour income, spousal earnings), latent productivity. The two sets overlap but are not the same, and the two collider problems are separate.
 
 So the honest summary is uncomfortable: $-3.8\%$ is the best-identified number in this chapter and the least informative about anything one would want to act on, while $-7.5\%$ is the worst-identified and the closest to the question people actually ask. Identification improves as conditioning is stripped away; interpretability improves as it is added. No estimator resolves that trade-off --- only a different design does, which is what audit and correspondence studies are for.
