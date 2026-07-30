@@ -19,10 +19,10 @@ Stata has a "ivpoisson" function with handles IV in a Poisson regression setting
 
 In the case that the endogenous variable is continuous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:
 
-1. Run the first stage regression (reduced from for the endogenous variable), and get the predicted value of the residual.  This is the first-stage (control-function) residual.  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.
-2. Include both the endogenous variable and the Mundlak residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.
+1. Run the first stage regression (the reduced form for the endogenous variable), and get the residual.  This is the first-stage **control-function** residual.  (It is worth not calling this a "Mundlak residual": the Mundlak device means adding group *means* of covariates, as in the [Mundlak chapter](mundlak-device.qmd), which is a different construction addressing a different problem.)  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.
+2. Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.
 
-Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  The reason is that the Mundlak residual is generated from the first stage, we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.
+Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.
 
 
 
@@ -59,7 +59,7 @@ ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
 
 ```
 
-In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the Mundlak residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.
+In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the control-function residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.
 
 To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.
 

@@ -32,8 +32,10 @@ defined for non-negative integer counts, and the continuous ratio $Y/t$ is not
 one. Because $t$ is a fixed constant for each unit, $E[Y/t] = E[Y]/t$ exactly
 (linearity of expectation), so the *conditional mean* is still log-linear in
 $X$; that is why the point estimates are often similar. But the Poisson variance
-assumption fails — $\mathrm{Var}(Y/t) = \lambda/t$ scales with $1/t$, not with
-the mean — so fitting `glm(rate ~ x, family = poisson)` is a quasi-likelihood
+assumption fails: $\mathrm{Var}(Y/t) = \lambda/t^2$, whereas the mean is
+$E[Y/t] = \lambda/t$, so the variance is $1/t$ times the mean rather than equal to
+it. (Writing it as $\lambda/t$ would make variance equal mean and quietly restore
+equidispersion, which is precisely what fails here.) So fitting `glm(rate ~ x, family = poisson)` is a quasi-likelihood
 *mean model* rather than a correct Poisson likelihood. If you use it, treat it
 as a workaround: weight by exposure (`weights = t`) so the implied variance is
 right, and/or use robust standard errors. The offset model (Model 1) avoids the
@@ -143,9 +145,23 @@ cat("Estimated gamma (log-exposure):    ", round(coef(m3b)[3], 3),
     " (true = 0.6)\n")
 ```
 
-When $\gamma \ne 1$, forcing the offset constraint biases the treatment
-coefficient. The unconstrained model recovers both the true age effect and
-the true $\gamma$.
+Two things to read off this, and the first is not what one might expect.
+
+The offset model's age coefficient (1.171) and the unconstrained model's (1.168)
+are essentially the same, and both sit just below the true 1.2. Forcing
+$\gamma = 1$ when the truth is 0.6 does **not** bias the treatment coefficient
+here --- and the reason is structural: `exposure` is drawn by `sample(...)`
+independently of `age_old`, so the misspecified exposure elasticity is absorbed by
+the intercept and cannot contaminate a coefficient on a covariate orthogonal to
+it. The constraint would bite if exposure were *correlated* with the covariate of
+interest --- for instance if older patients were systematically followed longer,
+which is common in real cohort data and is the case worth worrying about.
+
+What the unconstrained model does buy, unambiguously, is $\gamma$ itself: it
+recovers $\hat\gamma = 0.566$ against a truth of 0.6, whereas the offset model
+cannot report it at all because it fixes it at 1. So Model 3's role is diagnostic
+--- it tells you whether the proportionality assumption holds --- rather than
+protective of the treatment estimate.
 
 ## Stata equivalent
 
