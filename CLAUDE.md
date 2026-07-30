@@ -170,3 +170,50 @@ statements about relationships between methods:
 **When a DGP is meant to demonstrate a problem, verify the problem is actually
 present.** Two chapters here promised confounding or attenuation that their own
 simulation did not generate. Simulate the claim, do not assume the DGP delivers it.
+
+## Estimand pass (2026-07-30, gwg)
+
+Follow-up to the bad-controls pass, prompted by the question "what question do my models answer — all men vs all women?" Answering it precisely exposed an error in the previous pass.
+
+**The error:** the bad-controls entry called −11.3% "the total-effect estimate." Wrong. Education, potential experience (= age − schooling − 6, so it inherits education) and region are all downstream of sex. Since nothing causes sex, there is no confounding to adjust away and the valid adjustment set is close to empty — so `reg3` is already a controlled direct effect, and the only total effect in the chapter is the raw −3.8%.
+
+**Consequences now written into the chapter:**
+- CDE ladder table replacing the total-vs-adjusted framing: −3.8% (nothing fixed) / −11.3% (education, experience, region) / −7.5% (+ occupation, industry). Movement between rungs is information about where the gap accumulates, not error to be minimised.
+- Composition table (`composition` chunk) explaining the counterintuitive direction: women here are more educated (advanced degrees 17.5% vs 10.7%, below-HS 1.3% vs 3.2%) with identical experience (13.7 vs 13.8), so holding education fixed strips their advantage and widens the gap. The chapter previously asserted 3.8% → 11% with no explanation.
+- New subsection "Selection is the real threat, and it is not confounding." Under exogeneity of sex the raw difference IS the total causal effect (well-defined: the intervention is "assign sex at conception" — Holland bites on manipulating an adult's sex, not on this). The live threat is the full-time/full-year restriction, a collider `Sex -> Employed <- U -> Wage`. Direction is signable: women are less likely to be FT/FY, so employed women are positively selected on wage-raising unobservables, meaning −3.8% understates. Olivetti & Petrongolo (2008) find this signature cross-nationally.
+- The `U` symbol now explicitly does two different jobs and says so: occupational-sorting drivers (drive, negotiation, expected continuity) in the occupation graph vs labour-supply drivers (health, reservation wage, latent productivity) in the selection graph.
+- The "maybe men are innately different" objection given a precise form: such a trait is a **mediator**, not a confounder (nothing causes sex, so anything differing by sex is downstream), and controlling for observables does not approximate it — education is a **collider** between sex and ability, so conditioning on it induces the very sex–ability association it was meant to remove, in the direction that widens the gap. Consistent with the observed 3.8 → 11.3 move.
+
+**New "Beyond the mean" section.** The chapter was entirely mean estimands. Two questions, deliberately kept apart:
+- *Direct unconditional quantile gaps* — `q_tau(women) − q_tau(men)`, 2000-rep bootstrap. 0.000 (−0.039, 0.028) at τ=0.10 rising to −0.069 at τ=0.75 and 0.90. Glass ceiling. The exact zeros are **wage heaping** (log wages repeat, so both groups' empirical quantiles land on the same value), which also explains why the sequence is non-monotone at τ=0.25 vs 0.50.
+- *RIF regression* (Firpo–Fortin–Lemieux 2009), `RIF(y; q_tau) = q_tau + (tau − 1{y<=q_tau})/f_Y(q_tau)`. Monotone: −0.012 → −0.078 without covariates, −0.082 → −0.159 with.
+
+**The estimand trap this section documents** (I got it wrong first myself): a RIF-regression coefficient on a binary regressor is **not** the gap between the two groups' quantiles. It is the effect on the unconditional τ-quantile of marginally raising the *share* female. The two disagree at every τ (median: −0.020 direct vs −0.041 RIF). Also flagged: RIF is a first-order approximation and flipping a binary regressor for the whole sample is not a small shift; the `lm` standard errors ignore density-estimation uncertainty; and a QTE is not the effect for the person at quantile τ without rank invariance.
+
+**Still outstanding:** Lee (2009) bounds for the selection problem (needs data with non-workers — this extract has none, so cite-only or demonstrate on the employment margin); `vcov = "HC3"` on the pre-existing `avg_comparisons()` calls (point estimates unaffected); an age-instead-of-potential-experience specification as the one legitimately precision-improving adjustment.
+
+## Second DAG pass (2026-07-30, gwg)
+
+Prompted by the objection: *if we ignore that sex drives education and experience and treat them as given, then "what would this woman be paid as a man, given her actual history" is the question of interest and controlling is correct.*
+
+That objection is right, and the chapter now says why — plus a stronger result that neither the objection nor the earlier bad-controls section anticipated.
+
+**The principle:** "bad control" is a property of the triple *(variable, treatment, timing)*, not of the variable. Re-date the treatment and the classification flips:
+
+| Treatment | Education is | Controlling is |
+|---|---|---|
+| Sex at conception | post-treatment mediator | bad control |
+| Perceived sex at hiring (Greiner & Rubin 2011) | pre-treatment covariate | appropriate |
+
+**What the second DAG shows** (`gwg-dag2`, `gwg-adjsets`; nodes SexBirth, Perceived, Educ, A latent, Wage):
+- `isAdjustmentSet(g2, c())` = **FALSE**. Adjusting for nothing is invalid under this estimand — `Perceived <- SexBirth -> Educ -> Wage` is an open backdoor. So the objection is half-vindicated and everything the earlier section said about bad controls was conditional on the *other* estimand. Worth stating explicitly rather than leaving the two sections to contradict each other.
+- `isAdjustmentSet(g2, "Educ")` = **FALSE**. Conditioning closes that backdoor and opens `Perceived <- SexBirth -> Educ <- A -> Wage`. Re-dating the treatment does nothing about the collider — education is still a common effect of sex at birth and ability.
+- `adjustmentSets(g2)` = **`{ SexBirth }`**, and it has **no overlap**: sex at birth determines perceived sex, so conditioning on it leaves no treatment variation. Positivity fails outright.
+
+**The punchline, and the reason this belongs in the book:** the decision-stage estimand is not identified from observational data under *any* conditioning strategy. That is a structural property of the graph, not a limitation of the CPS extract — no larger sample or finer covariates fix it. And the same result prescribes the design: sever `SexBirth -> Perceived` by randomising the signal, after which no adjustment is needed at all. That is why correspondence studies carry no controls, and Goldin & Rouse (2000) is the limiting case — the same musician evaluated with and without the screen, so ability is held fixed exactly rather than statistically.
+
+**Informal bracketing** now stated: the two biases have opposite signs (no conditioning → education backdoor open, and women here are more educated, so bias toward zero; conditioning → collider open, equally-educated women pushed low on A, so bias away from zero). The target plausibly sits between −3.8% and −11.3%. Explicitly flagged as *not* a formal bound — each sign rests on an assumption.
+
+**Normative point kept separate from the graph work:** holding human capital fixed accepts whatever produced those differences as the baseline. Right for "is this employer treating equivalent applicants differently" (disparate treatment), wrong for "is the labour market fair to women" (disparate impact). The data does not decide it.
+
+**Verification note for future passes:** `grep`ing the rendered HTML for literal markdown (`**bold**`) gives false positives — Quarto embeds a copy of the page source alongside the rendered body, so a raw-string match can look like a rendering failure when the body is fine. Check for `<p>`/`<strong>` structure, or extract `div.cell-output` blocks, instead of grepping for text.
