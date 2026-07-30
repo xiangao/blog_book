@@ -15,11 +15,15 @@ The reason this matters is not really about honesty in the moment you write the 
 
 Registered Reports push this further than ordinary pre-registration. The journal grants *in-principle acceptance* of the design before any data are collected, and commits to publishing the paper whatever the result turns out to be. That's a stronger guarantee than "I promised myself I wouldn't switch methods" — the switch is now also unavailable in practice, because the paper's fate no longer depends on which result you got.
 
-But that guarantee creates an obligation of its own. If the journal must publish the paper regardless of outcome, and the outcome is a null result, the null has to actually mean something — otherwise the journal has committed to publishing noise. Nature Human Behaviour's submission guidelines say this directly:
+But that guarantee creates an obligation of its own. If the journal must publish the paper regardless of outcome, and the outcome is a null result, the null has to actually mean something — otherwise the journal has committed to publishing noise. The Registered Reports template maintained by the Center for Open Science, which the journals running the format adopt close to word for word, makes this a ground for desk rejection outright. Among the listed reasons a Stage 1 submission gets turned away:
 
-> You cannot interpret lack of evidence (e.g. a $p > 0.05$ in a $t$-test) as evidence for the absence of an effect. Where authors intend to interpret a negative result as evidence that an effect is absent, they must propose an inferential method capable of drawing such a conclusion — Bayesian hypothesis testing or frequentist equivalence testing.
+> Intention to infer support for the null hypothesis from statistically non-significant results, without proposing use of Bayes factors or frequentist equivalence testing (e.g., Lakens, Scheel & Isager, 2018).
 
-The same requirement, close to word for word, shows up in the Registered Report guidelines at PNAS Nexus, Royal Society Open Science, and most other journals running the format — it traces back to a shared template from the Center for Open Science. There's also a power requirement attached that people don't always expect: proposals should be powered to detect *the smallest effect that is plausible and of theoretical value*, at 0.9 power or higher for frequentist plans, and pilot data alone is explicitly called "unlikely to form an acceptable basis" for choosing that effect size. I'll come back to why that specific phrasing matters.
+The same list attaches a power requirement that people don't always expect:
+
+> Proposals should be powered to detect the smallest effect that is plausible and of theoretical value. Pilot data can help inform this estimate but is unlikely to form an acceptable basis, alone, for choosing the target effect size.
+
+and the accompanying author guidelines set the floor: "For frequentist analysis plans, the a priori power must be 0.9 or higher for all proposed hypothesis tests." Individual journals tighten that — Nature Human Behaviour requires 0.95. I'll come back to why the phrasing about pilot data matters.
 
 ## A non-significant result is not "no effect"
 
@@ -75,7 +79,7 @@ $$
 \text{BF}_{10} = \frac{p(\text{data} \mid H_1)}{p(\text{data} \mid H_0)}.
 $$
 
-Conventionally, $\text{BF}_{10} < 1/3$ counts as evidence for the null, $\text{BF}_{10} > 3$ for the alternative, and anything between is inconclusive. The default JZS prior puts a Cauchy distribution on the standardized effect under $H_1$.
+Conventionally, $\text{BF}_{10} < 1/3$ counts as evidence for the null, $\text{BF}_{10} > 3$ for the alternative, and anything between is inconclusive. The default JZS prior puts a Cauchy distribution on the standardized effect under $H_1$. (One asymmetry worth noting, given the theme of this post: the tests above used Welch's correction, `var.equal = FALSE`, while `ttestBF`'s JZS model assumes equal variances. Here it makes no difference to the verdict, but it is one more incidental choice that a pre-registration should nail down rather than leave to whichever default came to hand.)
 
 ```{r}
 #| message: false
@@ -83,17 +87,27 @@ library(BayesFactor)
 ttestBF(formula = qsec ~ am, data = mtcars)
 ```
 
-$\text{BF}_{10} \approx 0.64$: mildly favors the null, but not by much — inconclusive by the usual thresholds. This default BF is quietly answering a different question than TOST did: it compares "no effect at all" to "some effect, of unknown size, drawn from a Cauchy prior," not "effect inside $\pm 2$" to "effect outside $\pm 2$." If you want the actual Bayesian analogue of an equivalence claim, you need an interval null:
+$\text{BF}_{10} \approx 0.64$: mildly favors the null, but not by much — inconclusive by the usual thresholds. This default BF is quietly answering a different question than TOST did: it compares "no effect at all" to "some effect, of unknown size, drawn from a Cauchy prior," not "effect inside $\pm 2$" to "effect outside $\pm 2$." If you want the actual Bayesian analogue of an equivalence claim, you need an interval null.
+
+One trap to clear first, and it is exactly the kind of thing this post is about. `TOSTER`'s `eqb` is in **raw** units — those were 2 seconds of `qsec`. `BayesFactor`'s `nullInterval` is in **standardized** units, Cohen's $d$; look at the labels it prints and you'll see it says `d`. Handing it `c(-2, 2)` would silently test a bound of $\pm 2$ *standard deviations*, which on these data is $\pm 3.5$ seconds — nearly twice the bound I actually pre-specified, and it would make the Bayesian evidence look far stronger than it is. So the bound has to be converted before it goes in:
 
 ```{r}
-ttestBF(formula = qsec ~ am, data = mtcars, nullInterval = c(-2, 2))
+grp <- split(mtcars$qsec, mtcars$am)
+n1 <- length(grp[[1]]); n2 <- length(grp[[2]])
+sd_pooled <- sqrt(((n1 - 1) * var(grp[[1]]) + (n2 - 1) * var(grp[[2]])) / (n1 + n2 - 2))
+delta_d <- 2 / sd_pooled   # the same +/- 2 seconds, expressed in d units
+c(sd_pooled = sd_pooled, delta_d = delta_d)
 ```
 
-The first line is the Bayes factor for "the effect is inside $\pm 2$" against the point null; the second is for "the effect is outside $\pm 2$." Their ratio favors *inside* overwhelmingly — 0.82 against $6.2\times 10^{-6}$, tens of thousands to one. That's the Bayesian version of what TOST just told us at $\Delta = 2$: same data, same bound, same conclusion, different formalism.
+```{r}
+ttestBF(formula = qsec ~ am, data = mtcars, nullInterval = c(-delta_d, delta_d))
+```
+
+The first line is the Bayes factor for "the effect is inside $\pm\Delta$" against the point null; the second is for "the effect is outside $\pm\Delta$." Their ratio favors *inside* by roughly 45 to 1 — 0.98 against 0.022. That's the Bayesian version of what TOST just told us at $\Delta = 2$ seconds: same data, same bound, same conclusion, different formalism. (Had I skipped the unit conversion, that ratio would have printed as about 131,000 to 1 — three orders of magnitude of apparent evidence, manufactured entirely by a bound I never chose.)
 
 ## Bayes doesn't let you skip the hard part
 
-Here's the thing I think gets missed, and the reason people often reach for a Bayes factor in the first place: it feels like a way to avoid ever stating a $\Delta$. Look at what actually happened above, though. To get a Bayesian claim that resembles "no meaningful effect," I had to hand `nullInterval` the *exact same* $\pm 2$ used for TOST. The judgment didn't disappear.
+Here's the thing I think gets missed, and the reason people often reach for a Bayes factor in the first place: it feels like a way to avoid ever stating a $\Delta$. Look at what actually happened above, though. To get a Bayesian claim that resembles "no meaningful effect," I had to hand `nullInterval` the *same* $\pm 2$ seconds used for TOST — rescaled into the standardized units it expects, but the same substantive bound. The judgment didn't disappear; it just needed a unit conversion on the way in.
 
 Even the plain, no-interval Bayes factor doesn't escape it — the judgment just moves somewhere harder to see. The Cauchy prior's scale ($r = \sqrt{2}/2$ by default, visible in the printed output as `r=0.707`) encodes an assumption about how big a "typical" real effect would be, and that assumption drives whether $\text{BF}_{10}$ ends up favoring the null. Change $r$ and you change the verdict, on the same data.
 
@@ -107,7 +121,7 @@ This is the genuinely hard part, and pre-registering *something* doesn't help if
 
 1. **Just-noticeable difference** — set $\Delta$ to the smallest change that would actually be perceptible or consequential in the world. Works well when there's a natural perceptual or operational unit.
 2. **Cost-benefit analysis** — decide what magnitude would actually be worth acting on, given the stakes. This is a substantive argument, not a formula, and it's field- and context-specific by nature — a "negligible" effect in one domain can be highly consequential in another, and that's appropriate, not a flaw.
-3. **Small telescopes** (Simonsohn, 2015) — anchor $\Delta$ to some fraction (Simonsohn used 33%) of the effect size a comparable prior study's sample size could have reliably detected. This one has an actual formula behind it, but only works if a genuinely comparable prior study exists.
+3. **Small telescopes** (Simonsohn, 2015) — anchor $\Delta$ to the effect size a comparable prior study had only *33% power* to detect: an effect so small that the original design would have missed it two times in three. Worth being careful here, because it is easy to misread: the 33% is a power level, not a fraction of the original estimate. At conventional sample sizes $d_{33\%}$ comes out a little over half of $d_{80\%}$, not a third of it. This route has an actual formula behind it, but only works if a genuinely comparable prior study exists.
 
 What doesn't work, and I've caught myself reaching for it: deriving $\Delta$ by converting some other bound through an ad hoc formula — say, dividing a level-based bound by a predictor's range to manufacture a slope-based one — without a citation behind the conversion. That's a self-defined bound wearing a formula as a disguise, and pre-registering it doesn't fix the underlying problem: it was still picked to be convenient rather than derived from anything defensible.
 

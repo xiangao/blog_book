@@ -646,7 +646,7 @@ window.Quarto = {
 </div>
 </section><section id="dividing-by-the-mean-does-not-fix-it" class="level2" data-number="37.3"><h2 data-number="37.3" class="anchored" data-anchor-id="dividing-by-the-mean-does-not-fix-it">
 <span class="header-section-number">37.3</span> Dividing by the mean does not fix it</h2>
-<p>The first instinct is to divide the SD by the mean, the way you would for a coefficient of variation. It does not work here. That correction is built for a <em>different</em> mechanism — variance scaling proportionally with the mean, as in count data — not a ceiling that pinches to zero at <em>both</em> ends. <span class="math inline">\(\text{SD}_{\max}(\mu)/\mu\)</span> is still a curve: zero at <span class="math inline">\(\mu=1\)</span>, a peak of <span class="math inline">\(0.75\)</span> at <span class="math inline">\(\mu=4\)</span>, back to zero at <span class="math inline">\(\mu=7\)</span>. Dividing by the mean does not remove the mean-dependence. It relabels it.</p>
+<p>The first instinct is to divide the SD by the mean, the way you would for a coefficient of variation. It does not work here. That correction is built for a <em>different</em> mechanism — variance scaling proportionally with the mean, as in count data — not a ceiling that pinches to zero at <em>both</em> ends. <span class="math inline">\(\text{SD}_{\max}(\mu)/\mu\)</span> is still a curve: zero at <span class="math inline">\(\mu=1\)</span>, rising to a peak of about <span class="math inline">\(1.13\)</span> at <span class="math inline">\(\mu=7/4\)</span>, then falling back to zero at <span class="math inline">\(\mu=7\)</span> (it happens to pass through <span class="math inline">\(0.75\)</span> at <span class="math inline">\(\mu=4\)</span>). Note that it is not even shaped like the <span class="math inline">\(\text{SD}_{\max}\)</span> curve it was meant to flatten — dividing by <span class="math inline">\(\mu\)</span> pulls the maximum well below mid-scale, so the correction trades a symmetric mean-dependence for a skewed one. Dividing by the mean does not remove the mean-dependence. It relabels it.</p>
 </section><section id="the-right-idea-spread-after-removing-the-ceiling-effect" class="level2" data-number="37.4"><h2 data-number="37.4" class="anchored" data-anchor-id="the-right-idea-spread-after-removing-the-ceiling-effect">
 <span class="header-section-number">37.4</span> The right idea: spread after removing the ceiling effect</h2>
 <p>Every fix worth having does the same thing — measure dispersion <em>after</em> dividing out the ceiling. Beta regression names this directly. Rescale the outcome to <span class="math inline">\((0,1)\)</span> (e.g.&nbsp;<span class="math inline">\((y-1)/6\)</span> for a 1–7 item) and parameterize by a mean <span class="math inline">\(\mu\)</span> and a precision <span class="math inline">\(\varphi\)</span> (Ferrari and Cribari-Neto 2004; <code>betareg</code> in Cribari-Neto and Zeileis 2010). On the 1–7 scale,</p>
@@ -827,7 +827,7 @@ window.Quarto = {
 </table>
 </div>
 </div>
-<p>Group A’s latent mean (2.4) sits 0.6 SDs above the highest cutpoint (1.8), so <code>pnorm(0.6)</code> <span class="math inline">\(\approx 0.73\)</span>: nearly three-quarters of its ratings collapse into the top category, and under 2% fall below category 5. Group B’s mean (0.6) sits mid-range, so its ratings spread across all seven categories, none above about 30%.</p>
+<p>Group A’s latent mean (2.4) sits 0.6 SDs above the highest cutpoint (1.8), so <code>pnorm(0.6)</code> <span class="math inline">\(\approx 0.73\)</span>: nearly three-quarters of its ratings collapse into the top category, and under 2% fall below category 5. Group B’s mean (0.6) sits mid-range, so its ratings spread across all seven categories, none above about a third.</p>
 <p>That imbalance — not a difference in <span class="math inline">\(\sigma\)</span> — shrinks Group A’s raw SD. When three-quarters of a subject’s six ratings are forced into one bin by <code><a href="https://rdrr.io/r/base/cut.html">cut()</a></code>, the <em>discrete</em> variance across them is mechanically small, even though the <em>continuous</em> latent draws behind them are as dispersed as Group B’s (<span class="math inline">\(\sigma=1\)</span> for both). It is the same Bhatia–Davis mechanism from the introduction, now visible subject by subject through <code><a href="https://rdrr.io/r/base/cut.html">cut()</a></code>’s fixed boundaries rather than through the population <span class="math inline">\(\text{SD}_{\max}(\mu)\)</span> curve.</p>
 <p>The raw per-subject summary already shows the pattern that tempts a reader into seeing a real disagreement gap:</p>
 <div class="cell">
@@ -1025,6 +1025,7 @@ window.Quarto = {
 </div>
 <p>On the raw scale Group A averages 6.64 with an SD of 0.58; Group B averages 4.89 with an SD of 1.22. The pooled correlation between subject mean and SD is <span class="math inline">\(-0.74\)</span>. That looks like a real, sizable disagreement gap, and the Gaussian MELSM agrees: <code>sigma_groupB</code> of 0.68 on the log-SD scale puts Group B’s SD at <strong>1.97 times</strong> Group A’s (95% CI: 1.82–2.14), nowhere near zero.</p>
 <p>But there is no true difference. Both groups’ raters were drawn with the same <span class="math inline">\(\sigma=1\)</span> by construction; only the means differ. The ordinal model reads it correctly: <code>disc_groupB</code> is <span class="math inline">\(\gamma_B = -0.015\)</span> on the log scale (95% CI: <span class="math inline">\(-0.171\)</span> to <span class="math inline">\(0.146\)</span>), so <span class="math inline">\(\text{disc}_B = e^{-0.015} \approx 0.985\)</span> — a latent SD of <span class="math inline">\(\approx 1.015\)</span> against the reference group’s <span class="math inline">\(1\)</span>, recovering the fact that the two groups’ dispersion is identical. The Gaussian model’s “Group B disagrees twice as much” is not a finding about the raters. It is the ceiling effect from the previous section, wearing a regression coefficient.</p>
+<p>In fairness, this is the ordinal model’s best case: the simulation <em>is</em> its functional form, with one set of cutpoints shared by both groups and a constant latent <span class="math inline">\(\sigma\)</span>. That is the right way to show the mechanism in isolation, but it does not test the assumption the model actually needs, which is that the thresholds are common across groups. If the two groups use the scale differently — differential item functioning, in the measurement literature — then threshold shifts and <code>disc</code> trade off against each other, and a dispersion difference can be read as a location or cutpoint difference instead. On real data that assumption deserves the same scrutiny the Gaussian model’s missing boundary gets here.</p>
 <section id="what-about-r-here" class="level3" data-number="37.6.1"><h3 data-number="37.6.1" class="anchored" data-anchor-id="what-about-r-here">
 <span class="header-section-number">37.6.1</span> What about <span class="math inline">\(R\)</span> here?</h3>
 <p><span class="math inline">\(R\)</span> is mean-independent by construction, so it should land where the ordinal model does: no group difference. Compute it per subject, using the exact finite-sample bound from the earlier callout (<span class="math inline">\(n=6\)</span> raters):</p>
@@ -1740,489 +1741,504 @@ window.Quarto = {
 <span id="cb15-111"><a href="#cb15-111" aria-hidden="true" tabindex="-1"></a>coefficient of variation. It does not work here. That correction is built for a</span>
 <span id="cb15-112"><a href="#cb15-112" aria-hidden="true" tabindex="-1"></a>*different* mechanism --- variance scaling proportionally with the mean, as in</span>
 <span id="cb15-113"><a href="#cb15-113" aria-hidden="true" tabindex="-1"></a>count data --- not a ceiling that pinches to zero at *both* ends.</span>
-<span id="cb15-114"><a href="#cb15-114" aria-hidden="true" tabindex="-1"></a>$\text{SD}_{\max}(\mu)/\mu$ is still a curve: zero at $\mu=1$, a peak of $0.75$</span>
-<span id="cb15-115"><a href="#cb15-115" aria-hidden="true" tabindex="-1"></a>at $\mu=4$, back to zero at $\mu=7$. Dividing by the mean does not remove the</span>
-<span id="cb15-116"><a href="#cb15-116" aria-hidden="true" tabindex="-1"></a>mean-dependence. It relabels it.</span>
-<span id="cb15-117"><a href="#cb15-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-118"><a href="#cb15-118" aria-hidden="true" tabindex="-1"></a><span class="fu">## The right idea: spread after removing the ceiling effect</span></span>
-<span id="cb15-119"><a href="#cb15-119" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-120"><a href="#cb15-120" aria-hidden="true" tabindex="-1"></a>Every fix worth having does the same thing --- measure dispersion *after*</span>
-<span id="cb15-121"><a href="#cb15-121" aria-hidden="true" tabindex="-1"></a>dividing out the ceiling. Beta regression names this directly. Rescale the</span>
-<span id="cb15-122"><a href="#cb15-122" aria-hidden="true" tabindex="-1"></a>outcome to $(0,1)$ (e.g. $(y-1)/6$ for a 1--7 item) and parameterize by a mean</span>
-<span id="cb15-123"><a href="#cb15-123" aria-hidden="true" tabindex="-1"></a>$\mu$ and a precision $\varphi$ (Ferrari and Cribari-Neto 2004; <span class="in">`betareg`</span> in</span>
-<span id="cb15-124"><a href="#cb15-124" aria-hidden="true" tabindex="-1"></a>Cribari-Neto and Zeileis 2010). On the 1--7 scale,</span>
-<span id="cb15-125"><a href="#cb15-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-126"><a href="#cb15-126" aria-hidden="true" tabindex="-1"></a>$$\text{Var}(Y) = \frac{(\mu-1)(7-\mu)}{1+\varphi}</span>
-<span id="cb15-127"><a href="#cb15-127" aria-hidden="true" tabindex="-1"></a>\qquad \Longrightarrow \qquad</span>
-<span id="cb15-128"><a href="#cb15-128" aria-hidden="true" tabindex="-1"></a>\varphi = \frac{(\mu-1)(7-\mu)}{\text{Var}(Y)} - 1.$$</span>
+<span id="cb15-114"><a href="#cb15-114" aria-hidden="true" tabindex="-1"></a>$\text{SD}_{\max}(\mu)/\mu$ is still a curve: zero at $\mu=1$, rising to a peak</span>
+<span id="cb15-115"><a href="#cb15-115" aria-hidden="true" tabindex="-1"></a>of about $1.13$ at $\mu=7/4$, then falling back to zero at $\mu=7$ (it happens</span>
+<span id="cb15-116"><a href="#cb15-116" aria-hidden="true" tabindex="-1"></a>to pass through $0.75$ at $\mu=4$). Note that it is not even shaped like the</span>
+<span id="cb15-117"><a href="#cb15-117" aria-hidden="true" tabindex="-1"></a>$\text{SD}_{\max}$ curve it was meant to flatten --- dividing by $\mu$ pulls the</span>
+<span id="cb15-118"><a href="#cb15-118" aria-hidden="true" tabindex="-1"></a>maximum well below mid-scale, so the correction trades a symmetric</span>
+<span id="cb15-119"><a href="#cb15-119" aria-hidden="true" tabindex="-1"></a>mean-dependence for a skewed one. Dividing by the mean does not remove the</span>
+<span id="cb15-120"><a href="#cb15-120" aria-hidden="true" tabindex="-1"></a>mean-dependence. It relabels it.</span>
+<span id="cb15-121"><a href="#cb15-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-122"><a href="#cb15-122" aria-hidden="true" tabindex="-1"></a><span class="fu">## The right idea: spread after removing the ceiling effect</span></span>
+<span id="cb15-123"><a href="#cb15-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-124"><a href="#cb15-124" aria-hidden="true" tabindex="-1"></a>Every fix worth having does the same thing --- measure dispersion *after*</span>
+<span id="cb15-125"><a href="#cb15-125" aria-hidden="true" tabindex="-1"></a>dividing out the ceiling. Beta regression names this directly. Rescale the</span>
+<span id="cb15-126"><a href="#cb15-126" aria-hidden="true" tabindex="-1"></a>outcome to $(0,1)$ (e.g. $(y-1)/6$ for a 1--7 item) and parameterize by a mean</span>
+<span id="cb15-127"><a href="#cb15-127" aria-hidden="true" tabindex="-1"></a>$\mu$ and a precision $\varphi$ (Ferrari and Cribari-Neto 2004; <span class="in">`betareg`</span> in</span>
+<span id="cb15-128"><a href="#cb15-128" aria-hidden="true" tabindex="-1"></a>Cribari-Neto and Zeileis 2010). On the 1--7 scale,</span>
 <span id="cb15-129"><a href="#cb15-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-130"><a href="#cb15-130" aria-hidden="true" tabindex="-1"></a>Set $\varphi = 0$ and this *is* the Bhatia--Davis bound. In words: $\varphi$ is</span>
-<span id="cb15-131"><a href="#cb15-131" aria-hidden="true" tabindex="-1"></a>dispersion measured after the boundary is divided out, so $\varphi \sim</span>
-<span id="cb15-132"><a href="#cb15-132" aria-hidden="true" tabindex="-1"></a>\text{group}$ compares spread without inheriting the ceiling the way raw SD</span>
-<span id="cb15-133"><a href="#cb15-133" aria-hidden="true" tabindex="-1"></a>does.</span>
-<span id="cb15-134"><a href="#cb15-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-135"><a href="#cb15-135" aria-hidden="true" tabindex="-1"></a>$\varphi$ itself is awkward to report --- it lives on $(0,\infty)$ with no</span>
-<span id="cb15-136"><a href="#cb15-136" aria-hidden="true" tabindex="-1"></a>natural reference point. Its bounded twin is easier:</span>
-<span id="cb15-137"><a href="#cb15-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-138"><a href="#cb15-138" aria-hidden="true" tabindex="-1"></a>$$R := \frac{\text{Var}(Y)}{\text{Var}_{\max}(\mu)} = \frac{1}{1+\varphi}.$$</span>
-<span id="cb15-139"><a href="#cb15-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-140"><a href="#cb15-140" aria-hidden="true" tabindex="-1"></a>By Bhatia--Davis, $\text{Var}(Y) \leq \text{Var}_{\max}(\mu)$ for *any*</span>
-<span id="cb15-141"><a href="#cb15-141" aria-hidden="true" tabindex="-1"></a>distribution on $<span class="co">[</span><span class="ot">1,7</span><span class="co">]</span>$, not just Beta ones, so $R \in <span class="co">[</span><span class="ot">0,1</span><span class="co">]</span>$ always, with no</span>
-<span id="cb15-142"><a href="#cb15-142" aria-hidden="true" tabindex="-1"></a>distributional assumption. $R=1$ means a subject's raters are as polarized as</span>
-<span id="cb15-143"><a href="#cb15-143" aria-hidden="true" tabindex="-1"></a>the ceiling allows, given their mean; $R=0$ means perfect consensus. It reads</span>
-<span id="cb15-144"><a href="#cb15-144" aria-hidden="true" tabindex="-1"></a>like a percentage because it is one.</span>
-<span id="cb15-145"><a href="#cb15-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-146"><a href="#cb15-146" aria-hidden="true" tabindex="-1"></a>Two costs come with it. First, it is a continuous model grafted onto discrete,</span>
-<span id="cb15-147"><a href="#cb15-147" aria-hidden="true" tabindex="-1"></a>ordinal data --- a 1--7 response is not a continuous proportion. Second, both</span>
-<span id="cb15-148"><a href="#cb15-148" aria-hidden="true" tabindex="-1"></a>forms put a rater-estimated variance in a denominator, and that variance comes</span>
-<span id="cb15-149"><a href="#cb15-149" aria-hidden="true" tabindex="-1"></a>from only a handful of raters. For $\varphi$ the denominator is</span>
-<span id="cb15-150"><a href="#cb15-150" aria-hidden="true" tabindex="-1"></a>$\text{Var}(Y)$: when a few raters agree by chance --- more likely near the</span>
-<span id="cb15-151"><a href="#cb15-151" aria-hidden="true" tabindex="-1"></a>ceiling, where most of the sample lives --- $\text{Var}(Y) \to 0$ and $\varphi</span>
-<span id="cb15-152"><a href="#cb15-152" aria-hidden="true" tabindex="-1"></a>\to \infty$. For $R$ the denominator is $\text{Var}_{\max}(\mu)$, which is zero</span>
-<span id="cb15-153"><a href="#cb15-153" aria-hidden="true" tabindex="-1"></a>whenever the mean sits at a scale endpoint; if all raters pick 7, then</span>
-<span id="cb15-154"><a href="#cb15-154" aria-hidden="true" tabindex="-1"></a>$\text{Var}(Y)$ and $\text{Var}_{\max}$ vanish together and $R = 0/0$ is</span>
-<span id="cb15-155"><a href="#cb15-155" aria-hidden="true" tabindex="-1"></a>undefined outright. We return to this in the worked example, because it bites</span>
-<span id="cb15-156"><a href="#cb15-156" aria-hidden="true" tabindex="-1"></a>hard.</span>
-<span id="cb15-157"><a href="#cb15-157" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-158"><a href="#cb15-158" aria-hidden="true" tabindex="-1"></a><span class="fu">## Two models: one with the boundary, one without</span></span>
-<span id="cb15-159"><a href="#cb15-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-160"><a href="#cb15-160" aria-hidden="true" tabindex="-1"></a><span class="fu">### Gaussian location-scale model (MELSM)</span></span>
+<span id="cb15-130"><a href="#cb15-130" aria-hidden="true" tabindex="-1"></a>$$\text{Var}(Y) = \frac{(\mu-1)(7-\mu)}{1+\varphi}</span>
+<span id="cb15-131"><a href="#cb15-131" aria-hidden="true" tabindex="-1"></a>\qquad \Longrightarrow \qquad</span>
+<span id="cb15-132"><a href="#cb15-132" aria-hidden="true" tabindex="-1"></a>\varphi = \frac{(\mu-1)(7-\mu)}{\text{Var}(Y)} - 1.$$</span>
+<span id="cb15-133"><a href="#cb15-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-134"><a href="#cb15-134" aria-hidden="true" tabindex="-1"></a>Set $\varphi = 0$ and this *is* the Bhatia--Davis bound. In words: $\varphi$ is</span>
+<span id="cb15-135"><a href="#cb15-135" aria-hidden="true" tabindex="-1"></a>dispersion measured after the boundary is divided out, so $\varphi \sim</span>
+<span id="cb15-136"><a href="#cb15-136" aria-hidden="true" tabindex="-1"></a>\text{group}$ compares spread without inheriting the ceiling the way raw SD</span>
+<span id="cb15-137"><a href="#cb15-137" aria-hidden="true" tabindex="-1"></a>does.</span>
+<span id="cb15-138"><a href="#cb15-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-139"><a href="#cb15-139" aria-hidden="true" tabindex="-1"></a>$\varphi$ itself is awkward to report --- it lives on $(0,\infty)$ with no</span>
+<span id="cb15-140"><a href="#cb15-140" aria-hidden="true" tabindex="-1"></a>natural reference point. Its bounded twin is easier:</span>
+<span id="cb15-141"><a href="#cb15-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-142"><a href="#cb15-142" aria-hidden="true" tabindex="-1"></a>$$R := \frac{\text{Var}(Y)}{\text{Var}_{\max}(\mu)} = \frac{1}{1+\varphi}.$$</span>
+<span id="cb15-143"><a href="#cb15-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-144"><a href="#cb15-144" aria-hidden="true" tabindex="-1"></a>By Bhatia--Davis, $\text{Var}(Y) \leq \text{Var}_{\max}(\mu)$ for *any*</span>
+<span id="cb15-145"><a href="#cb15-145" aria-hidden="true" tabindex="-1"></a>distribution on $<span class="co">[</span><span class="ot">1,7</span><span class="co">]</span>$, not just Beta ones, so $R \in <span class="co">[</span><span class="ot">0,1</span><span class="co">]</span>$ always, with no</span>
+<span id="cb15-146"><a href="#cb15-146" aria-hidden="true" tabindex="-1"></a>distributional assumption. $R=1$ means a subject's raters are as polarized as</span>
+<span id="cb15-147"><a href="#cb15-147" aria-hidden="true" tabindex="-1"></a>the ceiling allows, given their mean; $R=0$ means perfect consensus. It reads</span>
+<span id="cb15-148"><a href="#cb15-148" aria-hidden="true" tabindex="-1"></a>like a percentage because it is one.</span>
+<span id="cb15-149"><a href="#cb15-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-150"><a href="#cb15-150" aria-hidden="true" tabindex="-1"></a>Two costs come with it. First, it is a continuous model grafted onto discrete,</span>
+<span id="cb15-151"><a href="#cb15-151" aria-hidden="true" tabindex="-1"></a>ordinal data --- a 1--7 response is not a continuous proportion. Second, both</span>
+<span id="cb15-152"><a href="#cb15-152" aria-hidden="true" tabindex="-1"></a>forms put a rater-estimated variance in a denominator, and that variance comes</span>
+<span id="cb15-153"><a href="#cb15-153" aria-hidden="true" tabindex="-1"></a>from only a handful of raters. For $\varphi$ the denominator is</span>
+<span id="cb15-154"><a href="#cb15-154" aria-hidden="true" tabindex="-1"></a>$\text{Var}(Y)$: when a few raters agree by chance --- more likely near the</span>
+<span id="cb15-155"><a href="#cb15-155" aria-hidden="true" tabindex="-1"></a>ceiling, where most of the sample lives --- $\text{Var}(Y) \to 0$ and $\varphi</span>
+<span id="cb15-156"><a href="#cb15-156" aria-hidden="true" tabindex="-1"></a>\to \infty$. For $R$ the denominator is $\text{Var}_{\max}(\mu)$, which is zero</span>
+<span id="cb15-157"><a href="#cb15-157" aria-hidden="true" tabindex="-1"></a>whenever the mean sits at a scale endpoint; if all raters pick 7, then</span>
+<span id="cb15-158"><a href="#cb15-158" aria-hidden="true" tabindex="-1"></a>$\text{Var}(Y)$ and $\text{Var}_{\max}$ vanish together and $R = 0/0$ is</span>
+<span id="cb15-159"><a href="#cb15-159" aria-hidden="true" tabindex="-1"></a>undefined outright. We return to this in the worked example, because it bites</span>
+<span id="cb15-160"><a href="#cb15-160" aria-hidden="true" tabindex="-1"></a>hard.</span>
 <span id="cb15-161"><a href="#cb15-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-162"><a href="#cb15-162" aria-hidden="true" tabindex="-1"></a>The location-scale model is the fix people reach for first. Model the mean as</span>
-<span id="cb15-163"><a href="#cb15-163" aria-hidden="true" tabindex="-1"></a>usual, and *also* model the residual SD as a function of covariates.</span>
-<span id="cb15-164"><a href="#cb15-164" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-165"><a href="#cb15-165" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
-<span id="cb15-166"><a href="#cb15-166" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(brms)</span>
-<span id="cb15-167"><a href="#cb15-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-168"><a href="#cb15-168" aria-hidden="true" tabindex="-1"></a>fit_gaussian <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb15-169"><a href="#cb15-169" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject),</span>
-<span id="cb15-170"><a href="#cb15-170" aria-hidden="true" tabindex="-1"></a>     sigma <span class="sc">~</span> group),                 <span class="co"># model the SD, not just the mean</span></span>
-<span id="cb15-171"><a href="#cb15-171" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">gaussian</span>()</span>
-<span id="cb15-172"><a href="#cb15-172" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-173"><a href="#cb15-173" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-174"><a href="#cb15-174" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-175"><a href="#cb15-175" aria-hidden="true" tabindex="-1"></a><span class="in">`brms`</span> puts a log link on <span class="in">`sigma`</span>, so the <span class="in">`group`</span> coefficient on the <span class="in">`sigma`</span></span>
-<span id="cb15-176"><a href="#cb15-176" aria-hidden="true" tabindex="-1"></a>part is a difference in *log*-SD. Exponentiate it for an SD ratio between</span>
-<span id="cb15-177"><a href="#cb15-177" aria-hidden="true" tabindex="-1"></a>groups.</span>
+<span id="cb15-162"><a href="#cb15-162" aria-hidden="true" tabindex="-1"></a><span class="fu">## Two models: one with the boundary, one without</span></span>
+<span id="cb15-163"><a href="#cb15-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-164"><a href="#cb15-164" aria-hidden="true" tabindex="-1"></a><span class="fu">### Gaussian location-scale model (MELSM)</span></span>
+<span id="cb15-165"><a href="#cb15-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-166"><a href="#cb15-166" aria-hidden="true" tabindex="-1"></a>The location-scale model is the fix people reach for first. Model the mean as</span>
+<span id="cb15-167"><a href="#cb15-167" aria-hidden="true" tabindex="-1"></a>usual, and *also* model the residual SD as a function of covariates.</span>
+<span id="cb15-168"><a href="#cb15-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-169"><a href="#cb15-169" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb15-170"><a href="#cb15-170" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(brms)</span>
+<span id="cb15-171"><a href="#cb15-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-172"><a href="#cb15-172" aria-hidden="true" tabindex="-1"></a>fit_gaussian <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb15-173"><a href="#cb15-173" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject),</span>
+<span id="cb15-174"><a href="#cb15-174" aria-hidden="true" tabindex="-1"></a>     sigma <span class="sc">~</span> group),                 <span class="co"># model the SD, not just the mean</span></span>
+<span id="cb15-175"><a href="#cb15-175" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">gaussian</span>()</span>
+<span id="cb15-176"><a href="#cb15-176" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-177"><a href="#cb15-177" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb15-178"><a href="#cb15-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-179"><a href="#cb15-179" aria-hidden="true" tabindex="-1"></a>The catch is fatal for our question. A Gaussian model has no boundary in it. It</span>
-<span id="cb15-180"><a href="#cb15-180" aria-hidden="true" tabindex="-1"></a>does not know the scale stops at 1 and 7. So it cannot tell "this group's raters</span>
-<span id="cb15-181"><a href="#cb15-181" aria-hidden="true" tabindex="-1"></a>genuinely agree more" from "this group's mean sits closer to the ceiling." Both</span>
-<span id="cb15-182"><a href="#cb15-182" aria-hidden="true" tabindex="-1"></a>produce the identical signature in the fitted <span class="in">`sigma`</span>.</span>
-<span id="cb15-183"><a href="#cb15-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-184"><a href="#cb15-184" aria-hidden="true" tabindex="-1"></a><span class="fu">### Ordinal cumulative-probit MELSM: put the boundary inside the model</span></span>
-<span id="cb15-185"><a href="#cb15-185" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-186"><a href="#cb15-186" aria-hidden="true" tabindex="-1"></a>The clean fix treats the 1--7 response as what it is: a discretized slice of a</span>
-<span id="cb15-187"><a href="#cb15-187" aria-hidden="true" tabindex="-1"></a>latent continuous trait, cut by six ordered thresholds.</span>
-<span id="cb15-188"><a href="#cb15-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-189"><a href="#cb15-189" aria-hidden="true" tabindex="-1"></a>Posit an unobserved continuous $Y_i^*$ behind each rating,</span>
-<span id="cb15-190"><a href="#cb15-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-191"><a href="#cb15-191" aria-hidden="true" tabindex="-1"></a>$$Y_i^* = \eta_i + \sigma_i \epsilon_i, \qquad \epsilon_i \sim N(0,1),$$</span>
+<span id="cb15-179"><a href="#cb15-179" aria-hidden="true" tabindex="-1"></a><span class="in">`brms`</span> puts a log link on <span class="in">`sigma`</span>, so the <span class="in">`group`</span> coefficient on the <span class="in">`sigma`</span></span>
+<span id="cb15-180"><a href="#cb15-180" aria-hidden="true" tabindex="-1"></a>part is a difference in *log*-SD. Exponentiate it for an SD ratio between</span>
+<span id="cb15-181"><a href="#cb15-181" aria-hidden="true" tabindex="-1"></a>groups.</span>
+<span id="cb15-182"><a href="#cb15-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-183"><a href="#cb15-183" aria-hidden="true" tabindex="-1"></a>The catch is fatal for our question. A Gaussian model has no boundary in it. It</span>
+<span id="cb15-184"><a href="#cb15-184" aria-hidden="true" tabindex="-1"></a>does not know the scale stops at 1 and 7. So it cannot tell "this group's raters</span>
+<span id="cb15-185"><a href="#cb15-185" aria-hidden="true" tabindex="-1"></a>genuinely agree more" from "this group's mean sits closer to the ceiling." Both</span>
+<span id="cb15-186"><a href="#cb15-186" aria-hidden="true" tabindex="-1"></a>produce the identical signature in the fitted <span class="in">`sigma`</span>.</span>
+<span id="cb15-187"><a href="#cb15-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-188"><a href="#cb15-188" aria-hidden="true" tabindex="-1"></a><span class="fu">### Ordinal cumulative-probit MELSM: put the boundary inside the model</span></span>
+<span id="cb15-189"><a href="#cb15-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-190"><a href="#cb15-190" aria-hidden="true" tabindex="-1"></a>The clean fix treats the 1--7 response as what it is: a discretized slice of a</span>
+<span id="cb15-191"><a href="#cb15-191" aria-hidden="true" tabindex="-1"></a>latent continuous trait, cut by six ordered thresholds.</span>
 <span id="cb15-192"><a href="#cb15-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-193"><a href="#cb15-193" aria-hidden="true" tabindex="-1"></a>where $\eta_i$ is the linear predictor for *location* (<span class="in">`group`</span> plus a subject</span>
-<span id="cb15-194"><a href="#cb15-194" aria-hidden="true" tabindex="-1"></a>random intercept, say) and $\sigma_i$ is the latent residual SD, which we also</span>
-<span id="cb15-195"><a href="#cb15-195" aria-hidden="true" tabindex="-1"></a>let depend on covariates. The observed rating is $Y_i^*$ coarsened at six fixed</span>
-<span id="cb15-196"><a href="#cb15-196" aria-hidden="true" tabindex="-1"></a>thresholds $\theta_1 &lt; \cdots &lt; \theta_6$ (with $\theta_0=-\infty$,</span>
-<span id="cb15-197"><a href="#cb15-197" aria-hidden="true" tabindex="-1"></a>$\theta_7=\infty$):</span>
-<span id="cb15-198"><a href="#cb15-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-199"><a href="#cb15-199" aria-hidden="true" tabindex="-1"></a>$$Y_i = k \iff \theta_{k-1} &lt; Y_i^* \leq \theta_k.$$</span>
-<span id="cb15-200"><a href="#cb15-200" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-201"><a href="#cb15-201" aria-hidden="true" tabindex="-1"></a>So the cumulative probability is</span>
+<span id="cb15-193"><a href="#cb15-193" aria-hidden="true" tabindex="-1"></a>Posit an unobserved continuous $Y_i^*$ behind each rating,</span>
+<span id="cb15-194"><a href="#cb15-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-195"><a href="#cb15-195" aria-hidden="true" tabindex="-1"></a>$$Y_i^* = \eta_i + \sigma_i \epsilon_i, \qquad \epsilon_i \sim N(0,1),$$</span>
+<span id="cb15-196"><a href="#cb15-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-197"><a href="#cb15-197" aria-hidden="true" tabindex="-1"></a>where $\eta_i$ is the linear predictor for *location* (<span class="in">`group`</span> plus a subject</span>
+<span id="cb15-198"><a href="#cb15-198" aria-hidden="true" tabindex="-1"></a>random intercept, say) and $\sigma_i$ is the latent residual SD, which we also</span>
+<span id="cb15-199"><a href="#cb15-199" aria-hidden="true" tabindex="-1"></a>let depend on covariates. The observed rating is $Y_i^*$ coarsened at six fixed</span>
+<span id="cb15-200"><a href="#cb15-200" aria-hidden="true" tabindex="-1"></a>thresholds $\theta_1 &lt; \cdots &lt; \theta_6$ (with $\theta_0=-\infty$,</span>
+<span id="cb15-201"><a href="#cb15-201" aria-hidden="true" tabindex="-1"></a>$\theta_7=\infty$):</span>
 <span id="cb15-202"><a href="#cb15-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-203"><a href="#cb15-203" aria-hidden="true" tabindex="-1"></a>$$P(Y_i \leq k) = P<span class="sc">\!</span>\left(\epsilon_i \leq \frac{\theta_k - \eta_i}{\sigma_i}\right)</span>
-<span id="cb15-204"><a href="#cb15-204" aria-hidden="true" tabindex="-1"></a>= \Phi<span class="sc">\!</span>\left(\frac{\theta_k - \eta_i}{\sigma_i}\right),$$</span>
-<span id="cb15-205"><a href="#cb15-205" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-206"><a href="#cb15-206" aria-hidden="true" tabindex="-1"></a>with $\Phi$ the standard normal CDF, for the probit link. Write $\text{disc}_i</span>
-<span id="cb15-207"><a href="#cb15-207" aria-hidden="true" tabindex="-1"></a>:= 1/\sigma_i$ and this is <span class="in">`brms`</span>'s parameterization exactly:</span>
-<span id="cb15-208"><a href="#cb15-208" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-209"><a href="#cb15-209" aria-hidden="true" tabindex="-1"></a>$$P(Y_i \leq k) = \Phi\bigl(\text{disc}_i\,(\theta_k - \eta_i)\bigr).$$</span>
-<span id="cb15-210"><a href="#cb15-210" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-211"><a href="#cb15-211" aria-hidden="true" tabindex="-1"></a>In words: discrimination is the reciprocal of the latent residual SD. Not an</span>
-<span id="cb15-212"><a href="#cb15-212" aria-hidden="true" tabindex="-1"></a>analogy --- an algebraic identity, reached by rescaling the argument of $\Phi$</span>
-<span id="cb15-213"><a href="#cb15-213" aria-hidden="true" tabindex="-1"></a>rather than dividing by $\sigma_i$ directly. Letting <span class="in">`disc`</span> depend on covariates</span>
-<span id="cb15-214"><a href="#cb15-214" aria-hidden="true" tabindex="-1"></a>is the ordinal analogue of <span class="in">`sigma ~ group`</span>, written in reciprocal form: a</span>
-<span id="cb15-215"><a href="#cb15-215" aria-hidden="true" tabindex="-1"></a>positivity-friendly way to let dispersion vary ($\text{disc} &gt; 0$ everywhere,</span>
-<span id="cb15-216"><a href="#cb15-216" aria-hidden="true" tabindex="-1"></a>with no constraint on $\sigma_i$ itself). <span class="in">`brms`</span> puts a log link on <span class="in">`disc`</span>, so</span>
-<span id="cb15-217"><a href="#cb15-217" aria-hidden="true" tabindex="-1"></a><span class="in">`disc ~ 0 + group`</span> means $\log(\text{disc}_i) = \gamma_{\text{group}<span class="co">[</span><span class="ot">i</span><span class="co">]</span>}$ --- a</span>
-<span id="cb15-218"><a href="#cb15-218" aria-hidden="true" tabindex="-1"></a>group difference in *log*-discrimination, parallel to the Gaussian log-SD</span>
-<span id="cb15-219"><a href="#cb15-219" aria-hidden="true" tabindex="-1"></a>coefficient (Bürkner and Vuorre 2019).</span>
-<span id="cb15-220"><a href="#cb15-220" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-221"><a href="#cb15-221" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
-<span id="cb15-222"><a href="#cb15-222" aria-hidden="true" tabindex="-1"></a>fit_ordinal <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb15-223"><a href="#cb15-223" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject),</span>
-<span id="cb15-224"><a href="#cb15-224" aria-hidden="true" tabindex="-1"></a>     disc <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> group),           <span class="co"># log(disc) = 0 + group; disc = 1 / latent SD</span></span>
-<span id="cb15-225"><a href="#cb15-225" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">cumulative</span>(<span class="st">"probit"</span>), <span class="at">init =</span> <span class="dv">0</span>,</span>
-<span id="cb15-226"><a href="#cb15-226" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">c</span>(</span>
-<span id="cb15-227"><a href="#cb15-227" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">constant</span>(<span class="dv">0</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupA"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>),</span>
-<span id="cb15-228"><a href="#cb15-228" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupB"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>)</span>
-<span id="cb15-229"><a href="#cb15-229" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb15-230"><a href="#cb15-230" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-231"><a href="#cb15-231" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-232"><a href="#cb15-232" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-233"><a href="#cb15-233" aria-hidden="true" tabindex="-1"></a>The <span class="in">`constant(0)`</span> prior pins the reference group's *log*-discrimination</span>
-<span id="cb15-234"><a href="#cb15-234" aria-hidden="true" tabindex="-1"></a>--- the linear predictor $\gamma_A$, not $\text{disc}$ itself --- at zero, so</span>
-<span id="cb15-235"><a href="#cb15-235" aria-hidden="true" tabindex="-1"></a>$\text{disc}_A = \exp(0) = 1$ and its latent SD is $1/\text{disc}_A = 1$.</span>
-<span id="cb15-236"><a href="#cb15-236" aria-hidden="true" tabindex="-1"></a>(Fixing $\gamma_A=0$ is what makes <span class="in">`disc = 1`</span> and <span class="in">`SD = 1`</span> coincide for the</span>
-<span id="cb15-237"><a href="#cb15-237" aria-hidden="true" tabindex="-1"></a>reference group; it is not a claim that discrimination is zero, which would</span>
-<span id="cb15-238"><a href="#cb15-238" aria-hidden="true" tabindex="-1"></a>mean an infinite latent SD.) Only $\gamma_B$ is estimated: $\text{disc}_B =</span>
-<span id="cb15-239"><a href="#cb15-239" aria-hidden="true" tabindex="-1"></a>\exp(\gamma_B)$, so $\gamma_B=0$ means identical dispersion, $\gamma_B&gt;0$ means</span>
-<span id="cb15-240"><a href="#cb15-240" aria-hidden="true" tabindex="-1"></a>Group B is *more* discriminating (a *smaller* latent SD), and $\gamma_B&lt;0$ the</span>
-<span id="cb15-241"><a href="#cb15-241" aria-hidden="true" tabindex="-1"></a>reverse. The boundary is now explicit --- six estimated cutpoints on an</span>
-<span id="cb15-242"><a href="#cb15-242" aria-hidden="true" tabindex="-1"></a>*unbounded* latent scale --- so a group whose mean sits near 7 no longer shows</span>
-<span id="cb15-243"><a href="#cb15-243" aria-hidden="true" tabindex="-1"></a>a tighter latent SD by mechanics alone.</span>
-<span id="cb15-244"><a href="#cb15-244" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-245"><a href="#cb15-245" aria-hidden="true" tabindex="-1"></a><span class="fu">### What belongs in the dispersion submodel?</span></span>
-<span id="cb15-246"><a href="#cb15-246" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-247"><a href="#cb15-247" aria-hidden="true" tabindex="-1"></a>A fair question: why does the dispersion side carry only <span class="in">`group`</span>, when the mean</span>
-<span id="cb15-248"><a href="#cb15-248" aria-hidden="true" tabindex="-1"></a>model might carry more? Should the two not mirror each other? Not by default.</span>
-<span id="cb15-249"><a href="#cb15-249" aria-hidden="true" tabindex="-1"></a>They answer different questions. The mean model asks what predicts the average</span>
-<span id="cb15-250"><a href="#cb15-250" aria-hidden="true" tabindex="-1"></a>rating. The dispersion model asks what predicts the spread. A covariate earns</span>
-<span id="cb15-251"><a href="#cb15-251" aria-hidden="true" tabindex="-1"></a>its place on each side on its own merits.</span>
-<span id="cb15-252"><a href="#cb15-252" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-253"><a href="#cb15-253" aria-hidden="true" tabindex="-1"></a>In this chapter's simulation <span class="in">`group`</span> is the only variable in the</span>
-<span id="cb15-254"><a href="#cb15-254" aria-hidden="true" tabindex="-1"></a>data-generating process, so there is nothing else *to* include, on either side.</span>
-<span id="cb15-255"><a href="#cb15-255" aria-hidden="true" tabindex="-1"></a>In real data the choice is substantive, and getting it wrong has a familiar</span>
-<span id="cb15-256"><a href="#cb15-256" aria-hidden="true" tabindex="-1"></a>cost. Suppose some covariate $Z$ (rater experience, item wording, a</span>
-<span id="cb15-257"><a href="#cb15-257" aria-hidden="true" tabindex="-1"></a>subject-level trait) genuinely shifts dispersion and is correlated with <span class="in">`group`</span>,</span>
-<span id="cb15-258"><a href="#cb15-258" aria-hidden="true" tabindex="-1"></a>but is left out of the dispersion submodel. Its effect is absorbed into the</span>
-<span id="cb15-259"><a href="#cb15-259" aria-hidden="true" tabindex="-1"></a><span class="in">`group`</span> coefficient on <span class="in">`sigma`</span> (or <span class="in">`disc`</span>, or $\varphi$) --- omitted-variable</span>
-<span id="cb15-260"><a href="#cb15-260" aria-hidden="true" tabindex="-1"></a>bias for the *variance*, exactly analogous to the ordinary one for the mean. The</span>
-<span id="cb15-261"><a href="#cb15-261" aria-hidden="true" tabindex="-1"></a>remedy is the same one you already use on the mean side: include the covariates</span>
-<span id="cb15-262"><a href="#cb15-262" aria-hidden="true" tabindex="-1"></a>you have a substantive reason to think shift dispersion, and give that choice</span>
-<span id="cb15-263"><a href="#cb15-263" aria-hidden="true" tabindex="-1"></a>the same scrutiny --- neither copying the mean formula reflexively nor stripping</span>
-<span id="cb15-264"><a href="#cb15-264" aria-hidden="true" tabindex="-1"></a>the dispersion submodel to the one comparison you happen to care about.</span>
-<span id="cb15-265"><a href="#cb15-265" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-266"><a href="#cb15-266" aria-hidden="true" tabindex="-1"></a><span class="fu">### Four candidates, side by side</span></span>
-<span id="cb15-267"><a href="#cb15-267" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-268"><a href="#cb15-268" aria-hidden="true" tabindex="-1"></a>Two questions separate the approaches: does it remove the mechanical ceiling,</span>
-<span id="cb15-269"><a href="#cb15-269" aria-hidden="true" tabindex="-1"></a>and does it stay stable when only a handful of raters rate each unit? Only one</span>
-<span id="cb15-270"><a href="#cb15-270" aria-hidden="true" tabindex="-1"></a>passes both.</span>
+<span id="cb15-203"><a href="#cb15-203" aria-hidden="true" tabindex="-1"></a>$$Y_i = k \iff \theta_{k-1} &lt; Y_i^* \leq \theta_k.$$</span>
+<span id="cb15-204"><a href="#cb15-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-205"><a href="#cb15-205" aria-hidden="true" tabindex="-1"></a>So the cumulative probability is</span>
+<span id="cb15-206"><a href="#cb15-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-207"><a href="#cb15-207" aria-hidden="true" tabindex="-1"></a>$$P(Y_i \leq k) = P<span class="sc">\!</span>\left(\epsilon_i \leq \frac{\theta_k - \eta_i}{\sigma_i}\right)</span>
+<span id="cb15-208"><a href="#cb15-208" aria-hidden="true" tabindex="-1"></a>= \Phi<span class="sc">\!</span>\left(\frac{\theta_k - \eta_i}{\sigma_i}\right),$$</span>
+<span id="cb15-209"><a href="#cb15-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-210"><a href="#cb15-210" aria-hidden="true" tabindex="-1"></a>with $\Phi$ the standard normal CDF, for the probit link. Write $\text{disc}_i</span>
+<span id="cb15-211"><a href="#cb15-211" aria-hidden="true" tabindex="-1"></a>:= 1/\sigma_i$ and this is <span class="in">`brms`</span>'s parameterization exactly:</span>
+<span id="cb15-212"><a href="#cb15-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-213"><a href="#cb15-213" aria-hidden="true" tabindex="-1"></a>$$P(Y_i \leq k) = \Phi\bigl(\text{disc}_i\,(\theta_k - \eta_i)\bigr).$$</span>
+<span id="cb15-214"><a href="#cb15-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-215"><a href="#cb15-215" aria-hidden="true" tabindex="-1"></a>In words: discrimination is the reciprocal of the latent residual SD. Not an</span>
+<span id="cb15-216"><a href="#cb15-216" aria-hidden="true" tabindex="-1"></a>analogy --- an algebraic identity, reached by rescaling the argument of $\Phi$</span>
+<span id="cb15-217"><a href="#cb15-217" aria-hidden="true" tabindex="-1"></a>rather than dividing by $\sigma_i$ directly. Letting <span class="in">`disc`</span> depend on covariates</span>
+<span id="cb15-218"><a href="#cb15-218" aria-hidden="true" tabindex="-1"></a>is the ordinal analogue of <span class="in">`sigma ~ group`</span>, written in reciprocal form: a</span>
+<span id="cb15-219"><a href="#cb15-219" aria-hidden="true" tabindex="-1"></a>positivity-friendly way to let dispersion vary ($\text{disc} &gt; 0$ everywhere,</span>
+<span id="cb15-220"><a href="#cb15-220" aria-hidden="true" tabindex="-1"></a>with no constraint on $\sigma_i$ itself). <span class="in">`brms`</span> puts a log link on <span class="in">`disc`</span>, so</span>
+<span id="cb15-221"><a href="#cb15-221" aria-hidden="true" tabindex="-1"></a><span class="in">`disc ~ 0 + group`</span> means $\log(\text{disc}_i) = \gamma_{\text{group}<span class="co">[</span><span class="ot">i</span><span class="co">]</span>}$ --- a</span>
+<span id="cb15-222"><a href="#cb15-222" aria-hidden="true" tabindex="-1"></a>group difference in *log*-discrimination, parallel to the Gaussian log-SD</span>
+<span id="cb15-223"><a href="#cb15-223" aria-hidden="true" tabindex="-1"></a>coefficient (Bürkner and Vuorre 2019).</span>
+<span id="cb15-224"><a href="#cb15-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-225"><a href="#cb15-225" aria-hidden="true" tabindex="-1"></a><span class="in">```r</span></span>
+<span id="cb15-226"><a href="#cb15-226" aria-hidden="true" tabindex="-1"></a>fit_ordinal <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb15-227"><a href="#cb15-227" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject),</span>
+<span id="cb15-228"><a href="#cb15-228" aria-hidden="true" tabindex="-1"></a>     disc <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> group),           <span class="co"># log(disc) = 0 + group; disc = 1 / latent SD</span></span>
+<span id="cb15-229"><a href="#cb15-229" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">cumulative</span>(<span class="st">"probit"</span>), <span class="at">init =</span> <span class="dv">0</span>,</span>
+<span id="cb15-230"><a href="#cb15-230" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">c</span>(</span>
+<span id="cb15-231"><a href="#cb15-231" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">constant</span>(<span class="dv">0</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupA"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>),</span>
+<span id="cb15-232"><a href="#cb15-232" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupB"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>)</span>
+<span id="cb15-233"><a href="#cb15-233" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb15-234"><a href="#cb15-234" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-235"><a href="#cb15-235" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-236"><a href="#cb15-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-237"><a href="#cb15-237" aria-hidden="true" tabindex="-1"></a>The <span class="in">`constant(0)`</span> prior pins the reference group's *log*-discrimination</span>
+<span id="cb15-238"><a href="#cb15-238" aria-hidden="true" tabindex="-1"></a>--- the linear predictor $\gamma_A$, not $\text{disc}$ itself --- at zero, so</span>
+<span id="cb15-239"><a href="#cb15-239" aria-hidden="true" tabindex="-1"></a>$\text{disc}_A = \exp(0) = 1$ and its latent SD is $1/\text{disc}_A = 1$.</span>
+<span id="cb15-240"><a href="#cb15-240" aria-hidden="true" tabindex="-1"></a>(Fixing $\gamma_A=0$ is what makes <span class="in">`disc = 1`</span> and <span class="in">`SD = 1`</span> coincide for the</span>
+<span id="cb15-241"><a href="#cb15-241" aria-hidden="true" tabindex="-1"></a>reference group; it is not a claim that discrimination is zero, which would</span>
+<span id="cb15-242"><a href="#cb15-242" aria-hidden="true" tabindex="-1"></a>mean an infinite latent SD.) Only $\gamma_B$ is estimated: $\text{disc}_B =</span>
+<span id="cb15-243"><a href="#cb15-243" aria-hidden="true" tabindex="-1"></a>\exp(\gamma_B)$, so $\gamma_B=0$ means identical dispersion, $\gamma_B&gt;0$ means</span>
+<span id="cb15-244"><a href="#cb15-244" aria-hidden="true" tabindex="-1"></a>Group B is *more* discriminating (a *smaller* latent SD), and $\gamma_B&lt;0$ the</span>
+<span id="cb15-245"><a href="#cb15-245" aria-hidden="true" tabindex="-1"></a>reverse. The boundary is now explicit --- six estimated cutpoints on an</span>
+<span id="cb15-246"><a href="#cb15-246" aria-hidden="true" tabindex="-1"></a>*unbounded* latent scale --- so a group whose mean sits near 7 no longer shows</span>
+<span id="cb15-247"><a href="#cb15-247" aria-hidden="true" tabindex="-1"></a>a tighter latent SD by mechanics alone.</span>
+<span id="cb15-248"><a href="#cb15-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-249"><a href="#cb15-249" aria-hidden="true" tabindex="-1"></a><span class="fu">### What belongs in the dispersion submodel?</span></span>
+<span id="cb15-250"><a href="#cb15-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-251"><a href="#cb15-251" aria-hidden="true" tabindex="-1"></a>A fair question: why does the dispersion side carry only <span class="in">`group`</span>, when the mean</span>
+<span id="cb15-252"><a href="#cb15-252" aria-hidden="true" tabindex="-1"></a>model might carry more? Should the two not mirror each other? Not by default.</span>
+<span id="cb15-253"><a href="#cb15-253" aria-hidden="true" tabindex="-1"></a>They answer different questions. The mean model asks what predicts the average</span>
+<span id="cb15-254"><a href="#cb15-254" aria-hidden="true" tabindex="-1"></a>rating. The dispersion model asks what predicts the spread. A covariate earns</span>
+<span id="cb15-255"><a href="#cb15-255" aria-hidden="true" tabindex="-1"></a>its place on each side on its own merits.</span>
+<span id="cb15-256"><a href="#cb15-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-257"><a href="#cb15-257" aria-hidden="true" tabindex="-1"></a>In this chapter's simulation <span class="in">`group`</span> is the only variable in the</span>
+<span id="cb15-258"><a href="#cb15-258" aria-hidden="true" tabindex="-1"></a>data-generating process, so there is nothing else *to* include, on either side.</span>
+<span id="cb15-259"><a href="#cb15-259" aria-hidden="true" tabindex="-1"></a>In real data the choice is substantive, and getting it wrong has a familiar</span>
+<span id="cb15-260"><a href="#cb15-260" aria-hidden="true" tabindex="-1"></a>cost. Suppose some covariate $Z$ (rater experience, item wording, a</span>
+<span id="cb15-261"><a href="#cb15-261" aria-hidden="true" tabindex="-1"></a>subject-level trait) genuinely shifts dispersion and is correlated with <span class="in">`group`</span>,</span>
+<span id="cb15-262"><a href="#cb15-262" aria-hidden="true" tabindex="-1"></a>but is left out of the dispersion submodel. Its effect is absorbed into the</span>
+<span id="cb15-263"><a href="#cb15-263" aria-hidden="true" tabindex="-1"></a><span class="in">`group`</span> coefficient on <span class="in">`sigma`</span> (or <span class="in">`disc`</span>, or $\varphi$) --- omitted-variable</span>
+<span id="cb15-264"><a href="#cb15-264" aria-hidden="true" tabindex="-1"></a>bias for the *variance*, exactly analogous to the ordinary one for the mean. The</span>
+<span id="cb15-265"><a href="#cb15-265" aria-hidden="true" tabindex="-1"></a>remedy is the same one you already use on the mean side: include the covariates</span>
+<span id="cb15-266"><a href="#cb15-266" aria-hidden="true" tabindex="-1"></a>you have a substantive reason to think shift dispersion, and give that choice</span>
+<span id="cb15-267"><a href="#cb15-267" aria-hidden="true" tabindex="-1"></a>the same scrutiny --- neither copying the mean formula reflexively nor stripping</span>
+<span id="cb15-268"><a href="#cb15-268" aria-hidden="true" tabindex="-1"></a>the dispersion submodel to the one comparison you happen to care about.</span>
+<span id="cb15-269"><a href="#cb15-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-270"><a href="#cb15-270" aria-hidden="true" tabindex="-1"></a><span class="fu">### Four candidates, side by side</span></span>
 <span id="cb15-271"><a href="#cb15-271" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-272"><a href="#cb15-272" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Approach <span class="pp">|</span> Removes the mechanical ceiling? <span class="pp">|</span> Stable at $n\approx5$ raters? <span class="pp">|</span></span>
-<span id="cb15-273"><a href="#cb15-273" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
-<span id="cb15-274"><a href="#cb15-274" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SD $/$ mean <span class="pp">|</span> No --- still a curve in $\mu$, just a different one <span class="pp">|</span> No --- inherits raw SD's sampling noise <span class="pp">|</span></span>
-<span id="cb15-275"><a href="#cb15-275" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Hand-built $R = \text{Var}/\text{Var}_{\max}$ <span class="pp">|</span> Yes, by construction <span class="pp">|</span> No --- the denominator collapses near the ceiling, and $R$ is undefined at a scale endpoint <span class="pp">|</span></span>
-<span id="cb15-276"><a href="#cb15-276" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Gaussian MELSM's <span class="in">`sigma`</span> <span class="pp">|</span> No --- no boundary in the model, so it inherits the confound <span class="pp">|</span> Yes --- the joint likelihood pools across units <span class="pp">|</span></span>
-<span id="cb15-277"><a href="#cb15-277" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Ordinal MELSM's <span class="in">`disc`</span> <span class="pp">|</span> Yes --- the boundary lives in six estimated thresholds <span class="pp">|</span> Yes --- the joint likelihood pools across units <span class="pp">|</span></span>
-<span id="cb15-278"><a href="#cb15-278" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-279"><a href="#cb15-279" aria-hidden="true" tabindex="-1"></a>The useful way to remember it: $R$ is the right idea computed the wrong way,</span>
-<span id="cb15-280"><a href="#cb15-280" aria-hidden="true" tabindex="-1"></a>and the Gaussian MELSM is the wrong idea computed the right way --- stable and</span>
-<span id="cb15-281"><a href="#cb15-281" aria-hidden="true" tabindex="-1"></a>precise, but blind to the boundary, so it reports the ceiling artifact as a</span>
-<span id="cb15-282"><a href="#cb15-282" aria-hidden="true" tabindex="-1"></a>confident finding. <span class="in">`disc`</span> is the same idea as $R$ --- spread with the ceiling</span>
-<span id="cb15-283"><a href="#cb15-283" aria-hidden="true" tabindex="-1"></a>effect removed --- estimated coherently inside one model. The worked example</span>
-<span id="cb15-284"><a href="#cb15-284" aria-hidden="true" tabindex="-1"></a>shows all of this.</span>
-<span id="cb15-285"><a href="#cb15-285" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-286"><a href="#cb15-286" aria-hidden="true" tabindex="-1"></a><span class="fu">## Worked example: same dispersion, different means</span></span>
-<span id="cb15-287"><a href="#cb15-287" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-288"><a href="#cb15-288" aria-hidden="true" tabindex="-1"></a>Simulate two groups of 100 subjects each, 6 raters per subject. Both groups'</span>
-<span id="cb15-289"><a href="#cb15-289" aria-hidden="true" tabindex="-1"></a>raters draw from a **latent** continuous opinion with the *same* true SD</span>
-<span id="cb15-290"><a href="#cb15-290" aria-hidden="true" tabindex="-1"></a>($\sigma = 1$) --- there is no real disagreement difference to find. Group A's</span>
-<span id="cb15-291"><a href="#cb15-291" aria-hidden="true" tabindex="-1"></a>latent mean sits high (near the ceiling once discretized); Group B's sits in</span>
-<span id="cb15-292"><a href="#cb15-292" aria-hidden="true" tabindex="-1"></a>the middle of the range.</span>
-<span id="cb15-293"><a href="#cb15-293" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-296"><a href="#cb15-296" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-297"><a href="#cb15-297" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: simulate</span></span>
-<span id="cb15-298"><a href="#cb15-298" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-299"><a href="#cb15-299" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-300"><a href="#cb15-300" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-301"><a href="#cb15-301" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb15-302"><a href="#cb15-302" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-303"><a href="#cb15-303" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb15-304"><a href="#cb15-304" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-305"><a href="#cb15-305" aria-hidden="true" tabindex="-1"></a>n_per_group <span class="ot">&lt;-</span> <span class="dv">100</span></span>
-<span id="cb15-306"><a href="#cb15-306" aria-hidden="true" tabindex="-1"></a>n_raters    <span class="ot">&lt;-</span> <span class="dv">6</span></span>
-<span id="cb15-307"><a href="#cb15-307" aria-hidden="true" tabindex="-1"></a>sigma_true  <span class="ot">&lt;-</span> <span class="fl">1.0</span>   <span class="co"># SAME latent SD in both groups -- no real difference</span></span>
-<span id="cb15-308"><a href="#cb15-308" aria-hidden="true" tabindex="-1"></a>mu_A <span class="ot">&lt;-</span> <span class="fl">2.4</span>          <span class="co"># group A's latent mean sits near the ceiling</span></span>
-<span id="cb15-309"><a href="#cb15-309" aria-hidden="true" tabindex="-1"></a>mu_B <span class="ot">&lt;-</span> <span class="fl">0.6</span>          <span class="co"># group B's sits mid-range</span></span>
-<span id="cb15-310"><a href="#cb15-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-311"><a href="#cb15-311" aria-hidden="true" tabindex="-1"></a>subjects <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb15-312"><a href="#cb15-312" aria-hidden="true" tabindex="-1"></a>  <span class="at">subject =</span> <span class="dv">1</span><span class="sc">:</span>(<span class="dv">2</span> <span class="sc">*</span> n_per_group),</span>
-<span id="cb15-313"><a href="#cb15-313" aria-hidden="true" tabindex="-1"></a>  <span class="at">group   =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">"A"</span>, <span class="st">"B"</span>), <span class="at">each =</span> n_per_group),</span>
-<span id="cb15-314"><a href="#cb15-314" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu      =</span> <span class="fu">rep</span>(<span class="fu">c</span>(mu_A, mu_B), <span class="at">each =</span> n_per_group)</span>
-<span id="cb15-315"><a href="#cb15-315" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-316"><a href="#cb15-316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-317"><a href="#cb15-317" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> subjects[<span class="fu">rep</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(subjects)), <span class="at">each =</span> n_raters), ]</span>
-<span id="cb15-318"><a href="#cb15-318" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>latent <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(df), <span class="at">mean =</span> df<span class="sc">$</span>mu, <span class="at">sd =</span> sigma_true)</span>
-<span id="cb15-319"><a href="#cb15-319" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-320"><a href="#cb15-320" aria-hidden="true" tabindex="-1"></a><span class="co"># six fixed cutpoints -&gt; seven observed categories, 1 through 7</span></span>
-<span id="cb15-321"><a href="#cb15-321" aria-hidden="true" tabindex="-1"></a>cuts <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">2</span>, <span class="sc">-</span><span class="fl">1.2</span>, <span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.2</span>, <span class="fl">1.0</span>, <span class="fl">1.8</span>)</span>
-<span id="cb15-322"><a href="#cb15-322" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>rating     <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">cut</span>(df<span class="sc">$</span>latent, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, cuts, <span class="cn">Inf</span>), <span class="at">labels =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>))</span>
-<span id="cb15-323"><a href="#cb15-323" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>rating_ord <span class="ot">&lt;-</span> <span class="fu">factor</span>(df<span class="sc">$</span>rating, <span class="at">ordered =</span> <span class="cn">TRUE</span>, <span class="at">levels =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>)</span>
-<span id="cb15-324"><a href="#cb15-324" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-325"><a href="#cb15-325" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-326"><a href="#cb15-326" aria-hidden="true" tabindex="-1"></a>The group difference enters in exactly one place, and it is easy to miss.</span>
-<span id="cb15-327"><a href="#cb15-327" aria-hidden="true" tabindex="-1"></a><span class="in">`rnorm(..., sd = sigma_true)`</span> uses the same <span class="in">`sigma_true`</span> for every row, in both</span>
-<span id="cb15-328"><a href="#cb15-328" aria-hidden="true" tabindex="-1"></a>groups --- <span class="in">`group`</span> never touches the standard deviation, only the mean, via</span>
-<span id="cb15-329"><a href="#cb15-329" aria-hidden="true" tabindex="-1"></a><span class="in">`df$mu`</span>. The two groups differ *only* in where their latent mean sits relative</span>
-<span id="cb15-330"><a href="#cb15-330" aria-hidden="true" tabindex="-1"></a>to the six fixed cutpoints, which are the same <span class="in">`cuts`</span> object for both. That</span>
-<span id="cb15-331"><a href="#cb15-331" aria-hidden="true" tabindex="-1"></a>alone produces very different observed spreads:</span>
-<span id="cb15-332"><a href="#cb15-332" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-335"><a href="#cb15-335" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-336"><a href="#cb15-336" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: category-probs</span></span>
-<span id="cb15-337"><a href="#cb15-337" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-338"><a href="#cb15-338" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-339"><a href="#cb15-339" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-340"><a href="#cb15-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-341"><a href="#cb15-341" aria-hidden="true" tabindex="-1"></a>edges <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, cuts, <span class="cn">Inf</span>)</span>
-<span id="cb15-342"><a href="#cb15-342" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
-<span id="cb15-343"><a href="#cb15-343" aria-hidden="true" tabindex="-1"></a>  <span class="at">category =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>,</span>
-<span id="cb15-344"><a href="#cb15-344" aria-hidden="true" tabindex="-1"></a>  <span class="at">prob_A =</span> <span class="fu">round</span>(<span class="fu">diff</span>(<span class="fu">pnorm</span>(edges, <span class="at">mean =</span> mu_A, <span class="at">sd =</span> sigma_true)), <span class="dv">3</span>),</span>
-<span id="cb15-345"><a href="#cb15-345" aria-hidden="true" tabindex="-1"></a>  <span class="at">prob_B =</span> <span class="fu">round</span>(<span class="fu">diff</span>(<span class="fu">pnorm</span>(edges, <span class="at">mean =</span> mu_B, <span class="at">sd =</span> sigma_true)), <span class="dv">3</span>)</span>
-<span id="cb15-346"><a href="#cb15-346" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
-<span id="cb15-347"><a href="#cb15-347" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Category probabilities implied by each group's latent mean, with the same cutpoints and the same sigma."</span>)</span>
-<span id="cb15-348"><a href="#cb15-348" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-349"><a href="#cb15-349" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-350"><a href="#cb15-350" aria-hidden="true" tabindex="-1"></a>Group A's latent mean (2.4) sits 0.6 SDs above the highest cutpoint (1.8), so</span>
-<span id="cb15-351"><a href="#cb15-351" aria-hidden="true" tabindex="-1"></a><span class="in">`pnorm(0.6)`</span> $\approx 0.73$: nearly three-quarters of its ratings collapse into</span>
-<span id="cb15-352"><a href="#cb15-352" aria-hidden="true" tabindex="-1"></a>the top category, and under 2% fall below category 5. Group B's mean (0.6) sits</span>
-<span id="cb15-353"><a href="#cb15-353" aria-hidden="true" tabindex="-1"></a>mid-range, so its ratings spread across all seven categories, none above about</span>
-<span id="cb15-354"><a href="#cb15-354" aria-hidden="true" tabindex="-1"></a>30%.</span>
-<span id="cb15-355"><a href="#cb15-355" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-356"><a href="#cb15-356" aria-hidden="true" tabindex="-1"></a>That imbalance --- not a difference in $\sigma$ --- shrinks Group A's raw SD.</span>
-<span id="cb15-357"><a href="#cb15-357" aria-hidden="true" tabindex="-1"></a>When three-quarters of a subject's six ratings are forced into one bin by</span>
-<span id="cb15-358"><a href="#cb15-358" aria-hidden="true" tabindex="-1"></a><span class="in">`cut()`</span>, the *discrete* variance across them is mechanically small, even though</span>
-<span id="cb15-359"><a href="#cb15-359" aria-hidden="true" tabindex="-1"></a>the *continuous* latent draws behind them are as dispersed as Group B's</span>
-<span id="cb15-360"><a href="#cb15-360" aria-hidden="true" tabindex="-1"></a>($\sigma=1$ for both). It is the same Bhatia--Davis mechanism from the</span>
-<span id="cb15-361"><a href="#cb15-361" aria-hidden="true" tabindex="-1"></a>introduction, now visible subject by subject through <span class="in">`cut()`</span>'s fixed boundaries</span>
-<span id="cb15-362"><a href="#cb15-362" aria-hidden="true" tabindex="-1"></a>rather than through the population $\text{SD}_{\max}(\mu)$ curve.</span>
-<span id="cb15-363"><a href="#cb15-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-364"><a href="#cb15-364" aria-hidden="true" tabindex="-1"></a>The raw per-subject summary already shows the pattern that tempts a reader into</span>
-<span id="cb15-365"><a href="#cb15-365" aria-hidden="true" tabindex="-1"></a>seeing a real disagreement gap:</span>
-<span id="cb15-366"><a href="#cb15-366" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-369"><a href="#cb15-369" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-370"><a href="#cb15-370" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: raw-summary</span></span>
-<span id="cb15-371"><a href="#cb15-371" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-372"><a href="#cb15-372" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-373"><a href="#cb15-373" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-374"><a href="#cb15-374" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-375"><a href="#cb15-375" aria-hidden="true" tabindex="-1"></a>subj_summary <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
-<span id="cb15-376"><a href="#cb15-376" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(subject, group) <span class="sc">|&gt;</span></span>
-<span id="cb15-377"><a href="#cb15-377" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rating =</span> <span class="fu">mean</span>(rating), <span class="at">sd_rating =</span> <span class="fu">sd</span>(rating), <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb15-272"><a href="#cb15-272" aria-hidden="true" tabindex="-1"></a>Two questions separate the approaches: does it remove the mechanical ceiling,</span>
+<span id="cb15-273"><a href="#cb15-273" aria-hidden="true" tabindex="-1"></a>and does it stay stable when only a handful of raters rate each unit? Only one</span>
+<span id="cb15-274"><a href="#cb15-274" aria-hidden="true" tabindex="-1"></a>passes both.</span>
+<span id="cb15-275"><a href="#cb15-275" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-276"><a href="#cb15-276" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Approach <span class="pp">|</span> Removes the mechanical ceiling? <span class="pp">|</span> Stable at $n\approx5$ raters? <span class="pp">|</span></span>
+<span id="cb15-277"><a href="#cb15-277" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb15-278"><a href="#cb15-278" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SD $/$ mean <span class="pp">|</span> No --- still a curve in $\mu$, just a different one <span class="pp">|</span> No --- inherits raw SD's sampling noise <span class="pp">|</span></span>
+<span id="cb15-279"><a href="#cb15-279" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Hand-built $R = \text{Var}/\text{Var}_{\max}$ <span class="pp">|</span> Yes, by construction <span class="pp">|</span> No --- the denominator collapses near the ceiling, and $R$ is undefined at a scale endpoint <span class="pp">|</span></span>
+<span id="cb15-280"><a href="#cb15-280" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Gaussian MELSM's <span class="in">`sigma`</span> <span class="pp">|</span> No --- no boundary in the model, so it inherits the confound <span class="pp">|</span> Yes --- the joint likelihood pools across units <span class="pp">|</span></span>
+<span id="cb15-281"><a href="#cb15-281" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Ordinal MELSM's <span class="in">`disc`</span> <span class="pp">|</span> Yes --- the boundary lives in six estimated thresholds <span class="pp">|</span> Yes --- the joint likelihood pools across units <span class="pp">|</span></span>
+<span id="cb15-282"><a href="#cb15-282" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-283"><a href="#cb15-283" aria-hidden="true" tabindex="-1"></a>The useful way to remember it: $R$ is the right idea computed the wrong way,</span>
+<span id="cb15-284"><a href="#cb15-284" aria-hidden="true" tabindex="-1"></a>and the Gaussian MELSM is the wrong idea computed the right way --- stable and</span>
+<span id="cb15-285"><a href="#cb15-285" aria-hidden="true" tabindex="-1"></a>precise, but blind to the boundary, so it reports the ceiling artifact as a</span>
+<span id="cb15-286"><a href="#cb15-286" aria-hidden="true" tabindex="-1"></a>confident finding. <span class="in">`disc`</span> is the same idea as $R$ --- spread with the ceiling</span>
+<span id="cb15-287"><a href="#cb15-287" aria-hidden="true" tabindex="-1"></a>effect removed --- estimated coherently inside one model. The worked example</span>
+<span id="cb15-288"><a href="#cb15-288" aria-hidden="true" tabindex="-1"></a>shows all of this.</span>
+<span id="cb15-289"><a href="#cb15-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-290"><a href="#cb15-290" aria-hidden="true" tabindex="-1"></a><span class="fu">## Worked example: same dispersion, different means</span></span>
+<span id="cb15-291"><a href="#cb15-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-292"><a href="#cb15-292" aria-hidden="true" tabindex="-1"></a>Simulate two groups of 100 subjects each, 6 raters per subject. Both groups'</span>
+<span id="cb15-293"><a href="#cb15-293" aria-hidden="true" tabindex="-1"></a>raters draw from a **latent** continuous opinion with the *same* true SD</span>
+<span id="cb15-294"><a href="#cb15-294" aria-hidden="true" tabindex="-1"></a>($\sigma = 1$) --- there is no real disagreement difference to find. Group A's</span>
+<span id="cb15-295"><a href="#cb15-295" aria-hidden="true" tabindex="-1"></a>latent mean sits high (near the ceiling once discretized); Group B's sits in</span>
+<span id="cb15-296"><a href="#cb15-296" aria-hidden="true" tabindex="-1"></a>the middle of the range.</span>
+<span id="cb15-297"><a href="#cb15-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-300"><a href="#cb15-300" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-301"><a href="#cb15-301" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: simulate</span></span>
+<span id="cb15-302"><a href="#cb15-302" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-303"><a href="#cb15-303" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-304"><a href="#cb15-304" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-305"><a href="#cb15-305" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb15-306"><a href="#cb15-306" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-307"><a href="#cb15-307" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb15-308"><a href="#cb15-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-309"><a href="#cb15-309" aria-hidden="true" tabindex="-1"></a>n_per_group <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb15-310"><a href="#cb15-310" aria-hidden="true" tabindex="-1"></a>n_raters    <span class="ot">&lt;-</span> <span class="dv">6</span></span>
+<span id="cb15-311"><a href="#cb15-311" aria-hidden="true" tabindex="-1"></a>sigma_true  <span class="ot">&lt;-</span> <span class="fl">1.0</span>   <span class="co"># SAME latent SD in both groups -- no real difference</span></span>
+<span id="cb15-312"><a href="#cb15-312" aria-hidden="true" tabindex="-1"></a>mu_A <span class="ot">&lt;-</span> <span class="fl">2.4</span>          <span class="co"># group A's latent mean sits near the ceiling</span></span>
+<span id="cb15-313"><a href="#cb15-313" aria-hidden="true" tabindex="-1"></a>mu_B <span class="ot">&lt;-</span> <span class="fl">0.6</span>          <span class="co"># group B's sits mid-range</span></span>
+<span id="cb15-314"><a href="#cb15-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-315"><a href="#cb15-315" aria-hidden="true" tabindex="-1"></a>subjects <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb15-316"><a href="#cb15-316" aria-hidden="true" tabindex="-1"></a>  <span class="at">subject =</span> <span class="dv">1</span><span class="sc">:</span>(<span class="dv">2</span> <span class="sc">*</span> n_per_group),</span>
+<span id="cb15-317"><a href="#cb15-317" aria-hidden="true" tabindex="-1"></a>  <span class="at">group   =</span> <span class="fu">rep</span>(<span class="fu">c</span>(<span class="st">"A"</span>, <span class="st">"B"</span>), <span class="at">each =</span> n_per_group),</span>
+<span id="cb15-318"><a href="#cb15-318" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu      =</span> <span class="fu">rep</span>(<span class="fu">c</span>(mu_A, mu_B), <span class="at">each =</span> n_per_group)</span>
+<span id="cb15-319"><a href="#cb15-319" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-320"><a href="#cb15-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-321"><a href="#cb15-321" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> subjects[<span class="fu">rep</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(subjects)), <span class="at">each =</span> n_raters), ]</span>
+<span id="cb15-322"><a href="#cb15-322" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>latent <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fu">nrow</span>(df), <span class="at">mean =</span> df<span class="sc">$</span>mu, <span class="at">sd =</span> sigma_true)</span>
+<span id="cb15-323"><a href="#cb15-323" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-324"><a href="#cb15-324" aria-hidden="true" tabindex="-1"></a><span class="co"># six fixed cutpoints -&gt; seven observed categories, 1 through 7</span></span>
+<span id="cb15-325"><a href="#cb15-325" aria-hidden="true" tabindex="-1"></a>cuts <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">2</span>, <span class="sc">-</span><span class="fl">1.2</span>, <span class="sc">-</span><span class="fl">0.5</span>, <span class="fl">0.2</span>, <span class="fl">1.0</span>, <span class="fl">1.8</span>)</span>
+<span id="cb15-326"><a href="#cb15-326" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>rating     <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">cut</span>(df<span class="sc">$</span>latent, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, cuts, <span class="cn">Inf</span>), <span class="at">labels =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>))</span>
+<span id="cb15-327"><a href="#cb15-327" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>rating_ord <span class="ot">&lt;-</span> <span class="fu">factor</span>(df<span class="sc">$</span>rating, <span class="at">ordered =</span> <span class="cn">TRUE</span>, <span class="at">levels =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>)</span>
+<span id="cb15-328"><a href="#cb15-328" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-329"><a href="#cb15-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-330"><a href="#cb15-330" aria-hidden="true" tabindex="-1"></a>The group difference enters in exactly one place, and it is easy to miss.</span>
+<span id="cb15-331"><a href="#cb15-331" aria-hidden="true" tabindex="-1"></a><span class="in">`rnorm(..., sd = sigma_true)`</span> uses the same <span class="in">`sigma_true`</span> for every row, in both</span>
+<span id="cb15-332"><a href="#cb15-332" aria-hidden="true" tabindex="-1"></a>groups --- <span class="in">`group`</span> never touches the standard deviation, only the mean, via</span>
+<span id="cb15-333"><a href="#cb15-333" aria-hidden="true" tabindex="-1"></a><span class="in">`df$mu`</span>. The two groups differ *only* in where their latent mean sits relative</span>
+<span id="cb15-334"><a href="#cb15-334" aria-hidden="true" tabindex="-1"></a>to the six fixed cutpoints, which are the same <span class="in">`cuts`</span> object for both. That</span>
+<span id="cb15-335"><a href="#cb15-335" aria-hidden="true" tabindex="-1"></a>alone produces very different observed spreads:</span>
+<span id="cb15-336"><a href="#cb15-336" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-339"><a href="#cb15-339" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-340"><a href="#cb15-340" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: category-probs</span></span>
+<span id="cb15-341"><a href="#cb15-341" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-342"><a href="#cb15-342" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-343"><a href="#cb15-343" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-344"><a href="#cb15-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-345"><a href="#cb15-345" aria-hidden="true" tabindex="-1"></a>edges <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="cn">Inf</span>, cuts, <span class="cn">Inf</span>)</span>
+<span id="cb15-346"><a href="#cb15-346" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb15-347"><a href="#cb15-347" aria-hidden="true" tabindex="-1"></a>  <span class="at">category =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>,</span>
+<span id="cb15-348"><a href="#cb15-348" aria-hidden="true" tabindex="-1"></a>  <span class="at">prob_A =</span> <span class="fu">round</span>(<span class="fu">diff</span>(<span class="fu">pnorm</span>(edges, <span class="at">mean =</span> mu_A, <span class="at">sd =</span> sigma_true)), <span class="dv">3</span>),</span>
+<span id="cb15-349"><a href="#cb15-349" aria-hidden="true" tabindex="-1"></a>  <span class="at">prob_B =</span> <span class="fu">round</span>(<span class="fu">diff</span>(<span class="fu">pnorm</span>(edges, <span class="at">mean =</span> mu_B, <span class="at">sd =</span> sigma_true)), <span class="dv">3</span>)</span>
+<span id="cb15-350"><a href="#cb15-350" aria-hidden="true" tabindex="-1"></a>) <span class="sc">|&gt;</span></span>
+<span id="cb15-351"><a href="#cb15-351" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Category probabilities implied by each group's latent mean, with the same cutpoints and the same sigma."</span>)</span>
+<span id="cb15-352"><a href="#cb15-352" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-353"><a href="#cb15-353" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-354"><a href="#cb15-354" aria-hidden="true" tabindex="-1"></a>Group A's latent mean (2.4) sits 0.6 SDs above the highest cutpoint (1.8), so</span>
+<span id="cb15-355"><a href="#cb15-355" aria-hidden="true" tabindex="-1"></a><span class="in">`pnorm(0.6)`</span> $\approx 0.73$: nearly three-quarters of its ratings collapse into</span>
+<span id="cb15-356"><a href="#cb15-356" aria-hidden="true" tabindex="-1"></a>the top category, and under 2% fall below category 5. Group B's mean (0.6) sits</span>
+<span id="cb15-357"><a href="#cb15-357" aria-hidden="true" tabindex="-1"></a>mid-range, so its ratings spread across all seven categories, none above about a</span>
+<span id="cb15-358"><a href="#cb15-358" aria-hidden="true" tabindex="-1"></a>third.</span>
+<span id="cb15-359"><a href="#cb15-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-360"><a href="#cb15-360" aria-hidden="true" tabindex="-1"></a>That imbalance --- not a difference in $\sigma$ --- shrinks Group A's raw SD.</span>
+<span id="cb15-361"><a href="#cb15-361" aria-hidden="true" tabindex="-1"></a>When three-quarters of a subject's six ratings are forced into one bin by</span>
+<span id="cb15-362"><a href="#cb15-362" aria-hidden="true" tabindex="-1"></a><span class="in">`cut()`</span>, the *discrete* variance across them is mechanically small, even though</span>
+<span id="cb15-363"><a href="#cb15-363" aria-hidden="true" tabindex="-1"></a>the *continuous* latent draws behind them are as dispersed as Group B's</span>
+<span id="cb15-364"><a href="#cb15-364" aria-hidden="true" tabindex="-1"></a>($\sigma=1$ for both). It is the same Bhatia--Davis mechanism from the</span>
+<span id="cb15-365"><a href="#cb15-365" aria-hidden="true" tabindex="-1"></a>introduction, now visible subject by subject through <span class="in">`cut()`</span>'s fixed boundaries</span>
+<span id="cb15-366"><a href="#cb15-366" aria-hidden="true" tabindex="-1"></a>rather than through the population $\text{SD}_{\max}(\mu)$ curve.</span>
+<span id="cb15-367"><a href="#cb15-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-368"><a href="#cb15-368" aria-hidden="true" tabindex="-1"></a>The raw per-subject summary already shows the pattern that tempts a reader into</span>
+<span id="cb15-369"><a href="#cb15-369" aria-hidden="true" tabindex="-1"></a>seeing a real disagreement gap:</span>
+<span id="cb15-370"><a href="#cb15-370" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-373"><a href="#cb15-373" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-374"><a href="#cb15-374" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: raw-summary</span></span>
+<span id="cb15-375"><a href="#cb15-375" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-376"><a href="#cb15-376" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-377"><a href="#cb15-377" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
 <span id="cb15-378"><a href="#cb15-378" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-379"><a href="#cb15-379" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb15-380"><a href="#cb15-380" aria-hidden="true" tabindex="-1"></a>  subj_summary <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
-<span id="cb15-381"><a href="#cb15-381" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">mean_of_means =</span> <span class="fu">round</span>(<span class="fu">mean</span>(mean_rating), <span class="dv">2</span>),</span>
-<span id="cb15-382"><a href="#cb15-382" aria-hidden="true" tabindex="-1"></a>              <span class="at">mean_of_sds   =</span> <span class="fu">round</span>(<span class="fu">mean</span>(sd_rating), <span class="dv">2</span>)),</span>
-<span id="cb15-383"><a href="#cb15-383" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Raw per-subject summary by group -- true latent SD is IDENTICAL in both."</span></span>
-<span id="cb15-384"><a href="#cb15-384" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-385"><a href="#cb15-385" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-386"><a href="#cb15-386" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-389"><a href="#cb15-389" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-390"><a href="#cb15-390" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scatter</span></span>
-<span id="cb15-391"><a href="#cb15-391" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-392"><a href="#cb15-392" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-393"><a href="#cb15-393" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-394"><a href="#cb15-394" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Subject-level mean vs. SD, with the theoretical ceiling overlaid."</span></span>
-<span id="cb15-395"><a href="#cb15-395" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-396"><a href="#cb15-396" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(subj_summary, <span class="fu">aes</span>(mean_rating, sd_rating, <span class="at">color =</span> group)) <span class="sc">+</span></span>
-<span id="cb15-397"><a href="#cb15-397" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_jitter</span>(<span class="at">width =</span> <span class="fl">0.05</span>, <span class="at">height =</span> <span class="dv">0</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
-<span id="cb15-398"><a href="#cb15-398" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> <span class="fu">data.frame</span>(<span class="at">mean_rating =</span> mu_grid, <span class="at">sd_rating =</span> sd_max),</span>
-<span id="cb15-399"><a href="#cb15-399" aria-hidden="true" tabindex="-1"></a>            <span class="fu">aes</span>(mean_rating, sd_rating), <span class="at">color =</span> <span class="st">"grey40"</span>, <span class="at">inherit.aes =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb15-400"><a href="#cb15-400" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"subject mean rating"</span>, <span class="at">y =</span> <span class="st">"subject SD"</span>,</span>
-<span id="cb15-401"><a href="#cb15-401" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Group A's raw SD looks smaller -- purely because its mean sits</span><span class="sc">\n</span><span class="st">near the grey ceiling curve, not because raters agree more"</span>) <span class="sc">+</span></span>
-<span id="cb15-402"><a href="#cb15-402" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
-<span id="cb15-403"><a href="#cb15-403" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-404"><a href="#cb15-404" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-405"><a href="#cb15-405" aria-hidden="true" tabindex="-1"></a>Now fit both a Gaussian MELSM and the ordinal cumulative-probit MELSM to the</span>
-<span id="cb15-406"><a href="#cb15-406" aria-hidden="true" tabindex="-1"></a>same data.</span>
-<span id="cb15-407"><a href="#cb15-407" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-410"><a href="#cb15-410" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-411"><a href="#cb15-411" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-gaussian</span></span>
-<span id="cb15-412"><a href="#cb15-412" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-413"><a href="#cb15-413" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-414"><a href="#cb15-414" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-415"><a href="#cb15-415" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb15-416"><a href="#cb15-416" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-417"><a href="#cb15-417" aria-hidden="true" tabindex="-1"></a>fit_gaussian <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb15-418"><a href="#cb15-418" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), sigma <span class="sc">~</span> group),</span>
-<span id="cb15-419"><a href="#cb15-419" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">gaussian</span>(),</span>
-<span id="cb15-420"><a href="#cb15-420" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
-<span id="cb15-421"><a href="#cb15-421" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
-<span id="cb15-422"><a href="#cb15-422" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-423"><a href="#cb15-423" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-424"><a href="#cb15-424" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-427"><a href="#cb15-427" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-428"><a href="#cb15-428" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-ordinal</span></span>
-<span id="cb15-429"><a href="#cb15-429" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-430"><a href="#cb15-430" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-431"><a href="#cb15-431" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-432"><a href="#cb15-432" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb15-433"><a href="#cb15-433" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-434"><a href="#cb15-434" aria-hidden="true" tabindex="-1"></a>fit_ordinal <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb15-435"><a href="#cb15-435" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating_ord <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), disc <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> group),</span>
-<span id="cb15-436"><a href="#cb15-436" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">cumulative</span>(<span class="st">"probit"</span>), <span class="at">init =</span> <span class="dv">0</span>,</span>
-<span id="cb15-437"><a href="#cb15-437" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">c</span>(</span>
-<span id="cb15-438"><a href="#cb15-438" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">constant</span>(<span class="dv">0</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupA"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>),</span>
-<span id="cb15-439"><a href="#cb15-439" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupB"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>)</span>
-<span id="cb15-440"><a href="#cb15-440" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb15-441"><a href="#cb15-441" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
-<span id="cb15-442"><a href="#cb15-442" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
-<span id="cb15-443"><a href="#cb15-443" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-444"><a href="#cb15-444" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-445"><a href="#cb15-445" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-448"><a href="#cb15-448" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-449"><a href="#cb15-449" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: compare-results</span></span>
-<span id="cb15-450"><a href="#cb15-450" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-451"><a href="#cb15-451" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-452"><a href="#cb15-452" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-453"><a href="#cb15-453" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-454"><a href="#cb15-454" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_gaussian), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Gaussian MELSM fixed effects (sigma part is on the log-SD scale)"</span>)</span>
-<span id="cb15-455"><a href="#cb15-455" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_ordinal), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Ordinal MELSM fixed effects (disc part is on the log scale: 0 = same latent SD as the reference group)"</span>)</span>
-<span id="cb15-456"><a href="#cb15-456" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-379"><a href="#cb15-379" aria-hidden="true" tabindex="-1"></a>subj_summary <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb15-380"><a href="#cb15-380" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(subject, group) <span class="sc">|&gt;</span></span>
+<span id="cb15-381"><a href="#cb15-381" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rating =</span> <span class="fu">mean</span>(rating), <span class="at">sd_rating =</span> <span class="fu">sd</span>(rating), <span class="at">.groups =</span> <span class="st">"drop"</span>)</span>
+<span id="cb15-382"><a href="#cb15-382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-383"><a href="#cb15-383" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb15-384"><a href="#cb15-384" aria-hidden="true" tabindex="-1"></a>  subj_summary <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
+<span id="cb15-385"><a href="#cb15-385" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">mean_of_means =</span> <span class="fu">round</span>(<span class="fu">mean</span>(mean_rating), <span class="dv">2</span>),</span>
+<span id="cb15-386"><a href="#cb15-386" aria-hidden="true" tabindex="-1"></a>              <span class="at">mean_of_sds   =</span> <span class="fu">round</span>(<span class="fu">mean</span>(sd_rating), <span class="dv">2</span>)),</span>
+<span id="cb15-387"><a href="#cb15-387" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Raw per-subject summary by group -- true latent SD is IDENTICAL in both."</span></span>
+<span id="cb15-388"><a href="#cb15-388" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-389"><a href="#cb15-389" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-390"><a href="#cb15-390" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-393"><a href="#cb15-393" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-394"><a href="#cb15-394" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scatter</span></span>
+<span id="cb15-395"><a href="#cb15-395" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-396"><a href="#cb15-396" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-397"><a href="#cb15-397" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-398"><a href="#cb15-398" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Subject-level mean vs. SD, with the theoretical ceiling overlaid."</span></span>
+<span id="cb15-399"><a href="#cb15-399" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-400"><a href="#cb15-400" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(subj_summary, <span class="fu">aes</span>(mean_rating, sd_rating, <span class="at">color =</span> group)) <span class="sc">+</span></span>
+<span id="cb15-401"><a href="#cb15-401" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_jitter</span>(<span class="at">width =</span> <span class="fl">0.05</span>, <span class="at">height =</span> <span class="dv">0</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb15-402"><a href="#cb15-402" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> <span class="fu">data.frame</span>(<span class="at">mean_rating =</span> mu_grid, <span class="at">sd_rating =</span> sd_max),</span>
+<span id="cb15-403"><a href="#cb15-403" aria-hidden="true" tabindex="-1"></a>            <span class="fu">aes</span>(mean_rating, sd_rating), <span class="at">color =</span> <span class="st">"grey40"</span>, <span class="at">inherit.aes =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb15-404"><a href="#cb15-404" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"subject mean rating"</span>, <span class="at">y =</span> <span class="st">"subject SD"</span>,</span>
+<span id="cb15-405"><a href="#cb15-405" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Group A's raw SD looks smaller -- purely because its mean sits</span><span class="sc">\n</span><span class="st">near the grey ceiling curve, not because raters agree more"</span>) <span class="sc">+</span></span>
+<span id="cb15-406"><a href="#cb15-406" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb15-407"><a href="#cb15-407" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-408"><a href="#cb15-408" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-409"><a href="#cb15-409" aria-hidden="true" tabindex="-1"></a>Now fit both a Gaussian MELSM and the ordinal cumulative-probit MELSM to the</span>
+<span id="cb15-410"><a href="#cb15-410" aria-hidden="true" tabindex="-1"></a>same data.</span>
+<span id="cb15-411"><a href="#cb15-411" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-414"><a href="#cb15-414" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-415"><a href="#cb15-415" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-gaussian</span></span>
+<span id="cb15-416"><a href="#cb15-416" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-417"><a href="#cb15-417" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-418"><a href="#cb15-418" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-419"><a href="#cb15-419" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb15-420"><a href="#cb15-420" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-421"><a href="#cb15-421" aria-hidden="true" tabindex="-1"></a>fit_gaussian <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb15-422"><a href="#cb15-422" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), sigma <span class="sc">~</span> group),</span>
+<span id="cb15-423"><a href="#cb15-423" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">gaussian</span>(),</span>
+<span id="cb15-424"><a href="#cb15-424" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
+<span id="cb15-425"><a href="#cb15-425" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
+<span id="cb15-426"><a href="#cb15-426" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-427"><a href="#cb15-427" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-428"><a href="#cb15-428" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-431"><a href="#cb15-431" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-432"><a href="#cb15-432" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-ordinal</span></span>
+<span id="cb15-433"><a href="#cb15-433" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-434"><a href="#cb15-434" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-435"><a href="#cb15-435" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-436"><a href="#cb15-436" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb15-437"><a href="#cb15-437" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-438"><a href="#cb15-438" aria-hidden="true" tabindex="-1"></a>fit_ordinal <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb15-439"><a href="#cb15-439" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating_ord <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), disc <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> group),</span>
+<span id="cb15-440"><a href="#cb15-440" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">cumulative</span>(<span class="st">"probit"</span>), <span class="at">init =</span> <span class="dv">0</span>,</span>
+<span id="cb15-441"><a href="#cb15-441" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">c</span>(</span>
+<span id="cb15-442"><a href="#cb15-442" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">constant</span>(<span class="dv">0</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupA"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>),</span>
+<span id="cb15-443"><a href="#cb15-443" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupB"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>)</span>
+<span id="cb15-444"><a href="#cb15-444" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb15-445"><a href="#cb15-445" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
+<span id="cb15-446"><a href="#cb15-446" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
+<span id="cb15-447"><a href="#cb15-447" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-448"><a href="#cb15-448" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-449"><a href="#cb15-449" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-452"><a href="#cb15-452" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-453"><a href="#cb15-453" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: compare-results</span></span>
+<span id="cb15-454"><a href="#cb15-454" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-455"><a href="#cb15-455" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-456"><a href="#cb15-456" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
 <span id="cb15-457"><a href="#cb15-457" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-458"><a href="#cb15-458" aria-hidden="true" tabindex="-1"></a>On the raw scale Group A averages 6.64 with an SD of 0.58; Group B averages</span>
-<span id="cb15-459"><a href="#cb15-459" aria-hidden="true" tabindex="-1"></a>4.89 with an SD of 1.22. The pooled correlation between subject mean and SD is</span>
-<span id="cb15-460"><a href="#cb15-460" aria-hidden="true" tabindex="-1"></a>$-0.74$. That looks like a real, sizable disagreement gap, and the Gaussian</span>
-<span id="cb15-461"><a href="#cb15-461" aria-hidden="true" tabindex="-1"></a>MELSM agrees: <span class="in">`sigma_groupB`</span> of 0.68 on the log-SD scale puts Group B's SD at</span>
-<span id="cb15-462"><a href="#cb15-462" aria-hidden="true" tabindex="-1"></a>**1.97 times** Group A's (95% CI: 1.82--2.14), nowhere near zero.</span>
-<span id="cb15-463"><a href="#cb15-463" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-464"><a href="#cb15-464" aria-hidden="true" tabindex="-1"></a>But there is no true difference. Both groups' raters were drawn with the same</span>
-<span id="cb15-465"><a href="#cb15-465" aria-hidden="true" tabindex="-1"></a>$\sigma=1$ by construction; only the means differ. The ordinal model reads it</span>
-<span id="cb15-466"><a href="#cb15-466" aria-hidden="true" tabindex="-1"></a>correctly: <span class="in">`disc_groupB`</span> is $\gamma_B = -0.015$ on the log scale (95% CI:</span>
-<span id="cb15-467"><a href="#cb15-467" aria-hidden="true" tabindex="-1"></a>$-0.171$ to $0.146$), so $\text{disc}_B = e^{-0.015} \approx 0.985$ --- a latent</span>
-<span id="cb15-468"><a href="#cb15-468" aria-hidden="true" tabindex="-1"></a>SD of $\approx 1.015$ against the reference group's $1$, recovering the fact</span>
-<span id="cb15-469"><a href="#cb15-469" aria-hidden="true" tabindex="-1"></a>that the two groups' dispersion is identical. The Gaussian model's "Group B</span>
-<span id="cb15-470"><a href="#cb15-470" aria-hidden="true" tabindex="-1"></a>disagrees twice as much" is not a finding about the raters. It is the ceiling</span>
-<span id="cb15-471"><a href="#cb15-471" aria-hidden="true" tabindex="-1"></a>effect from the previous section, wearing a regression coefficient.</span>
-<span id="cb15-472"><a href="#cb15-472" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-473"><a href="#cb15-473" aria-hidden="true" tabindex="-1"></a><span class="fu">### What about $R$ here?</span></span>
-<span id="cb15-474"><a href="#cb15-474" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-475"><a href="#cb15-475" aria-hidden="true" tabindex="-1"></a>$R$ is mean-independent by construction, so it should land where the ordinal</span>
-<span id="cb15-476"><a href="#cb15-476" aria-hidden="true" tabindex="-1"></a>model does: no group difference. Compute it per subject, using the exact</span>
-<span id="cb15-477"><a href="#cb15-477" aria-hidden="true" tabindex="-1"></a>finite-sample bound from the earlier callout ($n=6$ raters):</span>
-<span id="cb15-478"><a href="#cb15-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-481"><a href="#cb15-481" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-482"><a href="#cb15-482" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-measure</span></span>
-<span id="cb15-483"><a href="#cb15-483" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-484"><a href="#cb15-484" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-485"><a href="#cb15-485" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-486"><a href="#cb15-486" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-487"><a href="#cb15-487" aria-hidden="true" tabindex="-1"></a>var_max_finite <span class="ot">&lt;-</span> <span class="cf">function</span>(n, mu) {</span>
-<span id="cb15-488"><a href="#cb15-488" aria-hidden="true" tabindex="-1"></a>  c <span class="ot">&lt;-</span> (mu <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">6</span></span>
-<span id="cb15-489"><a href="#cb15-489" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> (n <span class="sc">*</span> c) <span class="sc">%%</span> <span class="dv">1</span></span>
-<span id="cb15-490"><a href="#cb15-490" aria-hidden="true" tabindex="-1"></a>  <span class="dv">36</span> <span class="sc">*</span> (c <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> c) <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">/</span> n) <span class="sc">*</span> a <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> a))</span>
-<span id="cb15-491"><a href="#cb15-491" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb15-492"><a href="#cb15-492" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-493"><a href="#cb15-493" aria-hidden="true" tabindex="-1"></a>subj_R <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
-<span id="cb15-494"><a href="#cb15-494" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(subject, group) <span class="sc">|&gt;</span></span>
-<span id="cb15-495"><a href="#cb15-495" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rating =</span> <span class="fu">mean</span>(rating),</span>
-<span id="cb15-496"><a href="#cb15-496" aria-hidden="true" tabindex="-1"></a>            <span class="at">var_pop =</span> <span class="fu">mean</span>((rating <span class="sc">-</span> <span class="fu">mean</span>(rating))<span class="sc">^</span><span class="dv">2</span>),   <span class="co"># population (1/n) convention</span></span>
-<span id="cb15-497"><a href="#cb15-497" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb15-498"><a href="#cb15-498" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var_max =</span> <span class="fu">var_max_finite</span>(n_raters, mean_rating),</span>
-<span id="cb15-499"><a href="#cb15-499" aria-hidden="true" tabindex="-1"></a>         <span class="at">R =</span> <span class="fu">ifelse</span>(var_max <span class="sc">&gt;</span> <span class="fl">1e-8</span>, var_pop <span class="sc">/</span> var_max, <span class="cn">NA_real_</span>))</span>
-<span id="cb15-500"><a href="#cb15-500" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-501"><a href="#cb15-501" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb15-502"><a href="#cb15-502" aria-hidden="true" tabindex="-1"></a>  subj_R <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
-<span id="cb15-503"><a href="#cb15-503" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">n_undefined =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(R)), <span class="at">mean_R =</span> <span class="fu">round</span>(<span class="fu">mean</span>(R, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">3</span>)),</span>
-<span id="cb15-504"><a href="#cb15-504" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Per-subject R, using each subject's own 6 ratings for both mean and variance."</span></span>
-<span id="cb15-505"><a href="#cb15-505" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-506"><a href="#cb15-506" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-458"><a href="#cb15-458" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_gaussian), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Gaussian MELSM fixed effects (sigma part is on the log-SD scale)"</span>)</span>
+<span id="cb15-459"><a href="#cb15-459" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_ordinal), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Ordinal MELSM fixed effects (disc part is on the log scale: 0 = same latent SD as the reference group)"</span>)</span>
+<span id="cb15-460"><a href="#cb15-460" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-461"><a href="#cb15-461" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-462"><a href="#cb15-462" aria-hidden="true" tabindex="-1"></a>On the raw scale Group A averages 6.64 with an SD of 0.58; Group B averages</span>
+<span id="cb15-463"><a href="#cb15-463" aria-hidden="true" tabindex="-1"></a>4.89 with an SD of 1.22. The pooled correlation between subject mean and SD is</span>
+<span id="cb15-464"><a href="#cb15-464" aria-hidden="true" tabindex="-1"></a>$-0.74$. That looks like a real, sizable disagreement gap, and the Gaussian</span>
+<span id="cb15-465"><a href="#cb15-465" aria-hidden="true" tabindex="-1"></a>MELSM agrees: <span class="in">`sigma_groupB`</span> of 0.68 on the log-SD scale puts Group B's SD at</span>
+<span id="cb15-466"><a href="#cb15-466" aria-hidden="true" tabindex="-1"></a>**1.97 times** Group A's (95% CI: 1.82--2.14), nowhere near zero.</span>
+<span id="cb15-467"><a href="#cb15-467" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-468"><a href="#cb15-468" aria-hidden="true" tabindex="-1"></a>But there is no true difference. Both groups' raters were drawn with the same</span>
+<span id="cb15-469"><a href="#cb15-469" aria-hidden="true" tabindex="-1"></a>$\sigma=1$ by construction; only the means differ. The ordinal model reads it</span>
+<span id="cb15-470"><a href="#cb15-470" aria-hidden="true" tabindex="-1"></a>correctly: <span class="in">`disc_groupB`</span> is $\gamma_B = -0.015$ on the log scale (95% CI:</span>
+<span id="cb15-471"><a href="#cb15-471" aria-hidden="true" tabindex="-1"></a>$-0.171$ to $0.146$), so $\text{disc}_B = e^{-0.015} \approx 0.985$ --- a latent</span>
+<span id="cb15-472"><a href="#cb15-472" aria-hidden="true" tabindex="-1"></a>SD of $\approx 1.015$ against the reference group's $1$, recovering the fact</span>
+<span id="cb15-473"><a href="#cb15-473" aria-hidden="true" tabindex="-1"></a>that the two groups' dispersion is identical. The Gaussian model's "Group B</span>
+<span id="cb15-474"><a href="#cb15-474" aria-hidden="true" tabindex="-1"></a>disagrees twice as much" is not a finding about the raters. It is the ceiling</span>
+<span id="cb15-475"><a href="#cb15-475" aria-hidden="true" tabindex="-1"></a>effect from the previous section, wearing a regression coefficient.</span>
+<span id="cb15-476"><a href="#cb15-476" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-477"><a href="#cb15-477" aria-hidden="true" tabindex="-1"></a>In fairness, this is the ordinal model's best case: the simulation *is* its</span>
+<span id="cb15-478"><a href="#cb15-478" aria-hidden="true" tabindex="-1"></a>functional form, with one set of cutpoints shared by both groups and a constant</span>
+<span id="cb15-479"><a href="#cb15-479" aria-hidden="true" tabindex="-1"></a>latent $\sigma$. That is the right way to show the mechanism in isolation, but it</span>
+<span id="cb15-480"><a href="#cb15-480" aria-hidden="true" tabindex="-1"></a>does not test the assumption the model actually needs, which is that the</span>
+<span id="cb15-481"><a href="#cb15-481" aria-hidden="true" tabindex="-1"></a>thresholds are common across groups. If the two groups use the scale</span>
+<span id="cb15-482"><a href="#cb15-482" aria-hidden="true" tabindex="-1"></a>differently --- differential item functioning, in the measurement literature ---</span>
+<span id="cb15-483"><a href="#cb15-483" aria-hidden="true" tabindex="-1"></a>then threshold shifts and <span class="in">`disc`</span> trade off against each other, and a dispersion</span>
+<span id="cb15-484"><a href="#cb15-484" aria-hidden="true" tabindex="-1"></a>difference can be read as a location or cutpoint difference instead. On real data</span>
+<span id="cb15-485"><a href="#cb15-485" aria-hidden="true" tabindex="-1"></a>that assumption deserves the same scrutiny the Gaussian model's missing boundary</span>
+<span id="cb15-486"><a href="#cb15-486" aria-hidden="true" tabindex="-1"></a>gets here.</span>
+<span id="cb15-487"><a href="#cb15-487" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-488"><a href="#cb15-488" aria-hidden="true" tabindex="-1"></a><span class="fu">### What about $R$ here?</span></span>
+<span id="cb15-489"><a href="#cb15-489" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-490"><a href="#cb15-490" aria-hidden="true" tabindex="-1"></a>$R$ is mean-independent by construction, so it should land where the ordinal</span>
+<span id="cb15-491"><a href="#cb15-491" aria-hidden="true" tabindex="-1"></a>model does: no group difference. Compute it per subject, using the exact</span>
+<span id="cb15-492"><a href="#cb15-492" aria-hidden="true" tabindex="-1"></a>finite-sample bound from the earlier callout ($n=6$ raters):</span>
+<span id="cb15-493"><a href="#cb15-493" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-496"><a href="#cb15-496" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-497"><a href="#cb15-497" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-measure</span></span>
+<span id="cb15-498"><a href="#cb15-498" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-499"><a href="#cb15-499" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-500"><a href="#cb15-500" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-501"><a href="#cb15-501" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-502"><a href="#cb15-502" aria-hidden="true" tabindex="-1"></a>var_max_finite <span class="ot">&lt;-</span> <span class="cf">function</span>(n, mu) {</span>
+<span id="cb15-503"><a href="#cb15-503" aria-hidden="true" tabindex="-1"></a>  c <span class="ot">&lt;-</span> (mu <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> <span class="dv">6</span></span>
+<span id="cb15-504"><a href="#cb15-504" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> (n <span class="sc">*</span> c) <span class="sc">%%</span> <span class="dv">1</span></span>
+<span id="cb15-505"><a href="#cb15-505" aria-hidden="true" tabindex="-1"></a>  <span class="dv">36</span> <span class="sc">*</span> (c <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> c) <span class="sc">-</span> (<span class="dv">1</span> <span class="sc">/</span> n) <span class="sc">*</span> a <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> a))</span>
+<span id="cb15-506"><a href="#cb15-506" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb15-507"><a href="#cb15-507" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-508"><a href="#cb15-508" aria-hidden="true" tabindex="-1"></a>This is worse than the raw SD comparison, not better. Group A's per-subject $R$</span>
-<span id="cb15-509"><a href="#cb15-509" aria-hidden="true" tabindex="-1"></a>averages 0.63, Group B's 0.20 --- a larger apparent gap, and pointing the</span>
-<span id="cb15-510"><a href="#cb15-510" aria-hidden="true" tabindex="-1"></a>*opposite* way from the ceiling artifact. Fourteen Group A subjects even have an</span>
-<span id="cb15-511"><a href="#cb15-511" aria-hidden="true" tabindex="-1"></a>*undefined* $R$: all six raters picked 7, so observed variance and mechanical</span>
-<span id="cb15-512"><a href="#cb15-512" aria-hidden="true" tabindex="-1"></a>ceiling are both zero at once. Has $R$ failed?</span>
-<span id="cb15-513"><a href="#cb15-513" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-514"><a href="#cb15-514" aria-hidden="true" tabindex="-1"></a>No. The guarantee --- $R\in<span class="co">[</span><span class="ot">0,1</span><span class="co">]</span>$ at every $\mu$, no forced link to the mean ---</span>
-<span id="cb15-515"><a href="#cb15-515" aria-hidden="true" tabindex="-1"></a>is about the *population* quantity. Plug in a mean from only 6 raters and it</span>
-<span id="cb15-516"><a href="#cb15-516" aria-hidden="true" tabindex="-1"></a>breaks, because the finite-sample bound in the denominator is itself estimated</span>
-<span id="cb15-517"><a href="#cb15-517" aria-hidden="true" tabindex="-1"></a>from that same noisy mean, and it is far more sensitive near the ceiling than</span>
-<span id="cb15-518"><a href="#cb15-518" aria-hidden="true" tabindex="-1"></a>mid-scale:</span>
-<span id="cb15-519"><a href="#cb15-519" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-522"><a href="#cb15-522" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-523"><a href="#cb15-523" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-diagnostic</span></span>
-<span id="cb15-524"><a href="#cb15-524" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-525"><a href="#cb15-525" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-526"><a href="#cb15-526" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-527"><a href="#cb15-527" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-528"><a href="#cb15-528" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb15-529"><a href="#cb15-529" aria-hidden="true" tabindex="-1"></a>  subj_R <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
-<span id="cb15-530"><a href="#cb15-530" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">mean_var_pop =</span> <span class="fu">round</span>(<span class="fu">mean</span>(var_pop), <span class="dv">3</span>),</span>
-<span id="cb15-531"><a href="#cb15-531" aria-hidden="true" tabindex="-1"></a>              <span class="at">mean_var_max =</span> <span class="fu">round</span>(<span class="fu">mean</span>(var_max, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">3</span>)),</span>
-<span id="cb15-532"><a href="#cb15-532" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"The denominator (mean_var_max) is nearly 7x smaller for Group A -- not because Group A's true ceiling is that much tighter, but because a 6-rater sample mean near 7 makes the *estimated* ceiling collapse."</span></span>
-<span id="cb15-533"><a href="#cb15-533" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb15-534"><a href="#cb15-534" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-535"><a href="#cb15-535" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-536"><a href="#cb15-536" aria-hidden="true" tabindex="-1"></a>A Group A subject's six raters average near 7 because that is where their mean</span>
-<span id="cb15-537"><a href="#cb15-537" aria-hidden="true" tabindex="-1"></a>sits --- but exactly *how* near is noisy, and the finite-sample bound shrinks</span>
-<span id="cb15-538"><a href="#cb15-538" aria-hidden="true" tabindex="-1"></a>fast as the sample mean approaches the boundary. A modest observed variance over</span>
-<span id="cb15-539"><a href="#cb15-539" aria-hidden="true" tabindex="-1"></a>an unluckily tiny denominator gives a large $R$, for no reason connected to real</span>
-<span id="cb15-540"><a href="#cb15-540" aria-hidden="true" tabindex="-1"></a>disagreement. Swapping in the plain continuous bound shrinks the gap a great</span>
-<span id="cb15-541"><a href="#cb15-541" aria-hidden="true" tabindex="-1"></a>deal --- 0.181 vs. 0.173 --- but each value still averages 100 noisy</span>
-<span id="cb15-542"><a href="#cb15-542" aria-hidden="true" tabindex="-1"></a>single-subject estimates. Only pooling each group's full 600 ratings into one</span>
-<span id="cb15-543"><a href="#cb15-543" aria-hidden="true" tabindex="-1"></a>mean and one variance removes the noise entirely:</span>
-<span id="cb15-544"><a href="#cb15-544" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-547"><a href="#cb15-547" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-548"><a href="#cb15-548" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-pooled</span></span>
-<span id="cb15-549"><a href="#cb15-549" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb15-550"><a href="#cb15-550" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-551"><a href="#cb15-551" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-552"><a href="#cb15-552" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-553"><a href="#cb15-553" aria-hidden="true" tabindex="-1"></a>pooled <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
-<span id="cb15-554"><a href="#cb15-554" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rating =</span> <span class="fu">mean</span>(rating), <span class="at">var_pop =</span> <span class="fu">mean</span>((rating <span class="sc">-</span> <span class="fu">mean</span>(rating))<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb15-555"><a href="#cb15-555" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var_max_cont =</span> (mean_rating <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> (<span class="dv">7</span> <span class="sc">-</span> mean_rating),</span>
-<span id="cb15-556"><a href="#cb15-556" aria-hidden="true" tabindex="-1"></a>         <span class="at">R_pooled =</span> <span class="fu">round</span>(var_pop <span class="sc">/</span> var_max_cont, <span class="dv">3</span>))</span>
-<span id="cb15-557"><a href="#cb15-557" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-558"><a href="#cb15-558" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(pooled <span class="sc">|&gt;</span> <span class="fu">select</span>(group, mean_rating, R_pooled),</span>
-<span id="cb15-559"><a href="#cb15-559" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"R computed once per group, from all 600 ratings pooled."</span>)</span>
-<span id="cb15-560"><a href="#cb15-560" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-561"><a href="#cb15-561" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-562"><a href="#cb15-562" aria-hidden="true" tabindex="-1"></a>Pooled, $R$ is 0.22 for Group A and 0.21 for Group B --- essentially identical,</span>
-<span id="cb15-563"><a href="#cb15-563" aria-hidden="true" tabindex="-1"></a>agreeing with the ordinal model's null finding. The lesson is not "avoid $R$."</span>
-<span id="cb15-564"><a href="#cb15-564" aria-hidden="true" tabindex="-1"></a>It is that $R$, like $\varphi$, is only as good as the sample behind the mean and</span>
-<span id="cb15-565"><a href="#cb15-565" aria-hidden="true" tabindex="-1"></a>variance you feed it. A hand-computed per-subject $R$ at 6 raters can</span>
-<span id="cb15-566"><a href="#cb15-566" aria-hidden="true" tabindex="-1"></a>manufacture a *larger* spurious gap than raw SD, in the wrong direction. The</span>
-<span id="cb15-567"><a href="#cb15-567" aria-hidden="true" tabindex="-1"></a>ordinal model never faces this, because it never forms a per-subject summary at</span>
-<span id="cb15-568"><a href="#cb15-568" aria-hidden="true" tabindex="-1"></a>all. <span class="in">`disc_groupB`</span> comes straight from the full, pooled 600-observation</span>
-<span id="cb15-569"><a href="#cb15-569" aria-hidden="true" tabindex="-1"></a>likelihood per group --- the "pooled" calculation above done coherently, with a</span>
-<span id="cb15-570"><a href="#cb15-570" aria-hidden="true" tabindex="-1"></a>proper posterior interval instead of an average of point estimates.</span>
-<span id="cb15-571"><a href="#cb15-571" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-572"><a href="#cb15-572" aria-hidden="true" tabindex="-1"></a><span class="fu">## Takeaways</span></span>
-<span id="cb15-573"><a href="#cb15-573" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-574"><a href="#cb15-574" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
-<span id="cb15-575"><a href="#cb15-575" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb15-508"><a href="#cb15-508" aria-hidden="true" tabindex="-1"></a>subj_R <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb15-509"><a href="#cb15-509" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(subject, group) <span class="sc">|&gt;</span></span>
+<span id="cb15-510"><a href="#cb15-510" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rating =</span> <span class="fu">mean</span>(rating),</span>
+<span id="cb15-511"><a href="#cb15-511" aria-hidden="true" tabindex="-1"></a>            <span class="at">var_pop =</span> <span class="fu">mean</span>((rating <span class="sc">-</span> <span class="fu">mean</span>(rating))<span class="sc">^</span><span class="dv">2</span>),   <span class="co"># population (1/n) convention</span></span>
+<span id="cb15-512"><a href="#cb15-512" aria-hidden="true" tabindex="-1"></a>            <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb15-513"><a href="#cb15-513" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var_max =</span> <span class="fu">var_max_finite</span>(n_raters, mean_rating),</span>
+<span id="cb15-514"><a href="#cb15-514" aria-hidden="true" tabindex="-1"></a>         <span class="at">R =</span> <span class="fu">ifelse</span>(var_max <span class="sc">&gt;</span> <span class="fl">1e-8</span>, var_pop <span class="sc">/</span> var_max, <span class="cn">NA_real_</span>))</span>
+<span id="cb15-515"><a href="#cb15-515" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-516"><a href="#cb15-516" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb15-517"><a href="#cb15-517" aria-hidden="true" tabindex="-1"></a>  subj_R <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
+<span id="cb15-518"><a href="#cb15-518" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">n_undefined =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(R)), <span class="at">mean_R =</span> <span class="fu">round</span>(<span class="fu">mean</span>(R, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">3</span>)),</span>
+<span id="cb15-519"><a href="#cb15-519" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"Per-subject R, using each subject's own 6 ratings for both mean and variance."</span></span>
+<span id="cb15-520"><a href="#cb15-520" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-521"><a href="#cb15-521" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-522"><a href="#cb15-522" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-523"><a href="#cb15-523" aria-hidden="true" tabindex="-1"></a>This is worse than the raw SD comparison, not better. Group A's per-subject $R$</span>
+<span id="cb15-524"><a href="#cb15-524" aria-hidden="true" tabindex="-1"></a>averages 0.63, Group B's 0.20 --- a larger apparent gap, and pointing the</span>
+<span id="cb15-525"><a href="#cb15-525" aria-hidden="true" tabindex="-1"></a>*opposite* way from the ceiling artifact. Fourteen Group A subjects even have an</span>
+<span id="cb15-526"><a href="#cb15-526" aria-hidden="true" tabindex="-1"></a>*undefined* $R$: all six raters picked 7, so observed variance and mechanical</span>
+<span id="cb15-527"><a href="#cb15-527" aria-hidden="true" tabindex="-1"></a>ceiling are both zero at once. Has $R$ failed?</span>
+<span id="cb15-528"><a href="#cb15-528" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-529"><a href="#cb15-529" aria-hidden="true" tabindex="-1"></a>No. The guarantee --- $R\in<span class="co">[</span><span class="ot">0,1</span><span class="co">]</span>$ at every $\mu$, no forced link to the mean ---</span>
+<span id="cb15-530"><a href="#cb15-530" aria-hidden="true" tabindex="-1"></a>is about the *population* quantity. Plug in a mean from only 6 raters and it</span>
+<span id="cb15-531"><a href="#cb15-531" aria-hidden="true" tabindex="-1"></a>breaks, because the finite-sample bound in the denominator is itself estimated</span>
+<span id="cb15-532"><a href="#cb15-532" aria-hidden="true" tabindex="-1"></a>from that same noisy mean, and it is far more sensitive near the ceiling than</span>
+<span id="cb15-533"><a href="#cb15-533" aria-hidden="true" tabindex="-1"></a>mid-scale:</span>
+<span id="cb15-534"><a href="#cb15-534" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-537"><a href="#cb15-537" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-538"><a href="#cb15-538" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-diagnostic</span></span>
+<span id="cb15-539"><a href="#cb15-539" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-540"><a href="#cb15-540" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-541"><a href="#cb15-541" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-542"><a href="#cb15-542" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-543"><a href="#cb15-543" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb15-544"><a href="#cb15-544" aria-hidden="true" tabindex="-1"></a>  subj_R <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
+<span id="cb15-545"><a href="#cb15-545" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">mean_var_pop =</span> <span class="fu">round</span>(<span class="fu">mean</span>(var_pop), <span class="dv">3</span>),</span>
+<span id="cb15-546"><a href="#cb15-546" aria-hidden="true" tabindex="-1"></a>              <span class="at">mean_var_max =</span> <span class="fu">round</span>(<span class="fu">mean</span>(var_max, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">3</span>)),</span>
+<span id="cb15-547"><a href="#cb15-547" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"The denominator (mean_var_max) is nearly 7x smaller for Group A -- not because Group A's true ceiling is that much tighter, but because a 6-rater sample mean near 7 makes the *estimated* ceiling collapse."</span></span>
+<span id="cb15-548"><a href="#cb15-548" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-549"><a href="#cb15-549" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-550"><a href="#cb15-550" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-551"><a href="#cb15-551" aria-hidden="true" tabindex="-1"></a>A Group A subject's six raters average near 7 because that is where their mean</span>
+<span id="cb15-552"><a href="#cb15-552" aria-hidden="true" tabindex="-1"></a>sits --- but exactly *how* near is noisy, and the finite-sample bound shrinks</span>
+<span id="cb15-553"><a href="#cb15-553" aria-hidden="true" tabindex="-1"></a>fast as the sample mean approaches the boundary. A modest observed variance over</span>
+<span id="cb15-554"><a href="#cb15-554" aria-hidden="true" tabindex="-1"></a>an unluckily tiny denominator gives a large $R$, for no reason connected to real</span>
+<span id="cb15-555"><a href="#cb15-555" aria-hidden="true" tabindex="-1"></a>disagreement. Swapping in the plain continuous bound shrinks the gap a great</span>
+<span id="cb15-556"><a href="#cb15-556" aria-hidden="true" tabindex="-1"></a>deal --- 0.181 vs. 0.173 --- but each value still averages 100 noisy</span>
+<span id="cb15-557"><a href="#cb15-557" aria-hidden="true" tabindex="-1"></a>single-subject estimates. Only pooling each group's full 600 ratings into one</span>
+<span id="cb15-558"><a href="#cb15-558" aria-hidden="true" tabindex="-1"></a>mean and one variance removes the noise entirely:</span>
+<span id="cb15-559"><a href="#cb15-559" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-562"><a href="#cb15-562" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-563"><a href="#cb15-563" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-pooled</span></span>
+<span id="cb15-564"><a href="#cb15-564" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb15-565"><a href="#cb15-565" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-566"><a href="#cb15-566" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-567"><a href="#cb15-567" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-568"><a href="#cb15-568" aria-hidden="true" tabindex="-1"></a>pooled <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span> <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
+<span id="cb15-569"><a href="#cb15-569" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">mean_rating =</span> <span class="fu">mean</span>(rating), <span class="at">var_pop =</span> <span class="fu">mean</span>((rating <span class="sc">-</span> <span class="fu">mean</span>(rating))<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb15-570"><a href="#cb15-570" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">var_max_cont =</span> (mean_rating <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> (<span class="dv">7</span> <span class="sc">-</span> mean_rating),</span>
+<span id="cb15-571"><a href="#cb15-571" aria-hidden="true" tabindex="-1"></a>         <span class="at">R_pooled =</span> <span class="fu">round</span>(var_pop <span class="sc">/</span> var_max_cont, <span class="dv">3</span>))</span>
+<span id="cb15-572"><a href="#cb15-572" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-573"><a href="#cb15-573" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(pooled <span class="sc">|&gt;</span> <span class="fu">select</span>(group, mean_rating, R_pooled),</span>
+<span id="cb15-574"><a href="#cb15-574" aria-hidden="true" tabindex="-1"></a>             <span class="at">caption =</span> <span class="st">"R computed once per group, from all 600 ratings pooled."</span>)</span>
+<span id="cb15-575"><a href="#cb15-575" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb15-576"><a href="#cb15-576" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-577"><a href="#cb15-577" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>On any bounded scale, the *maximum possible* variance is a function of the</span>
-<span id="cb15-578"><a href="#cb15-578" aria-hidden="true" tabindex="-1"></a>  mean --- the Bhatia--Davis inequality, $\text{Var}(X) \leq (\mu-a)(b-\mu)$.</span>
-<span id="cb15-579"><a href="#cb15-579" aria-hidden="true" tabindex="-1"></a>  Not a tendency to check for, a fact to design around.</span>
-<span id="cb15-580"><a href="#cb15-580" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Dividing SD (or variance) by the mean does not remove the confound. The</span>
-<span id="cb15-581"><a href="#cb15-581" aria-hidden="true" tabindex="-1"></a>  mechanism is not proportional scaling; it is a ceiling that pinches at both</span>
-<span id="cb15-582"><a href="#cb15-582" aria-hidden="true" tabindex="-1"></a>  ends.</span>
-<span id="cb15-583"><a href="#cb15-583" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>A Gaussian location-scale model can estimate <span class="in">`sigma ~ x`</span>, but inherits the</span>
-<span id="cb15-584"><a href="#cb15-584" aria-hidden="true" tabindex="-1"></a>  confound, because it has no boundary in it.</span>
-<span id="cb15-585"><a href="#cb15-585" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Beta regression's precision $\varphi$ (and its bounded twin $R$) remove the</span>
-<span id="cb15-586"><a href="#cb15-586" aria-hidden="true" tabindex="-1"></a>  confound algebraically, at the cost of a continuous approximation to discrete</span>
-<span id="cb15-587"><a href="#cb15-587" aria-hidden="true" tabindex="-1"></a>  data. And $R$ is only as good as the sample behind it: with few raters per</span>
-<span id="cb15-588"><a href="#cb15-588" aria-hidden="true" tabindex="-1"></a>  subject, a hand-computed per-subject $R$ can manufacture a *larger* spurious</span>
-<span id="cb15-589"><a href="#cb15-589" aria-hidden="true" tabindex="-1"></a>  gap than raw SD, in the wrong direction --- and is undefined outright when</span>
-<span id="cb15-590"><a href="#cb15-590" aria-hidden="true" tabindex="-1"></a>  every rater picks the same endpoint of the scale, since then its numerator</span>
-<span id="cb15-591"><a href="#cb15-591" aria-hidden="true" tabindex="-1"></a>  and denominator vanish together.</span>
-<span id="cb15-592"><a href="#cb15-592" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>An ordinal cumulative-link mixed model puts the boundary where it belongs ---</span>
-<span id="cb15-593"><a href="#cb15-593" aria-hidden="true" tabindex="-1"></a>  estimated thresholds on a latent scale --- and is the cleanest way to ask "is</span>
-<span id="cb15-594"><a href="#cb15-594" aria-hidden="true" tabindex="-1"></a>  this dispersion difference real?" on Likert data, because it never needs a</span>
-<span id="cb15-595"><a href="#cb15-595" aria-hidden="true" tabindex="-1"></a>  per-unit summary statistic at all.</span>
-<span id="cb15-596"><a href="#cb15-596" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb15-597"><a href="#cb15-597" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-598"><a href="#cb15-598" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb15-599"><a href="#cb15-599" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-600"><a href="#cb15-600" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bhatia, R., and Davis, C. (2000). "A Better Bound on the Variance."</span>
-<span id="cb15-601"><a href="#cb15-601" aria-hidden="true" tabindex="-1"></a>  *American Mathematical Monthly* 107(4): 353--357.</span>
-<span id="cb15-602"><a href="#cb15-602" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-603"><a href="#cb15-603" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bürkner, P.-C., and Vuorre, M. (2019). "Ordinal Regression Models in</span>
-<span id="cb15-604"><a href="#cb15-604" aria-hidden="true" tabindex="-1"></a>  Psychology: A Tutorial." *Advances in Methods and Practices in</span>
-<span id="cb15-605"><a href="#cb15-605" aria-hidden="true" tabindex="-1"></a>  Psychological Science* 2(1): 77--101.</span>
-<span id="cb15-606"><a href="#cb15-606" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-607"><a href="#cb15-607" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Cribari-Neto, F., and Zeileis, A. (2010). "Beta Regression in R." *Journal</span>
-<span id="cb15-608"><a href="#cb15-608" aria-hidden="true" tabindex="-1"></a>  of Statistical Software* 34(2): 1--24.</span>
-<span id="cb15-609"><a href="#cb15-609" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-610"><a href="#cb15-610" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Ellis, J. L. (2025). "The maximum variance of a finite dataset, given its</span>
-<span id="cb15-611"><a href="#cb15-611" aria-hidden="true" tabindex="-1"></a>  mean, minimum, and maximum."</span>
-<span id="cb15-612"><a href="#cb15-612" aria-hidden="true" tabindex="-1"></a>  <span class="co">[</span><span class="ot">arXiv:2508.17525</span><span class="co">](https://arxiv.org/abs/2508.17525)</span>.</span>
-<span id="cb15-613"><a href="#cb15-613" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-614"><a href="#cb15-614" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Ferrari, S. L. P., and Cribari-Neto, F. (2004). "Beta Regression for</span>
-<span id="cb15-615"><a href="#cb15-615" aria-hidden="true" tabindex="-1"></a>  Modelling Rates and Proportions." *Journal of Applied Statistics* 31(7):</span>
-<span id="cb15-616"><a href="#cb15-616" aria-hidden="true" tabindex="-1"></a>  799--815.</span>
+<span id="cb15-577"><a href="#cb15-577" aria-hidden="true" tabindex="-1"></a>Pooled, $R$ is 0.22 for Group A and 0.21 for Group B --- essentially identical,</span>
+<span id="cb15-578"><a href="#cb15-578" aria-hidden="true" tabindex="-1"></a>agreeing with the ordinal model's null finding. The lesson is not "avoid $R$."</span>
+<span id="cb15-579"><a href="#cb15-579" aria-hidden="true" tabindex="-1"></a>It is that $R$, like $\varphi$, is only as good as the sample behind the mean and</span>
+<span id="cb15-580"><a href="#cb15-580" aria-hidden="true" tabindex="-1"></a>variance you feed it. A hand-computed per-subject $R$ at 6 raters can</span>
+<span id="cb15-581"><a href="#cb15-581" aria-hidden="true" tabindex="-1"></a>manufacture a *larger* spurious gap than raw SD, in the wrong direction. The</span>
+<span id="cb15-582"><a href="#cb15-582" aria-hidden="true" tabindex="-1"></a>ordinal model never faces this, because it never forms a per-subject summary at</span>
+<span id="cb15-583"><a href="#cb15-583" aria-hidden="true" tabindex="-1"></a>all. <span class="in">`disc_groupB`</span> comes straight from the full, pooled 600-observation</span>
+<span id="cb15-584"><a href="#cb15-584" aria-hidden="true" tabindex="-1"></a>likelihood per group --- the "pooled" calculation above done coherently, with a</span>
+<span id="cb15-585"><a href="#cb15-585" aria-hidden="true" tabindex="-1"></a>proper posterior interval instead of an average of point estimates.</span>
+<span id="cb15-586"><a href="#cb15-586" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-587"><a href="#cb15-587" aria-hidden="true" tabindex="-1"></a><span class="fu">## Takeaways</span></span>
+<span id="cb15-588"><a href="#cb15-588" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-589"><a href="#cb15-589" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb15-590"><a href="#cb15-590" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb15-591"><a href="#cb15-591" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-592"><a href="#cb15-592" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>On any bounded scale, the *maximum possible* variance is a function of the</span>
+<span id="cb15-593"><a href="#cb15-593" aria-hidden="true" tabindex="-1"></a>  mean --- the Bhatia--Davis inequality, $\text{Var}(X) \leq (\mu-a)(b-\mu)$.</span>
+<span id="cb15-594"><a href="#cb15-594" aria-hidden="true" tabindex="-1"></a>  Not a tendency to check for, a fact to design around.</span>
+<span id="cb15-595"><a href="#cb15-595" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Dividing SD (or variance) by the mean does not remove the confound. The</span>
+<span id="cb15-596"><a href="#cb15-596" aria-hidden="true" tabindex="-1"></a>  mechanism is not proportional scaling; it is a ceiling that pinches at both</span>
+<span id="cb15-597"><a href="#cb15-597" aria-hidden="true" tabindex="-1"></a>  ends.</span>
+<span id="cb15-598"><a href="#cb15-598" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>A Gaussian location-scale model can estimate <span class="in">`sigma ~ x`</span>, but inherits the</span>
+<span id="cb15-599"><a href="#cb15-599" aria-hidden="true" tabindex="-1"></a>  confound, because it has no boundary in it.</span>
+<span id="cb15-600"><a href="#cb15-600" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Beta regression's precision $\varphi$ (and its bounded twin $R$) remove the</span>
+<span id="cb15-601"><a href="#cb15-601" aria-hidden="true" tabindex="-1"></a>  confound algebraically, at the cost of a continuous approximation to discrete</span>
+<span id="cb15-602"><a href="#cb15-602" aria-hidden="true" tabindex="-1"></a>  data. And $R$ is only as good as the sample behind it: with few raters per</span>
+<span id="cb15-603"><a href="#cb15-603" aria-hidden="true" tabindex="-1"></a>  subject, a hand-computed per-subject $R$ can manufacture a *larger* spurious</span>
+<span id="cb15-604"><a href="#cb15-604" aria-hidden="true" tabindex="-1"></a>  gap than raw SD, in the wrong direction --- and is undefined outright when</span>
+<span id="cb15-605"><a href="#cb15-605" aria-hidden="true" tabindex="-1"></a>  every rater picks the same endpoint of the scale, since then its numerator</span>
+<span id="cb15-606"><a href="#cb15-606" aria-hidden="true" tabindex="-1"></a>  and denominator vanish together.</span>
+<span id="cb15-607"><a href="#cb15-607" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>An ordinal cumulative-link mixed model puts the boundary where it belongs ---</span>
+<span id="cb15-608"><a href="#cb15-608" aria-hidden="true" tabindex="-1"></a>  estimated thresholds on a latent scale --- and is the cleanest way to ask "is</span>
+<span id="cb15-609"><a href="#cb15-609" aria-hidden="true" tabindex="-1"></a>  this dispersion difference real?" on Likert data, because it never needs a</span>
+<span id="cb15-610"><a href="#cb15-610" aria-hidden="true" tabindex="-1"></a>  per-unit summary statistic at all.</span>
+<span id="cb15-611"><a href="#cb15-611" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb15-612"><a href="#cb15-612" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-613"><a href="#cb15-613" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb15-614"><a href="#cb15-614" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-615"><a href="#cb15-615" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bhatia, R., and Davis, C. (2000). "A Better Bound on the Variance."</span>
+<span id="cb15-616"><a href="#cb15-616" aria-hidden="true" tabindex="-1"></a>  *American Mathematical Monthly* 107(4): 353--357.</span>
+<span id="cb15-617"><a href="#cb15-617" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-618"><a href="#cb15-618" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Bürkner, P.-C., and Vuorre, M. (2019). "Ordinal Regression Models in</span>
+<span id="cb15-619"><a href="#cb15-619" aria-hidden="true" tabindex="-1"></a>  Psychology: A Tutorial." *Advances in Methods and Practices in</span>
+<span id="cb15-620"><a href="#cb15-620" aria-hidden="true" tabindex="-1"></a>  Psychological Science* 2(1): 77--101.</span>
+<span id="cb15-621"><a href="#cb15-621" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-622"><a href="#cb15-622" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Cribari-Neto, F., and Zeileis, A. (2010). "Beta Regression in R." *Journal</span>
+<span id="cb15-623"><a href="#cb15-623" aria-hidden="true" tabindex="-1"></a>  of Statistical Software* 34(2): 1--24.</span>
+<span id="cb15-624"><a href="#cb15-624" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-625"><a href="#cb15-625" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Ellis, J. L. (2025). "The maximum variance of a finite dataset, given its</span>
+<span id="cb15-626"><a href="#cb15-626" aria-hidden="true" tabindex="-1"></a>  mean, minimum, and maximum."</span>
+<span id="cb15-627"><a href="#cb15-627" aria-hidden="true" tabindex="-1"></a>  <span class="co">[</span><span class="ot">arXiv:2508.17525</span><span class="co">](https://arxiv.org/abs/2508.17525)</span>.</span>
+<span id="cb15-628"><a href="#cb15-628" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-629"><a href="#cb15-629" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Ferrari, S. L. P., and Cribari-Neto, F. (2004). "Beta Regression for</span>
+<span id="cb15-630"><a href="#cb15-630" aria-hidden="true" tabindex="-1"></a>  Modelling Rates and Proportions." *Journal of Applied Statistics* 31(7):</span>
+<span id="cb15-631"><a href="#cb15-631" aria-hidden="true" tabindex="-1"></a>  799--815.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
