@@ -106,6 +106,31 @@ try {
     window.localStorage.setItem("quarto-reader-mode", "false");
   }
 } catch (e) {}
+</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script><script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
 </script><link rel="stylesheet" href="style.css">
 </head>
 <body class="nav-sidebar floating quarto-light">
@@ -561,12 +586,33 @@ try {
 <p>The problem is not specifically the rarity of events, but rather the possibility of a small number of cases on the rarer of the two outcomes. If you have a sample size of 1000 but only 20 events, you have a problem. If you have a sample size of 10,000 with 200 events, you may be OK. If your sample has 100,000 cases with 2000 events, you’re golden.”</p>
 <p>In general I agree with him. However, when exactly should we use King and Zeng’s “relogit”?</p>
 <p>Allison also mentioned two other methods. One is called the Firth method, a penalized likelihood approach. The other one is the exact logistic regression, which is for small samples.</p>
-<p>In this simulation exercise, I’ll see how three methods perform: logit, bias-reduced logistic regression (using brglm2 with <code>method="brglmFit"</code> and <code>type="AS_mean"</code>), and Firth model.</p>
+<p>In this simulation exercise, I compare logit against bias-reduced logistic regression (<code>brglm2</code> with <code>method="brglmFit"</code>, <code>type="AS_mean"</code>) and the Firth model (<code>logistf</code>).</p>
+<p>One thing to be clear about before reading any comparison of the latter two: for a logistic regression <strong>they are the same estimator.</strong> Firth’s penalized likelihood (penalizing by the Jeffreys prior) coincides with mean bias reduction for GLMs with a canonical link, and logit is canonical for the binomial. So <code>brglm2</code>’s <code>AS_mean</code> and <code>logistf</code> solve the same estimating equations and differ only in numerical tolerance and in how each package builds standard errors and intervals (<code>logistf</code> uses penalized profile likelihood). A demonstration:</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ikosmidis/brglm2">brglm2</a></span><span class="op">)</span>; <span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/georgheinze/logistf">logistf</a></span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span><span class="op">(</span><span class="fl">11</span><span class="op">)</span></span>
+<span><span class="va">n</span> <span class="op">&lt;-</span> <span class="fl">500</span>; <span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span>; <span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Binomial.html">rbinom</a></span><span class="op">(</span><span class="va">n</span>, <span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Logistic.html">plogis</a></span><span class="op">(</span><span class="op">-</span><span class="fl">3.5</span> <span class="op">+</span> <span class="fl">0.8</span> <span class="op">*</span> <span class="va">x</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span><span class="op">(</span><span class="va">y</span>, <span class="va">x</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html">rbind</a></span><span class="op">(</span></span>
+<span>  `plain logit`     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/glm.html">glm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="va">binomial</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  `brglm2 AS_mean`  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/glm.html">glm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">d</span>, family <span class="op">=</span> <span class="va">binomial</span>,</span>
+<span>                               method <span class="op">=</span> <span class="st">"brglmFit"</span>, type <span class="op">=</span> <span class="st">"AS_mean"</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  `logistf (Firth)` <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/logistf/man/logistf.html">logistf</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                (Intercept)         x
+plain logit       -3.176125 0.7378324
+brglm2 AS_mean    -3.134453 0.7277674
+logistf (Firth)   -3.134453 0.7277675</code></pre>
+</div>
+</div>
+<p>They agree to about <span class="math inline">\(10^{-7}\)</span>. This matters for reading the findings below: what the simulation can tell us is how <strong>logit</strong> compares with <strong>Firth-type bias reduction</strong>, not which of two implementations of the same estimator is better. If a genuinely distinct third method is wanted, <code>brglm2</code>’s <code>type = "AS_median"</code> (median bias reduction) is one, and King and Zeng’s <code>relogit</code> correction is another.</p>
 </section><section id="simulation" class="level2" data-number="24.2"><h2 data-number="24.2" class="anchored" data-anchor-id="simulation">
 <span class="header-section-number">24.2</span> Simulation</h2>
 <p>Here I have some code for using multiple cores to run these three models. The bias-reduced logistic regression is implemented in R via the <code>brglm2</code> package, the Firth method is implemented in <code>logistf</code>.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ikosmidis/brglm2">brglm2</a></span><span class="op">)</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/ikosmidis/brglm2">brglm2</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/georgheinze/logistf">logistf</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">require</a></span><span class="op">(</span><span class="va">snowfall</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span><span class="op">(</span><span class="fl">666</span><span class="op">)</span></span>
@@ -636,7 +682,7 @@ try {
 <p>We simulate 100 times with sample size from 10 to 10000, event probability .01, .05, and .1.</p>
 <p>Since there are many simulations, we used the <code>snowfall</code> library to speed things up.</p>
 <p>(The original post plotted bias and MSE by sample size and event probability from the <code>results.csv</code> output above; those figures are not reproduced here — the findings are summarized in prose below.)</p>
-<p>In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well. This is understandable, after all, the rarer of the two groups has only less than 5 observations. When the product is more than 50, there is not much difference between these three models. For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that the bias-reduced logistic regression (brglm2) and logistf perform better than logit. In most cases, logistf is the best.</p>
+<p>In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well. This is understandable, after all, the rarer of the two groups has only less than 5 observations. When the product is more than 50, there is not much difference between these three models. For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that Firth-type bias reduction — whether computed by <code>brglm2</code> or by <code>logistf</code> — performs better than plain logit. Any apparent ranking <em>between</em> those two should be discounted, since as shown above they are the same estimator; differences at that level reflect numerical tolerance or differing standard-error conventions, not a substantive advantage.</p>
 <p>In the small sample situation, maybe it’s better to use the exact logistic regression.</p>
 
 
@@ -1103,113 +1149,148 @@ try {
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "What model to use for rare events"</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2017-10-26"</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>In empirical studies, people are worried about rare event situation.  That is, when you have, for example, lots of 0's and only a few 1's, or vice versa.  Do you run a logit model, or do you use a "rare event logit"?  When should you use either approach?  Or there is a third approach?</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>Paul Allison said in his blog (https://statisticalhorizons.com/logistic-regression-for-rare-events):</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>"Prompted by a 2001 article by King and Zeng, many researchers worry about whether they can legitimately use conventional logistic regression for data in which events are rare. Although King and Zeng accurately described the problem and proposed an appropriate solution, there are still a lot of misconceptions about this issue.</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>The problem is not specifically the rarity of events, but rather the possibility of a small number of cases on the rarer of the two outcomes.  If you have a sample size of 1000 but only 20 events, you have a problem. If you have a sample size of 10,000 with 200 events, you may be OK. If your sample has 100,000 cases with 2000 events, you're golden."</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>In general I agree with him.  However, when exactly should we use King and Zeng's "relogit"?</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>Allison also mentioned two other methods.  One is called the Firth method, a penalized likelihood approach.  The other one is the exact logistic regression, which is for small samples.</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>In this simulation exercise, I'll see how three methods perform: logit, bias-reduced logistic regression (using brglm2 with <span class="in">`method="brglmFit"`</span> and <span class="in">`type="AS_mean"`</span>), and Firth model.</span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="fu">## Simulation</span></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>Here I have some code for using multiple cores to run these three models.  The bias-reduced logistic regression is implemented in R via the <span class="in">`brglm2`</span> package, the Firth method is implemented in <span class="in">`logistf`</span>.</span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: rare-events-sim</span></span>
-<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(brglm2)</span>
-<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(logistf)</span>
-<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a><span class="fu">require</span>(snowfall)</span>
-<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
-<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="co"># initialize parallel cores.</span></span>
-<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a><span class="fu">sfInit</span>(<span class="at">parallel=</span><span class="cn">TRUE</span>, <span class="at">cpus=</span><span class="dv">16</span>)</span>
-<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>gen.sim <span class="ot">&lt;-</span> <span class="cf">function</span>(df){</span>
-<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(df[<span class="st">'nobs'</span>], <span class="dv">0</span>, <span class="dv">1</span>)</span>
-<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>  <span class="co"># generate binary data</span></span>
-<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> df[<span class="st">'p'</span>]</span>
-<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>  alpha <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fu">log</span>((<span class="dv">1</span><span class="sc">-</span>p)<span class="sc">/</span>p)</span>
-<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">=</span> alpha <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>x</span>
-<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>  pr <span class="ot">=</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">+</span><span class="fu">exp</span>(<span class="sc">-</span>z))</span>
-<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>  y <span class="ot">=</span> <span class="fu">rbinom</span>(df[<span class="st">'nobs'</span>], <span class="dv">1</span>, pr)</span>
-<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">=</span> <span class="fu">data.frame</span>(<span class="at">y=</span>y, <span class="at">x=</span>x)</span>
-<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>  <span class="co"># With small nobs and small p (e.g. nobs=10, p=.01), y can easily come out</span></span>
-<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>  <span class="co"># all-zero (&gt;90% chance in that cell), which makes glm/logistf unable to</span></span>
-<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># estimate a coefficient on x. Guard against that rather than letting a</span></span>
-<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>  <span class="co"># single degenerate draw crash the whole parallel simulation loop.</span></span>
-<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">var</span>(y) <span class="sc">==</span> <span class="dv">0</span>) {</span>
-<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">c</span>(<span class="at">logit=</span><span class="cn">NA</span>, <span class="at">brglm2=</span><span class="cn">NA</span>, <span class="at">logistf=</span><span class="cn">NA</span>))</span>
-<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>  <span class="co"># logit</span></span>
-<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>  m1 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">family=</span><span class="st">'binomial'</span>), <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span>)</span>
-<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>  m1.x <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(m1)) <span class="fu">summary</span>(m1)<span class="sc">$</span>coefficients[<span class="st">'x'</span>,<span class="st">'Estimate'</span>] <span class="sc">-</span> <span class="dv">2</span> <span class="cf">else</span> <span class="cn">NA</span></span>
-<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>  <span class="co"># bias-reduced logistic regression (brglm2)</span></span>
-<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>  m2 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
-<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>    <span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="st">"logit"</span>), <span class="at">data =</span> df,</span>
-<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>        <span class="at">method =</span> <span class="st">"brglmFit"</span>, <span class="at">type =</span> <span class="st">"AS_mean"</span>),</span>
-<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
-<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>  m2.x <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(m2)) <span class="fu">coef</span>(m2)[<span class="st">'x'</span>] <span class="sc">-</span> <span class="dv">2</span> <span class="cf">else</span> <span class="cn">NA</span></span>
-<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>  <span class="co"># logistf (Firth)</span></span>
-<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>  m3 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">logistf</span>(y <span class="sc">~</span> x, <span class="at">data=</span>df), <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span>)</span>
-<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>  m3.x <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(m3)) <span class="fu">coef</span>(m3)[<span class="st">'x'</span>] <span class="sc">-</span> <span class="dv">2</span> <span class="cf">else</span> <span class="cn">NA</span></span>
-<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">c</span>(<span class="at">logit=</span>m1.x, <span class="at">brglm2=</span>m2.x, <span class="at">logistf=</span>m3.x))</span>
-<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a><span class="co"># set parameter space</span></span>
-<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>sim.grid <span class="ot">=</span> <span class="fu">seq</span>(<span class="dv">1</span>, <span class="dv">100</span>, <span class="dv">1</span>)</span>
-<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>p.grid <span class="ot">=</span> <span class="fu">c</span>(.<span class="dv">01</span>, .<span class="dv">05</span>, .<span class="dv">1</span>)</span>
-<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>nobs.grid <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">30</span>, <span class="dv">50</span>, <span class="dv">100</span>, <span class="dv">200</span>, <span class="dv">500</span>, <span class="dv">1000</span>, <span class="dv">10000</span>)</span>
-<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a>data.grid <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(nobs.grid, sim.grid, p.grid)</span>
-<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data.grid) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'nobs'</span>, <span class="st">'nsim'</span>, <span class="st">'p'</span>)</span>
-<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a><span class="co"># export functions and libraries to parallel workers</span></span>
-<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a><span class="fu">sfExport</span>(<span class="at">list=</span><span class="fu">list</span>(<span class="st">"gen.sim"</span>))</span>
-<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a><span class="fu">sfLibrary</span>(brglm2)</span>
-<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a><span class="fu">sfLibrary</span>(logistf)</span>
-<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="fu">t</span>(<span class="fu">sfApply</span>(data.grid, <span class="dv">1</span>, gen.sim)))</span>
-<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a><span class="co"># stop the cluster</span></span>
-<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a><span class="fu">sfStop</span>()</span>
-<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a>forshiny <span class="ot">&lt;-</span> <span class="fu">cbind</span>(data.grid, results)</span>
-<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(forshiny, <span class="st">'results.csv'</span>)</span>
-<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a>We simulate 100 times with sample size from 10 to 10000, event probability .01, .05, and .1.</span>
-<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a>Since there are many simulations, we used the <span class="in">`snowfall`</span> library to speed things up.</span>
-<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a>(The original post plotted bias and MSE by sample size and event probability from the <span class="in">`results.csv`</span> output above; those figures are not reproduced here — the findings are summarized in prose below.)</span>
-<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a>In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well.  This is understandable, after all, the rarer of the two groups has only less than 5 observations.  When the product is more than 50, there is not much difference between these three models.  For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that the bias-reduced logistic regression (brglm2) and logistf perform better than logit.  In most cases, logistf is the best.</span>
-<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a>In the small sample situation, maybe it's better to use the exact logistic regression.</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "What model to use for rare events"</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2017-10-26"</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>In empirical studies, people are worried about rare event situation.  That is, when you have, for example, lots of 0's and only a few 1's, or vice versa.  Do you run a logit model, or do you use a "rare event logit"?  When should you use either approach?  Or there is a third approach?</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>Paul Allison said in his blog (https://statisticalhorizons.com/logistic-regression-for-rare-events):</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>"Prompted by a 2001 article by King and Zeng, many researchers worry about whether they can legitimately use conventional logistic regression for data in which events are rare. Although King and Zeng accurately described the problem and proposed an appropriate solution, there are still a lot of misconceptions about this issue.</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>The problem is not specifically the rarity of events, but rather the possibility of a small number of cases on the rarer of the two outcomes.  If you have a sample size of 1000 but only 20 events, you have a problem. If you have a sample size of 10,000 with 200 events, you may be OK. If your sample has 100,000 cases with 2000 events, you're golden."</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>In general I agree with him.  However, when exactly should we use King and Zeng's "relogit"?</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>Allison also mentioned two other methods.  One is called the Firth method, a penalized likelihood approach.  The other one is the exact logistic regression, which is for small samples.</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>In this simulation exercise, I compare logit against bias-reduced logistic</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>regression (<span class="in">`brglm2`</span> with <span class="in">`method="brglmFit"`</span>, <span class="in">`type="AS_mean"`</span>) and the Firth</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>model (<span class="in">`logistf`</span>).</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>One thing to be clear about before reading any comparison of the latter two: for a</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>logistic regression **they are the same estimator.** Firth's penalized likelihood</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>(penalizing by the Jeffreys prior) coincides with mean bias reduction for GLMs</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>with a canonical link, and logit is canonical for the binomial. So <span class="in">`brglm2`</span>'s</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="in">`AS_mean`</span> and <span class="in">`logistf`</span> solve the same estimating equations and differ only in</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>numerical tolerance and in how each package builds standard errors and intervals</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>(<span class="in">`logistf`</span> uses penalized profile likelihood). A demonstration:</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: firth-equivalence</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(brglm2); <span class="fu">library</span>(logistf)</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">500</span>; x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n); y <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">3.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> x))</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(y, x)</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">plain logit</span><span class="st">`</span>     <span class="ot">=</span> <span class="fu">coef</span>(<span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">data =</span> d, <span class="at">family =</span> binomial)),</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">brglm2 AS_mean</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">coef</span>(<span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">data =</span> d, <span class="at">family =</span> binomial,</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>                               <span class="at">method =</span> <span class="st">"brglmFit"</span>, <span class="at">type =</span> <span class="st">"AS_mean"</span>)),</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">logistf (Firth)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">coef</span>(<span class="fu">logistf</span>(y <span class="sc">~</span> x, <span class="at">data =</span> d))</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>They agree to about $10^{-7}$. This matters for reading the findings below: what</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>the simulation can tell us is how **logit** compares with **Firth-type bias</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>reduction**, not which of two implementations of the same estimator is better. If</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>a genuinely distinct third method is wanted, <span class="in">`brglm2`</span>'s <span class="in">`type = "AS_median"`</span></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>(median bias reduction) is one, and King and Zeng's <span class="in">`relogit`</span> correction is</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>another.</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a><span class="fu">## Simulation</span></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>Here I have some code for using multiple cores to run these three models.  The bias-reduced logistic regression is implemented in R via the <span class="in">`brglm2`</span> package, the Firth method is implemented in <span class="in">`logistf`</span>.</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: rare-events-sim</span></span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(brglm2)</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(logistf)</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a><span class="fu">require</span>(snowfall)</span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a><span class="co"># initialize parallel cores.</span></span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a><span class="fu">sfInit</span>(<span class="at">parallel=</span><span class="cn">TRUE</span>, <span class="at">cpus=</span><span class="dv">16</span>)</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>gen.sim <span class="ot">&lt;-</span> <span class="cf">function</span>(df){</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(df[<span class="st">'nobs'</span>], <span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>  <span class="co"># generate binary data</span></span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>  p <span class="ot">&lt;-</span> df[<span class="st">'p'</span>]</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>  alpha <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fu">log</span>((<span class="dv">1</span><span class="sc">-</span>p)<span class="sc">/</span>p)</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">=</span> alpha <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>x</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>  pr <span class="ot">=</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">+</span><span class="fu">exp</span>(<span class="sc">-</span>z))</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>  y <span class="ot">=</span> <span class="fu">rbinom</span>(df[<span class="st">'nobs'</span>], <span class="dv">1</span>, pr)</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">=</span> <span class="fu">data.frame</span>(<span class="at">y=</span>y, <span class="at">x=</span>x)</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>  <span class="co"># With small nobs and small p (e.g. nobs=10, p=.01), y can easily come out</span></span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>  <span class="co"># all-zero (&gt;90% chance in that cell), which makes glm/logistf unable to</span></span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>  <span class="co"># estimate a coefficient on x. Guard against that rather than letting a</span></span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>  <span class="co"># single degenerate draw crash the whole parallel simulation loop.</span></span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">var</span>(y) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">c</span>(<span class="at">logit=</span><span class="cn">NA</span>, <span class="at">brglm2=</span><span class="cn">NA</span>, <span class="at">logistf=</span><span class="cn">NA</span>))</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>  <span class="co"># logit</span></span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>  m1 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">family=</span><span class="st">'binomial'</span>), <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span>)</span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>  m1.x <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(m1)) <span class="fu">summary</span>(m1)<span class="sc">$</span>coefficients[<span class="st">'x'</span>,<span class="st">'Estimate'</span>] <span class="sc">-</span> <span class="dv">2</span> <span class="cf">else</span> <span class="cn">NA</span></span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>  <span class="co"># bias-reduced logistic regression (brglm2)</span></span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>  m2 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>    <span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="st">"logit"</span>), <span class="at">data =</span> df,</span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>        <span class="at">method =</span> <span class="st">"brglmFit"</span>, <span class="at">type =</span> <span class="st">"AS_mean"</span>),</span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span></span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>  m2.x <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(m2)) <span class="fu">coef</span>(m2)[<span class="st">'x'</span>] <span class="sc">-</span> <span class="dv">2</span> <span class="cf">else</span> <span class="cn">NA</span></span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>  <span class="co"># logistf (Firth)</span></span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>  m3 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">logistf</span>(y <span class="sc">~</span> x, <span class="at">data=</span>df), <span class="at">error =</span> <span class="cf">function</span>(e) <span class="cn">NULL</span>)</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>  m3.x <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(m3)) <span class="fu">coef</span>(m3)[<span class="st">'x'</span>] <span class="sc">-</span> <span class="dv">2</span> <span class="cf">else</span> <span class="cn">NA</span></span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">c</span>(<span class="at">logit=</span>m1.x, <span class="at">brglm2=</span>m2.x, <span class="at">logistf=</span>m3.x))</span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a><span class="co"># set parameter space</span></span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>sim.grid <span class="ot">=</span> <span class="fu">seq</span>(<span class="dv">1</span>, <span class="dv">100</span>, <span class="dv">1</span>)</span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>p.grid <span class="ot">=</span> <span class="fu">c</span>(.<span class="dv">01</span>, .<span class="dv">05</span>, .<span class="dv">1</span>)</span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>nobs.grid <span class="ot">=</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">30</span>, <span class="dv">50</span>, <span class="dv">100</span>, <span class="dv">200</span>, <span class="dv">500</span>, <span class="dv">1000</span>, <span class="dv">10000</span>)</span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>data.grid <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(nobs.grid, sim.grid, p.grid)</span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data.grid) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">'nobs'</span>, <span class="st">'nsim'</span>, <span class="st">'p'</span>)</span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a><span class="co"># export functions and libraries to parallel workers</span></span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a><span class="fu">sfExport</span>(<span class="at">list=</span><span class="fu">list</span>(<span class="st">"gen.sim"</span>))</span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a><span class="fu">sfLibrary</span>(brglm2)</span>
+<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a><span class="fu">sfLibrary</span>(logistf)</span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="fu">t</span>(<span class="fu">sfApply</span>(data.grid, <span class="dv">1</span>, gen.sim)))</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a><span class="co"># stop the cluster</span></span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a><span class="fu">sfStop</span>()</span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a>forshiny <span class="ot">&lt;-</span> <span class="fu">cbind</span>(data.grid, results)</span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(forshiny, <span class="st">'results.csv'</span>)</span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>We simulate 100 times with sample size from 10 to 10000, event probability .01, .05, and .1.</span>
+<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>Since there are many simulations, we used the <span class="in">`snowfall`</span> library to speed things up.</span>
+<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a>(The original post plotted bias and MSE by sample size and event probability from the <span class="in">`results.csv`</span> output above; those figures are not reproduced here — the findings are summarized in prose below.)</span>
+<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a>In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well.  This is understandable, after all, the rarer of the two groups has only less than 5 observations.  When the product is more than 50, there is not much difference between these three models.  For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that Firth-type bias reduction --- whether computed by <span class="in">`brglm2`</span> or by <span class="in">`logistf`</span> --- performs better than plain logit.  Any apparent ranking *between* those two should be discounted, since as shown above they are the same estimator; differences at that level reflect numerical tolerance or differing standard-error conventions, not a substantive advantage.</span>
+<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a>In the small sample situation, maybe it's better to use the exact logistic regression.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

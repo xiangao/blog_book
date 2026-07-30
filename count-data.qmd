@@ -152,13 +152,17 @@ m_zip2 <- zeroinfl(y ~ x | x)
 # 5. Hurdle
 m_hurdle <- hurdle(y ~ x)
 
+# 6. Log-linear OLS on log(y + 1)
+m_loglin <- lm(log(y + 1) ~ x)
+
 # Compare x coefficient (true = 0.8)
 coefs <- c(
   Poisson    = coef(m_pois)["x"],
   NB         = coef(m_nb)["x"],
   `ZIP (correct z)` = coef(m_zip, "count")["x"],
   `ZIP (wrong)` = coef(m_zip2, "count")["x"],
-  Hurdle     = coef(m_hurdle, "count")["x"]
+  Hurdle     = coef(m_hurdle, "count")["x"],
+  `Log-linear log(y+1)` = coef(m_loglin)["x"]
 )
 
 knitr::kable(
@@ -168,7 +172,9 @@ knitr::kable(
 )
 ```
 
-All five models recover the true `x` slope of 0.8 reasonably well. This is
+The first five models recover the true `x` slope of 0.8 reasonably well; the
+log-linear row is included to make the earlier claim checkable, and needs reading
+with care --- see the note after the table. This is
 the key point of *this* DGP: the zero-inflation process depends on `z`, which
 is generated **independently of `x`**, so omitting the zero model distorts the
 zero mass and the intercept, not the slope on `x`. The hurdle model and even
@@ -181,7 +187,16 @@ from 1,000 to 1,000,000 shrinks the Poisson `x`-coefficient bias from about
 +0.04 to effectively 0, confirming consistency. The unmodeled excess zeros
 create overdispersion, but overdispersion under a correctly-specified
 conditional mean affects only the standard errors (which should be corrected
-with a robust/sandwich estimator), not the consistency of the slope
+with a robust/sandwich estimator), not the consistency of the slope.
+
+About the log-linear row: its coefficient is **not** estimating the same thing as
+the others, which is the real reason to avoid it rather than any particular bias
+number. The count models target $\log E[y \mid x]$, whereas OLS on $\log(y+1)$
+targets $E[\log(y+1) \mid x]$, and $E[\log(y+1)] \neq \log(E[y]+1)$ by Jensen's
+inequality. The $+1$ offset makes the discrepancy worst exactly where the mass of
+zeros is. So comparing its coefficient to 0.8 is an apples-to-oranges comparison,
+and the honest statement is that log-linear answers a different question --- not
+that it answers this one badly by some measured amount
 coefficient. A misspecified zero process biases the count *slope* only when
 the zero process is correlated with the count covariates — which is not the case
 here. (Change `z` to depend on `x` and the omitted-zero-process slope bias

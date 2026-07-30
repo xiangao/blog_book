@@ -18,7 +18,42 @@ In general I agree with him.  However, when exactly should we use King and Zeng'
 
 Allison also mentioned two other methods.  One is called the Firth method, a penalized likelihood approach.  The other one is the exact logistic regression, which is for small samples.
 
-In this simulation exercise, I'll see how three methods perform: logit, bias-reduced logistic regression (using brglm2 with `method="brglmFit"` and `type="AS_mean"`), and Firth model.
+In this simulation exercise, I compare logit against bias-reduced logistic
+regression (`brglm2` with `method="brglmFit"`, `type="AS_mean"`) and the Firth
+model (`logistf`).
+
+One thing to be clear about before reading any comparison of the latter two: for a
+logistic regression **they are the same estimator.** Firth's penalized likelihood
+(penalizing by the Jeffreys prior) coincides with mean bias reduction for GLMs
+with a canonical link, and logit is canonical for the binomial. So `brglm2`'s
+`AS_mean` and `logistf` solve the same estimating equations and differ only in
+numerical tolerance and in how each package builds standard errors and intervals
+(`logistf` uses penalized profile likelihood). A demonstration:
+
+```{r}
+#| label: firth-equivalence
+#| message: false
+#| warning: false
+
+library(brglm2); library(logistf)
+set.seed(11)
+n <- 500; x <- rnorm(n); y <- rbinom(n, 1, plogis(-3.5 + 0.8 * x))
+d <- data.frame(y, x)
+
+rbind(
+  `plain logit`     = coef(glm(y ~ x, data = d, family = binomial)),
+  `brglm2 AS_mean`  = coef(glm(y ~ x, data = d, family = binomial,
+                               method = "brglmFit", type = "AS_mean")),
+  `logistf (Firth)` = coef(logistf(y ~ x, data = d))
+)
+```
+
+They agree to about $10^{-7}$. This matters for reading the findings below: what
+the simulation can tell us is how **logit** compares with **Firth-type bias
+reduction**, not which of two implementations of the same estimator is better. If
+a genuinely distinct third method is wanted, `brglm2`'s `type = "AS_median"`
+(median bias reduction) is one, and King and Zeng's `relogit` correction is
+another.
 
 ## Simulation
 
@@ -102,6 +137,6 @@ Since there are many simulations, we used the `snowfall` library to speed things
 
 (The original post plotted bias and MSE by sample size and event probability from the `results.csv` output above; those figures are not reproduced here — the findings are summarized in prose below.)
 
-In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well.  This is understandable, after all, the rarer of the two groups has only less than 5 observations.  When the product is more than 50, there is not much difference between these three models.  For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that the bias-reduced logistic regression (brglm2) and logistf perform better than logit.  In most cases, logistf is the best.
+In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well.  This is understandable, after all, the rarer of the two groups has only less than 5 observations.  When the product is more than 50, there is not much difference between these three models.  For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that Firth-type bias reduction --- whether computed by `brglm2` or by `logistf` --- performs better than plain logit.  Any apparent ranking *between* those two should be discounted, since as shown above they are the same estimator; differences at that level reflect numerical tolerance or differing standard-error conventions, not a substantive advantage.
 
 In the small sample situation, maybe it's better to use the exact logistic regression.
