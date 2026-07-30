@@ -217,3 +217,41 @@ That objection is right, and the chapter now says why — plus a stronger result
 **Normative point kept separate from the graph work:** holding human capital fixed accepts whatever produced those differences as the baseline. Right for "is this employer treating equivalent applicants differently" (disparate treatment), wrong for "is the labour market fair to women" (disparate impact). The data does not decide it.
 
 **Verification note for future passes:** `grep`ing the rendered HTML for literal markdown (`**bold**`) gives false positives — Quarto embeds a copy of the page source alongside the rendered body, so a raw-string match can look like a rendering failure when the body is fine. Check for `<p>`/`<strong>` structure, or extract `div.cell-output` blocks, instead of grepping for text.
+
+## Constitutive-critique pass (2026-07-30, gwg)
+
+Added a closing section on Lily Hu (Philosophy, Yale) and Issa Kohler-Hausmann (Law, Yale). This is the objection to the chapter, not another refinement of it, and the chapter now says so.
+
+**The distinction:** causal ($X$ produces $Y$; $X$ precedes $Y$; can have $X$ without $Y$; can wiggle $X$ holding others fixed) versus constitutive ($X$ is part of what it is to be $Y$; simultaneous; cannot have $Y$ without $X$; wiggling $X$ changes what the thing is). Bachelor/unmarried, checkmate/position, money/acceptance as the clean non-social cases. The role comparison that lands best for an econometrics audience: *what is the causal effect of being a manager on having authority?* — not a causal question, since authority is part of what being a manager consists in.
+
+**Why "partly":** Hu & Kohler-Hausmann claim many, not all, of sex's attributed effects are constitutive. Caregiving norms and authority-readings plausibly constitutive; one firm's promotion decision causal; average upper-body strength causal-biological. The problem is that no method sorts them, and drawing a DAG settles it silently. Removal test offered (would the category still be the same category?) with the caveat that applying it is a substantive sociological claim.
+
+**The structural point, and the reason the section earns its length:** every other problem in this chapter is *epistemic* — the quantity exists, we cannot reach it, and there is a design remedy (randomise, bound, sensitivity-analyse). The constitutive objection is *semantic* — "same woman, but a man, everything else fixed" fails to pick out a possible state of affairs, so nothing is being failed to reach. No design answers it. Also noted: the DAG itself, with its cuttable arrows, encodes the modularity assumption at issue, so the tool is not neutral. That is a pointed observation in a chapter (and a book) built on DAGs.
+
+**The perception move does not escape it** (Hu & Kohler-Hausmann 2024, Law & Society Review, open access). The chapter had resolved bad controls by re-dating treatment to perceived sex at hiring; that estimand is the target of this paper. Race/sex perception is co-constituted with perception of other decision-relevant features: two arrestees with identical prior-arrest records are not equivalent, because $N$ priors reads as "unexpectedly low relative to imputed risk" for a Black arrestee and ordinary for a white one. Making candidates similar in one respect necessarily makes them different in others. So "identical file, different perceived sex" holds fixed the file's *significance* while varying what determines it. Which similarity is held fixed is the contested question, not a design parameter.
+
+**Normative charge:** equating a perceived-sex effect with disparate treatment needs an unstated normative premise. The complaint is normative theorising conducted behind technical machinery.
+
+**Three replies kept at full strength**, not as token balance: (1) the signal is modular even if the category is not — changing a name on a résumé is a physical operation, and holistic interpretation is arguably part of the effect rather than a defect in the estimand (strongest reply, protects audit studies); (2) discrimination doctrine is comparative by construction, so if no comparison is well-posed the legal concept cannot operate; (3) constitution is scale-dependent — devastating for lifetime-scale claims, weak against tightly scoped decision-stage experiments.
+
+**What survives, in the chapter's own numbers:** the raw 3.8% (a population description, and the statistic UK/EU pay-gap reporting mandates unadjusted), the 11.3%/7.5% within-cell contrasts correctly labelled, the quantile gradient, and the sensitivity statement. Ill-defined: only "the effect of being a woman net of everything legitimate." The identification route (mediators, collider at every rung, positivity failure) and the constitutive route condemn that number independently — so dropping it costs nothing that was ever in hand. This is the constructive landing and it prevents the section from reading as nihilism.
+
+**Housekeeping:** added `{#sec-two-treatments}` to that heading so the forward pointer from it to `{#sec-constitutive}` resolves; verified 0 unresolved `?@sec-` refs after render.
+
+## Selection-DAG pass (2026-07-30, gwg)
+
+The selection subsection was the only part of the bad-control argument carried by prose and an ASCII sketch while the other two got real figures. Now has both a figure and a verification.
+
+**Boxed-node convention.** `gwg-dag3` draws `Employed` with an open square (`geom_point(shape = 0, size = 10)` overlaid on the ggdag base) to mark the variable the sample conditions on. This is the pedagogical point of the figure, not decoration: the box is imposed by the sampling frame, so it is invisible in any regression output and absent from most published DAGs, which is exactly why selection problems get missed.
+
+**`gwg-selection-check` chunk.** Declares `Employed [selected]` — worth noting in the text that this is a distinct claim from conditioning on an ordinary covariate, and dagitty treats it differently. Returns:
+- `length(adjustmentSets(g3_sel, effect = "total"))` = **0**
+- `isAdjustmentSet(g3_sel, c())` = **FALSE** (the raw comparison is no longer valid)
+- `isAdjustmentSet(g3_sel, "Educ")` = **FALSE**
+- `paths(g3, Z = "Employed")` shows `SexBirth -> Employed <- U -> Wage` **open**
+
+**The contrast that makes it land.** Occupation collider: opened because we chose to add a control, so not adding it was an available fix. Selection collider: the box precedes any modelling decision, so "do not condition on it" is not an option and the remedy must attack the box itself — Lee (2009) sharp bounds, or imputation for non-workers (Neal 2004; Olivetti & Petrongolo 2008). No regression specification reaches it.
+
+**Note on the two graph objects.** The chunk defines `g3` (for drawing) and `g3_sel` (with `[selected]`, `[latent]`, `[exposure]`, `[outcome]` for the checks) rather than one object. ggdag drawing and dagitty selection semantics want different declarations; splitting them keeps both honest and the text explains why.
+
+Chapter now has three DAGs: occupation as simultaneous mediator and collider; treatment re-dated to perceived sex at hiring (with the positivity result); and sample selection. Full book re-rendered, 49/49.

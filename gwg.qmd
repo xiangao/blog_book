@@ -268,11 +268,76 @@ Under the exogeneity argument above, the raw difference in means *is* the total 
 
 What does break it is the **sample**. This extract keeps only full-year, full-time, non-self-employed workers, and employment is a common effect of sex and unobserved wage determinants:
 
-```
-Sex ---> Employed FT/FY <--- U ---> Wage
+```{r}
+#| label: gwg-dag3
+#| fig-cap: "The sample restriction as a conditioning statement. The **boxed** node is the variable the analysis conditions on --- not by adding a covariate, but by the sample definition. `Employed` is a common effect of sex and of unobserved wage determinants $U$, so boxing it opens `SexBirth -> Employed <- U -> Wage`."
+#| fig-width: 7
+#| fig-height: 4.8
+#| warning: false
+#| message: false
+
+library(ggdag)
+library(ggplot2)
+library(dagitty)
+
+g3 <- dagitty('dag {
+  SexBirth -> Educ
+  SexBirth -> Wage
+  SexBirth -> Employed
+  U -> Employed
+  U -> Wage
+  Educ -> Wage
+}')
+
+coordinates(g3) <- list(
+  x = c(SexBirth = 0, Employed = 1.5, U = 1.5, Educ = 1.5, Wage = 3.2),
+  y = c(SexBirth = 0, Employed = 1.2, U = 2.5, Educ = -1.3, Wage = 0))
+
+# the open square marks the node the sample is conditioned on
+ggdag(tidy_dagitty(g3), text = FALSE, node_size = 9) +
+  geom_point(data = data.frame(x = 1.5, y = 1.2), aes(x = x, y = y),
+             inherit.aes = FALSE, shape = 0, size = 10, stroke = 1.2,
+             colour = "grey15") +
+  geom_dag_text_repel(aes(label = name), colour = "black", size = 3.2,
+                      box.padding = 1.3, seed = 5) +
+  theme_dag() +
+  expand_limits(x = c(-0.7, 4.0), y = c(-1.9, 3.0))
 ```
 
-Conditional on being in the sample, sex is no longer independent of potential wages. Sex is exogenous; *selected* sex is not. And note that no covariate adjustment addresses this --- it is a different problem with different remedies (Lee, 2009, sharp bounds; Neal, 2004; Olivetti and Petrongolo, 2008, imputation for non-workers).
+The box is worth dwelling on, because it is drawn by the sampling frame rather than by any modelling choice. Nobody typed `+ employed` into a regression; the extract simply contains only full-year, full-time workers. A sample definition **is** a conditioning statement, and most applied DAGs omit the selection node entirely --- which makes the graph look identified when it is not.
+
+`dagitty` will confirm that there is no way out by adjustment. Note that a selection variable has to be declared as such: marking a node `[selected]` tells `dagitty` the sample is restricted on it, which is a different claim from conditioning on an ordinary covariate.
+
+```{r}
+#| label: gwg-selection-check
+#| warning: false
+#| message: false
+
+g3_sel <- dagitty('dag {
+  SexBirth -> Educ
+  SexBirth -> Wage
+  SexBirth -> Employed
+  U -> Employed
+  U -> Wage
+  Educ -> Wage
+  U [latent]
+  Employed [selected]
+  SexBirth [exposure]
+  Wage [outcome]
+}')
+
+# how many covariate sets identify the total effect under this selection?
+length(adjustmentSets(g3_sel, effect = "total"))
+
+isAdjustmentSet(g3_sel, c())        # the raw comparison
+isAdjustmentSet(g3_sel, "Educ")     # adding education does not help either
+
+# and the path that does the damage
+p3 <- paths(g3, from = "SexBirth", to = "Wage", Z = "Employed")
+data.frame(path = p3$paths, open = p3$open)
+```
+
+Zero valid adjustment sets, and the raw comparison is no longer among them. Conditional on being in the sample, sex is no longer independent of potential wages: sex is exogenous, but *selected* sex is not. Compare this with the occupation problem earlier in the chapter. There the collider opened because we *chose* to add a control, so declining to add it was an available fix. Here the box is imposed before any modelling decision, so "do not condition on it" is not an option --- the remedy has to attack the box itself rather than the covariate list, which is why it takes data on non-workers (Lee, 2009, sharp bounds; Neal, 2004; Olivetti and Petrongolo, 2008, imputation for non-workers) rather than a better regression.
 
 The direction is unusually easy to sign here. Women are less likely to hold full-year full-time jobs, so clearing that bar takes more of whatever else helps --- meaning employed women are *positively* selected on wage-raising unobservables relative to employed men. If so, the observed gap **understates** the true one. Olivetti and Petrongolo (2008) find exactly this signature across countries: measured gender wage gaps are smaller where female employment rates are lower, and imputing wages for non-workers widens them most in the low-participation countries.
 
@@ -280,7 +345,7 @@ A note on notation, since $U$ now appears in two graphs doing two different jobs
 
 So the honest summary is uncomfortable: $-3.8\%$ is the best-identified number in this chapter and the least informative about anything one would want to act on, while $-7.5\%$ is the worst-identified and the closest to the question people actually ask. Identification improves as conditioning is stripped away; interpretability improves as it is added. No estimator resolves that trade-off --- only a different design does, which is what audit and correspondence studies are for.
 
-### Two treatments, two adjustment sets
+### Two treatments, two adjustment sets {#sec-two-treatments}
 
 There is a natural objection to everything above, and it is a good one. *Suppose we set aside the fact that sex shapes schooling and experience, and treat those as simply given --- this woman's actual history. Then asking what she would have been paid as a man, holding that history fixed, is exactly the question of interest, and controlling for education is obviously the right thing to do.*
 
@@ -364,6 +429,8 @@ That last point also says exactly what a design must do: sever `SexBirth -> Perc
 One usable consequence in the meantime. The two biases run in opposite directions, which brackets the answer informally. With no conditioning, the education backdoor is open and --- since women here are *more* educated --- their human-capital advantage offsets part of the treatment effect, biasing toward zero. With education conditioned on, the collider opens and equally-educated women are pushed low on $A$, inflating the residual gap. So the quantity of interest plausibly sits *between* $-3.8\%$ and $-11.3\%$, and neither endpoint is it. This is not a formal bound --- the sign of each bias rests on assumptions rather than proof --- but it is more informative than either number alone.
 
 Finally, a normative point that no amount of graph-reading settles. Holding education and experience fixed accepts whatever produced those differences as the baseline. If they were themselves partly produced by discrimination, then conditioning on them conditions on discrimination's own output. That is the right choice for *is this employer treating equivalent applicants differently* and the wrong choice for *is the labour market fair to women* --- roughly the disparate-treatment versus disparate-impact distinction. The data does not decide it; the question does.
+
+There is a further objection which holds that the resolution just reached --- re-date the treatment to perception, then randomise it --- does not work either, and that the normative point in the paragraph above is not a footnote to the analysis but the whole of it. Because it needs the empirical material in place first, it is taken up in the closing section, @sec-constitutive.
 
 With all that on the table, here is the model.
 
@@ -674,3 +741,199 @@ Finally, a quantile treatment effect compares quantiles of two marginal
 distributions. It is not the effect *for the person at* quantile $\tau$ unless
 one is willing to assume rank invariance --- that the same individuals occupy
 the same ranks in both counterfactual worlds.
+
+## What is any of this measuring? {#sec-constitutive}
+
+Two directed acyclic graphs and a `dagitty` verification have now been used to
+sort covariates into good and bad controls. It is worth closing with an
+objection to that whole procedure, because it comes from a literature
+economists rarely read and because it bears directly on the re-dating manoeuvre
+of @sec-two-treatments. The principals are **Lily Hu** (Philosophy, Yale) and
+**Issa Kohler-Hausmann** (Law, Yale); the two papers to read are Hu and
+Kohler-Hausmann (2020) and Hu and Kohler-Hausmann (2024).
+
+### Causal versus constitutive
+
+Their objection turns on a distinction the causal toolkit has no notation for.
+
+| | Causal | Constitutive |
+|---|---|---|
+| Relation | $X$ **produces** $Y$ | $X$ is **part of what it is to be** $Y$ |
+| Timing | $X$ precedes $Y$ | simultaneous |
+| Contingency | can have $X$ without $Y$ | cannot have $Y$ without $X$ |
+| Intervention | wiggle $X$, hold others fixed | wiggling $X$ changes *what the thing is* |
+
+Non-social cases make it clean. Being unmarried does not *cause* someone to be
+a bachelor --- it is part of what being a bachelor consists in. A chess position
+does not *cause* checkmate; it constitutes it. Ask "what would happen to this
+checkmate if the king were not trapped?" and there is no answer, not because
+the quantity is hard to estimate but because there would be no checkmate left to
+ask about.
+
+### Why gender's features are partly constitutive
+
+Consider the observation that women do more caregiving. On the causal reading
+there is a category, woman, fixed independently, which then produces caregiving
+downstream. On the constitutive reading, part of what it **is** to occupy the
+social position "woman" is to be subject to caregiving expectations --- the norm
+is not produced by the category, it is one of the threads the category is woven
+from.
+
+Press on what makes someone socially a woman in the sense labour markets respond
+to. Not chromosomes; markets do not observe those. It is occupying a position
+defined by a cluster of expectations, treatments and readings. Strip the cluster
+away and no social category remains, only biology. On this view the cluster is
+not the category's output; it is largely the category itself.
+
+The cleanest comparison is a social role. *What is the causal effect of being a
+manager on having authority?* That is not a causal question --- having authority
+is part of what being a manager consists in. One cannot hold authority fixed and
+vary managerial status, because nothing would be left for "manager" to refer to.
+
+"Partly" is doing real work, though. Hu and Kohler-Hausmann claim *many*, not
+all, of the effects attributed to sex are constitutive, so the category is a
+mixture: caregiving norms and being read as a plausible authority figure are
+plausibly constitutive, while one firm's decision to deny one promotion is
+causal (contingent, could go otherwise, category unchanged) and average
+upper-body strength is causal-biological. The difficulty is that **no method
+sorts them.** A usable test is to ask whether removing the feature would leave
+the same category or a different thing entirely --- but applying it is a
+substantive sociological claim, and drawing a DAG settles it silently.
+
+### Why this defeats modularity
+
+Modularity is the formal assumption that the dependencies along one pathway are
+invariant to interventions on other pathways. It is exactly what licensed every
+arrow-cutting exercise above.
+
+If `female -> educ` is causal, "flip gender, hold education fixed" is coherent:
+imagine changing the assignment while the education-producing mechanism keeps
+running. If the relation is partly constitutive, the instruction does not
+describe anything. An intervention that changed a woman's gender while leaving
+the associated expectations intact is not an intervention on
+gender-as-a-social-category --- it holds fixed part of the very antecedent it
+purports to vary. The counterfactual has no determinate content.
+
+This is a different *kind* of problem from everything else in this chapter, and
+the difference is worth stating flatly. The mediator, collider, selection and
+positivity problems are all **epistemic**: each says the quantity exists and we
+cannot reach it, and each has a design remedy --- randomise, bound, run a
+sensitivity analysis. The constitutive objection is **semantic**: the
+description "same woman, but a man, everything else fixed" fails to pick out a
+possible state of affairs, so there is no quantity that identification is
+failing to reach. That is why no design answers it, and why the authors call the
+isolation project theoretically misguided rather than underpowered.
+
+In place of causal diagrams they propose *constitutive* diagrams, which display
+how features mutually define one another. Note what that implies for this
+chapter: the tool itself --- the DAG, with its cuttable arrows --- encodes the
+assumption at issue. Drawing one is already taking a side.
+
+### The perception move does not escape it
+
+@sec-two-treatments resolved the bad-control problem by re-dating the treatment
+to perceived sex at the hiring decision, then observed that identification
+requires randomising the signal. Hu and Kohler-Hausmann (2024) attack precisely
+that estimand, by asking: a perception of sex or race is a perception *of what,
+exactly?*
+
+Their answer is that the perception of the protected trait and the perception of
+other decision-relevant features are **co-constituted**. Their example: present
+two arrestees with "identical" prior-arrest records. They have not thereby been
+made equivalent, because the same record carries different meaning depending on
+whom it describes --- an arrestee racialised as Black with $N$ priors may be read
+as having an *unexpectedly low* number relative to imputed risk, while a white
+arrestee with the same $N$ reads as ordinary. Making candidates similar in one
+respect necessarily makes them different in others.
+
+Transposed to a résumé audit: "identical file, different perceived sex" again
+holds fixed something --- the file's *significance* --- that co-varies with the
+thing being varied. The files are identical in ink and non-identical in meaning,
+and meaning is what the employer responds to. **Which similarity is held fixed
+is itself the contested question**, not a technical parameter of the design.
+
+Their conclusion is narrower than "audit studies are worthless," and more
+damaging for being narrower: they reject the claim that such studies measure
+perception effects free of confounding, and the claim that a perceived-sex
+effect simply *is* disparate treatment. The second equation needs an unstated
+**normative** premise about what treatment ought to look like. The charge is
+that researchers do normative theorising behind technical machinery, and the
+demand is that both the sociological theory and the normative one be defended
+out loud instead of being settled by a covariate list.
+
+### Three replies
+
+The argument is live, and the replies are substantive.
+
+- **The signal is modular even if the category is not.** One really can change
+  the name on a résumé holding the rest of the text fixed --- a physical
+  operation needing no metaphysics. That the reader's interpretation is holistic
+  is arguably part of the effect measured, not a defect in the estimand. This is
+  the strongest reply and it protects correspondence studies specifically.
+- **Comparison is not optional for law.** Discrimination doctrine is comparative
+  by construction; if no comparison is well-posed the legal concept cannot
+  operate. The authors would do the normative work openly rather than abandon
+  comparison, but this leaves the empirical programme without operational
+  guidance.
+- **Constitution is scale-dependent.** Over a lifetime, gender and human capital
+  are mutually constituting and the objection bites hard. At the moment of a
+  single hiring decision with the file fixed, the manipulation is genuinely
+  modular and it bites least. Which suggests the defensible middle: the critique
+  is devastating for lifetime-scale "effect of gender" claims and comparatively
+  weak against tightly scoped decision-stage experiments.
+
+### What survives, in this chapter's own numbers
+
+None of this licenses the conclusion that the gender wage gap cannot be studied,
+and its authors do not draw it. What is ill-defined is one specific summary
+statistic, not the subject.
+
+Safe, and unaffected by the objection:
+
+- **"Women in this sample earn 3.8% less than men."** A description of an
+  observed population --- and the statistic UK and EU pay-gap reporting mandate,
+  unadjusted, precisely because adjusted numbers launder the structural
+  component.
+- **"Within education, experience and region cells the gap is 11.3%; adding
+  occupation and industry it is 7.5%."** Within-cell contrasts, correctly
+  labelled as such.
+- **"The gap is near zero at the 10th percentile and about 7% at the 90th."**
+  A distributional description.
+- **"A confounder explaining roughly 3% of the residual variance of gender and
+  4% of wages would account for the entire 11.3% to 7.5% attenuation."** A
+  sensitivity statement about a stated model.
+
+Ill-defined: **"the effect of being a woman, net of everything legitimate"** ---
+a single number separating discrimination from productivity across a lifetime.
+
+Two independent routes condemn that one number and nothing else on the list. The
+identification route, worked through earlier in this chapter, shows it is
+unreachable from these data for three separate reasons: mediators everywhere, a
+collider at every rung, and a positivity failure at the only valid adjustment
+set. The constitutive route holds it was never a coherent target. Since both
+converge, dropping it costs nothing that was ever in hand.
+
+### The operational rule
+
+Report what was **manipulated** or **observed**, in the **population it was
+observed in**. Then make the normative claim as a stated argument, rather than
+as something a coefficient is supposed to deliver.
+
+Which is what the ladder in this chapter does. $-3.8\%$ is the observed total
+gap; $-11.3\%$ and $-7.5\%$ are within-cell contrasts; none of them is
+discrimination, and now the chapter says so.
+
+### References for this section
+
+- Hu, L. and I. Kohler-Hausmann (2020). What's sex got to do with fair machine
+  learning? *ACM FAccT*. arXiv:2006.01770.
+- Hu, L. and I. Kohler-Hausmann (2024). What is perceived when race is perceived
+  and why it matters for causal inference and discrimination studies.
+  *Law & Society Review* (open access).
+- Hu, L. (2023). What is "race" in algorithmic discrimination on the basis of
+  race? *Journal of Moral Philosophy*.
+- Hu, L. (2025). Sex discrimination, normativity, and begging the causal
+  question. *Political Philosophy*.
+- Kohler-Hausmann, I. (2019). Eddie Murphy and the dangers of counterfactual
+  causal thinking about detecting racial discrimination. *Northwestern
+  University Law Review*.
