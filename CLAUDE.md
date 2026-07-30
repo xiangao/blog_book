@@ -19,6 +19,55 @@ A Quarto book compiled from blogdown posts (2017–2025) and quarto_blog posts (
 - **Incomplete chapters**: `numpyro.qmd` has R portion only (random effects model); Python/numpyro code not yet added
 - **Known warnings**: `lmtp.qmd` and `causal-simulation.qmd` produce `:::` fenced div warnings during render — cosmetic only, output is correct
 
+## Stata chunks: the `collectcode` + `cache` trap
+
+Six chapters chain Stata chunks with `collectcode: true` so that later chunks can
+use data built by earlier ones: `chow-test`, `mundlak-device`,
+`correlated-random-effect`, `poisson-iv-fe`, `multilevel-models`, `stata-cate`.
+
+**The failure mode.** `collectcode` accumulates a chunk's code *at execution
+time*. If an earlier `collectcode` chunk is served from the knitr cache while a
+later chunk re-executes, the earlier code never enters Statamarkdown's buffer, so
+every command in the later chunk runs against missing data, fails, and the chunk
+renders **silently blank** — and that empty result is then cached in turn. No
+error appears in the render log. `mundlak-device`'s main chunk (~40 regressions)
+published blank this way from 2026-07-04 to 2026-07-30 before anyone noticed.
+
+Note the asymmetry: a **prose** edit is safe, because it leaves every chunk served
+uniformly from cache. The danger is editing the **code** of one Stata chunk in a
+chapter whose other Stata chunks are cached.
+
+**Recovery.** Delete the entire `<chapter>_cache/` directory — not just the
+offending chunk's entry — *and* `_freeze/<chapter>/`, then re-render so all chunks
+execute in order. Clearing `_freeze/` alone does nothing: it makes Quarto
+re-execute the document, but knitr still serves the cached chunks. Clearing one
+chunk's cache entry alone does nothing either, because `freeze` skips execution
+entirely.
+
+**Current policy (set 2026-07-30, deliberately — please don't silently revert).**
+`cache: true` has been *removed* from the Stata chunks in five of the six
+chapters, because a from-scratch render costs almost nothing there and the risk is
+not worth 10 seconds:
+
+| chapter | full Stata re-render |
+|---|---|
+| correlated-random-effect | 6 s |
+| mundlak-device | 8 s |
+| chow-test | 10 s |
+| poisson-iv-fe | 13 s |
+| multilevel-models | 36 s |
+
+`stata-cate` is the exception and **keeps** its cache: Stata's `cate` command does
+lasso cross-fitting plus a random forest, and a full re-execution takes **335 s**,
+which is too high a tax on prose edits. That chapter carries a `callout-warning`
+explaining the trap and the recovery. If you ever edit one of its Stata chunks,
+clear the whole cache directory.
+
+Caches on the **R** chunks are untouched everywhere — `brms` (likert-scale-variance),
+SuperLearner (tmle), grf (causal-forest-panel) and the bootstrap chapters are
+minutes of compute and genuinely need them. The trap is specific to `collectcode`,
+which is a Statamarkdown feature with no R equivalent here.
+
 ## Compatibility Fixes Applied
 - `estimate_average_effect()` → `average_treatment_effect()` (grf package rename)
 - `PanelMatch()` now requires `PanelData()` constructor object
