@@ -43,8 +43,10 @@ $$ F(E(y)) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$
 
 we have in mind that we allow interaction of $x_1$ and $x_2$ to interact for the effect on $F(E(y))$; not on $E(y)$.
 
-We agree with [Bill Greene, 2013](
-http://people.stern.nyu.edu/wgreene/Lugano2013/Greene-InteractionTerms.pdf). In
+We agree with Bill Greene (2013), "Interaction Effects in Models for Nonlinear
+Outcomes" (Lugano lecture notes; the copy formerly at
+`people.stern.nyu.edu/wgreene/Lugano2013/` is no longer online, but the argument
+appears in Greene's *Econometric Analysis*, 8th ed., sec. 17.3). In
 a nonlinear model, the partial effects (as Greene calls it) is
 nonlinear, regardless of the model.  For example, in a logit model,
 even if you don't have an interaction term in your model, the effect
@@ -76,7 +78,7 @@ Or, it becomes multiplicative effect when we talk about odds ratios.  Stata's "m
 
 ## A worked example
 
-Let's illustrate the Ai-Norton point directly: in a logit model with an interaction term, the cross partial derivative $\frac{\partial^2 E(y)}{\partial x_1 \partial x_2}$ (what we actually care about) is not the same object as the estimated coefficient $\beta_{12}$ on $x_1 x_2$ in the linear index. We simulate data with a true interaction effect on the log-odds scale, fit a logit model, and use the `marginaleffects` package to compute the cross partial derivative (the interaction effect on the probability scale) at several values of $x_2$.
+Let's illustrate the Ai-Norton point directly: in a logit model with an interaction term, the cross partial derivative $\frac{\partial^2 E(y)}{\partial x_1 \partial x_2}$ (what we actually care about) is not the same object as the estimated coefficient $\beta_{12}$ on $x_1 x_2$ in the linear index. We simulate data with a true interaction effect on the log-odds scale, fit a logit model, and then use the `marginaleffects` package for two distinct things: first the marginal effect of $x_1$ on the probability scale at several values of $x_2$, and then the cross partial derivative itself.
 
 ```{r}
 #| label: ai-norton-example
@@ -99,7 +101,7 @@ m <- glm(y ~ x1 * x2, data = dat, family = binomial)
 summary(m)$coefficients
 ```
 
-The coefficient on `x1:x2` above is $\hat\beta_{12}$, the interaction effect on the log-odds (linear index) scale — constant by construction. The cross partial derivative on the *probability* scale, however, varies with $x_1$ and $x_2$ and must be computed numerically:
+The coefficient on `x1:x2` above is $\hat\beta_{12}$, the interaction effect on the log-odds (linear index) scale — constant by construction. On the *probability* scale nothing is constant. Start with the marginal effect of $x_1$ itself, evaluated at three values of $x_2$:
 
 ```{r}
 #| label: ai-norton-slopes
@@ -109,5 +111,31 @@ The coefficient on `x1:x2` above is $\hat\beta_{12}$, the interaction effect on 
 slopes(m, variables = "x1", by = "x2", newdata = datagrid(x2 = c(-1, 0, 1)))
 ```
 
-Note how the estimated marginal effect of $x_1$ on $P(y=1)$ changes across the three values of $x_2$, and need not track $\hat\beta_{12}$ in magnitude or significance — exactly the Ai and Norton (2003) point.
+The marginal effect of $x_1$ on $P(y=1)$ changes across the three values of
+$x_2$ — and notice that at $x_2=-1$ it is not significant ($p \approx 0.11$)
+even though $\hat\beta_{12}$ is significant at better than $0.001$. Already the
+probability-scale answer and the coefficient tell different stories.
+
+The cross partial derivative is a *further* step: not the effect of $x_1$ at a
+given $x_2$, but how much that effect changes as $x_2$ moves. That is a
+difference of slopes, so it needs a hypothesis test on top of the `by` argument
+rather than a second call to `slopes()`:
+
+```{r}
+#| label: ai-norton-cross-partial
+#| cache: true
+#| warning: false
+#| message: false
+slopes(m, variables = "x1", by = "x2",
+       newdata = datagrid(x2 = c(-1, 1)),
+       hypothesis = "b2 - b1 = 0")
+```
+
+Here the cross partial comes out large and highly significant, which is worth
+being honest about: in *this* example it agrees with $\hat\beta_{12}$ in
+significance, differing only in scale and magnitude. Ai and Norton's warning is
+that the two quantities *need not* agree — not that they never do. The
+dependable lesson is the one visible in the table above: on the probability
+scale the answer depends on where you evaluate it, so a single coefficient
+cannot summarise it.
 

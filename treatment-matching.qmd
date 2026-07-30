@@ -238,8 +238,10 @@ After any matching or weighting step, always inspect covariate balance.
 `cobalt`'s `bal.tab()` and `love.plot()` are the go-to tools:
 
 ```{r}
-#| eval: false
 #| echo: true
+#| message: false
+#| warning: false
+#| cache: true
 
 library(MatchIt)
 library(cobalt)
@@ -247,7 +249,7 @@ library(cobalt)
 # Propensity score matching on the lalonde data
 data("lalonde", package = "MatchIt")
 
-m_out <- matchit(treat ~ age + educ + black + hispan + married + nodegree +
+m_out <- matchit(treat ~ age + educ + race + married + nodegree +
                    re74 + re75,
                  data = lalonde, method = "nearest", distance = "glm",
                  ratio = 1)
@@ -266,6 +268,13 @@ at SMD = 0.1 is the conventional threshold for "balanced." If post-matching
 points cross the line, the matching is not improving balance and a different
 specification is needed.
 
+That is exactly what happens here, which is why it is worth running the
+diagnostic rather than assuming. 1:1 nearest-neighbour matching on the
+propensity score leaves four of the nine covariates *above* the 0.1 threshold,
+`race` worst of all (an adjusted SMD of 0.37 for the black indicator), while
+discarding 244 of the 429 controls. Matching on a propensity score balances the
+score, not necessarily the covariates that went into it.
+
 ### Entropy balancing
 
 Propensity score matching discards unmatched units and can reduce effective
@@ -274,14 +283,16 @@ units and reweights the control group so that weighted covariate moments
 exactly match the treatment group — without discarding anyone.
 
 ```{r}
-#| eval: false
 #| echo: true
+#| message: false
+#| warning: false
+#| cache: true
 
 library(WeightIt)
 library(cobalt)
 
 # Entropy balancing: exact balance on means, variances, and covariances
-w_out <- weightit(treat ~ age + educ + black + hispan + married + nodegree +
+w_out <- weightit(treat ~ age + educ + race + married + nodegree +
                     re74 + re75,
                   data = lalonde, method = "ebal", estimand = "ATT",
                   moments = 1)   # moments=1: balance means only
@@ -295,11 +306,16 @@ love.plot(w_out, threshold = 0.1, abs = TRUE)
 
 # Weighted outcome regression
 library(lmtest); library(sandwich)
-m_eb <- lm(re78 ~ treat + age + educ + black + hispan + married + nodegree +
+m_eb <- lm(re78 ~ treat + age + educ + race + married + nodegree +
              re74 + re75,
            data = lalonde, weights = w_out$weights)
 coeftest(m_eb, vcov = vcovHC(m_eb, type = "HC3"))["treat", ]
 ```
+
+Entropy balancing delivers on its promise here: the largest absolute
+standardized mean difference after weighting is **exactly zero**, since the
+weights are chosen to satisfy the mean-balance constraints as equalities. All
+429 controls are retained.
 
 | Method | Pros | Cons |
 |---|---|---|

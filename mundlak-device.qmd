@@ -36,7 +36,7 @@ $$ y_{it} = x_{it} \beta + \bar x_i \theta + \eta_i + u_{it} $$
 
 This $\eta_i + u_{it}$ becomes the composite error term.  This becomes a model including $\bar x_i$'s, which are additional $k$ variables, instead of including a set of unit dummies.  This model can be estimated by either Pooled OLS (POLS), or random effect.  The estimated coefficients $\beta$ are identical.  The standard errors are the same too, after clustering on units. In other words, if we include means of $x$'s as controls, then POLS and random effect models are identical.
 
-The by-product of this equation is that if $\theta = 0$, then $c_i$ is uncorrelated with $x_{it}$; therefore a random effect is good.  Otherwise we should do fixed effect.  This is similar to a Hausman test (equivalent?).
+The by-product of this equation is that if $\theta = 0$, then $c_i$ is uncorrelated with $x_{it}$; therefore a random effect is good.  Otherwise we should do fixed effect.  This is the Mundlak form of the Hausman test: under the random-effects assumptions, testing $\theta = 0$ is asymptotically equivalent to the classical Hausman test, and it has the practical advantage of working directly with cluster-robust standard errors, where the classical form can break down.
 
 Here is an example:
 
@@ -87,7 +87,9 @@ One advantage of TWM is that it has potentially huge cut on the number of regres
 
 The other advantage is that you can actually include time-invariant or unit-invariant variables in the regression and the $\beta$'s remain unchanged.  We all know that in TWFE model you cannot include those time-invariant or unit-invariant variables in the model.
 
-We can see in the following example of POLS (which is TWM), we add in "race" which is unit-invariant.  It can be estimated in TWM, but would not be estimable in TWFE.  Notice that coefficients on age and union remain unchanged.  This is basically to say that race is orthogonal to the surface of all the $X$'s and the means of $X$'s.  We did not add in time invariant variables, but that would be the same story.
+We can see in the following example of POLS (which is TWM), we add in `race`, which is **time-invariant** --- constant within a person, but varying across people.  (In `nlswork` the within-person standard deviation of `race` is exactly 0, while within any given year it is about 0.50, so it is emphatically not unit-invariant.)  It can be estimated in TWM, but would not be estimable in TWFE.  Notice that coefficients on age and union remain unchanged.
+
+The reason is *not* that `race` is orthogonal to the other regressors --- it is not orthogonal to the unit means `mean_age` and `mean_union`.  It is that the variation identifying $\beta$ is the within-unit variation, and within-unit deviations are orthogonal to **any** unit-level variable by construction, since $\sum_t (x_{it} - \bar x_i) = 0$ for every $i$.  Adding a unit-level regressor therefore cannot move $\beta$, whatever that regressor happens to be.  A genuinely unit-invariant variable --- one constant across units within a period, such as a time dummy --- leaves $\beta$ unchanged for the mirror-image reason.
 
 
 ```{stata}
@@ -185,6 +187,14 @@ The difficulty is that we have to be careful and mindful about what we want to e
 *| label: stata4
 *| echo: true
 *| cache: true
+
+* CACHE WARNING: this chunk depends on the data built by the earlier
+* `collectcode: true` chunks.  If those are served from the knitr cache while
+* this one re-executes, their code never enters Statamarkdown's accumulated
+* buffer, every command below fails on missing data, and the chunk silently
+* renders with NO output.  If that happens, delete the whole
+* `mundlak-device_cache/` directory (not just this chunk's entry) and
+* `_freeze/mundlak-device/`, then re-render so all chunks run in order.
 
 
 * Basic DID regression. Only need the post-treatment dummy but including

@@ -123,6 +123,28 @@ ame_cre_re_probit <- avg_slopes(cre_re_probit)
 ame_cre_re_probit
 ```
 
-Note on the random-effects probit AMEs: by default, `avg_slopes` (and `marginaleffects` generally) evaluates the random effect at 0, which gives the *conditional* AME (the average marginal effect for a "typical", $v_i=0$, unit). This differs from the *population-averaged* AME, which would integrate the marginal effect over the estimated distribution of $v_i$. When the random-effect variance is large, the two can diverge substantially in a non-linear model like probit, since $\Phi(\cdot)$ is nonlinear in $v_i$. If the population-averaged effect is of interest, it must be computed by simulating from (or numerically integrating over) the estimated random-effects distribution rather than fixing $v_i=0$.
+Two caveats about that third model, and the second one matters more than the first.
+
+First, on what `avg_slopes` is averaging. For a `merMod` object `marginaleffects`
+predicts with `re.form = NULL` by default, which *includes* the estimated random
+effects rather than setting them to zero; the package warns that its standard
+errors nevertheless reflect only the uncertainty in the fixed-effect parameters.
+If you want the AME for a "typical" ($v_i = 0$) unit you have to ask for it with
+`re.form = NA`, and neither of those is the *population-averaged* AME, which
+requires integrating the marginal effect over the estimated distribution of
+$v_i$. In a nonlinear model like probit those three quantities genuinely differ,
+because $\Phi(\cdot)$ is nonlinear in $v_i$.
+
+Second, and more to the point here: on this data set the random-effects probit is
+a **boundary (singular) fit**. `lme4` reports an estimated state-level standard
+deviation of about $5\times10^{-9}$ --- numerically zero --- and `isSingular()`
+returns `TRUE`. With no variance left in the random effect, this model *is* the
+pooled probit: its coefficients agree with the pooled fit to about $10^{-4}$
+(poverty $-0.17848$ either way). So the third specification is not really a third
+specification on this data, and the distinction between conditional and
+population-averaged effects has nothing to bite on. It is kept here because the
+comparison is the one you would want to run in general --- but do not read the
+agreement between models two and three as evidence about random effects; check
+`VarCorr()` before drawing that conclusion.
 
 Ultimately we are interested in the partial effect, therefore we can compare across models.  In this case, we should prefer average marginal effect by CRE pooled probit.

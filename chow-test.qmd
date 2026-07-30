@@ -11,7 +11,7 @@ Comparing coefficients across regressions is common.  Chow test is one of them. 
 
 The idea is to interact the subset indicator with all the covariates or only the covariate you are interested (treatment).  If you only interact the dummy with the treatment variable, then you are assuming all other covariates have the same effect across the two subsets.  This may or may not be reasonable.
 
-This post is inspired by Austin Nicholas (https://www.stata.com/statalist/archive/2009-11/msg01485.html).  The case with overlapping samples is all from his code.
+This post is inspired by Austin Nichols (https://www.stata.com/statalist/archive/2009-11/msg01485.html).  The case with overlapping samples is all from his code.
 
 Let's see a simple example:
 
@@ -86,7 +86,10 @@ gen wage1=wage*(subsample==1)
 gen wage2=wage*(subsample==2)
 gen hours1=hours*(subsample==1)
 gen hours2=hours*(subsample==2)
-reg Y wage? hours? subsample
+* Each individual contributes TWO rows here (one per stacked outcome), so the
+* errors are correlated within id.  Clustering on the stacking id is what makes
+* the cross-equation test comparable to suest -- see the note below.
+reg Y wage? hours? subsample, cluster(id)
 test _b[wage1]-_b[wage2]=0
 est sto stacked
 * Note: suest stores coefficients under equation-qualified names (e.g.
@@ -100,6 +103,24 @@ esttab south smsa suest stacked, nogaps mti
 ```
 
 In this example, we are interested in comparing the effect of wage on south vs. smsa (not interesting, but just as an example).  What I did is to reshape it to long format, stacking south and smsa as "Y".  Then creat interaction of other covariates with subsample indicator.  Then run the regression with Y on the interaction terms.
+
+One detail matters a great deal here, and it is easy to skip.  Stacking puts **two
+rows per person** in the data, so the two error terms belonging to the same person
+are correlated by construction.  The cross-equation test is precisely a comparison
+*across* those two rows, so its standard error has to account for that
+correlation.  Clustering on the stacking id does it, and it is not a cosmetic
+adjustment:
+
+| | test of the wage coefficient across equations |
+|---|---|
+| `suest` | $\chi^2(1) = 72.22$ |
+| stacked, **no** clustering | $F(1, 4478) = 114.12$ |
+| stacked, `cluster(id)` | $F(1, 2241) = 72.14$ |
+
+Without clustering the statistic is inflated by more than half.  With it, the
+stacked test reproduces `suest` almost exactly -- the small remaining gap is just
+the $F$-versus-$\chi^2$ finite-sample adjustment.  Note that `robust` alone will
+*not* fix this; the cluster variable has to be the id you stacked on.
 
 ## Overlapping samples
 
@@ -161,6 +182,7 @@ gen union1=union*(south==1)
 gen union2=union*(south==0)
 
 ivregress 2sls wage south (hours1 hours2 = union1 union2)
+test _b[hours1]-_b[hours2]=0
 ```
 
 We can see same Chow kind of test works, with IV regression, if we have the right interaction terms.
@@ -223,6 +245,14 @@ ivregress 2sls wage south (hours1 hours2 = union1 union2) i.race1 i.race2, clust
 
 This works.  Basically we use dummies which are interactions of subsample indicator and the fixed effect dummies.  This would not work if we have a lot of fixed effect units.
 
+One caution about how those dummies were built.  `race1 = race*(south==1)` multiplies
+a *categorical code* by an indicator, so non-south observations are assigned
+`race1 = 0` and then `i.race1` treats 0 as its own category.  That is safe here only
+because `race` has no zero level (it is coded 1/2/3).  If the absorbed variable did
+have a 0 category, those observations and all the non-south ones would be silently
+collapsed into the same dummy.  For a general recipe, build the interactions from the
+category dummies directly (`i.race#i.south`) rather than from the code.
+
 But we can trick "reghdfe" to use a two way fixed effect option:
 
 This way we can do a test to see whether hours effect differs between these two samples.
@@ -284,17 +314,23 @@ gen hours2=hours*(subsample==2)
 replace tenure=1 if subsample==2
 gen tenure1= tenure*(subsample==1)
 gen tenure2= tenure*(subsample==2)
-reg Y wage? hours? tenure? subsample
+reg Y wage? hours? tenure? subsample, cluster(id)
 est sto chow
 test _b[hours1]-_b[hours2]=0
 esttab  suest chow, nogaps mti
 ```
 
-We can see Chow type of "stacking" method generates the same result as "suest" in terms of point estimates.  For standard errors you can use "robust" or "cluster" option in "reg" command.
+The stacking method reproduces `suest`'s point estimates: the separate
+`reg south wage hours tenure` gives wage $=-.0119584$, hours $=.004828$,
+tenure $=-.0024032$, and the stacked model returns the same three numbers.  Read
+them off the two tables separately rather than trying to compare columns, though
+-- as noted earlier, `suest` stores its coefficients under equation-qualified
+names (`south:wage`) while the stacked model stores plain `wage`, so `esttab`
+puts them on different rows and the columns do not line up.  For standard errors you can use "robust" or "cluster" option in "reg" command.
 
 ## Conclusion
 
-For testing cross equations hypotheses, we can use "suest" or Chow type "stacking" method.  Sometimes people use "sureg".  I prefer not use "sureg".  It is a GLS estimator for all the equations together.  It relies on assumptions of the error term of the whole system.  It assumes homoscedasticity for example.  If it's true, then GLS is more efficient; if not, then biased.  If the equations have the same covariates, then it returns the same coefficient estimates as the single equation estimates.  If different covariates, then different estimates as the single equation estimates.
+For testing cross equations hypotheses, we can use "suest" or Chow type "stacking" method.  Sometimes people use "sureg".  I prefer not use "sureg".  It is a GLS estimator for all the equations together.  It relies on assumptions of the error term of the whole system.  It assumes homoscedasticity for example.  If it's true, then GLS is more efficient; if not, then it is *inefficient* and its reported standard errors are invalid.  (It is not biased: a GLS estimator built on the wrong error covariance still satisfies the same moment conditions, exactly as weighted least squares with the wrong weights remains consistent.)  If the equations have the same covariates, then it returns the same coefficient estimates as the single equation estimates.  If different covariates, then different estimates as the single equation estimates.
 
 The nice thing about Chow test is that it is very flexible, and it does not rely on Stata's internal functions.  You can do it with R or other programs.  And it works for complicated models too, usually, as long as the single equation works.   "suest" needs the results stored before hand, which may not be available even within stata.
 

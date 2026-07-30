@@ -53,7 +53,7 @@ $$
 $$
 
 
-Note for the denominator, it's a constant, basically to scale the sum of weights to be 1.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $-\hat d(X_i)$ (negative).  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the larger the magnitude of the (negative) weight.
+Note for the denominator, it's a constant.  It does *not* scale the weights to sum to one --- they sum to **zero**, because $D_i - \hat d(X_i)$ is an OLS residual from a regression that includes an intercept.  What the denominator normalizes is the contrast: since $\sum D_i(D_i - \hat d(X_i)) = \sum (D_i - \hat d(X_i))^2$ (the residual is orthogonal to the fitted values), we get $\sum_i \omega_i D_i = 1$, i.e. the weights on the treated sum to $+1$ and those on the control sum to $-1$.  That is what makes $\sum_i \omega_i Y_i$ a weighted *difference* of means.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $-\hat d(X_i)$ (negative).  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the larger the magnitude of the (negative) weight.
 
 If these weights are the same as the IPW weights, then we'll get $\tau_{reg}=\tau_{ATE}$.  However, they are usually different.
 
@@ -63,7 +63,7 @@ $$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \su
 
 where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = -\hat d(X_i)/c$ for control units ($D_i=0$)
 
-Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) > 1$ will cause the weight to be negative if it's a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  Likewise for control units with $\hat d(X_i) < 0$.
+Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) > 1$ will cause the weight $(1-\hat d(X_i))/c$ to flip sign and become negative for a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  The mirror image happens for a control unit with $\hat d(X_i) < 0$: its weight $-\hat d(X_i)/c$ flips to *positive*, so it enters the contrast on the same side as the treated.  Either way the unit contributes with the wrong sign.
 
 The worst thing is that we don't know which observations have negative weights, unless we look further and actually run a regression of $D$ on $X$.  If we do that, we are doing similar things as in IPW or matching.  If we simply do a linear regression, it's like a black box.  We have no idea how bad some negative weights are.  We are relying on extrapolation with regression model like this.  Even if there is no matched units, we are extrapolating based on linearity.
 
@@ -129,7 +129,9 @@ omega_reg <- resid_D / sum(resid_D^2)
 # IPW weights (Horvitz-Thompson), using the same linear-probability d_hat
 # purely for comparability with the regression weights above.
 ipw <- ifelse(dat$D == 1, 1 / d_hat, 1 / (1 - d_hat))
-ipw <- ipw / sum(ipw[dat$D == 1]) * sum(dat$D == 1) # normalize within arm for comparability
+# rescale by a single constant so the treated weights average 1; this only
+# fixes the axis scale of the plot below and does not change any comparison
+ipw <- ipw / sum(ipw[dat$D == 1]) * sum(dat$D == 1)
 
 tau_reg <- sum(omega_reg * dat$Y)
 tau_lm  <- coef(lm(Y ~ D + X, data = dat))["D"]
@@ -144,10 +146,44 @@ The two are numerically identical (up to floating point), confirming $\hat\tau_{
 #| cache: true
 #| warning: false
 #| message: false
+par(mfrow = c(1, 2))
 plot(ipw[dat$D == 1], omega_reg[dat$D == 1],
      xlab = "IPW weight", ylab = "Regression (FWL) weight",
-     main = "Treated units: regression vs. IPW weights")
+     main = "Treated units")
+plot(ipw[dat$D == 0], omega_reg[dat$D == 0],
+     xlab = "IPW weight", ylab = "Regression (FWL) weight",
+     main = "Control units")
+par(mfrow = c(1, 1))
 ```
+
+Note also what this example does *not* show. Here $\hat d(X_i)$ stays inside
+$[0.06, 0.99]$, so every weight keeps its expected sign and the negative-weight
+problem discussed above never materializes. That is a property of this particular
+design, not a reassurance. Strengthen the linear index and the linear probability
+model starts predicting outside the unit interval:
+
+```{r}
+#| label: fwl-negative-weights
+#| cache: true
+#| warning: false
+#| message: false
+set.seed(2)
+X2 <- rnorm(n)
+D2 <- rbinom(n, 1, plogis(3 * X2))       # much stronger selection on X
+dat2 <- data.frame(D = D2, X = X2)
+d_hat2 <- fitted(lm(D ~ X, data = dat2))
+omega2 <- (dat2$D - d_hat2) / sum((dat2$D - d_hat2)^2)
+
+data.frame(
+  dhat_below_0        = sum(d_hat2 < 0),
+  dhat_above_1        = sum(d_hat2 > 1),
+  treated_wrong_sign  = sum(dat2$D == 1 & omega2 < 0),
+  control_wrong_sign  = sum(dat2$D == 0 & omega2 > 0)
+)
+```
+
+Those units are the ones with no counterpart in the other arm, and a plain
+regression of $Y$ on $D$ and $X$ gives you no indication that they are there.
 
 
 
