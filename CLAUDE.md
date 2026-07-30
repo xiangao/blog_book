@@ -131,3 +131,42 @@ Substantive addition to `gwg.qmd`, prompted by the observation that the chapter 
 **ggdag gotcha:** `node_size` clips edges at the node boundary, so large nodes swallow the arrowheads — a DAG with `node_size = 26` renders with no arrows at all, which is silently useless for a collider argument. Use small nodes (`node_size = 9`) plus `geom_dag_text_repel(seed = ...)` for labels.
 
 Chapter re-rendered clean.
+
+## Deep read (2026-07-30): all 49 chapters
+
+The derivation-focused inline pass this book never got in June. Log:
+`../_review3/deepread_blog_book.md` (checkpointed per chapter). Method per the
+standing convention — inline, one chapter at a time, no subagents, claims verified by
+execution or re-derivation rather than by reading.
+
+**The dominant defect class in this book is output that never appears.** Several
+chapters described results the rendered page did not contain:
+
+- `mundlak-device.qmd`: the entire main Stata chunk rendered with **no output** —
+  the `collectcode` + `cache` interaction documented at the top of this file.
+- `treatment-matching.qmd` and `uplift.qmd`: R code that was **broken and invisible**,
+  hidden behind `eval: false`. Fixing `eval: false` chunks means running them first.
+- `gwg.qmd`, `matching-part1.qmd`: results computed but never printed.
+- `multilevel-models.qmd`: a cached chunk restored its objects but did **not** re-run
+  its `library()` calls, so a later chunk dispatched to the wrong method.
+
+So the check that pays here is not "does the prose sound right" but **"is the number
+the prose describes actually on the page"**. Extract `<div class="cell-output...">`
+blocks from the rendered HTML rather than searching the page text, which also matches
+Quarto's echoed-source panel and produced several false findings in earlier passes.
+
+**Claims that were simply wrong**, and are worth knowing as a class — confident
+statements about relationships between methods:
+
+- `causal-panel.qmd`: "DiD is a special case of synthetic control" — it is not.
+- `tasc-time-aware-synthetic-control.qmd`: two ATT figures wrong (SDiD given as
+  −16.1; the correct value is −15.60, and it now agrees with the other three books).
+- `bartik-instrument.qmd`: the Rotemberg-weight sensitivity statement was inverted.
+- `causal-forest-panel.qmd`: the promised FE-vs-OLS confounding never materialised in
+  the DGP, and the displayed equation omitted a term.
+- `chow-test.qmd`: a major inference gap — stacked estimation without clustering.
+- `causal-mediation.qmd`: interventional-effects error (major).
+
+**When a DGP is meant to demonstrate a problem, verify the problem is actually
+present.** Two chapters here promised confounding or attenuation that their own
+simulation did not generate. Simulate the claim, do not assume the DGP delivers it.

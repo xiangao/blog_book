@@ -121,6 +121,26 @@ tidy(reg2)
 
 We see the raw gap is 3.8%.  Adjusting for some covariates we have 11% gap.
 
+That direction deserves comment, because it is the opposite of what most readers expect. Adding controls usually shrinks a gap; here it nearly triples it. The reason is composition:
+
+```{r}
+#| label: composition
+#| cache: true
+#| warning: false
+#| message: false
+
+data |>
+  group_by(female) |>
+  summarise(n = n(), mean_lwage = mean(lwage), exp1 = mean(exp1),
+            `<HS` = mean(sohs), HS = mean(hsg), `some coll` = mean(socl),
+            college = mean(clg), advanced = mean(ad)) |>
+  mutate(across(where(is.numeric), ~round(.x, 3)))
+```
+
+Women in this extract are **more** educated than men --- 17.5% hold advanced degrees against 10.7%, and 1.3% are below high school against 3.2% --- while potential experience is essentially identical (13.7 against 13.8 years). Education is therefore working in women's favour in the raw comparison. Holding it fixed removes that advantage and exposes a larger gap within education cells. Nothing subtle is happening; the raw and adjusted numbers simply describe different populations of comparison.
+
+Keep this table in mind, because it comes back twice below: once when we ask what the adjusted number is an estimate *of*, and once when we ask whether conditioning on education might be doing harm rather than good.
+
 Or, we can use "marginaleffects" instead of demeaning.
 
 ```{r}
@@ -152,9 +172,34 @@ avg_comparisons(reg3,
 
 ### Occupation and industry: a bad control problem
 
-Before adding occupation and industry, it is worth being clear about what kind of variables they are. Everything used so far --- experience, education, region --- is plausibly settled before the wage is determined and is not itself much of a consequence of gender. Occupation and industry are different. They are **post-treatment**: whatever "being perceived and treated as female" does, one of the things it does is shift which occupations people end up in.
+Before adding occupation and industry, it is worth asking what kind of variables they are --- and the honest answer implicates the covariates we have already been using.
 
-That makes them *bad controls* in the sense of Cinelli, Forney and Pearl (2022), and for two separate reasons at the same time.
+Sex is assigned at birth. Essentially nothing in the covariate vector precedes it:
+
+| Covariate | Downstream of sex? |
+|---|---|
+| Education (`sohs`...`ad`) | Yes --- schooling decisions respond to gender |
+| Experience (`exp1`) | Partly --- potential experience is age minus schooling, so it inherits education's endogeneity; actual experience is fully downstream (interruptions, part-time spells) |
+| Region (`mw`, `sout`, `we`) | Yes --- current region reflects migration, and tied-mover patterns are gendered |
+| Occupation, industry (`occ2`, `ind2`) | Yes, unambiguously |
+
+Genuinely pre-treatment variables would be birth cohort, region of birth, and parental characteristics --- and even the last is shaky, since parental investment is known to respond to a child's sex. So the valid adjustment set for sex is close to **empty**.
+
+Two consequences follow, and the second is the one that matters.
+
+First, there is no confounding to adjust away. The usual reason to control for $X$ is to make $Y(d) \perp D \mid X$ hold. But sex is not confounded by education --- education is *caused* by sex. Sex is about as close to randomised-by-nature as a treatment gets, so $Y(d) \perp D$ holds without conditioning on anything. Adjustment cannot improve identification here; it can only change the estimand.
+
+Second, and consequently, every model in this chapter sits somewhere on a **ladder of controlled direct effects**, not on a scale from worse to better estimates of one quantity:
+
+| Model | Held fixed | Question answered | Estimate |
+|---|---|---|---|
+| `reg1` | nothing | Total effect of the gender signal | $-3.8\%$ |
+| `reg3` | education, experience, region | Gap within education/experience cells | $-11.3\%$ |
+| `reg4` | + occupation, industry | Gap within occupation cells too | $-7.5\%$ |
+
+Read that way, movement between rungs is not error to be minimised --- it is information about where in the causal chain the gap accumulates. But each rung names a different intervention and needs its own justification, and the argument below applies at *every* rung, not only the last. Occupation and industry are simply the clearest case, so we use them to make the point.
+
+They are *bad controls* in the sense of Cinelli, Forney and Pearl (2022), for two separate reasons at the same time.
 
 ```{r}
 #| label: gwg-dag
