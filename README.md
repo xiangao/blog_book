@@ -30,3 +30,19 @@ Xiang Ao
 > **2026-07-30:** Review of the two chapters added since the previous pass (`likert-scale-variance`, `equivalence-testing`); report in `../_review3/review_20260730.md`. Corrected the peak of the SD/mean curve (≈1.13 at μ=7/4, not 0.75 at μ=4 — 0.75 is its value there, not its maximum). In the equivalence chapter, fixed a unit mismatch that had gone unnoticed: `TOSTER`'s bound is in raw units while `BayesFactor`'s `nullInterval` is in standardized *d*, so the "same ±2" comparison was really using a 1.77× wider Bayesian bound and reporting ~131,000:1 evidence instead of ~45:1. Also re-attributed a block quote to the Center for Open Science Registered Reports template (the Nature Human Behaviour guidelines contain none of that language and require 0.95 power, not 0.9), and corrected the "small telescopes" bound from a fraction of an effect size to a 33% power level. Added a caveat that the Likert simulation is the ordinal model's own functional form, so common thresholds across groups is the assumption really at stake.
 
 > **2026-07-30 (later):** `gwg.qmd` — added a "bad control" treatment of the occupation/industry adjustment, which the chapter previously reported without comment. New DAG showing occupation as simultaneously a mediator of the gender–wage path and a collider on `Female -> Occupation <- U -> Wage`, plus a `dagitty::paths()` table that verifies the flip mechanically (conditioning closes the mediation path and opens the collider path). Reframed the 11.3% → 7.5% move as three inseparable components (mediation, collider bias, mediator–outcome confounding) rather than "occupation explains four points", and noted the likely sign: positive selection of women into male-dominated occupations biases the within-occupation gap toward zero. Added a `sensemakr` sensitivity section inverting the bias formula to ask how strong *U* must be to restore the total effect — answer ≈3% of the residual variance of gender and ≈4% of wages, about half the 6.6% robustness value that would zero the adjusted estimate. Also flagged that the full-time/full-year sample restriction is itself a collider conditioning step, and that AIPW/SuperLearner fixes functional form but not the estimand. One caching bug fixed: `library(sensemakr)` lived only in a cached chunk, so on a cache hit `plot(sens)` dispatched to `plot.default` and the render died.
+
+> **2026-07-30 (deep read):** Full-depth pass over all 49 chapters — the
+> derivation-focused inline review this book had not previously had. Log:
+> `../_review3/deepread_blog_book.md`. The dominant defect class here was **results
+> the rendered page did not actually contain**: `mundlak-device`'s main Stata chunk
+> produced no output at all (a `collectcode` + `cache` interaction, now documented in
+> `CLAUDE.md`), `treatment-matching` and `uplift` hid broken R code behind
+> `eval: false`, `gwg` and `matching-part1` computed results they never printed, and a
+> cached chunk in `multilevel-models` restored its objects without re-running its
+> `library()` calls. Also corrected several confident claims about how methods relate:
+> "DiD is a special case of synthetic control" (it is not), an inverted Rotemberg
+> sensitivity statement in `bartik-instrument`, two wrong ATT figures in
+> `tasc-time-aware-synthetic-control` (SDiD is −15.60, not −16.1, and now agrees with
+> the other three books), an interventional-effects error in `causal-mediation`, and an
+> unclustered stacked estimation in `chow-test`. Two chapters promised confounding
+> their own DGP did not generate.
