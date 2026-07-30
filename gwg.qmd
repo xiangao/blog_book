@@ -150,7 +150,70 @@ avg_comparisons(reg3,
                 newdata = subset(data, female == 1))
 ```
 
-Next, we adjust for occupation and industry. We can use "occ2" and "ind2" as factors.
+### Occupation and industry: a bad control problem
+
+Before adding occupation and industry, it is worth being clear about what kind of variables they are. Everything used so far --- experience, education, region --- is plausibly settled before the wage is determined and is not itself much of a consequence of gender. Occupation and industry are different. They are **post-treatment**: whatever "being perceived and treated as female" does, one of the things it does is shift which occupations people end up in.
+
+That makes them *bad controls* in the sense of Cinelli, Forney and Pearl (2022), and for two separate reasons at the same time.
+
+```{r}
+#| label: gwg-dag
+#| fig-cap: "Occupation is both a mediator of the gender--wage relationship and a collider on a path through unobserved wage determinants $U$."
+#| fig-width: 7
+#| fig-height: 3.6
+#| warning: false
+#| message: false
+
+library(ggdag)
+library(ggplot2)
+
+g <- dagify(
+  Wage ~ Female + Occupation + U,
+  Occupation ~ Female + U,
+  exposure = "Female",
+  outcome  = "Wage",
+  coords = list(x = c(Female = 0, Occupation = 1.1, U = 1.1, Wage = 2.2),
+                y = c(Female = 0, Occupation = -1,  U = 1,   Wage = 0))
+)
+
+# node_size has to stay small: ggdag stops each edge at the node boundary, so
+# large nodes swallow the arrowheads -- and the arrowheads are the whole point.
+ggdag(g, text = FALSE, node_size = 9) +
+  geom_dag_text_repel(aes(label = name), colour = "black", size = 3.2,
+                      box.padding = 0.9, seed = 42) +
+  theme_dag() +
+  expand_limits(x = c(-0.45, 2.65), y = c(-1.5, 1.5))
+```
+
+Here $U$ stands for unobserved wage determinants --- drive, negotiation propensity, family constraints, expected career continuity --- and `Occupation` covers occupation and industry together.
+
+**Occupation is a mediator.** Part of the total effect of gender on wages runs `Female -> Occupation -> Wage`. Conditioning on occupation blocks that path, so the coefficient stops estimating a total effect. On its own this would be tolerable, as long as we said so: we would be reporting a within-occupation gap, which is a perfectly coherent descriptive quantity.
+
+**Occupation is also a collider.** It is a common effect of gender and of $U$. Conditioning on a common effect *induces* an association between its causes, so conditioning on occupation opens the non-causal path `Female -> Occupation <- U -> Wage`, which was closed before we touched anything (Elwert and Winship, 2014).
+
+We do not have to take that on faith. `dagitty` will enumerate the paths and say which are open, with and without conditioning on occupation:
+
+```{r}
+#| label: gwg-paths
+#| warning: false
+#| message: false
+
+paths_table <- function(Z = NULL) {
+  p <- dagitty::paths(g, from = "Female", to = "Wage", Z = Z)
+  data.frame(path = p$paths, open = p$open)
+}
+
+paths_table()                   # nothing conditioned on
+paths_table(Z = "Occupation")   # conditioning on occupation
+```
+
+The two tables are the whole argument. Conditioning on occupation flips `Female -> Occupation -> Wage` from open to closed --- that is the mediation we knowingly gave up --- and simultaneously flips `Female -> Occupation <- U -> Wage` from closed to open. That second flip is the damage. Blocking a mediator removes something we wanted; conditioning on a collider manufactures something we did not. After adjustment, gender and $U$ are correlated *within* occupation cells even if they are independent in the population, and because $U$ also drives wages, that induced correlation leaks into the gender coefficient.
+
+Stated formally: conditioning on a mediator identifies a *controlled direct effect* only under **no unmeasured mediator--outcome confounding** (VanderWeele and Robinson, 2014). $U$ is exactly such a confounder, and in a wage setting it is not a remote worry --- it is more or less why this literature exists.
+
+Two consequences worth flagging before we run the model. First, this is not a problem that a better estimator solves: the AIPW and SuperLearner fits later in this chapter relax functional form, and do nothing at all about a structurally uninterpretable estimand. Second, the same graph applies to the sample itself. This extract keeps only full-year, full-time workers, and employment is likewise a common effect of gender and $U$ --- so the sample restriction is a second conditioning-on-a-collider step, built in before any regression is run.
+
+With all that on the table, here is the model.
 
 ```{r}
 #| label: ra4
@@ -163,7 +226,93 @@ avg_comparisons(reg4,
                 newdata = subset(data, female == 1))
 ```
 
-So in the model with full interaction, we have a gap of 7.5%.
+So in the model with full interaction, we have a gap of 7.5%, against 11.3% without occupation and industry.
+
+The tempting reading of that pair --- "occupational and industrial sorting accounts for roughly four points of the gap" --- is exactly the reading the graph above forbids. Three things are mixed into that four-point move, and nothing in the output separates them:
+
+1. genuine mediation, the part of the gap that really does operate through sorting;
+2. collider bias, from the gender--$U$ association induced by conditioning;
+3. ordinary confounding of the occupation--wage relationship.
+
+The likely *direction* of (2) is worth spelling out. If women who enter male-dominated, high-paying occupations are positively selected on $U$ --- they had more to overcome to get there --- then within those occupations they are better on unobservables than the men they are being compared with, which pushes the within-occupation gap **toward zero**. Some of the attenuation from 11.3% to 7.5% may therefore be bias rather than mediation.
+
+The defensible way to report this: 11.3% is the total-effect estimate; 7.5% is a within-occupation descriptive contrast whose causal reading rests on an assumption we cannot verify. What we *can* do is ask how strong $U$ would have to be to account for the whole difference.
+
+#### How strong would $U$ have to be?
+
+The omitted-variable-bias machinery in `sensemakr` (Cinelli and Hazlett, 2020) needs a single treatment coefficient, so for this exercise we drop the interactions and use additive specifications. That costs us the heterogeneity, but the attenuation we are interrogating survives the simplification almost exactly.
+
+```{r}
+#| label: cde-sens
+#| cache: true
+#| warning: false
+#| message: false
+
+library(sensemakr)
+
+Xb <- "exp1 + sohs + hsg + socl + clg + mw + sout + we"
+
+fit_total <- lm(as.formula(paste("lwage ~ female +", Xb)), data = data)
+fit_adj   <- lm(as.formula(paste("lwage ~ female +", Xb, "+ occ2 + ind2")), data = data)
+
+c(total    = coef(fit_total)["female"],
+  adjusted = coef(fit_adj)["female"],
+  attenuation = coef(fit_adj)["female"] - coef(fit_total)["female"])
+
+sens <- sensemakr(model = fit_adj, treatment = "female",
+                  benchmark_covariates = c("clg", "exp1"),
+                  kd = c(1, 2, 3))
+summary(sens)
+```
+
+The additive models put the total effect at $-11.4\%$ and the occupation-adjusted effect at $-7.3\%$, an attenuation of $4.1$ log points --- essentially the same gap as in the interacted specifications.
+
+Now invert the bias formula. Instead of asking how strong a confounder must be to drive the adjusted estimate to zero (the usual question), ask how strong it must be to move the adjusted estimate *back* to the total effect. That is the strength at which the entire apparent contribution of occupation is bias rather than mediation.
+
+```{r}
+#| label: cde-invert
+#| cache: true
+#| warning: false
+#| message: false
+
+target <- coef(fit_total)["female"]
+
+grid <- expand.grid(r2dz = c(0.0125, 0.02, 0.033, 0.06),
+                    r2yz = seq(0.001, 0.60, length.out = 4000))
+grid$adj <- adjusted_estimate(fit_adj, treatment = "female",
+                              r2dz.x = grid$r2dz, r2yz.dx = grid$r2yz,
+                              reduce = FALSE)
+
+grid |>
+  group_by(r2dz) |>
+  slice_min(abs(adj - target), n = 1) |>
+  ungroup() |>
+  transmute(`partial R2 with gender` = r2dz,
+            `partial R2 with wage`   = round(r2yz, 3),
+            `restored estimate`      = round(adj, 4))
+```
+
+```{r}
+#| label: cde-contour
+#| fig-cap: "Adjusted estimate of the gender gap as a function of a hypothetical confounder's partial $R^2$ with gender (horizontal) and with log wage (vertical), benchmarked against college and experience."
+#| fig-width: 7
+#| fig-height: 5
+#| warning: false
+#| message: false
+
+# sensemakr is attached again here on purpose: the chunk above is cached, so on a
+# cache hit its library() call never runs and plot() would dispatch to
+# plot.default instead of the sensemakr method.
+library(sensemakr)
+
+plot(sens)
+```
+
+The answer is uncomfortable. A confounder explaining about **3% of the residual variance of gender and about 4% of the residual variance of wages** is enough to restore the full total effect --- that is, enough for occupation to be contributing no genuine mediation at all. For scale, `sensemakr` reports a robustness value of $6.6\%$: a confounder explaining more than that share of both residual variances would drive the adjusted estimate to zero. So a $U$ roughly *half* as strong as the one needed to erase the within-occupation gap entirely is already strong enough to explain the whole $11.3\% \to 7.5\%$ attenuation.
+
+The benchmark rows give another angle. Experience explains $3.4\%$ of the residual variance of wages but only $0.16\%$ of the residual variance of gender, so along the outcome dimension the required $U$ is only a little stronger than experience. Along the gender dimension the required multiple looks large, but that is mostly because gender is close to orthogonal to experience in this sample; in absolute terms we are still only asking for a few percent of residual variance.
+
+None of this shows that occupational sorting explains nothing. It shows that this design cannot distinguish "sorting explains four points" from "conditioning on a collider costs four points," and that the confounder needed to tip the balance is unremarkable in size. Which is why the total effect, not the occupation-adjusted number, is the estimate to lead with.
 
 Now let's try nonparametric estimation.
 
@@ -220,6 +369,12 @@ nonparametric **ATT** of $-6.7\%$, not against the ATE. Those two agree closely,
 which is reassuring: dropping the linearity assumption altogether moves the
 estimate by less than a percentage point, and both use the same covariate set
 including occupation and industry.
+
+That last clause is also the caveat. Because both specifications condition on
+occupation and industry, both inherit the bad-control problem set out above: the
+agreement between $-7.5\%$ and $-6.7\%$ tells us the two estimators recover the
+same quantity, not that the quantity is a causal effect. Relaxing linearity
+addresses functional form; it leaves the collider untouched.
 
 The ATE and ATT point estimates do differ a little, in the direction of a larger
 gap among women than in the sample as a whole — which would indicate effect
