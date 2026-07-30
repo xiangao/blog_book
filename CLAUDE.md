@@ -51,3 +51,18 @@ Math/code audit + fixes across ~33 chapters (audit trail: ../_review/). Key corr
 - Plus many notation/typo fixes (re78, Noah Greifer, Mahalanobis, β0 intercepts, etc.).
 - conjoint-analysis NOT re-rendered: `radiant`'s plot fails on R 4.6 (known-unfixable); edits there reverted.
 31/32 touched chapters re-rendered (incl all Stata chapters).
+
+## Review pass (2026-07-30)
+Targeted review of the two chapters added after the 2026-07-04 agy-review fix pass (commit d87e651) — `likert-scale-variance.qmd` (added 07-16) and `equivalence-testing.qmd` (added 07-24). Neither had been through any review. Report: `../_review3/review_20260730.md`. Everything else in the book was left alone.
+
+**likert-scale-variance:**
+- `SD_max(μ)/μ` was described as peaking at 0.75 at μ=4. 0.75 is the function's *value* there, not its maximum: maximizing `(μ-1)(7-μ)/μ²` gives derivative `μ^-3 (14-8μ)`, so the peak is at μ=7/4 with value ≈1.134. The curve is strongly left-skewed, not a symmetric hump — corrected and the asymmetry made the point.
+- Added a paragraph noting the simulation *is* the ordinal MELSM's own functional form (shared cutpoints, constant latent σ), so the model is shown in its best case, and that the assumption actually at risk on real data is common thresholds across groups (differential item functioning), where `disc` and the thresholds trade off.
+- Verified correct and left as-is: the Bhatia–Davis derivation and its two-point equality case; the Beta variance `(μ-1)(7-μ)/(1+φ)`; **Ellis (2025)'s finite-sample bound, re-derived from scratch** — the maximizer (⌊nc⌋ at the top, one interior point, rest at the floor) gives `(k+r²)/n - ((k+r)/n)²`, algebraically identical to `36[c(1-c) - a(1-a)/n]`; `disc = 1/σ`; and every prose number (mean-SD correlation −0.7371, continuous-bound 0.181/0.173, 14 undefined R). Two suspicions investigated and **dismissed**: the `r-diagnostic` table does *not* average its columns over different subsets (`var_max` is 0, not NA, so `na.rm` is a no-op), and the real-valued bound *is* exactly attainable by integer ratings here (for n=6 on a width-6 scale the interior point `1+6a` is always an integer).
+- Edits were prose-only, so the `cache: true` chunks were untouched; cached results (0.626/0.200, pooled 0.219/0.211) verified unchanged after re-render.
+
+**equivalence-testing:**
+- **Unit trap, worth remembering generally: `TOSTER::t_TOST(eqb=)` is in RAW units; `BayesFactor::ttestBF(nullInterval=)` is in STANDARDIZED d.** The chapter handed `c(-2,2)` to both and claimed "the exact same ±2", which silently gave the Bayesian analysis a 1.77× wider bound (±2 s vs ±3.54 s at pooled SD 1.7678) and inflated the evidence ratio from ~45:1 to 131,014:1. Now converts via `delta_d <- 2 / sd_pooled` and states the trap explicitly. Verified from the printed statistic that eqb is raw: `(0.8232-2)/0.6392 = -1.841`, exactly the printed TOST Upper t.
+- The block quote attributed to Nature Human Behaviour is not NHB's wording. Fetched the live NHB Registered Reports page: "equivalence" appears **zero** times, there is no absence-of-evidence passage, and NHB requires **0.95** a priori power, not the 0.9 quoted. The language is the COS Registered Reports template's desk-rejection criterion — verified verbatim at RIPS and Cambridge *Evolutionary Human Sciences*, which do specify 0.9. Re-attributed, quoted verbatim, with NHB's 0.95 noted separately.
+- Simonsohn's "small telescopes" 33% is a **power level**, not a fraction of an effect size: `d_33%/d_80% = 0.543` and `d_33%/d_95% = 0.422`, stable across n. Reworded.
+- Added the Welch-vs-JZS equal-variance asymmetry note (the frequentist tests use `var.equal = FALSE`; `ttestBF`'s JZS model assumes equal variances).
