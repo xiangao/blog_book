@@ -106,6 +106,31 @@ try {
     window.localStorage.setItem("quarto-reader-mode", "false");
   }
 } catch (e) {}
+</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script><script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
 </script><link rel="stylesheet" href="style.css">
 </head>
 <body class="nav-sidebar floating quarto-light">
@@ -530,6 +555,7 @@ try {
   <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example"><span class="header-section-number">26.3</span> Example</a></li>
   <li><a href="#bootstrapping-standard-errors" id="toc-bootstrapping-standard-errors" class="nav-link" data-scroll-target="#bootstrapping-standard-errors"><span class="header-section-number">26.4</span> Bootstrapping standard errors</a></li>
   <li><a href="#how-to-do-it-with-r" id="toc-how-to-do-it-with-r" class="nav-link" data-scroll-target="#how-to-do-it-with-r"><span class="header-section-number">26.5</span> How to do it with R</a></li>
+  <li><a href="#what-if-the-endogenous-variable-is-binary" id="toc-what-if-the-endogenous-variable-is-binary" class="nav-link" data-scroll-target="#what-if-the-endogenous-variable-is-binary"><span class="header-section-number">26.6</span> What if the endogenous variable is binary?</a></li>
   </ul><div class="toc-actions"><ul><li><a href="https://github.com/xiangao/blog_book/edit/main/poisson-iv-fe.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/xiangao/blog_book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
@@ -564,12 +590,20 @@ try {
 </section><section id="iv-poisson-with-many-fixed-effects" class="level2" data-number="26.2"><h2 data-number="26.2" class="anchored" data-anchor-id="iv-poisson-with-many-fixed-effects">
 <span class="header-section-number">26.2</span> IV poisson with many fixed effects</h2>
 <p>Stata has a “ivpoisson” function with handles IV in a Poisson regression setting. However, it does not have the option to include fixed effects.</p>
+<p>This estimator has a published treatment worth knowing about. Lin and Wooldridge (2019), “Testing and correcting for endogeneity in nonlinear unobserved effects models,” treats exactly this setup: their <strong>Procedure 3</strong> is a reduced-form residual added to an FE Poisson, with a robust Wald test on the residual’s coefficient serving as a test of endogeneity. Several points below come from it.</p>
 <p>In the case that the endogenous variable is continuous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:</p>
 <ol type="1">
-<li>Run the first stage regression (the reduced form for the endogenous variable), and get the residual. This is the first-stage <strong>control-function</strong> residual. (It is worth not calling this a “Mundlak residual”: the Mundlak device means adding group <em>means</em> of covariates, as in the <a href="./mundlak-device.html">Mundlak chapter</a>, which is a different construction addressing a different problem.) Note in the many fixed effects case, we need to include all fixed effects in the first stage regression. In the case of stata, we would use “reghdfe” here.</li>
-<li>Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression. Use “ppmlhdfe” here.</li>
+<li>
+<p>Run the first stage regression (the reduced form for the endogenous variable), and get the residual. This is the first-stage <strong>control-function</strong> residual. Note in the many fixed effects case, we need to include all fixed effects in the first stage regression. In the case of stata, we would use “reghdfe” here.</p>
+<p>A terminology note, because two different objects are easy to conflate. The <strong>Mundlak device</strong> means adding group <em>means</em> of covariates as regressors, as in the <a href="./mundlak-device.html">Mundlak chapter</a>. The <strong>control-function residual</strong> here is the residual from a reduced form. They are different constructions. But a third object borrows the name, and it matters below: Lin and Wooldridge (2019) call the residual from a reduced form <em>that itself includes the Mundlak means</em> — from regressing <span class="math inline">\(y_{it2}\)</span> on <span class="math inline">\(z_{it}\)</span> and <span class="math inline">\(\bar z_i\)</span> — the <strong>Mundlak residual</strong>, as against the <strong>FE residual</strong> obtained by within-transforming. So in that paper “Mundlak residual” denotes a control-function residual, not the device itself.</p>
+</li>
+<li>
+<p>There is a useful result about which of those two residuals to use. Lin and Wooldridge (2019, appendices A.1 and A.2) show that in FE Poisson they give <strong>numerically identical</strong> estimates of both the structural coefficient and the coefficient on the control function. The reason is that the two residuals differ only by a term constant within unit, and the FE Poisson score is unaffected by adding anything unit-constant.</p>
+<p>This is more than a curiosity. It means the first stage does not need the thousands of unit dummies: the unit means will do, at no cost in the estimate. That is what makes a <strong>nonlinear</strong> first stage practical — you cannot put 2,000 dummies into a logit without an incidental-parameters problem, but you can put in 2,000 unit means. Note the result as stated is for a <em>linear</em> reduced form; see the caveat on discrete endogenous variables below.</p>
+</li>
+<li><p>Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression. Use “ppmlhdfe” here.</p></li>
 </ol>
-<p>Note that the standard errors would be incorrect if we use the standard errors from the second stage regression. We need to use the bootstrap method to get the correct standard errors. The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors. In the case of clustered standard errors, we need to bootstrap the clusters.</p>
+<p>Note that the standard errors would be incorrect if we use the standard errors from the second stage regression. We need to use the bootstrap method to get the correct standard errors. This is not merely a precaution: Lin and Wooldridge (2019, p.&nbsp;30) recommend exactly this, namely a panel bootstrap in which both estimating steps are done with each bootstrap sample. The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors. In the case of clustered standard errors, we need to bootstrap the clusters.</p>
 </section><section id="example" class="level2" data-number="26.3"><h2 data-number="26.3" class="anchored" data-anchor-id="example">
 <span class="header-section-number">26.3</span> Example</h2>
 <div class="cell" data-collectcode="true">
@@ -839,6 +873,14 @@ Bootstrap results                                          Number of obs = 499
 <span class="header-section-number">26.5</span> How to do it with R</h2>
 <p>R has similar packages https://cran.r-project.org/web/packages/fixest/vignettes/fixest_walkthrough.html.</p>
 <p>We can use “fixest” and “fepois” to do the same thing as “reghdfe” and “ppmlhdfe”. Again, at the moment, we need to manually bootstrap the two stages for correct standard errors.</p>
+</section><section id="what-if-the-endogenous-variable-is-binary" class="level2" data-number="26.6"><h2 data-number="26.6" class="anchored" data-anchor-id="what-if-the-endogenous-variable-is-binary">
+<span class="header-section-number">26.6</span> What if the endogenous variable is binary?</h2>
+<p>This is the case people most often actually have, and it is the least settled. Both procedures above assume otherwise: Procedure 3’s first stage is <em>linear</em>, and the companion probit procedure in the same paper states outright that the endogenous variable is assumed continuous. The binary case appears only in that paper’s final section, on extensions and future directions.</p>
+<p>What is offered there is the <strong>generalized residual</strong> from a reduced-form probit in <span class="math inline">\(w_{it} = (1, z_{it}, \bar z_i)\)</span> — the instrument, the time-varying exogenous controls, and their unit means:</p>
+<p><span class="math display">\[ \widehat{gr}_{it2} = y_{it2}\,\lambda(w_{it}\hat\theta_2) - (1-y_{it2})\,\lambda(-w_{it}\hat\theta_2) \]</span></p>
+<p>where <span class="math inline">\(\lambda\)</span> is the inverse Mills ratio. For a <strong>logit</strong> first stage the generalized residual collapses algebraically to the plain response residual <span class="math inline">\(y_{it2} - \hat p_{it2}\)</span>, so the familiar “predicted probability, then subtract” recipe is the generalized residual, not an approximation to it.</p>
+<p>Two honest caveats. The construction is introduced as “a simple example”, and is immediately followed by: “The Mundlak device, or Chamberlain’s version of it, might work reasonably well, but neither might be flexible enough. We leave investigations into the quality of CF approximations in discrete cases to future research.” So this is the construction to reach for, not a settled result. If you are worried the specification is too rigid, the same paper suggests adding nonlinear functions of the conditioning set — in particular interactions of the covariates with the unit means, and with the control function itself — or letting the variance depend on the unit means via a heteroskedastic probit.</p>
+<p>Given that, when the endogenous variable is binary I would report a linear first stage alongside the logit or probit one. The linear version rests on the exact result in point 2 above and drops no observations; the nonlinear version is better specified for a binary variable but rests on the unsettled argument here. Agreement between the two is the useful evidence.</p>
 <hr>
 <!-- see-also-footer --><p><em>Systematic treatment: <a href="https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html">R</a> · <a href="https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html">Julia</a>.</em></p>
 
@@ -1325,120 +1367,159 @@ Bootstrap results                                          Number of obs = 499
 <span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>Stata has a "ivpoisson" function with handles IV in a Poisson regression setting.  However, it does not have the option to include fixed effects.</span>
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>In the case that the endogenous variable is continuous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>This estimator has a published treatment worth knowing about.  Lin and Wooldridge (2019), "Testing and correcting for endogeneity in nonlinear unobserved effects models," treats exactly this setup: their **Procedure 3** is a reduced-form residual added to an FE Poisson, with a robust Wald test on the residual's coefficient serving as a test of endogeneity.  Several points below come from it.</span>
 <span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Run the first stage regression (the reduced form for the endogenous variable), and get the residual.  This is the first-stage **control-function** residual.  (It is worth not calling this a "Mundlak residual": the Mundlak device means adding group *means* of covariates, as in the <span class="co">[</span><span class="ot">Mundlak chapter</span><span class="co">](mundlak-device.qmd)</span>, which is a different construction addressing a different problem.)  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.</span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.</span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>In the case that the endogenous variable is continuous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Run the first stage regression (the reduced form for the endogenous variable), and get the residual.  This is the first-stage **control-function** residual.  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>    A terminology note, because two different objects are easy to conflate.  The **Mundlak device** means adding group *means* of covariates as regressors, as in the [Mundlak chapter](mundlak-device.qmd).  The **control-function residual** here is the residual from a reduced form.  They are different constructions.  But a third object borrows the name, and it matters below: Lin and Wooldridge (2019) call the residual from a reduced form *that itself includes the Mundlak means* --- from regressing $y_{it2}$ on $z_{it}$ and $\bar z_i$ --- the **Mundlak residual**, as against the **FE residual** obtained by within-transforming.  So in that paper "Mundlak residual" denotes a control-function residual, not the device itself.</span>
 <span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>There is a useful result about which of those two residuals to use.  Lin and Wooldridge (2019, appendices A.1 and A.2) show that in FE Poisson they give **numerically identical** estimates of both the structural coefficient and the coefficient on the control function.  The reason is that the two residuals differ only by a term constant within unit, and the FE Poisson score is unaffected by adding anything unit-constant.</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>    This is more than a curiosity.  It means the first stage does not need the thousands of unit dummies: the unit means will do, at no cost in the estimate.  That is what makes a **nonlinear** first stage practical --- you cannot put 2,000 dummies into a logit without an incidental-parameters problem, but you can put in 2,000 unit means.  Note the result as stated is for a *linear* reduced form; see the caveat on discrete endogenous variables below.</span>
 <span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
-<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  This is not merely a precaution: Lin and Wooldridge (2019, p. 30) recommend exactly this, namely a panel bootstrap in which both estimating steps are done with each bootstrap sample.  The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">echo =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
 <span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
 <span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>stataexe <span class="ot">&lt;-</span> <span class="fu">find_stata</span>()</span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a><span class="co">#stataexe &lt;- "/usr/local/bin/stata"</span></span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">engine.path=</span><span class="fu">list</span>(<span class="at">stata=</span>stataexe))</span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata1</span></span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">* control function approach</span></span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="in">webuse website</span></span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="in">reghdfe time phone frfam, absorb(ad female) resid</span></span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="in">predict double u2h_fe, resid</span></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="in">ppmlhdfe visits time u2h_fe frfam, absorb(ad female)</span></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the control-function residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.</span>
-<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.</span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
-<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a><span class="in">webuse website</span></span>
-<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe visits frfam (time=phone), absorb(ad female)</span></span>
-<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a><span class="in">* now the control function apparoach</span></span>
-<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="in">reghdfe time phone frfam , absorb(ad female) resid</span></span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a><span class="in">predict u2h_fe, resid</span></span>
-<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a><span class="in">reghdfe visits time u2h_fe frfam , absorb(ad female)</span></span>
-<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a>We can see that "ivreghdfe" gives the same result as our two step process.  The standard errors are wrong.  Now we do bootstrapping.</span>
-<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="fu">## Bootstrapping standard errors</span></span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a>Suppose we need clustered standard errors on "ad".</span>
-<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">echo =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: false</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>stataexe <span class="ot">&lt;-</span> <span class="fu">find_stata</span>()</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="co">#stataexe &lt;- "/usr/local/bin/stata"</span></span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span>opts_chunk<span class="sc">$</span><span class="fu">set</span>(<span class="at">engine.path=</span><span class="fu">list</span>(<span class="at">stata=</span>stataexe))</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata1</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="in">* control function approach</span></span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a><span class="in">webuse website</span></span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="in">reghdfe time phone frfam, absorb(ad female) resid</span></span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a><span class="in">predict double u2h_fe, resid</span></span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a><span class="in">ppmlhdfe visits time u2h_fe frfam, absorb(ad female)</span></span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the control-function residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.</span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a><span class="in">webuse website</span></span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe visits frfam (time=phone), absorb(ad female)</span></span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="in">* now the control function apparoach</span></span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="in">reghdfe time phone frfam , absorb(ad female) resid</span></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a><span class="in">predict u2h_fe, resid</span></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a><span class="in">reghdfe visits time u2h_fe frfam , absorb(ad female)</span></span>
 <span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
-<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a><span class="in">* bootstrap, suppose we need to cluster by "ad"</span></span>
-<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a><span class="in">* Note: bootstrap's idcluster(newid) below gives each resampled COPY of a</span></span>
-<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a><span class="in">* cluster its own unique id -- necessary because a cluster can be drawn more</span></span>
-<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a><span class="in">* than once within a replicate, and those duplicates must be treated as</span></span>
-<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a><span class="in">* distinct groups. The regressions inside this program must absorb "newid",</span></span>
-<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a><span class="in">* not the original "ad": absorbing "ad" would pool resampled duplicates of</span></span>
-<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a><span class="in">* the same cluster back into a single fixed effect, which violates the</span></span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="in">* cluster-bootstrap logic (verified empirically: within a replicate, the</span></span>
-<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a><span class="in">* number of distinct "ad" values is consistently below the true cluster</span></span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="in">* count, while "newid" always has exactly that many distinct values).</span></span>
-<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
-<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="in">capture program drop ppmlhdfe_cf</span></span>
-<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="in"> program ppmlhdfe_cf, rclass</span></span>
-<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="in">  reghdfe time phone frfam , absorb(newid female) resid</span></span>
-<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a><span class="in">  predict double u2h_fe, resid</span></span>
-<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a><span class="in">  ppmlhdfe visits time u2h_fe frfam , absorb(newid female)</span></span>
-<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a><span class="in">  return scalar b_time = _b[time]</span></span>
-<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a><span class="in">  drop u2h_fe</span></span>
-<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a><span class="in">  xtset, clear</span></span>
-<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a><span class="in"> end</span></span>
-<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a><span class="in">webuse website</span></span>
-<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a><span class="in">xtset, clear</span></span>
-<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a><span class="in">bootstrap r(b_time) , reps(100) seed(123) cluster(ad) idcluster(newid) : ppmlhdfe_cf</span></span>
-<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a>A troubleshooting note: we need to run <span class="in">`xtset, clear`</span> before each regression inside the bootstrap. The reason is that Stata's cluster bootstrap generates a new id variable for the resampled clusters and leaves the panel <span class="in">`xtset`</span> to that id; if it is not cleared, a later regression can pick up the stale panel setting even when it does not use the id. Clearing it each iteration avoids this.</span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>We can see that "ivreghdfe" gives the same result as our two step process.  The standard errors are wrong.  Now we do bootstrapping.</span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a><span class="fu">## Bootstrapping standard errors</span></span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>Suppose we need clustered standard errors on "ad".</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="in">* bootstrap, suppose we need to cluster by "ad"</span></span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a><span class="in">* Note: bootstrap's idcluster(newid) below gives each resampled COPY of a</span></span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="in">* cluster its own unique id -- necessary because a cluster can be drawn more</span></span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="in">* than once within a replicate, and those duplicates must be treated as</span></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="in">* distinct groups. The regressions inside this program must absorb "newid",</span></span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a><span class="in">* not the original "ad": absorbing "ad" would pool resampled duplicates of</span></span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a><span class="in">* the same cluster back into a single fixed effect, which violates the</span></span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a><span class="in">* cluster-bootstrap logic (verified empirically: within a replicate, the</span></span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a><span class="in">* number of distinct "ad" values is consistently below the true cluster</span></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a><span class="in">* count, while "newid" always has exactly that many distinct values).</span></span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a><span class="in">capture program drop ppmlhdfe_cf</span></span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a><span class="in"> program ppmlhdfe_cf, rclass</span></span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a><span class="in">  reghdfe time phone frfam , absorb(newid female) resid</span></span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a><span class="in">  predict double u2h_fe, resid</span></span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a><span class="in">  ppmlhdfe visits time u2h_fe frfam , absorb(newid female)</span></span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a><span class="in">  return scalar b_time = _b[time]</span></span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a><span class="in">  drop u2h_fe</span></span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a><span class="in">  xtset, clear</span></span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a><span class="in"> end</span></span>
 <span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a><span class="fu">## How to do it with R</span></span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a><span class="in">webuse website</span></span>
 <span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a>R has similar packages https://cran.r-project.org/web/packages/fixest/vignettes/fixest_walkthrough.html.</span>
-<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a>We can use "fixest" and "fepois" to do the same thing as "reghdfe" and "ppmlhdfe".  Again, at the moment, we need to manually bootstrap the two stages for correct standard errors.</span>
-<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*</span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a><span class="in">xtset, clear</span></span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a><span class="in">bootstrap r(b_time) , reps(100) seed(123) cluster(ad) idcluster(newid) : ppmlhdfe_cf</span></span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a>A troubleshooting note: we need to run <span class="in">`xtset, clear`</span> before each regression inside the bootstrap. The reason is that Stata's cluster bootstrap generates a new id variable for the resampled clusters and leaves the panel <span class="in">`xtset`</span> to that id; if it is not cleared, a later regression can pick up the stale panel setting even when it does not use the id. Clearing it each iteration avoids this.</span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a><span class="fu">## How to do it with R</span></span>
+<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a>R has similar packages https://cran.r-project.org/web/packages/fixest/vignettes/fixest_walkthrough.html.</span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a>We can use "fixest" and "fepois" to do the same thing as "reghdfe" and "ppmlhdfe".  Again, at the moment, we need to manually bootstrap the two stages for correct standard errors.</span>
+<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a><span class="fu">## What if the endogenous variable is binary?</span></span>
+<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a>This is the case people most often actually have, and it is the least settled.  Both procedures above</span>
+<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a>assume otherwise: Procedure 3's first stage is *linear*, and the companion probit procedure in the same</span>
+<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a>paper states outright that the endogenous variable is assumed continuous.  The binary case appears only</span>
+<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a>in that paper's final section, on extensions and future directions.</span>
+<span id="cb7-155"><a href="#cb7-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-156"><a href="#cb7-156" aria-hidden="true" tabindex="-1"></a>What is offered there is the **generalized residual** from a reduced-form probit in</span>
+<span id="cb7-157"><a href="#cb7-157" aria-hidden="true" tabindex="-1"></a>$w_{it} = (1, z_{it}, \bar z_i)$ --- the instrument, the time-varying exogenous controls, and their unit</span>
+<span id="cb7-158"><a href="#cb7-158" aria-hidden="true" tabindex="-1"></a>means:</span>
+<span id="cb7-159"><a href="#cb7-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-160"><a href="#cb7-160" aria-hidden="true" tabindex="-1"></a>$$ \widehat{gr}_{it2} = y_{it2}\,\lambda(w_{it}\hat\theta_2) - (1-y_{it2})\,\lambda(-w_{it}\hat\theta_2) $$</span>
+<span id="cb7-161"><a href="#cb7-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-162"><a href="#cb7-162" aria-hidden="true" tabindex="-1"></a>where $\lambda$ is the inverse Mills ratio.  For a **logit** first stage the generalized residual</span>
+<span id="cb7-163"><a href="#cb7-163" aria-hidden="true" tabindex="-1"></a>collapses algebraically to the plain response residual $y_{it2} - \hat p_{it2}$, so the familiar</span>
+<span id="cb7-164"><a href="#cb7-164" aria-hidden="true" tabindex="-1"></a>"predicted probability, then subtract" recipe is the generalized residual, not an approximation to it.</span>
+<span id="cb7-165"><a href="#cb7-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-166"><a href="#cb7-166" aria-hidden="true" tabindex="-1"></a>Two honest caveats.  The construction is introduced as "a simple example", and is immediately followed</span>
+<span id="cb7-167"><a href="#cb7-167" aria-hidden="true" tabindex="-1"></a>by: "The Mundlak device, or Chamberlain's version of it, might work reasonably well, but neither might be</span>
+<span id="cb7-168"><a href="#cb7-168" aria-hidden="true" tabindex="-1"></a>flexible enough.  We leave investigations into the quality of CF approximations in discrete cases to</span>
+<span id="cb7-169"><a href="#cb7-169" aria-hidden="true" tabindex="-1"></a>future research."  So this is the construction to reach for, not a settled result.  If you are worried</span>
+<span id="cb7-170"><a href="#cb7-170" aria-hidden="true" tabindex="-1"></a>the specification is too rigid, the same paper suggests adding nonlinear functions of the conditioning</span>
+<span id="cb7-171"><a href="#cb7-171" aria-hidden="true" tabindex="-1"></a>set --- in particular interactions of the covariates with the unit means, and with the control function</span>
+<span id="cb7-172"><a href="#cb7-172" aria-hidden="true" tabindex="-1"></a>itself --- or letting the variance depend on the unit means via a heteroskedastic probit.</span>
+<span id="cb7-173"><a href="#cb7-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-174"><a href="#cb7-174" aria-hidden="true" tabindex="-1"></a>Given that, when the endogenous variable is binary I would report a linear first stage alongside the</span>
+<span id="cb7-175"><a href="#cb7-175" aria-hidden="true" tabindex="-1"></a>logit or probit one.  The linear version rests on the exact result in point 2 above and drops no</span>
+<span id="cb7-176"><a href="#cb7-176" aria-hidden="true" tabindex="-1"></a>observations; the nonlinear version is better specified for a binary variable but rests on the unsettled</span>
+<span id="cb7-177"><a href="#cb7-177" aria-hidden="true" tabindex="-1"></a>argument here.  Agreement between the two is the useful evidence.</span>
+<span id="cb7-178"><a href="#cb7-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-179"><a href="#cb7-179" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb7-180"><a href="#cb7-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-181"><a href="#cb7-181" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb7-182"><a href="#cb7-182" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

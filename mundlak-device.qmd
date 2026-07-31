@@ -82,6 +82,76 @@ where $X_{i \cdot}$ is the unit specific averages over time, and $X_{\cdot t}$ i
 
 Wooldridge calls this POLS of regressing $y_{it}$ on regressors $X_{it}$ and two sets of additional controls $X_{i \cdot}$ and $X_{\cdot t}$ Two-way Mundlak (TWM) model.
 
+## An important qualification: TWM needs a balanced panel
+
+The two-way equivalence above holds for a **balanced** panel.  It is worth stating this
+explicitly, because the one-way result does *not* need balance and the contrast is easy to
+miss.
+
+The one-way version --- regressing $y_{it}$ on $X_{it}$ and $X_{i \cdot}$ --- is exact
+whatever the panel looks like, for the reason given below: $\sum_t (x_{it} - \bar x_i) = 0$
+holds within each unit by construction, no matter how many periods that unit contributes.
+
+The two-way version needs something stronger.  Subtracting both margins and adding back the
+grand mean, $x_{it} - \bar x_{i \cdot} - \bar x_{\cdot t} + \bar x$, is the projection onto
+*both* sets of dummies only when the unit and time factors are **orthogonal** --- that is,
+when every unit appears in every period.  In a balanced panel that holds automatically.  In
+an unbalanced panel it fails, and TWM is then simply a different estimator from TWFE.
+
+The gap is not academic.  Using `nlswork`, which is unbalanced (persons contribute between 1
+and 12 observations), the coefficient on `age` differs by more than a factor of two:
+
+```{stata}
+*| label: twm_unbalanced
+*| echo: true
+*| collectcode: true
+
+* preserve/restore so this illustration leaves the data as later chunks expect
+preserve
+webuse nlswork, clear
+keep if !missing(ln_wage, age, union)
+xtset idcode year
+
+bysort idcode: egen m_age   = mean(age)
+bysort idcode: egen m_union = mean(union)
+egen t_age   = mean(age),   by(year)
+egen t_union = mean(union), by(year)
+
+* unit means of the year dummies -- the terms the unbalanced case needs
+levelsof year, local(yrs)
+foreach y of local yrs {
+    bysort idcode: egen my_`y' = mean(year==`y')
+}
+
+quietly xtreg ln_wage age union i.year, fe
+scalar b_twfe = _b[age]
+quietly regress ln_wage age union m_age m_union t_age t_union
+scalar b_twm = _b[age]
+quietly regress ln_wage age union m_age m_union i.year my_*
+scalar b_fix = _b[age]
+
+di "TWFE                      age = " %9.7f b_twfe
+di "TWM (unit + time means)   age = " %9.7f b_twm
+di "TWM + unit means of dummies   = " %9.7f b_fix
+
+restore
+```
+
+What restores the equivalence is including the **unit means of the time dummies**.  They have a
+clear meaning: the unit mean of the dummy for period $t$ is $s_{it}/T_i$, where $s_{it}$
+indicates whether unit $i$ is observed in period $t$.  So adding them amounts to conditioning on
+*which* periods each unit is observed in --- the panel's selection pattern.  This is the
+conditioning set in Wooldridge's work on correlated random effects with unbalanced panels.
+
+Two practical notes.  In a balanced panel these extra terms have zero variance --- every unit
+is observed in every period, so each mean is $1/T$ for everybody --- which is exactly why they
+never come up in the balanced case.  And the number of observations per unit, $T_i$, is *not* a
+substitute for them: it does not restore exactness, and it is collinear with them once they are
+included.
+
+Everything in this section is about the *point estimate*.  Standard errors from TWM are not the
+TWFE standard errors, and should not be read as such.
+
 One advantage of TWM is that it has potentially huge cut on the number of regressors, if you use the dummy variable approach for the TWFE.
 
 The other advantage is that you can actually include time-invariant or unit-invariant variables in the regression and the $\beta$'s remain unchanged.  We all know that in TWFE model you cannot include those time-invariant or unit-invariant variables in the model.

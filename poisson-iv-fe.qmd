@@ -17,12 +17,21 @@ On a side note, the same author has "reghdfe" as a replacement for "areg" in Sta
 
 Stata has a "ivpoisson" function with handles IV in a Poisson regression setting.  However, it does not have the option to include fixed effects.
 
+This estimator has a published treatment worth knowing about.  Lin and Wooldridge (2019), "Testing and correcting for endogeneity in nonlinear unobserved effects models," treats exactly this setup: their **Procedure 3** is a reduced-form residual added to an FE Poisson, with a robust Wald test on the residual's coefficient serving as a test of endogeneity.  Several points below come from it.
+
 In the case that the endogenous variable is continuous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:
 
-1. Run the first stage regression (the reduced form for the endogenous variable), and get the residual.  This is the first-stage **control-function** residual.  (It is worth not calling this a "Mundlak residual": the Mundlak device means adding group *means* of covariates, as in the [Mundlak chapter](mundlak-device.qmd), which is a different construction addressing a different problem.)  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.
-2. Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.
+1. Run the first stage regression (the reduced form for the endogenous variable), and get the residual.  This is the first-stage **control-function** residual.  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.
 
-Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.
+    A terminology note, because two different objects are easy to conflate.  The **Mundlak device** means adding group *means* of covariates as regressors, as in the [Mundlak chapter](mundlak-device.qmd).  The **control-function residual** here is the residual from a reduced form.  They are different constructions.  But a third object borrows the name, and it matters below: Lin and Wooldridge (2019) call the residual from a reduced form *that itself includes the Mundlak means* --- from regressing $y_{it2}$ on $z_{it}$ and $\bar z_i$ --- the **Mundlak residual**, as against the **FE residual** obtained by within-transforming.  So in that paper "Mundlak residual" denotes a control-function residual, not the device itself.
+
+2. There is a useful result about which of those two residuals to use.  Lin and Wooldridge (2019, appendices A.1 and A.2) show that in FE Poisson they give **numerically identical** estimates of both the structural coefficient and the coefficient on the control function.  The reason is that the two residuals differ only by a term constant within unit, and the FE Poisson score is unaffected by adding anything unit-constant.
+
+    This is more than a curiosity.  It means the first stage does not need the thousands of unit dummies: the unit means will do, at no cost in the estimate.  That is what makes a **nonlinear** first stage practical --- you cannot put 2,000 dummies into a logit without an incidental-parameters problem, but you can put in 2,000 unit means.  Note the result as stated is for a *linear* reduced form; see the caveat on discrete endogenous variables below.
+
+3. Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.
+
+Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  This is not merely a precaution: Lin and Wooldridge (2019, p. 30) recommend exactly this, namely a panel bootstrap in which both estimating steps are done with each bootstrap sample.  The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.
 
 
 
@@ -126,6 +135,36 @@ A troubleshooting note: we need to run `xtset, clear` before each regression ins
 R has similar packages https://cran.r-project.org/web/packages/fixest/vignettes/fixest_walkthrough.html.
 
 We can use "fixest" and "fepois" to do the same thing as "reghdfe" and "ppmlhdfe".  Again, at the moment, we need to manually bootstrap the two stages for correct standard errors.
+
+## What if the endogenous variable is binary?
+
+This is the case people most often actually have, and it is the least settled.  Both procedures above
+assume otherwise: Procedure 3's first stage is *linear*, and the companion probit procedure in the same
+paper states outright that the endogenous variable is assumed continuous.  The binary case appears only
+in that paper's final section, on extensions and future directions.
+
+What is offered there is the **generalized residual** from a reduced-form probit in
+$w_{it} = (1, z_{it}, \bar z_i)$ --- the instrument, the time-varying exogenous controls, and their unit
+means:
+
+$$ \widehat{gr}_{it2} = y_{it2}\,\lambda(w_{it}\hat\theta_2) - (1-y_{it2})\,\lambda(-w_{it}\hat\theta_2) $$
+
+where $\lambda$ is the inverse Mills ratio.  For a **logit** first stage the generalized residual
+collapses algebraically to the plain response residual $y_{it2} - \hat p_{it2}$, so the familiar
+"predicted probability, then subtract" recipe is the generalized residual, not an approximation to it.
+
+Two honest caveats.  The construction is introduced as "a simple example", and is immediately followed
+by: "The Mundlak device, or Chamberlain's version of it, might work reasonably well, but neither might be
+flexible enough.  We leave investigations into the quality of CF approximations in discrete cases to
+future research."  So this is the construction to reach for, not a settled result.  If you are worried
+the specification is too rigid, the same paper suggests adding nonlinear functions of the conditioning
+set --- in particular interactions of the covariates with the unit means, and with the control function
+itself --- or letting the variance depend on the unit means via a heteroskedastic probit.
+
+Given that, when the endogenous variable is binary I would report a linear first stage alongside the
+logit or probit one.  The linear version rests on the exact result in point 2 above and drops no
+observations; the nonlinear version is better specified for a binary variable but rests on the unsettled
+argument here.  Agreement between the two is the useful evidence.
 
 ---
 
