@@ -82,6 +82,24 @@ where $X_{i \cdot}$ is the unit specific averages over time, and $X_{\cdot t}$ i
 
 Wooldridge calls this POLS of regressing $y_{it}$ on regressors $X_{it}$ and two sets of additional controls $X_{i \cdot}$ and $X_{\cdot t}$ Two-way Mundlak (TWM) model.
 
+One advantage of TWM is that it has potentially huge cut on the number of regressors, if you use the dummy variable approach for the TWFE.
+
+The other advantage is that you can actually include time-invariant or unit-invariant variables in the regression and the $\beta$'s remain unchanged.  We all know that in TWFE model you cannot include those time-invariant or unit-invariant variables in the model.
+
+We can see in the following example of POLS (which is TWM), we add in `race`, which is **time-invariant** --- constant within a person, but varying across people.  (In `nlswork` the within-person standard deviation of `race` is exactly 0, while within any given year it is about 0.50, so it is emphatically not unit-invariant.)  It can be estimated in TWM, but would not be estimable in TWFE.  Notice that coefficients on age and union remain unchanged.
+
+The reason is *not* that `race` is orthogonal to the other regressors --- it is not orthogonal to the unit means `mean_age` and `mean_union`.  It is that the variation identifying $\beta$ is the within-unit variation, and within-unit deviations are orthogonal to **any** unit-level variable by construction, since $\sum_t (x_{it} - \bar x_i) = 0$ for every $i$.  Adding a unit-level regressor therefore cannot move $\beta$, whatever that regressor happens to be.  A genuinely unit-invariant variable --- one constant across units within a period, such as a time dummy --- leaves $\beta$ unchanged for the mirror-image reason.
+
+
+```{stata}
+*| label: stata2
+*| echo: true
+
+
+reg ln_wage age union mean_age mean_union i.race, cluster(idcode)
+
+```
+
 ## An important qualification: TWM needs a balanced panel
 
 The two-way equivalence above holds for a **balanced** panel.  It is worth stating this
@@ -152,23 +170,23 @@ included.
 Everything in this section is about the *point estimate*.  Standard errors from TWM are not the
 TWFE standard errors, and should not be read as such.
 
-One advantage of TWM is that it has potentially huge cut on the number of regressors, if you use the dummy variable approach for the TWFE.
+It is worth pausing on the fact that this chapter now demonstrates both results on the *same*
+data.  The `xtreg` example near the top shows one-way Mundlak matching one-way FE on `nlswork`, and
+the chunk just above shows two-way Mundlak failing on `nlswork`.  Same dataset, opposite verdicts,
+because the two claims do not have the same requirements.  The one-way result needs nothing:
+$\sum_t (x_{it} - \bar x_i) = 0$ holds within each unit whatever periods that unit contributes, so
+$T_i$ may vary freely.  The two-way result needs the unit and time factors to be orthogonal *to each
+other*, which is a statement about the relationship between two dimensions, and that is what
+imbalance destroys.  Nothing one-way can be affected, because there is no second dimension for the
+first to fail to be orthogonal to.
 
-The other advantage is that you can actually include time-invariant or unit-invariant variables in the regression and the $\beta$'s remain unchanged.  We all know that in TWFE model you cannot include those time-invariant or unit-invariant variables in the model.
-
-We can see in the following example of POLS (which is TWM), we add in `race`, which is **time-invariant** --- constant within a person, but varying across people.  (In `nlswork` the within-person standard deviation of `race` is exactly 0, while within any given year it is about 0.50, so it is emphatically not unit-invariant.)  It can be estimated in TWM, but would not be estimable in TWFE.  Notice that coefficients on age and union remain unchanged.
-
-The reason is *not* that `race` is orthogonal to the other regressors --- it is not orthogonal to the unit means `mean_age` and `mean_union`.  It is that the variation identifying $\beta$ is the within-unit variation, and within-unit deviations are orthogonal to **any** unit-level variable by construction, since $\sum_t (x_{it} - \bar x_i) = 0$ for every $i$.  Adding a unit-level regressor therefore cannot move $\beta$, whatever that regressor happens to be.  A genuinely unit-invariant variable --- one constant across units within a period, such as a time dummy --- leaves $\beta$ unchanged for the mirror-image reason.
-
-
-```{stata}
-*| label: stata2
-*| echo: true
-
-
-reg ln_wage age union mean_age mean_union i.race, cluster(idcode)
-
-```
+**Which regressors need means, then?**  Those that vary within unit.  This is why `i.race` above
+takes no mean: `race` is constant within a person, so its within-person mean *is* `race` --- in
+`nlswork` the two agree to the last digit --- and adding it would be perfectly collinear.  A year
+dummy is the opposite case: it does vary within a person (in `nlswork` the within-person standard
+deviation of the 1971 dummy is about 0.71), so its unit mean is not the dummy but the fraction of
+that person's observations falling in that year.  That fraction is new information, and in an
+unbalanced panel it is exactly the information the equivalence needs.
 
 ## More than two fixed effects: one set of means, not one per dimension
 
@@ -188,7 +206,9 @@ robust recipe is:
   included.
 
 That last clause is easily overlooked, and it is the same clause that fixes the unbalanced two-way case
-above.  Call this construction **B**, and call the three-sets-of-means guess **A**.
+above.  The test for whether a given regressor needs a mean is the one stated there: does it vary
+within the dimension you are eliminating?  Time and group dummies do, so their means carry
+information; a regressor already constant within unit does not, so its mean is itself.  Call this construction **B**, and call the three-sets-of-means guess **A**.
 
 ```{stata}
 *| label: twm_three_way
