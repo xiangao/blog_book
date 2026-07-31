@@ -711,7 +711,7 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
 <p>The two-way equivalence above holds for a <strong>balanced</strong> panel. It is worth stating this explicitly, because the one-way result does <em>not</em> need balance and the contrast is easy to miss.</p>
 <p>The one-way version — regressing <span class="math inline">\(y_{it}\)</span> on <span class="math inline">\(X_{it}\)</span> and <span class="math inline">\(X_{i \cdot}\)</span> — is exact whatever the panel looks like, for the reason given below: <span class="math inline">\(\sum_t (x_{it} - \bar x_i) = 0\)</span> holds within each unit by construction, no matter how many periods that unit contributes.</p>
 <p>The two-way version needs something stronger. Subtracting both margins and adding back the grand mean, <span class="math inline">\(x_{it} - \bar x_{i \cdot} - \bar x_{\cdot t} + \bar x\)</span>, is the projection onto <em>both</em> sets of dummies only when the unit and time factors are <strong>orthogonal</strong> — that is, when every unit appears in every period. In a balanced panel that holds automatically. In an unbalanced panel it fails, and TWM is then simply a different estimator from TWFE.</p>
-<p>The gap is not academic. Using <code>nlswork</code>, which is unbalanced (persons contribute between 1 and 12 observations), the coefficient on <code>age</code> differs by more than a factor of two:</p>
+<p>The difference is large enough to matter in applied work. Using <code>nlswork</code>, which is unbalanced (persons contribute between 1 and 12 observations), the coefficient on <code>age</code> differs by more than a factor of two:</p>
 <div class="cell" data-collectcode="true">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>* <span class="kw">preserve</span>/<span class="kw">restore</span> so <span class="kw">this</span> illustration leaves the <span class="kw">data</span> <span class="kw">as</span> later chunks expect</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">preserve</span></span>
@@ -814,10 +814,10 @@ TWM + unit means of dummies   = 0.0276646</code></pre>
 <ul>
 <li>pick the dimension you cannot estimate — typically the one with many levels and few observations each — and replace it with means;</li>
 <li>
-<strong>keep the other dimensions as dummies</strong>, since they are cheap;</li>
+<strong>keep the other dimensions as dummies</strong>, since they have few levels and many observations each;</li>
 <li>take the means over the chosen dimension of <em>everything else in the model</em>, the retained dummies included.</li>
 </ul>
-<p>That last clause is the one people miss, and it is the same clause that fixes the unbalanced two-way case above. Call this construction <strong>B</strong>, and call the three-sets-of-means guess <strong>A</strong>.</p>
+<p>That last clause is easily overlooked, and it is the same clause that fixes the unbalanced two-way case above. Call this construction <strong>B</strong>, and call the three-sets-of-means guess <strong>A</strong>.</p>
 <div class="cell" data-collectcode="true">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">preserve</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">capture</span> <span class="kw">program</span> <span class="kw">drop</span> twm3</span>
@@ -897,7 +897,7 @@ g from a Latin square (orthogonal):
    B: means over i, dummies included   =  0.996471   gap  0.000000</code></pre>
 </div>
 </div>
-<p>So <strong>A is not wrong so much as conditional</strong>: it is exact when the factors are mutually orthogonal, and it drifts otherwise. A full factorial design gives orthogonality, but so does a Latin square, which fills only a fraction of the possible cells — what matters is the balance property, that each level of one factor appears equally often with each level of the others, not the number of cells. Deleting a single row from either design is enough to lose exactness, and the size of the gap tracks how far from orthogonal the design has drifted.</p>
+<p>So <strong>A is not incorrect but conditional</strong>: it is exact when the factors are mutually orthogonal, and inexact otherwise. A full factorial design gives orthogonality, but so does a Latin square, which fills only a fraction of the possible cells — what matters is the balance property, that each level of one factor appears equally often with each level of the others, not the number of cells. Deleting a single row from either design is enough to lose exactness, and the size of the gap tracks how far from orthogonal the design is.</p>
 <p>This is the general statement of the balanced-panel condition from the previous section. A balanced two-way panel <em>is</em> an orthogonal design: every unit appears in every period. Unbalance it, and the unit and time factors stop being orthogonal, which is why the two-way equivalence fails there.</p>
 <p>The practical reading is that orthogonality is a property of <strong>designed</strong> data — factorial experiments, Latin squares, crop trials, where somebody chose the assignment. Observational panels essentially never have it, and a third factor makes matters worse rather than better, since it is often partly determined by the first two. In an audit panel I looked at recently, for instance, the third fixed effect was the running count of audits within a factory, which is mechanically a function of factory and calendar time; that design cannot be orthogonal even in principle. For observational work, B is the construction to use.</p>
 </section><section id="applications-of-twm-to-did-in-common-treatment-timing" class="level2" data-number="8.5"><h2 data-number="8.5" class="anchored" data-anchor-id="applications-of-twm-to-did-in-common-treatment-timing">
@@ -2571,7 +2571,7 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a>when every unit appears in every period.  In a balanced panel that holds automatically.  In</span>
 <span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>an unbalanced panel it fails, and TWM is then simply a different estimator from TWFE.</span>
 <span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>The gap is not academic.  Using <span class="in">`nlswork`</span>, which is unbalanced (persons contribute between 1</span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>The difference is large enough to matter in applied work.  Using <span class="in">`nlswork`</span>, which is unbalanced (persons contribute between 1</span>
 <span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>and 12 observations), the coefficient on <span class="in">`age`</span> differs by more than a factor of two:</span>
 <span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
@@ -2656,11 +2656,11 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb13-191"><a href="#cb13-191" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-192"><a href="#cb13-192" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>pick the dimension you cannot estimate --- typically the one with many levels and few observations</span>
 <span id="cb13-193"><a href="#cb13-193" aria-hidden="true" tabindex="-1"></a>  each --- and replace it with means;</span>
-<span id="cb13-194"><a href="#cb13-194" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**keep the other dimensions as dummies**, since they are cheap;</span>
+<span id="cb13-194"><a href="#cb13-194" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**keep the other dimensions as dummies**, since they have few levels and many observations each;</span>
 <span id="cb13-195"><a href="#cb13-195" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>take the means over the chosen dimension of *everything else in the model*, the retained dummies</span>
 <span id="cb13-196"><a href="#cb13-196" aria-hidden="true" tabindex="-1"></a>  included.</span>
 <span id="cb13-197"><a href="#cb13-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-198"><a href="#cb13-198" aria-hidden="true" tabindex="-1"></a>That last clause is the one people miss, and it is the same clause that fixes the unbalanced two-way case</span>
+<span id="cb13-198"><a href="#cb13-198" aria-hidden="true" tabindex="-1"></a>That last clause is easily overlooked, and it is the same clause that fixes the unbalanced two-way case</span>
 <span id="cb13-199"><a href="#cb13-199" aria-hidden="true" tabindex="-1"></a>above.  Call this construction **B**, and call the three-sets-of-means guess **A**.</span>
 <span id="cb13-200"><a href="#cb13-200" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-203"><a href="#cb13-203" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
@@ -2726,12 +2726,12 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb13-263"><a href="#cb13-263" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
 <span id="cb13-264"><a href="#cb13-264" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb13-265"><a href="#cb13-265" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-266"><a href="#cb13-266" aria-hidden="true" tabindex="-1"></a>So **A is not wrong so much as conditional**: it is exact when the factors are mutually orthogonal, and</span>
-<span id="cb13-267"><a href="#cb13-267" aria-hidden="true" tabindex="-1"></a>it drifts otherwise.  A full factorial design gives orthogonality, but so does a Latin square, which</span>
+<span id="cb13-266"><a href="#cb13-266" aria-hidden="true" tabindex="-1"></a>So **A is not incorrect but conditional**: it is exact when the factors are mutually orthogonal, and</span>
+<span id="cb13-267"><a href="#cb13-267" aria-hidden="true" tabindex="-1"></a>inexact otherwise.  A full factorial design gives orthogonality, but so does a Latin square, which</span>
 <span id="cb13-268"><a href="#cb13-268" aria-hidden="true" tabindex="-1"></a>fills only a fraction of the possible cells --- what matters is the balance property, that each level of</span>
 <span id="cb13-269"><a href="#cb13-269" aria-hidden="true" tabindex="-1"></a>one factor appears equally often with each level of the others, not the number of cells.  Deleting a</span>
 <span id="cb13-270"><a href="#cb13-270" aria-hidden="true" tabindex="-1"></a>single row from either design is enough to lose exactness, and the size of the gap tracks how far from</span>
-<span id="cb13-271"><a href="#cb13-271" aria-hidden="true" tabindex="-1"></a>orthogonal the design has drifted.</span>
+<span id="cb13-271"><a href="#cb13-271" aria-hidden="true" tabindex="-1"></a>orthogonal the design is.</span>
 <span id="cb13-272"><a href="#cb13-272" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-273"><a href="#cb13-273" aria-hidden="true" tabindex="-1"></a>This is the general statement of the balanced-panel condition from the previous section.  A balanced</span>
 <span id="cb13-274"><a href="#cb13-274" aria-hidden="true" tabindex="-1"></a>two-way panel *is* an orthogonal design: every unit appears in every period.  Unbalance it, and the unit</span>
