@@ -6,6 +6,13 @@ date: "2025-11-11"
 
 Jeff Wooldridge suggested using Correlated Random Effect (CRE) for binary outcomes in this twitter post:  https://x.com/jmwooldridge/status/1986100627454206220
 
+One word on the name before we start, since it invites a misreading.  "Correlated random effects"
+describes an *assumption*, not an estimator: the unobserved effect $v_i$ is modelled as a function of the
+group means and is allowed to correlate with the regressors, rather than being treated as a free
+parameter to estimate.  Whether you then estimate by pooled OLS, pooled probit, or an actual
+random-effects routine is a separate choice.  Most of what follows uses **pooled** estimation with group
+means added, in which no random effect is estimated at all.
+
 
 Here I summarize what I learned so far:
 
@@ -77,7 +84,7 @@ cre_model2 <- lmer(l_homicide ~ poverty + poverty_mean + l_police + l_police_mea
 summary(cre_model2)
 ```
 
-In this example, fixed effect model, CRE1 and CRE2 all give the same coefficient on poverty.
+In this example, fixed effect model, CRE1 (pooled OLS with the Mundlak device) and CRE2 (random effects with the Mundlak device) all give the same coefficient on poverty.
 
 As we know, RE model assumes $v_i$ is uncorrelated with $X_{it}$, while CRE and FE allow for correlation between $v_i$ and $X_{it}$.
 
@@ -97,7 +104,7 @@ For binary outcomes, the model is:
 $$\Pr(y_{it}=1 \mid X_{it}, v_i) = \Phi(\alpha + X_{it} \beta + v_i) $$
 I used to think it's the best to use conditional logit.  However, it needs "conditional independence" (serial independence could be a better name) to be consistent.  That is, we have to assume the series of $y_{it}$ is conditionally independent of each other given $X_{it}$ and $v_i$.  This is a strong assumption.  If we think we have serial correlation in the error term, then this would not hold.  The other disadvantage of conditional logit (also called fixed effect logit) is that $v_i$'s are not estimated, it is just a nuisance parameter.  Any partial effects cannot be calculated, because any partial effects are functions of $v_i$'s.
 
-Instead, Wooldridge suggests using CRE probit.  Basically adding Mundlak device (group means of $X$'s) to the model, and then use pooled probit.  Note that we do not use RE probit or logit, since that would need conditional independence too.  Lin and Wooldridge (2019, sec. 5.2) put this plainly: "None of random effects probit, RE logit, RE Tobit, RE Poisson, and so on has robustness properties in the presence of serial correlation of the innovations."  Pooled methods with cluster-robust inference are robust to serial dependence of arbitrary form, which is the reason to prefer them here.
+Instead, Wooldridge suggests using CRE probit --- that is, the Mundlak device inside a probit.  Basically adding Mundlak device (group means of $X$'s) to the model, and then use pooled probit.  Note that we do not use RE probit or logit, since that would need conditional independence too.  Lin and Wooldridge (2019, sec. 5.2) put this plainly: "None of random effects probit, RE logit, RE Tobit, RE Poisson, and so on has robustness properties in the presence of serial correlation of the innovations."  Pooled methods with cluster-robust inference are robust to serial dependence of arbitrary form, which is the reason to prefer them here.
 
 For nonlinear panel data with unobserved heterogeneity (meaning there is $v_i$ that we don't observe), we have a few assumptions.
 

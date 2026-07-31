@@ -156,6 +156,15 @@ where $\lambda$ is the inverse Mills ratio.  For a **logit** first stage the gen
 collapses algebraically to the plain response residual $y_{it2} - \hat p_{it2}$, so the familiar
 "predicted probability, then subtract" recipe is the generalized residual, not an approximation to it.
 
+A note on the name, because it misleads.  This construction is usually filed under **correlated random
+effects** (CRE), and that is how to find it in the literature --- see the [CRE chapter](more-cre.qmd).
+The name describes the *assumption*: heterogeneity is modelled as a function of the group means and
+allowed to correlate with the regressors, instead of being treated as a free parameter.  It does not
+describe the estimator.  The first stage below is a **pooled logit** with the group means added as
+regressors.  No random effect is estimated, no variance component appears, and nothing is integrated
+out.  Below it is labelled "CRE (Mundlak device)" so that both names stay visible: the first tells you
+where to look it up, the second tells you what is actually computed.
+
 Two caveats should be stated plainly.  The construction is introduced as "a simple example", and is immediately followed
 by: "The Mundlak device, or Chamberlain's version of it, might work reasonably well, but neither might be
 flexible enough.  We leave investigations into the quality of CF approximations in discrete cases to
@@ -168,7 +177,8 @@ itself --- or letting the variance depend on the unit means via a heteroskedasti
 
 The expression $w_{it} = (1, z_{it}, \bar z_i)$ above is written for a single unobserved effect.  If the
 second stage absorbs more than one set of fixed effects --- units, years, and something else --- the
-first stage needs the treatment set out in the [Mundlak chapter](mundlak-device.qmd): take means over the
+first stage needs the treatment set out in the [Mundlak chapter](mundlak-device.qmd), where the CRE
+construction is the Mundlak device: take means over the
 *one* dimension you are eliminating, of everything else in the model, retained dummies included.  In
 practice that means unit means of the instrument and the time-varying controls, plus unit means of the
 year and other dummies, with those dummies themselves kept in levels.  You do not want one set of means
@@ -186,7 +196,7 @@ logit slope is inflated by a factor of two in that case --- about 1.37 at four o
 units and four or five observations each therefore sits in the worst part of that range, while year
 effects with hundreds of observations apiece are harmless and can simply be estimated.
 
-The CRE first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at
+The CRE (Mundlak device) first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at
 small group sizes, because integrating a logit over normal heterogeneity does not give a logit.  That is
 the same approximation error the previous section's caveat refers to, arriving from a different
 direction.
@@ -224,8 +234,9 @@ gen y = rpoisson(mu)                 /* true coefficient on d is 0.3 */
 quietly ppmlhdfe y d, absorb(i)
 scalar b_naive = _b[d]
 
-* 2. control function with a CRE (Mundlak) logit first stage.
-*    For a logit the generalized residual is just d - phat.
+* 2. control function with a CRE (Mundlak device) logit first stage: a POOLED
+*    logit with the group mean of the instrument added.  No random effect is
+*    estimated.  For a logit the generalized residual is just d - phat.
 bysort i: egen double z_i = mean(z)
 quietly logit d z z_i
 predict double phat, pr
@@ -241,7 +252,7 @@ scalar b_lin = _b[d]
 
 di "true coefficient on d           = 0.300000"
 di "naive FE Poisson                = " %8.6f b_naive
-di "CF, CRE logit first stage       = " %8.6f b_cre
+di "CF, CRE (Mundlak) logit         = " %8.6f b_cre
 di "CF, linear FE first stage       = " %8.6f b_lin
 restore
 ```
