@@ -170,6 +170,108 @@ reg ln_wage age union mean_age mean_union i.race, cluster(idcode)
 
 ```
 
+## More than two fixed effects: one set of means, not one per dimension
+
+The natural guess, having seen TWM, is that three fixed effects call for three sets of means ---
+$X_{i \cdot}$, $X_{\cdot t}$, and the averages over the third factor.  That guess is wrong in general,
+and the reason is worth spelling out because it also explains the balanced-panel condition above.
+
+The Mundlak device deals with **one** unobserved effect at a time.  It replaces $c_i$ by its projection
+on the within-$i$ means of the other regressors.  So the number of sets of means you need is the number
+of dimensions you are *eliminating*, not the number of dimensions you have.  With three fixed effects the
+robust recipe is:
+
+- pick the dimension you cannot estimate --- typically the one with many levels and few observations
+  each --- and replace it with means;
+- **keep the other dimensions as dummies**, since they are cheap;
+- take the means over the chosen dimension of *everything else in the model*, the retained dummies
+  included.
+
+That last clause is the one people miss, and it is the same clause that fixes the unbalanced two-way case
+above.  Call this construction **B**, and call the three-sets-of-means guess **A**.
+
+```{stata}
+*| label: twm_three_way
+*| echo: true
+*| collectcode: true
+
+preserve
+capture program drop twm3
+program define twm3
+    args label
+    quietly {
+        capture drop x_i x_t x_g mt_* mg_* x y ft hg
+        sort t
+        by t: gen double ft = rnormal() if _n==1
+        by t: replace ft = ft[1]
+        sort g
+        by g: gen double hg = rnormal() if _n==1
+        by g: replace hg = hg[1]
+        gen double x = 0.6*ci + 0.5*ft + 0.4*hg + rnormal()
+        gen double y = 1*x + ci + ft + hg + rnormal()
+        bysort i: egen double x_i = mean(x)
+        bysort t: egen double x_t = mean(x)
+        bysort g: egen double x_g = mean(x)
+        levelsof t, local(ts)
+        foreach k of local ts {
+            bysort i: egen double mt_`k' = mean(t==`k')
+        }
+        levelsof g, local(gs)
+        foreach k of local gs {
+            bysort i: egen double mg_`k' = mean(g==`k')
+        }
+        areg y x i.t i.g, absorb(i)
+        scalar b_fe = _b[x]
+        regress y x x_i x_t x_g
+        scalar b_A = _b[x]
+        regress y x x_i i.t i.g mt_* mg_*
+        scalar b_B = _b[x]
+    }
+    di "`label'"
+    di "   three-way FE                       = " %9.6f b_fe
+    di "   A: one set of means per dimension   = " %9.6f b_A  "   gap " %9.6f (b_A-b_fe)
+    di "   B: means over i, dummies included   = " %9.6f b_B  "   gap " %9.6f (b_B-b_fe)
+end
+
+clear
+set seed 20260731
+set obs 300
+gen i = _n
+gen double ci = rnormal()
+expand 10
+bysort i: gen t = _n
+
+* third factor assigned at random: the three factors are not orthogonal
+gen g = 1 + int(runiform()*5)
+twm3 "g assigned at random (NOT orthogonal):"
+
+* Latin square: every unit sees every g equally, and so does every period
+replace g = mod(i+t,5)+1
+twm3 "g from a Latin square (orthogonal):"
+
+capture program drop twm3
+restore
+```
+
+So **A is not wrong so much as conditional**: it is exact when the factors are mutually orthogonal, and
+it drifts otherwise.  A full factorial design gives orthogonality, but so does a Latin square, which
+fills only a fraction of the possible cells --- what matters is the balance property, that each level of
+one factor appears equally often with each level of the others, not the number of cells.  Deleting a
+single row from either design is enough to lose exactness, and the size of the gap tracks how far from
+orthogonal the design has drifted.
+
+This is the general statement of the balanced-panel condition from the previous section.  A balanced
+two-way panel *is* an orthogonal design: every unit appears in every period.  Unbalance it, and the unit
+and time factors stop being orthogonal, which is why the two-way equivalence fails there.
+
+The practical reading is that orthogonality is a property of **designed** data --- factorial experiments,
+Latin squares, crop trials, where somebody chose the assignment.  Observational panels essentially never
+have it, and a third factor makes matters worse rather than better, since it is often partly determined
+by the first two.  In an audit panel I looked at recently, for instance, the third fixed effect was the
+running count of audits within a factory, which is mechanically a function of factory and calendar time;
+that design cannot be orthogonal even in principle.  For observational work, B is the construction to
+use.
+
 ## Applications of TWM to DID in common treatment timing
 
 There is an extension of Mundlak device that if $x_{it}$ can be seen as an interaction between a time-invariant variable and an unit-invariant variable,
