@@ -19,6 +19,8 @@ Stata has a "ivpoisson" function with handles IV in a Poisson regression setting
 
 This estimator has a published treatment.  Lin and Wooldridge (2019), "Testing and correcting for endogeneity in nonlinear unobserved effects models," treats exactly this setup: their **Procedure 3** is a reduced-form residual added to an FE Poisson, with a robust Wald test on the residual's coefficient serving as a test of endogeneity.  Several points below come from it.
 
+One warning about that test, since it is easy to misuse.  It is tempting to run it and then decide which model to report: if the residual's coefficient is insignificant, fall back on the plain fixed-effects estimate.  Do not do this.  Guggenberger (2010) studies exactly this two-stage procedure and finds that its asymptotic size **equals one** --- the two-stage test rejects with probability approaching one --- because the pretest lacks power against correlations local to zero, so you frequently fail to reject when the regressor is in fact endogenous and then report the non-robust estimate.  He examines both the linear IV version, where the pretest is a test of exogeneity of a regressor, and the random-versus-fixed-effects panel version, and recommends against the two-stage procedure in both.  Both of his results are for linear models, so the transfer to a nonlinear control function is an analogy rather than a theorem, but the mechanism does not depend on linearity.  Report the coefficient on the residual as an estimate of the degree of endogeneity, and report both models side by side; do not let the test choose for you.
+
 In the case that the endogenous variable is continuous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:
 
 1. Run the first stage regression (the reduced form for the endogenous variable), and get the residual.  This is the first-stage **control-function** residual.  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.
@@ -161,10 +163,95 @@ the specification is too rigid, the same paper suggests adding nonlinear functio
 set --- in particular interactions of the covariates with the unit means, and with the control function
 itself --- or letting the variance depend on the unit means via a heteroskedastic probit.
 
-Given that, when the endogenous variable is binary I would report a linear first stage alongside the
-logit or probit one.  The linear version rests on the exact result in point 2 above and drops no
-observations; the nonlinear version is better specified for a binary variable but rests on the unsettled
-argument here.  Agreement between the two is the useful evidence.
+### Several fixed effects in the first stage
+
+The expression $w_{it} = (1, z_{it}, \bar z_i)$ above is written for a single unobserved effect.  If the
+second stage absorbs more than one set of fixed effects --- units, years, and something else --- the
+first stage needs the treatment set out in the [Mundlak chapter](mundlak-device.qmd): take means over the
+*one* dimension you are eliminating, of everything else in the model, retained dummies included.  In
+practice that means unit means of the instrument and the time-varying controls, plus unit means of the
+year and other dummies, with those dummies themselves kept in levels.  You do not want one set of means
+per dimension; that construction is exact only for orthogonal designs, which observational panels do not
+have.
+
+### Why not just put the dummies in the first stage?
+
+Because a logit with many thin groups is badly biased, and this is the whole reason the Mundlak route is
+needed.  The size of the problem depends on observations per group, not on the number of groups.  In a
+simulation with the total sample held near 12,000 and a true slope of 1, a logit with group dummies
+returns about 2.0 at two observations per group --- matching the known result that the fixed-effects
+logit slope is inflated by a factor of two in that case --- about 1.37 at four observations per group,
+1.15 at six, 1.04 at twenty-five, and essentially the truth by a hundred.  A panel with a few thousand
+units and four or five observations each therefore sits in the worst part of that range, while year
+effects with hundreds of observations apiece are harmless and can simply be estimated.
+
+The CRE first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at
+small group sizes, because integrating a logit over normal heterogeneity does not give a logit.  That is
+the same approximation error the previous section's caveat refers to, arriving from a different
+direction.
+
+### A worked example
+
+No built-in dataset has the shape that causes trouble, so this simulates one: a count outcome, a binary
+endogenous regressor, an instrument, and two thousand units with between two and six observations each.
+
+```{stata}
+*| label: binary_cf
+*| echo: true
+*| collectcode: true
+
+preserve
+clear
+set seed 20260731
+set obs 2000
+gen i = _n
+gen double ci = rnormal()*0.5
+gen T = 2 + int(runiform()*5)        /* unbalanced: 2-6 observations per unit */
+expand T
+bysort i: gen t = _n
+
+gen double z = rnormal()             /* the instrument */
+gen double e = rnormal()
+gen double u = 0.8*e + rnormal()*0.6 /* correlated with e, hence the endogeneity */
+gen byte   d = (-0.2 + 0.9*z + ci + e > 0)
+gen double mu = exp(0.3*d + ci + 0.5*u)
+gen y = rpoisson(mu)                 /* true coefficient on d is 0.3 */
+
+* 1. naive FE Poisson, ignoring the endogeneity
+quietly ppmlhdfe y d, absorb(i)
+scalar b_naive = _b[d]
+
+* 2. control function with a CRE (Mundlak) logit first stage.
+*    For a logit the generalized residual is just d - phat.
+bysort i: egen double z_i = mean(z)
+quietly logit d z z_i
+predict double phat, pr
+gen double gr = d - phat
+quietly ppmlhdfe y d gr, absorb(i)
+scalar b_cre = _b[d]
+
+* 3. control function with a linear first stage, unit FE absorbed exactly
+quietly reghdfe d z, absorb(i) resid
+predict double v_lin, resid
+quietly ppmlhdfe y d v_lin, absorb(i)
+scalar b_lin = _b[d]
+
+di "true coefficient on d           = 0.300000"
+di "naive FE Poisson                = " %8.6f b_naive
+di "CF, CRE logit first stage       = " %8.6f b_cre
+di "CF, linear FE first stage       = " %8.6f b_lin
+restore
+```
+
+The naive estimate is inflated by a factor of about two and a half; both control-function versions
+recover something close to the truth, and they agree with each other.  That agreement is the point.  When
+the endogenous variable is binary I would report both: the linear first stage rests on the exact result
+in point 2 above and drops no observations, while the logit version is better specified for a binary
+variable but rests on the unsettled argument in this section.  If they diverge materially, that is the
+most important thing you have learned, and it belongs in the write-up.
+
+The standard errors in the chunk above are wrong, for the reason given earlier --- the residual is
+generated.  Bootstrap both stages together, as in the earlier section.
 
 ---
 
