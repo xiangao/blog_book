@@ -156,6 +156,20 @@ where $\lambda$ is the inverse Mills ratio.  For a **logit** first stage the gen
 collapses algebraically to the plain response residual $y_{it2} - \hat p_{it2}$, so the familiar
 "predicted probability, then subtract" recipe is the generalized residual, not an approximation to it.
 
+The reason for that collapse is worth knowing, because it tells you when the shortcut stops working.  The
+generalized residual is the score of the log-likelihood with respect to the index.  For a logit that score
+*is* $y_{it2} - \hat p_{it2}$.  For a probit it is the inverse Mills expression above, which is a
+genuinely different variable: in a simulated sample of 5,000 the two differ by as much as 1.59, while
+correlating at 0.999.  So the subtraction recipe is exact for a logit and simply wrong for a probit, and
+the high correlation means the mistake will not announce itself.
+
+One practical warning follows.  What you want is the **response** residual --- predict the probability,
+then subtract --- and `predict` on its own returns a probability, not a residual.  The other residuals on
+offer after a binary model are not the generalized residual either: Pearson residuals divide through by
+$\sqrt{\hat p (1-\hat p)}$, and deviance residuals are a different transformation again.  In the same
+simulation those correlate with the response residual at 0.991 and 0.995 --- close enough to look correct
+if you glance at them, and the wrong variable to put in the second stage.
+
 A note on the name, because it misleads.  This construction is usually filed under **correlated random
 effects** (CRE), and that is how to find it in the literature --- see the [CRE chapter](more-cre.qmd).
 The name describes the *assumption*: heterogeneity is modelled as a function of the group means and
