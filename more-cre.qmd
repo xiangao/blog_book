@@ -29,20 +29,26 @@ Wooldridge (2021) paper on DiD shows that these models are the same:
 Two qualifications on that second item, both of which matter in practice.
 
 **What "the Mundlak device" has to include.**  For a *one-way* model it is the unit means of the
-time-varying regressors, and nothing else.  For a *two-way* model the time dimension has to be
-handled as well --- either by adding the time means of the regressors, or by keeping a full set of
-time dummies.  The example below does the latter (unit means plus `factor(year)`), which is why it
-reproduces the *two-way* fixed effect estimate.  Unit means alone would reproduce only the
-*one-way* estimate.
+time-varying regressors, and nothing else.  That much holds whatever the panel looks like, because
+$\sum_t (x_{it} - \bar x_i) = 0$ within each unit by construction.  A *two-way* model needs the time
+dimension handled as well, and the two usual ways of doing it --- adding the time means of the
+regressors, or keeping a full set of time dummies --- reproduce the two-way fixed effect estimate
+**only when the unit and time factors are orthogonal**, which for a two-way panel means every unit
+appearing in every period.  The `castle` data used below is balanced, so both routes are exact there;
+the example takes the second one (unit means plus `factor(year)`), which is why it reproduces the
+*two-way* estimate and not the *one-way* one.  Unit means alone would give the one-way estimate.
 
-**The two-way equivalence requires a balanced panel.**  The one-way result holds whatever the panel
-looks like, because $\sum_t (x_{it} - \bar x_i) = 0$ within each unit by construction.  The two-way
-result additionally needs the unit and time factors to be orthogonal, which a balanced panel
-delivers and an unbalanced one does not.  The `castle` data used below is balanced, so the
-equivalence holds exactly.  On an unbalanced panel it does not, and the discrepancy can be
-substantial --- see [the qualification in the Mundlak chapter](mundlak-device.qmd), where the
-coefficient on `age` in `nlswork` differs by more than a factor of two.  What restores it there is
-adding the unit means of the time dummies.
+**That orthogonality condition is binding, not decorative.**  On an unbalanced panel it fails, and
+the discrepancy can be substantial: in the `nlswork` example in [the Mundlak
+chapter](mundlak-device.qmd#an-important-qualification-twm-needs-a-balanced-panel) the coefficient on
+`age` differs by more than a factor of two.  What restores the equivalence there is adding the **unit
+means of the time dummies**.  In a balanced panel those means are the constant $1/T$ and have no
+variance, which is precisely why the shortcut above reads as though it were unconditional.  With
+**three or more** fixed effects the shortcut is weaker still --- one set of means per dimension is
+exact only under a fully orthogonal design, and the construction that survives without one is to pick
+the dimension being eliminated and project it onto the within-unit means of everything else retained
+in the model, dummies included.  See [More than two fixed
+effects](mundlak-device.qmd#more-than-two-fixed-effects-one-set-of-means-not-one-per-dimension).
 
 The idea of Chamberlain's device is that since we don't observe $v_i$, we project $v_i$ onto the history of $X_i$: $v_i = \psi + \bar X_i \xi + a_i$, and replace $v_i$ with that projection.  Mundlak's device is a special case, where we put equal weight on all $X_{it}$, so the projection of $v_i$ onto $X_i$ reduces to the mean $\bar X_i = \frac{1}{T}\sum_t X_{it}$.  Replace $v_i$ with that projection, and what is left ($a_i$) is by construction uncorrelated with $X_{it}$.
 
