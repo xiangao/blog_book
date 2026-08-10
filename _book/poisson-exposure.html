@@ -587,13 +587,13 @@ window.Quarto = {
 <p>Poisson models for count data often arise when units are observed for different lengths of time. A hospital admission count for a patient followed for 30 days is not directly comparable to a count for a patient followed for 365 days. The natural quantity of interest is the <em>rate</em> — admissions per unit time — not the raw count.</p>
 <p>There are three related but distinct specifications, each making a different assumption:</p>
 <p><strong>Model 1 — Poisson with offset (rate model):</strong></p>
-<p><span class="math display">\[\log\!\bigl(E[Y]/t\bigr) = \beta_0 + \beta_1 X\]</span></p>
+<p><span id="eq-poisson-exposure-1"><span class="math display">\[\log\!\bigl(E[Y]/t\bigr) = \beta_0 + \beta_1 X \tag{25.1}\]</span></span></p>
 <p>Equivalently, <span class="math inline">\(\log E[Y] = \beta_0 + \beta_1 X + \log t\)</span>, where <span class="math inline">\(\log t\)</span> is included as a <em>fixed</em> offset (coefficient constrained to 1). This is the standard exposure model: the expected count is proportional to exposure time.</p>
 <p><strong>Model 2 — Poisson on the ratio <span class="math inline">\(Y/t\)</span>:</strong></p>
-<p><span class="math display">\[\log\!\bigl(E[Y/t]\bigr) = \beta_0 + \beta_1 X\]</span></p>
+<p><span id="eq-poisson-exposure-2"><span class="math display">\[\log\!\bigl(E[Y/t]\bigr) = \beta_0 + \beta_1 X \tag{25.2}\]</span></span></p>
 <p>This looks similar, but it is not equivalent to the offset model, and strictly speaking <span class="math inline">\(Y/t\)</span> is <strong>not a Poisson outcome at all</strong>: a Poisson likelihood is defined for non-negative integer counts, and the continuous ratio <span class="math inline">\(Y/t\)</span> is not one. Because <span class="math inline">\(t\)</span> is a fixed constant for each unit, <span class="math inline">\(E[Y/t] = E[Y]/t\)</span> exactly (linearity of expectation), so the <em>conditional mean</em> is still log-linear in <span class="math inline">\(X\)</span>; that is why the point estimates are often similar. But the Poisson variance assumption fails: <span class="math inline">\(\mathrm{Var}(Y/t) = \lambda/t^2\)</span>, whereas the mean is <span class="math inline">\(E[Y/t] = \lambda/t\)</span>, so the variance is <span class="math inline">\(1/t\)</span> times the mean rather than equal to it. (Writing it as <span class="math inline">\(\lambda/t\)</span> would make variance equal mean and quietly restore equidispersion, which is precisely what fails here.) So fitting <code>glm(rate ~ x, family = poisson)</code> is a quasi-likelihood <em>mean model</em> rather than a correct Poisson likelihood. If you use it, treat it as a workaround: weight by exposure (<code>weights = t</code>) so the implied variance is right, and/or use robust standard errors. The offset model (Model 1) avoids the issue entirely by keeping the integer count as the outcome.</p>
 <p><strong>Model 3 — Unconstrained log-exposure:</strong></p>
-<p><span class="math display">\[\log E[Y] = \beta_0 + \beta_1 X + \gamma \log t\]</span></p>
+<p><span id="eq-poisson-exposure-3"><span class="math display">\[\log E[Y] = \beta_0 + \beta_1 X + \gamma \log t \tag{25.3}\]</span></span></p>
 <p>Here <span class="math inline">\(\gamma\)</span> is estimated from the data. If <span class="math inline">\(\hat\gamma \approx 1\)</span>, the proportionality assumption is supported. If <span class="math inline">\(\hat\gamma &lt; 1\)</span>, counts grow sub-linearly with exposure — a testable, substantive claim.</p>
 </section><section id="simulation" class="level2" data-number="25.2"><h2 data-number="25.2" class="anchored" data-anchor-id="simulation">
 <span class="header-section-number">25.2</span> Simulation</h2>
@@ -1251,7 +1251,7 @@ window.Quarto = {
 <span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>**Model 1 — Poisson with offset (rate model):**</span>
 <span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>$$\log<span class="sc">\!</span>\bigl(E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span>/t\bigr) = \beta_0 + \beta_1 X$$</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>$$\log<span class="sc">\!</span>\bigl(E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span>/t\bigr) = \beta_0 + \beta_1 X$$ {#eq-poisson-exposure-1}</span>
 <span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>Equivalently, $\log E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span> = \beta_0 + \beta_1 X + \log t$, where $\log t$ is</span>
 <span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>included as a *fixed* offset (coefficient constrained to 1). This is the</span>
@@ -1259,7 +1259,7 @@ window.Quarto = {
 <span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>**Model 2 — Poisson on the ratio $Y/t$:**</span>
 <span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>$$\log<span class="sc">\!</span>\bigl(E<span class="co">[</span><span class="ot">Y/t</span><span class="co">]</span>\bigr) = \beta_0 + \beta_1 X$$</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>$$\log<span class="sc">\!</span>\bigl(E<span class="co">[</span><span class="ot">Y/t</span><span class="co">]</span>\bigr) = \beta_0 + \beta_1 X$$ {#eq-poisson-exposure-2}</span>
 <span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>This looks similar, but it is not equivalent to the offset model, and strictly</span>
 <span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>speaking $Y/t$ is **not a Poisson outcome at all**: a Poisson likelihood is</span>
@@ -1278,7 +1278,7 @@ window.Quarto = {
 <span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>**Model 3 — Unconstrained log-exposure:**</span>
 <span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>$$\log E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span> = \beta_0 + \beta_1 X + \gamma \log t$$</span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>$$\log E<span class="co">[</span><span class="ot">Y</span><span class="co">]</span> = \beta_0 + \beta_1 X + \gamma \log t$$ {#eq-poisson-exposure-3}</span>
 <span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>Here $\gamma$ is estimated from the data. If $\hat\gamma \approx 1$, the</span>
 <span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a>proportionality assumption is supported. If $\hat\gamma &lt; 1$, counts grow</span>

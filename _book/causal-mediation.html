@@ -591,8 +591,8 @@ window.Quarto = {
 <span class="header-section-number">45.1</span> Traditional mediation analysis</h2>
 <p>We summarized how to do traditional mediation analysis (Baron and Kenny, 1986) with R and Stata in my last blog about mediation.</p>
 <p>Traditionally mediation model can be represented in the following equations:</p>
-<p><span class="math display">\[ Y = a A + b M + \epsilon_1 \]</span></p>
-<p><span class="math display">\[ M = c A + \epsilon_2 \]</span></p>
+<p><span id="eq-causal-mediation-1"><span class="math display">\[ Y = a A + b M + \epsilon_1  \tag{45.1}\]</span></span></p>
+<p><span id="eq-causal-mediation-2"><span class="math display">\[ M = c A + \epsilon_2  \tag{45.2}\]</span></span></p>
 <p>There are three main variables, A (treatment, or exposure), M (mediator) and Y (outcome). There are two pathways from A to Y, a direct effect, and an indirect effect through A -&gt; M -&gt; Y.</p>
 <p>The traditional approach is to model these two equations directly, and get the estimates of direct and indirect effects.</p>
 </section><section id="causal-mediation-analysis" class="level2" data-number="45.2"><h2 data-number="45.2" class="anchored" data-anchor-id="causal-mediation-analysis">
@@ -604,35 +604,35 @@ window.Quarto = {
 <section id="controlled-direct-effect" class="level3" data-number="45.2.1"><h3 data-number="45.2.1" class="anchored" data-anchor-id="controlled-direct-effect">
 <span class="header-section-number">45.2.1</span> Controlled direct effect</h3>
 <p>Suppose we can set <span class="math inline">\(A\)</span> and <span class="math inline">\(M\)</span> at will to any <span class="math inline">\((a, m)\)</span>, then we have the potential outcome <span class="math inline">\(Y(a,m)\)</span>.</p>
-<p>Controlled direct effect (CDE) is defined as <span class="math display">\[ CDE(m) = E(Y(1,m)-Y(0,m)) \]</span> That is, setting <span class="math inline">\(M\)</span> to <span class="math inline">\(m\)</span>, what is the effect of <span class="math inline">\(A\)</span> on <span class="math inline">\(Y\)</span>?</p>
+<p>Controlled direct effect (CDE) is defined as <span id="eq-causal-mediation-3"><span class="math display">\[ CDE(m) = E(Y(1,m)-Y(0,m))  \tag{45.3}\]</span></span> That is, setting <span class="math inline">\(M\)</span> to <span class="math inline">\(m\)</span>, what is the effect of <span class="math inline">\(A\)</span> on <span class="math inline">\(Y\)</span>?</p>
 <section id="assumptions" class="level4" data-number="45.2.1.1"><h4 data-number="45.2.1.1" class="anchored" data-anchor-id="assumptions">
 <span class="header-section-number">45.2.1.1</span> Assumptions</h4>
 <p>What are the assumptions for CDE to be identified (estimable)?</p>
 <ol type="1">
 <li>
 <p>Conditional treatment randomization. Suppose we observe confounders W, which can be a joint set of confounders for the A to Y pathway, or the M to Y pathway.</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-4"><span class="math display">\[
 Y(a,m) \perp A|W
-\]</span></p>
+\tag{45.4}\]</span></span></p>
 <p>This is the usual conditional independence (unconfoundedness, ignorability, etc.) assumption. This is saying the assignment of treatment, given covariates W, has nothing to do with potential outcomes.</p>
 </li>
 <li>
 <p>Conditional mediator randomization.</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-5"><span class="math display">\[
 Y(a,m) \perp M|W, A=a
-\]</span></p>
+\tag{45.5}\]</span></span></p>
 <p>This is to say, within each strata of W, given treatment status, the assignment of mediator gives no information about potential outcome. This randomization is usually not implemented during many experiments (random trials). This is the assumption that makes a lot of mediation hard to make a causal claim.</p>
 </li>
 <li>
 <p>Positivity.</p>
 <p>There are two positivity assumptions:</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-6"><span class="math display">\[
 P(A=a | W=w) &gt; 0
-\]</span> for all w.</p>
+\tag{45.6}\]</span></span> for all w.</p>
 <p>This is the usual positivity assumption.</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-7"><span class="math display">\[
 P(M=m | W=w, A=a) &gt; 0
-\]</span></p>
+\tag{45.7}\]</span></span></p>
 <p>for all w. This is the mediator positivity.</p>
 </li>
 </ol>
@@ -641,26 +641,26 @@ P(M=m | W=w, A=a) &gt; 0
 <span class="header-section-number">45.2.1.2</span> Estimation</h4>
 <p>CDE can be estimated using G-computation method, or IPW, or the doubly-robust methods, one of them is AIPW (augmented IPW).</p>
 <p>G-computation is to model the outcome equation:</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-8"><span class="math display">\[
 CDE_G(m) = E[ E(Y(A=1, M=m, W=w) - E(Y(A=0, M=m, W=w)))]
-\]</span> <span class="math display">\[
+\tag{45.8}\]</span></span> <span id="eq-causal-mediation-9"><span class="math display">\[
 CDE_G(m) = \sum_w [ E(Y(A=1, M=m, W=w) - E(Y(A=0, M=m, W=w))) ] P(W=w)
-\]</span></p>
+\tag{45.9}\]</span></span></p>
 <p>IPW is to model the treatment assignment equation and the mediator assignment equation:</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-10"><span class="math display">\[
 E[Y(a,m)] = E[{\frac{I(A=a, M=m)}{P(A=a, M=m | W)}} Y]
-\]</span></p>
+\tag{45.10}\]</span></span></p>
 <p>Therefore,</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-11"><span class="math display">\[
 CDE_{ipw}(m) = E[{\frac{I(A=1,M=m)}{g_m(m|1,W)g_A(1|W)} - \frac{I(A=0,M=m)}{g_m(m|0,W)g_A(0|W)}} Y]
-\]</span></p>
+\tag{45.11}\]</span></span></p>
 <p>These indicator-based IPW and AIPW formulas are written for a <strong>discrete (here binary) mediator</strong>. For a continuous mediator the indicator <span class="math inline">\(I(M=m)\)</span> and the probability <span class="math inline">\(g_m\)</span> must be replaced by a conditional density (or a kernel / stochastic-intervention formulation); the formulas do not apply as written.</p>
 <p>where <span class="math inline">\(g_m\)</span> is the probability of mediator, <span class="math inline">\(g_A\)</span> is the probability of treatment.</p>
 <p>For the AIPW estimator:</p>
-<p><span class="math display">\[ CDE_{AIPW} = CDE_G(m) + B(\bar Q, g_M, g_A) \]</span> where <span class="math inline">\(\bar Q\)</span> is the mean outcome function.</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-12"><span class="math display">\[ CDE_{AIPW} = CDE_G(m) + B(\bar Q, g_M, g_A)  \tag{45.12}\]</span></span> where <span class="math inline">\(\bar Q\)</span> is the mean outcome function.</p>
+<p><span id="eq-causal-mediation-13"><span class="math display">\[
 B(\bar Q, g_M, g_A) = \frac{1}{n} \sum_n {\frac{I(M=m, A=1)}{g_m(m|1, W) g_A(1|W)}[Y-\bar Q(m,1,W)]}  - \frac{1}{n} \sum_n {\frac{I(M=m, A=0)}{g_m(m|0, W) g_A(0|W)}[Y-\bar Q(m,0,W)]}
-\]</span></p>
+\tag{45.13}\]</span></span></p>
 </section><section id="simulation-example" class="level4" data-number="45.2.1.3"><h4 data-number="45.2.1.3" class="anchored" data-anchor-id="simulation-example">
 <span class="header-section-number">45.2.1.3</span> simulation example</h4>
 <p>This example is adapted from the University of Washington Summer Institute in Statistics for Clinical and Epidemiological Research (SISCER) 2021 course on causal mediation; the archived course page is no longer online, but the institute is at <a href="https://si.biostat.washington.edu/" class="uri">https://si.biostat.washington.edu/</a>.</p>
@@ -733,14 +733,14 @@ B(\bar Q, g_M, g_A) = \frac{1}{n} \sum_n {\frac{I(M=m, A=1)}{g_m(m|1, W) g_A(1|W
 </section></section><section id="natural-direct-and-indirect-effect" class="level3" data-number="45.2.2"><h3 data-number="45.2.2" class="anchored" data-anchor-id="natural-direct-and-indirect-effect">
 <span class="header-section-number">45.2.2</span> Natural direct and indirect effect</h3>
 <p>CDE is to study the effect of treatment, given the level of mediator. In stead, Natural Effect is to set mediator to its natural value with the value of treatment, that is, <span class="math inline">\(M=M(a)\)</span>.</p>
-<p><span class="math display">\[
+<p><span id="eq-causal-mediation-14"><span class="math display">\[
 ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))])
-\]</span></p>
+\tag{45.14}\]</span></span></p>
 <p>There are two different ways to decompose the <span class="math inline">\(ATE\)</span> in terms of <span class="math inline">\(NIE\)</span> and <span class="math inline">\(NDE\)</span>. Above is one of them.</p>
 <p>The advantage of NDE and NIE comparing to CDE is that it’s more “natural”; that is, you don’t set the level of mediator deterministically. And it can decompose the ATE into direct and indirect effects.</p>
 <p>However, there is an additional assumption for NDE and NIE identified.</p>
 <p>Assumption 4:</p>
-<p><span class="math display">\[ Y(a, m) \perp M(a^*) | W\]</span></p>
+<p><span id="eq-causal-mediation-15"><span class="math display">\[ Y(a, m) \perp M(a^*) | W \tag{45.15}\]</span></span></p>
 <p>This is the “cross-world” condition: the outcome under <span class="math inline">\((a,m)\)</span> is independent of <span class="math inline">\(M\)</span> under <span class="math inline">\(a^*\)</span>. These two situations cannot happen in the same world; you cannot set <span class="math inline">\(A\)</span> to both <span class="math inline">\(a\)</span> and <span class="math inline">\(a^*\)</span>. No experiment can implement it.</p>
 <p>This cross-world condition is <em>in addition to</em> assumptions 1–3 (treatment and mediator ignorability, positivity), not a replacement for them. The standard mediation formula for natural effects also requires <strong>no treatment-induced confounding</strong> of the mediator–outcome relationship: no variable affected by <span class="math inline">\(A\)</span> may confound <span class="math inline">\(M\)</span> and <span class="math inline">\(Y\)</span>. When such a confounder exists, natural effects are not identified by this formula and interventional direct/indirect effects are used instead.</p>
 <p>Simulation example from the same website materials:</p>
@@ -801,8 +801,8 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 </section><section id="interventional-direct-and-indirect-effects" class="level3" data-number="45.2.4"><h3 data-number="45.2.4" class="anchored" data-anchor-id="interventional-direct-and-indirect-effects">
 <span class="header-section-number">45.2.4</span> Interventional direct and indirect effects</h3>
 <p>People are not happy with the cross-world assumption in general. Interventional direct and indirect effects are introduced to avoid this assumption and still be able to decompose the <span class="math inline">\(ATE\)</span>.</p>
-<p><span class="math display">\[ IIE + IDE = (E[ Y(1,G_1)] - E[Y(1,G_0)]) + (E[Y(1,G_0)]-E[Y(0,G_0)]) = E[Y(1,G_1)] - E[Y(0,G_0)]
-\]</span></p>
+<p><span id="eq-causal-mediation-16"><span class="math display">\[ IIE + IDE = (E[ Y(1,G_1)] - E[Y(1,G_0)]) + (E[Y(1,G_0)]-E[Y(0,G_0)]) = E[Y(1,G_1)] - E[Y(0,G_0)]
+\tag{45.16}\]</span></span></p>
 <p>The different point here is to replace the unit’s own mediator by a random draw: <span class="math inline">\(G_a\)</span> denotes a draw from the distribution of <span class="math inline">\(M(a) \mid W=w\)</span> rather than the unit’s realised <span class="math inline">\(M(a)\)</span>. There is a distribution of <span class="math inline">\(M\)</span> within the stratum <span class="math inline">\(W=w\)</span>, and we draw from it instead of setting <span class="math inline">\(M\)</span> to one specific value.</p>
 <p>Note carefully what this sum is, because it is easy to write down as the <span class="math inline">\(ATE\)</span> and it is not. <span class="math inline">\(E[Y(1,G_1)] - E[Y(0,G_0)]\)</span> is the <strong>overall interventional effect</strong>, which need not equal <span class="math inline">\(ATE = E[Y(1,M(1))] - E[Y(0,M(0))]\)</span>: substituting a random draw for the unit’s own mediator breaks the within-unit dependence between <span class="math inline">\(M(a)\)</span> and <span class="math inline">\(Y(a,\cdot)\)</span>, and that dependence matters precisely when a treatment-induced confounder sits between treatment and mediator — which is the case these estimands exist to handle. The companion <a href="https://xiangao.github.io/causal_econometrics_guide/mediation.html">causal econometrics guide</a> makes the same point; these are the estimands <code>medoutcon</code> implements.</p>
 <p>The advantage of this is that it does not need the cross-world assumption to identify <span class="math inline">\(IIE\)</span> and <span class="math inline">\(IDE\)</span>, and it remains identified in the presence of a treatment-induced confounder. The price is that the decomposition adds up to the overall interventional effect rather than to the <span class="math inline">\(ATE\)</span>.</p>
@@ -1366,9 +1366,9 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>Traditionally mediation model can be represented in the following equations:</span>
 <span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>$$ Y = a A + b M + \epsilon_1 $$</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>$$ Y = a A + b M + \epsilon_1 $$ {#eq-causal-mediation-1}</span>
 <span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>$$ M = c A + \epsilon_2 $$</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>$$ M = c A + \epsilon_2 $$ {#eq-causal-mediation-2}</span>
 <span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>There are three main variables, A (treatment, or exposure), M (mediator) and Y (outcome). There are two pathways from A to Y, a direct effect, and an indirect effect through A -<span class="sc">\&gt;</span> M -<span class="sc">\&gt;</span> Y.</span>
 <span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a></span>
@@ -1388,7 +1388,7 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>Suppose we can set $A$ and $M$ at will to any $(a, m)$, then we have the potential outcome $Y(a,m)$.</span>
 <span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>Controlled direct effect (CDE) is defined as $$ CDE(m) = E(Y(1,m)-Y(0,m)) $$ That is, setting $M$ to $m$, what is the effect of $A$ on $Y$?</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>Controlled direct effect (CDE) is defined as $$ CDE(m) = E(Y(1,m)-Y(0,m)) $$ {#eq-causal-mediation-3} That is, setting $M$ to $m$, what is the effect of $A$ on $Y$?</span>
 <span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Assumptions</span></span>
 <span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a></span>
@@ -1398,7 +1398,7 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>    $$</span>
 <span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>    Y(a,m) \perp A|W</span>
-<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>    $$</span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>    $$ {#eq-causal-mediation-4}</span>
 <span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>    This is the usual conditional independence (unconfoundedness, ignorability, etc.) assumption. This is saying the assignment of treatment, given covariates W, has nothing to do with potential outcomes.</span>
 <span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a></span>
@@ -1406,7 +1406,7 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>    $$</span>
 <span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a>    Y(a,m) \perp M|W, A=a</span>
-<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>    $$</span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>    $$ {#eq-causal-mediation-5}</span>
 <span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a>    This is to say, within each strata of W, given treatment status, the assignment of mediator gives no information about potential outcome. This randomization is usually not implemented during many experiments (random trials). This is the assumption that makes a lot of mediation hard to make a causal claim.</span>
 <span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a></span>
@@ -1416,13 +1416,13 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a>    $$</span>
 <span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>    P(A=a | W=w) &gt; 0</span>
-<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>    $$ for all w.</span>
+<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>    $$ {#eq-causal-mediation-6} for all w.</span>
 <span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>    This is the usual positivity assumption.</span>
 <span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a>    $$</span>
 <span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a>    P(M=m | W=w, A=a) &gt; 0</span>
-<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a>    $$</span>
+<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a>    $$ {#eq-causal-mediation-7}</span>
 <span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a>    for all w. This is the mediator positivity.</span>
 <span id="cb11-72"><a href="#cb11-72" aria-hidden="true" tabindex="-1"></a></span>
@@ -1436,21 +1436,21 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a>CDE_G(m) = E<span class="co">[</span><span class="ot"> E(Y(A=1, M=m, W=w) - E(Y(A=0, M=m, W=w)))</span><span class="co">]</span></span>
-<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a>$$ $$</span>
+<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a>$$ {#eq-causal-mediation-8} $$</span>
 <span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a>CDE_G(m) = \sum_w <span class="co">[</span><span class="ot"> E(Y(A=1, M=m, W=w) - E(Y(A=0, M=m, W=w))) </span><span class="co">]</span> P(W=w)</span>
-<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a>$$ {#eq-causal-mediation-9}</span>
 <span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a>IPW is to model the treatment assignment equation and the mediator assignment equation:</span>
 <span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a>E<span class="co">[</span><span class="ot">Y(a,m)</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">{\frac{I(A=a, M=m)}{P(A=a, M=m | W)}} Y</span><span class="co">]</span></span>
-<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a>$$ {#eq-causal-mediation-10}</span>
 <span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a>Therefore,</span>
 <span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a>CDE_{ipw}(m) = E<span class="co">[</span><span class="ot">{\frac{I(A=1,M=m)}{g_m(m|1,W)g_A(1|W)} - \frac{I(A=0,M=m)}{g_m(m|0,W)g_A(0|W)}} Y</span><span class="co">]</span></span>
-<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a>$$ {#eq-causal-mediation-11}</span>
 <span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a>These indicator-based IPW and AIPW formulas are written for a **discrete (here binary) mediator**. For a continuous mediator the indicator $I(M=m)$ and the probability $g_m$ must be replaced by a conditional density (or a kernel / stochastic-intervention formulation); the formulas do not apply as written.</span>
 <span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a></span>
@@ -1458,11 +1458,11 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a>For the AIPW estimator:</span>
 <span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a>$$ CDE_{AIPW} = CDE_G(m) + B(\bar Q, g_M, g_A) $$ where $\bar Q$ is the mean outcome function.</span>
+<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a>$$ CDE_{AIPW} = CDE_G(m) + B(\bar Q, g_M, g_A) $$ {#eq-causal-mediation-12} where $\bar Q$ is the mean outcome function.</span>
 <span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a>B(\bar Q, g_M, g_A) = \frac{1}{n} \sum_n {\frac{I(M=m, A=1)}{g_m(m|1, W) g_A(1|W)}<span class="co">[</span><span class="ot">Y-\bar Q(m,1,W)</span><span class="co">]</span>}  - \frac{1}{n} \sum_n {\frac{I(M=m, A=0)}{g_m(m|0, W) g_A(0|W)}<span class="co">[</span><span class="ot">Y-\bar Q(m,0,W)</span><span class="co">]</span>}</span>
-<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a>$$ {#eq-causal-mediation-13}</span>
 <span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a><span class="fu">#### simulation example</span></span>
 <span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a></span>
@@ -1550,7 +1550,7 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-200"><a href="#cb11-200" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-201"><a href="#cb11-201" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb11-202"><a href="#cb11-202" aria-hidden="true" tabindex="-1"></a>ATE = NIE + NDE =  (E<span class="co">[</span><span class="ot"> Y(1,M(1))</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">Y(1,M(0))</span><span class="co">]</span>) + (E<span class="co">[</span><span class="ot">Y(1, M(0))</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">Y(0,M(0))</span><span class="co">]</span>)</span>
-<span id="cb11-203"><a href="#cb11-203" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-203"><a href="#cb11-203" aria-hidden="true" tabindex="-1"></a>$$ {#eq-causal-mediation-14}</span>
 <span id="cb11-204"><a href="#cb11-204" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-205"><a href="#cb11-205" aria-hidden="true" tabindex="-1"></a>There are two different ways to decompose the $ATE$ in terms of $NIE$ and $NDE$. Above is one of them.</span>
 <span id="cb11-206"><a href="#cb11-206" aria-hidden="true" tabindex="-1"></a></span>
@@ -1560,7 +1560,7 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-210"><a href="#cb11-210" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-211"><a href="#cb11-211" aria-hidden="true" tabindex="-1"></a>Assumption 4:</span>
 <span id="cb11-212"><a href="#cb11-212" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-213"><a href="#cb11-213" aria-hidden="true" tabindex="-1"></a>$$ Y(a, m) \perp M(a^*) | W$$</span>
+<span id="cb11-213"><a href="#cb11-213" aria-hidden="true" tabindex="-1"></a>$$ Y(a, m) \perp M(a^*) | W$$ {#eq-causal-mediation-15}</span>
 <span id="cb11-214"><a href="#cb11-214" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-215"><a href="#cb11-215" aria-hidden="true" tabindex="-1"></a>This is the "cross-world" condition: the outcome under $(a,m)$ is independent of $M$ under $a^*$. These two situations cannot happen in the same world; you cannot set $A$ to both $a$ and $a^*$. No experiment can implement it.</span>
 <span id="cb11-216"><a href="#cb11-216" aria-hidden="true" tabindex="-1"></a></span>
@@ -1634,7 +1634,7 @@ ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))
 <span id="cb11-286"><a href="#cb11-286" aria-hidden="true" tabindex="-1"></a>People are not happy with the cross-world assumption in general. Interventional direct and indirect effects are introduced to avoid this assumption and still be able to decompose the $ATE$.</span>
 <span id="cb11-287"><a href="#cb11-287" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-288"><a href="#cb11-288" aria-hidden="true" tabindex="-1"></a>$$ IIE + IDE = (E<span class="co">[</span><span class="ot"> Y(1,G_1)</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">Y(1,G_0)</span><span class="co">]</span>) + (E<span class="co">[</span><span class="ot">Y(1,G_0)</span><span class="co">]</span>-E<span class="co">[</span><span class="ot">Y(0,G_0)</span><span class="co">]</span>) = E<span class="co">[</span><span class="ot">Y(1,G_1)</span><span class="co">]</span> - E<span class="co">[</span><span class="ot">Y(0,G_0)</span><span class="co">]</span></span>
-<span id="cb11-289"><a href="#cb11-289" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb11-289"><a href="#cb11-289" aria-hidden="true" tabindex="-1"></a>$$ {#eq-causal-mediation-16}</span>
 <span id="cb11-290"><a href="#cb11-290" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-291"><a href="#cb11-291" aria-hidden="true" tabindex="-1"></a>The different point here is to replace the unit's own mediator by a random draw:</span>
 <span id="cb11-292"><a href="#cb11-292" aria-hidden="true" tabindex="-1"></a>$G_a$ denotes a draw from the distribution of $M(a) \mid W=w$ rather than the</span>

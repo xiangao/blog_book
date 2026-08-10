@@ -587,7 +587,7 @@ window.Quarto = {
 </section><section id="linear-effect" class="level2" data-number="17.2"><h2 data-number="17.2" class="anchored" data-anchor-id="linear-effect">
 <span class="header-section-number">17.2</span> Linear effect</h2>
 <p>Suppose we have a panel of firms over time, treatment assignment is random. We split the data into training and test. Then we generate 10 random variables, the first two are highly correlated. Then we collapse V2 into firm means, and use that as the unit effect. That is, we have a DGP as:</p>
-<p><span class="math display">\[y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it} \]</span></p>
+<p><span id="eq-causal-forest-panel-1"><span class="math display">\[y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it}  \tag{17.1}\]</span></span></p>
 <p>Here <span class="math inline">\(\alpha_i\)</span> is not observed, and it is correlated with <span class="math inline">\(V1\)</span>, so leaving it out is in principle a source of bias.</p>
 <p>It is worth being precise about how much bias, though, because the results below are less dramatic than that setup suggests. The unit effect is the <em>firm mean</em> of <span class="math inline">\(V2\)</span> over all <span class="math inline">\(t=10\)</span> periods, and averaging attenuates its correlation with contemporaneous <span class="math inline">\(V1\)</span> by a factor of <span class="math inline">\(t\)</span>: with <span class="math inline">\(\mathrm{Cor}(V1_{it}, V2_{it}) = 0.9025\)</span> we get <span class="math inline">\(\mathrm{Cov}(V1_{it}, \bar V2_i) = 0.9025/10\)</span>, and <span class="math inline">\(\mathrm{Cor}(V1_{it}, \alpha_i) \approx 0.29\)</span>. So the omitted-variable bias on <span class="math inline">\(V1\)</span> is only about <span class="math inline">\(0.05\)</span>–<span class="math inline">\(0.09\)</span>, not a qualitative failure.</p>
 <p>That is what the three models show: FE, RE and OLS all recover <span class="math inline">\(V1 \approx 1\)</span>, <span class="math inline">\(W \approx 1\)</span> and <span class="math inline">\(V1{:}W \approx 1.05\)</span>, essentially the truth. Note in particular that the <em>treatment</em> coefficients are unbiased in all three, because <span class="math inline">\(W\)</span> is randomized and so independent of <span class="math inline">\(\alpha_i\)</span> — omitting a unit effect cannot bias the effect of a randomly assigned treatment. If you want a panel example where FE visibly beats OLS, the unit effect has to be correlated with <span class="math inline">\(V1\)</span> <em>contemporaneously</em> (or <span class="math inline">\(t\)</span> has to be small), and the treatment has to be non-random.</p>
@@ -824,7 +824,7 @@ F-statistic:  1765 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 </section><section id="nonlinear-effect-case-1" class="level2" data-number="17.3"><h2 data-number="17.3" class="anchored" data-anchor-id="nonlinear-effect-case-1">
 <span class="header-section-number">17.3</span> Nonlinear effect case 1</h2>
 <p>In the first situation, we assume DGP:</p>
-<p><span class="math display">\[y_{it} = 1 +  \alpha_i + max(V1_{it},0)*W_{it} +  \epsilon_{it} \]</span></p>
+<p><span id="eq-causal-forest-panel-2"><span class="math display">\[y_{it} = 1 +  \alpha_i + max(V1_{it},0)*W_{it} +  \epsilon_{it}  \tag{17.2}\]</span></span></p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># if we have a nonlinear effect</span></span>
 <span><span class="co"># suppose we have the same X, but y is generated nonlinearly.</span></span>
@@ -1041,7 +1041,7 @@ F-statistic: 123.5 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 </section><section id="nonlinear-effect-case-2" class="level2" data-number="17.4"><h2 data-number="17.4" class="anchored" data-anchor-id="nonlinear-effect-case-2">
 <span class="header-section-number">17.4</span> Nonlinear effect case 2</h2>
 <p>In the second situation, we assume DGP:</p>
-<p><span class="math display">\[y_{it} = 1 +  \alpha_i + \log(V1_{it}^2)*W_{it} + \min(X3_{it}, 0) + \epsilon_{it} \]</span></p>
+<p><span id="eq-causal-forest-panel-3"><span class="math display">\[y_{it} = 1 +  \alpha_i + \log(V1_{it}^2)*W_{it} + \min(X3_{it}, 0) + \epsilon_{it}  \tag{17.3}\]</span></span></p>
 <p>But we only observe <span class="math inline">\(V1\)</span>, not the log of the squared <span class="math inline">\(V1\)</span>. The extra <span class="math inline">\(\min(X3_{it},0)\)</span> term is a nonlinearity in the <em>outcome</em> rather than in the treatment effect, so it leaves the CATE equal to <span class="math inline">\(\log(V1^2)\)</span>; it is there to give the forest’s nuisance models something nonlinear to fit.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># if we have a nonlinear effect</span></span>
@@ -1738,7 +1738,7 @@ F-statistic: 62.31 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>Suppose we have a panel of firms over time, treatment assignment is random.  We split the data into training and test.  Then we generate 10 random variables, the first two are highly correlated.  Then we collapse V2 into firm means, and use that as the unit effect.  That is, we have a DGP as:</span>
 <span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>$$y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it} $$</span>
+<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>$$y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it} $$ {#eq-causal-forest-panel-1}</span>
 <span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>Here $\alpha_i$ is not observed, and it is correlated with $V1$, so leaving it out is in principle a source of bias.</span>
 <span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a></span>
@@ -1920,7 +1920,7 @@ F-statistic: 62.31 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb40-200"><a href="#cb40-200" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-201"><a href="#cb40-201" aria-hidden="true" tabindex="-1"></a>In the first situation, we assume DGP:</span>
 <span id="cb40-202"><a href="#cb40-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-203"><a href="#cb40-203" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + max(V1_{it},0)*W_{it} +  \epsilon_{it} $$</span>
+<span id="cb40-203"><a href="#cb40-203" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + max(V1_{it},0)*W_{it} +  \epsilon_{it} $$ {#eq-causal-forest-panel-2}</span>
 <span id="cb40-204"><a href="#cb40-204" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-207"><a href="#cb40-207" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb40-208"><a href="#cb40-208" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk4</span></span>
@@ -2064,7 +2064,7 @@ F-statistic: 62.31 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb40-348"><a href="#cb40-348" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-349"><a href="#cb40-349" aria-hidden="true" tabindex="-1"></a>In the second situation, we assume DGP:</span>
 <span id="cb40-350"><a href="#cb40-350" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-351"><a href="#cb40-351" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + \log(V1_{it}^2)*W_{it} + \min(X3_{it}, 0) + \epsilon_{it} $$</span>
+<span id="cb40-351"><a href="#cb40-351" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + \log(V1_{it}^2)*W_{it} + \min(X3_{it}, 0) + \epsilon_{it} $$ {#eq-causal-forest-panel-3}</span>
 <span id="cb40-352"><a href="#cb40-352" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-353"><a href="#cb40-353" aria-hidden="true" tabindex="-1"></a>But we only observe $V1$, not the log of the squared $V1$.  The extra</span>
 <span id="cb40-354"><a href="#cb40-354" aria-hidden="true" tabindex="-1"></a>$\min(X3_{it},0)$ term is a nonlinearity in the *outcome* rather than in the</span>

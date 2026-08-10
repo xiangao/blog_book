@@ -647,21 +647,21 @@ window.Quarto = {
 </section><section id="a-linear-model" class="level3" data-number="33.2.2"><h3 data-number="33.2.2" class="anchored" data-anchor-id="a-linear-model">
 <span class="header-section-number">33.2.2</span> A linear model</h3>
 <p>Suppose we have the following linear model:</p>
-<p><span class="math display">\[ E[Y | A,Z,U] = \beta_{y0} + \beta_{ay} A + \beta_{uy} U \]</span> <span class="math display">\[ E[W | A,Z,U] = \beta_{w0} +  \beta_{uw} U \]</span> <span class="math display">\[ E[U | A,Z] = \beta_{u0} + \beta_{zu} Z + \beta_{au} A \]</span></p>
+<p><span id="eq-proximal-intro-1"><span class="math display">\[ E[Y | A,Z,U] = \beta_{y0} + \beta_{ay} A + \beta_{uy} U  \tag{33.1}\]</span></span> <span id="eq-proximal-intro-2"><span class="math display">\[ E[W | A,Z,U] = \beta_{w0} +  \beta_{uw} U  \tag{33.2}\]</span></span> <span id="eq-proximal-intro-3"><span class="math display">\[ E[U | A,Z] = \beta_{u0} + \beta_{zu} Z + \beta_{au} A  \tag{33.3}\]</span></span></p>
 <p><span class="math inline">\(\beta_{ay}\)</span> is the true effect of <span class="math inline">\(A\)</span> on <span class="math inline">\(Y\)</span>.</p>
-<p><span class="math display">\[ E[Y | A,Z] = \beta_{y0} + \beta_{ay} A + \beta_{uy} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A) \]</span></p>
-<p><span class="math display">\[ E[W | A,Z] = \beta_{w0} +  \beta_{uw} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A) \]</span></p>
+<p><span id="eq-proximal-intro-4"><span class="math display">\[ E[Y | A,Z] = \beta_{y0} + \beta_{ay} A + \beta_{uy} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A)  \tag{33.4}\]</span></span></p>
+<p><span id="eq-proximal-intro-5"><span class="math display">\[ E[W | A,Z] = \beta_{w0} +  \beta_{uw} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A)  \tag{33.5}\]</span></span></p>
 <p>From the last two regressions we can recover <span class="math inline">\(\beta_{ay}\)</span>:</p>
 <p>If we define <span class="math inline">\(\delta_{a}^y = \beta_{ay} + \beta_{uy} \beta_{au}\)</span> (regression coefficient of <span class="math inline">\(A\)</span> on the <span class="math inline">\(Y\)</span> regression) and <span class="math inline">\(\delta_{a}^w = \beta_{uw} \beta_{au}\)</span>, (regression coefficient of <span class="math inline">\(A\)</span> on the <span class="math inline">\(W\)</span> regression), similarly for <span class="math inline">\(\delta_z^y\)</span> and <span class="math inline">\(\delta_z^w\)</span>, then we have</p>
-<p><span class="math display">\[ \beta_{ay} = \delta_{a}^y - \delta_{a}^w  \frac{\delta_z^y}{\delta_z^w} \]</span></p>
+<p><span id="eq-proximal-intro-6"><span class="math display">\[ \beta_{ay} = \delta_{a}^y - \delta_{a}^w  \frac{\delta_z^y}{\delta_z^w}  \tag{33.6}\]</span></span></p>
 <p>In this <strong>linear-Gaussian special case only</strong>, we can look at this as a two-stage-least-squares-style regression and replace <span class="math inline">\(U\)</span> with the predicted value of <span class="math inline">\(W\)</span>:</p>
-<p><span class="math display">\[ E[Y | A,Z] = \left(\beta_{y0} - \frac{\beta_{uy}}{\beta_{uw}}\beta_{w0}\right) + \beta_{ay} A + \frac{\beta_{uy}}{\beta_{uw}} E[W | A,Z]\]</span></p>
+<p><span id="eq-proximal-intro-7"><span class="math display">\[ E[Y | A,Z] = \left(\beta_{y0} - \frac{\beta_{uy}}{\beta_{uw}}\beta_{w0}\right) + \beta_{ay} A + \frac{\beta_{uy}}{\beta_{uw}} E[W | A,Z] \tag{33.7}\]</span></span></p>
 <p>since <span class="math inline">\(E[U \mid A,Z] = (E[W \mid A,Z] - \beta_{w0})/\beta_{uw}\)</span> from the <span class="math inline">\(W\)</span> equation above. The coefficient on the predicted value of <span class="math inline">\(W\)</span> is <span class="math inline">\(\beta_{uy}/\beta_{uw}\)</span>, not <span class="math inline">\(\beta_{uy}\)</span> alone — it only reduces to <span class="math inline">\(\beta_{uy}\)</span> when <span class="math inline">\(\beta_{uw}=1\)</span>. So we first regress <span class="math inline">\(W\)</span> on <span class="math inline">\(A\)</span> and <span class="math inline">\(Z\)</span>, then regress <span class="math inline">\(Y\)</span> on <span class="math inline">\(A\)</span> and the predicted value of <span class="math inline">\(W\)</span>.</p>
 <p>This “predict <span class="math inline">\(W\)</span> from <span class="math inline">\(A\)</span> and <span class="math inline">\(Z\)</span>, then plug it in” shortcut is <strong>not</strong> the general proximal identification argument, and it is not the same as a standard IV/2SLS specification (we are not instrumenting an endogenous regressor with <code>ivreg</code>). In general proximal causal inference, the outcome bridge function <span class="math inline">\(h(A,W)\)</span> is identified by solving the conditional moment restriction <span class="math inline">\(E[Y \mid A,Z] = E[h(A,W)\mid A,Z]\)</span>, which requires completeness (relevance) conditions linking the treatment-inducing proxy <span class="math inline">\(Z\)</span> and the outcome-inducing proxy <span class="math inline">\(W\)</span> to the hidden confounder <span class="math inline">\(U\)</span>. The generated regressor <span class="math inline">\(S = \widehat{E}[W\mid A,Z]\)</span> is only a valid substitute under the linear-Gaussian structure above; even then the two-stage standard errors are wrong as written, because <span class="math inline">\(S\)</span> is generated in the first stage (bootstrap the whole procedure).</p>
 </section><section id="a-nonparametric-model" class="level3" data-number="33.2.3"><h3 data-number="33.2.3" class="anchored" data-anchor-id="a-nonparametric-model">
 <span class="header-section-number">33.2.3</span> A nonparametric model</h3>
 <p>We don’t have to have a linear model, this can be done with a nonparametric model as well.</p>
-<p><span class="math display">\[ E[Y(a)] = E[h(a,W)]  \]</span> where <span class="math inline">\(E[Y | A,Z] = E[h(A,W) | A, Z]\)</span>.</p>
+<p><span id="eq-proximal-intro-8"><span class="math display">\[ E[Y(a)] = E[h(a,W)]   \tag{33.8}\]</span></span> where <span class="math inline">\(E[Y | A,Z] = E[h(A,W) | A, Z]\)</span>.</p>
 <p>That is, we can estimate <span class="math inline">\(h\)</span> as a function of <span class="math inline">\(A\)</span> and <span class="math inline">\(W\)</span>, identified using <span class="math inline">\(Z\)</span>, nonparametrically. This <span class="math inline">\(h\)</span> function is called outcome bridge function. In the linear case, it is <span class="math inline">\(h(A, W) =  \beta_0 + \beta_a A + \beta_w W\)</span>.</p>
 </section><section id="how-to-find-proximal-variables" class="level3" data-number="33.2.4"><h3 data-number="33.2.4" class="anchored" data-anchor-id="how-to-find-proximal-variables">
 <span class="header-section-number">33.2.4</span> How to find proximal variables</h3>
@@ -1433,15 +1433,15 @@ F-statistic:  2012 on 2 and 4997 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb6-211"><a href="#cb6-211" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-212"><a href="#cb6-212" aria-hidden="true" tabindex="-1"></a>Suppose we have the following linear model:</span>
 <span id="cb6-213"><a href="#cb6-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-214"><a href="#cb6-214" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | A,Z,U</span><span class="co">]</span> = \beta_{y0} + \beta_{ay} A + \beta_{uy} U $$</span>
-<span id="cb6-215"><a href="#cb6-215" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">W | A,Z,U</span><span class="co">]</span> = \beta_{w0} +  \beta_{uw} U $$</span>
-<span id="cb6-216"><a href="#cb6-216" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">U | A,Z</span><span class="co">]</span> = \beta_{u0} + \beta_{zu} Z + \beta_{au} A $$</span>
+<span id="cb6-214"><a href="#cb6-214" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | A,Z,U</span><span class="co">]</span> = \beta_{y0} + \beta_{ay} A + \beta_{uy} U $$ {#eq-proximal-intro-1}</span>
+<span id="cb6-215"><a href="#cb6-215" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">W | A,Z,U</span><span class="co">]</span> = \beta_{w0} +  \beta_{uw} U $$ {#eq-proximal-intro-2}</span>
+<span id="cb6-216"><a href="#cb6-216" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">U | A,Z</span><span class="co">]</span> = \beta_{u0} + \beta_{zu} Z + \beta_{au} A $$ {#eq-proximal-intro-3}</span>
 <span id="cb6-217"><a href="#cb6-217" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-218"><a href="#cb6-218" aria-hidden="true" tabindex="-1"></a>$\beta_{ay}$ is the true effect of $A$ on $Y$.</span>
 <span id="cb6-219"><a href="#cb6-219" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-220"><a href="#cb6-220" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | A,Z</span><span class="co">]</span> = \beta_{y0} + \beta_{ay} A + \beta_{uy} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A) $$</span>
+<span id="cb6-220"><a href="#cb6-220" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | A,Z</span><span class="co">]</span> = \beta_{y0} + \beta_{ay} A + \beta_{uy} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A) $$ {#eq-proximal-intro-4}</span>
 <span id="cb6-221"><a href="#cb6-221" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-222"><a href="#cb6-222" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">W | A,Z</span><span class="co">]</span> = \beta_{w0} +  \beta_{uw} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A) $$</span>
+<span id="cb6-222"><a href="#cb6-222" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">W | A,Z</span><span class="co">]</span> = \beta_{w0} +  \beta_{uw} (\beta_{u0} + \beta_{zu} Z + \beta_{au} A) $$ {#eq-proximal-intro-5}</span>
 <span id="cb6-223"><a href="#cb6-223" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-224"><a href="#cb6-224" aria-hidden="true" tabindex="-1"></a>From the last two regressions we can recover $\beta_{ay}$:</span>
 <span id="cb6-225"><a href="#cb6-225" aria-hidden="true" tabindex="-1"></a></span>
@@ -1449,13 +1449,13 @@ F-statistic:  2012 on 2 and 4997 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb6-227"><a href="#cb6-227" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-228"><a href="#cb6-228" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-229"><a href="#cb6-229" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-230"><a href="#cb6-230" aria-hidden="true" tabindex="-1"></a>$$ \beta_{ay} = \delta_{a}^y - \delta_{a}^w  \frac{\delta_z^y}{\delta_z^w} $$</span>
+<span id="cb6-230"><a href="#cb6-230" aria-hidden="true" tabindex="-1"></a>$$ \beta_{ay} = \delta_{a}^y - \delta_{a}^w  \frac{\delta_z^y}{\delta_z^w} $$ {#eq-proximal-intro-6}</span>
 <span id="cb6-231"><a href="#cb6-231" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-232"><a href="#cb6-232" aria-hidden="true" tabindex="-1"></a>In this **linear-Gaussian special case only**, we can look at this as a</span>
 <span id="cb6-233"><a href="#cb6-233" aria-hidden="true" tabindex="-1"></a>two-stage-least-squares-style regression and replace $U$ with the predicted</span>
 <span id="cb6-234"><a href="#cb6-234" aria-hidden="true" tabindex="-1"></a>value of $W$:</span>
 <span id="cb6-235"><a href="#cb6-235" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-236"><a href="#cb6-236" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | A,Z</span><span class="co">]</span> = \left(\beta_{y0} - \frac{\beta_{uy}}{\beta_{uw}}\beta_{w0}\right) + \beta_{ay} A + \frac{\beta_{uy}}{\beta_{uw}} E<span class="co">[</span><span class="ot">W | A,Z</span><span class="co">]</span>$$</span>
+<span id="cb6-236"><a href="#cb6-236" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | A,Z</span><span class="co">]</span> = \left(\beta_{y0} - \frac{\beta_{uy}}{\beta_{uw}}\beta_{w0}\right) + \beta_{ay} A + \frac{\beta_{uy}}{\beta_{uw}} E<span class="co">[</span><span class="ot">W | A,Z</span><span class="co">]</span>$$ {#eq-proximal-intro-7}</span>
 <span id="cb6-237"><a href="#cb6-237" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-238"><a href="#cb6-238" aria-hidden="true" tabindex="-1"></a>since $E<span class="co">[</span><span class="ot">U \mid A,Z</span><span class="co">]</span> = (E<span class="co">[</span><span class="ot">W \mid A,Z</span><span class="co">]</span> - \beta_{w0})/\beta_{uw}$ from the $W$ equation above. The coefficient on the predicted value of $W$ is $\beta_{uy}/\beta_{uw}$, not $\beta_{uy}$ alone — it only reduces to $\beta_{uy}$ when $\beta_{uw}=1$. So we first regress $W$ on $A$ and $Z$, then regress $Y$ on $A$ and the</span>
 <span id="cb6-239"><a href="#cb6-239" aria-hidden="true" tabindex="-1"></a>predicted value of $W$.</span>
@@ -1478,7 +1478,7 @@ F-statistic:  2012 on 2 and 4997 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb6-256"><a href="#cb6-256" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-257"><a href="#cb6-257" aria-hidden="true" tabindex="-1"></a>We don't have to have a linear model, this can be done with a nonparametric model as well.</span>
 <span id="cb6-258"><a href="#cb6-258" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-259"><a href="#cb6-259" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y(a)</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">h(a,W)</span><span class="co">]</span>  $$</span>
+<span id="cb6-259"><a href="#cb6-259" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y(a)</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">h(a,W)</span><span class="co">]</span>  $$ {#eq-proximal-intro-8}</span>
 <span id="cb6-260"><a href="#cb6-260" aria-hidden="true" tabindex="-1"></a>where $E<span class="co">[</span><span class="ot">Y | A,Z</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">h(A,W) | A, Z</span><span class="co">]</span>$.</span>
 <span id="cb6-261"><a href="#cb6-261" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-262"><a href="#cb6-262" aria-hidden="true" tabindex="-1"></a>That is, we can estimate $h$ as a function of $A$ and $W$, identified using $Z$, nonparametrically.  This $h$ function is called outcome bridge function.  In the linear case, it is $h(A, W) =  \beta_0 + \beta_a A + \beta_w W$.</span>

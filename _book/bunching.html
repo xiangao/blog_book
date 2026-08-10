@@ -617,13 +617,13 @@ window.Quarto = {
 </section><section id="treatment-effect-estimation" class="level3" data-number="29.2.3"><h3 data-number="29.2.3" class="anchored" data-anchor-id="treatment-effect-estimation">
 <span class="header-section-number">29.2.3</span> Treatment effect estimation</h3>
 <p>Caetano et al (2020) proposed a method to estimate the treatment effect when there is bunching. It seems to me there is no reason that we cannot use it for the censoring situation. There are a lot of situations that we have censored treatment variable, when we study continuous treatment variable.</p>
-<p>Suppose we have <span class="math display">\[ Y = \beta T + Z \gamma + \delta \eta + \epsilon \]</span></p>
+<p>Suppose we have <span id="eq-bunching-1"><span class="math display">\[ Y = \beta T + Z \gamma + \delta \eta + \epsilon  \tag{29.1}\]</span></span></p>
 <p>where <span class="math inline">\(T\)</span> is the treatment variable, <span class="math inline">\(\eta\)</span> is the unobserved variable that is causing both the treatment and the outcome, <span class="math inline">\(Z\)</span> is the control variables, and <span class="math inline">\(\epsilon\)</span> is the error term. We only observe <span class="math inline">\(Y, T, Z\)</span>.</p>
 <p>Suppose <span class="math inline">\(T^*\)</span> is the latent variable that is censored at <span class="math inline">\(T^* = 0\)</span>. We observe <span class="math inline">\(T = max(T^*, 0)\)</span>. We assume that <span class="math inline">\(T^*\)</span> is continuous over its support.</p>
-<p><span class="math display">\[ T^* = Z \pi + \eta \]</span></p>
+<p><span id="eq-bunching-2"><span class="math display">\[ T^* = Z \pi + \eta  \tag{29.2}\]</span></span></p>
 <p>From the two equations, we can derive:</p>
-<p><span class="math display">\[ E[Y | T, Z] = (\beta + \delta)T + Z (\gamma - \pi \delta)  + \delta E[T^*  | T^* \le 0, Z] 1(T=0) \]</span> or</p>
-<p><span class="math display">\[ E[Y | T, Z] = \beta T + Z (\gamma - \pi \delta)  + \delta (T + E[T^*  | T^* \le 0, Z] 1(T=0)) \]</span></p>
+<p><span id="eq-bunching-3"><span class="math display">\[ E[Y | T, Z] = (\beta + \delta)T + Z (\gamma - \pi \delta)  + \delta E[T^*  | T^* \le 0, Z] 1(T=0)  \tag{29.3}\]</span></span> or</p>
+<p><span id="eq-bunching-4"><span class="math display">\[ E[Y | T, Z] = \beta T + Z (\gamma - \pi \delta)  + \delta (T + E[T^*  | T^* \le 0, Z] 1(T=0))  \tag{29.4}\]</span></span></p>
 <p>Therefore we can “correct” for endogeneity by simply including an additional term <span class="math inline">\(\delta (T + E[T^*  | T^* \le 0, Z] 1(T=0))\)</span> in the regression.</p>
 <p>However, the prediction of <span class="math inline">\(\delta (T + E[T^*  | T^* \le 0, Z] 1(T=0))\)</span> is out of sample. We have to make some additional assumptions for the distribution of <span class="math inline">\(T^*\)</span>. For example, we can assume that <span class="math inline">\(T^*\)</span> is normally distributed. Or, we can assume it is symmetric. Then we can use the right tail to estimate the left tail.</p>
 </section></section><section id="simulation" class="level2" data-number="29.3"><h2 data-number="29.3" class="anchored" data-anchor-id="simulation">
@@ -714,7 +714,7 @@ F-statistic:  4414 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
 <section id="correcting-for-endogeneity" class="level3" data-number="29.3.1"><h3 data-number="29.3.1" class="anchored" data-anchor-id="correcting-for-endogeneity">
 <span class="header-section-number">29.3.1</span> Correcting for endogeneity</h3>
 <p>The correction term is <span class="math inline">\(E[T^* \mid T^* \le 0, Z]\)</span>, on the scale of the <em>treatment</em> <span class="math inline">\(T^*\)</span> — so we need to model <span class="math inline">\(T^*\)</span> given <span class="math inline">\(Z\)</span>, not <span class="math inline">\(Y\)</span> given <span class="math inline">\(T\)</span> and <span class="math inline">\(Z\)</span>. Let’s assume <span class="math inline">\(T^*\)</span> is normally distributed given <span class="math inline">\(Z\)</span>: <span class="math inline">\(T^* \mid Z \sim N(Z\pi, \sigma^2)\)</span>. Since we observe <span class="math inline">\(T=T^*\)</span> whenever <span class="math inline">\(T^*&gt;0\)</span> and <span class="math inline">\(T=0\)</span> otherwise, this is exactly a (left-)censored (Tobit) regression of <span class="math inline">\(T\)</span> on <span class="math inline">\(Z\)</span>, using <strong>all</strong> observations (not just the right tail): the censored observations still inform <span class="math inline">\(\pi\)</span> and <span class="math inline">\(\sigma\)</span> through the likelihood, they just don’t reveal <span class="math inline">\(T^*\)</span>’s value directly. Given <span class="math inline">\(\hat\pi\)</span> and <span class="math inline">\(\hat\sigma\)</span>, the standard truncated-normal mean formula gives us <span class="math inline">\(E[T^* \mid T^* \le 0, Z]\)</span> directly, with no separate mirroring step needed:</p>
-<p><span class="math display">\[ E[T^* \mid T^* \le 0, Z] = Z\hat\pi - \hat\sigma\,\frac{\phi(-Z\hat\pi/\hat\sigma)}{\Phi(-Z\hat\pi/\hat\sigma)} \]</span></p>
+<p><span id="eq-bunching-5"><span class="math display">\[ E[T^* \mid T^* \le 0, Z] = Z\hat\pi - \hat\sigma\,\frac{\phi(-Z\hat\pi/\hat\sigma)}{\Phi(-Z\hat\pi/\hat\sigma)}  \tag{29.5}\]</span></span></p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">AER</span><span class="op">)</span></span>
 <span></span>
@@ -1274,20 +1274,20 @@ F-statistic:  5582 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>Caetano et al (2020) proposed a method to estimate the treatment effect when there is bunching.  It seems to me there is no reason that we cannot use it for the censoring situation.  There are a lot of situations that we have censored treatment variable, when we study continuous treatment variable.</span>
 <span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>Suppose we have</span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>$$ Y = \beta T + Z \gamma + \delta \eta + \epsilon $$</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>$$ Y = \beta T + Z \gamma + \delta \eta + \epsilon $$ {#eq-bunching-1}</span>
 <span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>where $T$ is the treatment variable, $\eta$ is the unobserved variable that is causing both the treatment and the outcome, $Z$ is the control variables, and $\epsilon$ is the error term.  We only observe $Y, T, Z$.</span>
 <span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>Suppose $T^*$ is the latent variable that is censored at $T^* = 0$.  We observe $T = max(T^*, 0)$.  We assume that $T^*$ is continuous over its support.</span>
 <span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>$$ T^* = Z \pi + \eta $$</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>$$ T^* = Z \pi + \eta $$ {#eq-bunching-2}</span>
 <span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>From the two equations, we can derive:</span>
 <span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | T, Z</span><span class="co">]</span> = (\beta + \delta)T + Z (\gamma - \pi \delta)  + \delta E<span class="co">[</span><span class="ot">T^*  | T^* \le 0, Z</span><span class="co">]</span> 1(T=0) $$</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | T, Z</span><span class="co">]</span> = (\beta + \delta)T + Z (\gamma - \pi \delta)  + \delta E<span class="co">[</span><span class="ot">T^*  | T^* \le 0, Z</span><span class="co">]</span> 1(T=0) $$ {#eq-bunching-3}</span>
 <span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>or</span>
 <span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | T, Z</span><span class="co">]</span> = \beta T + Z (\gamma - \pi \delta)  + \delta (T + E<span class="co">[</span><span class="ot">T^*  | T^* \le 0, Z</span><span class="co">]</span> 1(T=0)) $$</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">Y | T, Z</span><span class="co">]</span> = \beta T + Z (\gamma - \pi \delta)  + \delta (T + E<span class="co">[</span><span class="ot">T^*  | T^* \le 0, Z</span><span class="co">]</span> 1(T=0)) $$ {#eq-bunching-4}</span>
 <span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>Therefore we can "correct" for endogeneity by simply including an additional term $\delta (T + E<span class="co">[</span><span class="ot">T^*  | T^* \le 0, Z</span><span class="co">]</span> 1(T=0))$ in the regression.</span>
 <span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a></span>
@@ -1343,7 +1343,7 @@ F-statistic:  5582 on 4 and 995 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>The correction term is $E<span class="co">[</span><span class="ot">T^* \mid T^* \le 0, Z</span><span class="co">]</span>$, on the scale of the *treatment* $T^*$ — so we need to model $T^*$ given $Z$, not $Y$ given $T$ and $Z$. Let's assume $T^*$ is normally distributed given $Z$: $T^* \mid Z \sim N(Z\pi, \sigma^2)$. Since we observe $T=T^*$ whenever $T^*&gt;0$ and $T=0$ otherwise, this is exactly a (left-)censored (Tobit) regression of $T$ on $Z$, using **all** observations (not just the right tail): the censored observations still inform $\pi$ and $\sigma$ through the likelihood, they just don't reveal $T^*$'s value directly. Given $\hat\pi$ and $\hat\sigma$, the standard truncated-normal mean formula gives us $E[T^* \mid T^* \le 0, Z]$ directly, with no separate mirroring step needed:</span>
 <span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">T^* \mid T^* \le 0, Z</span><span class="co">]</span> = Z\hat\pi - \hat\sigma\,\frac{\phi(-Z\hat\pi/\hat\sigma)}{\Phi(-Z\hat\pi/\hat\sigma)} $$</span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>$$ E<span class="co">[</span><span class="ot">T^* \mid T^* \le 0, Z</span><span class="co">]</span> = Z\hat\pi - \hat\sigma\,\frac{\phi(-Z\hat\pi/\hat\sigma)}{\Phi(-Z\hat\pi/\hat\sigma)} $$ {#eq-bunching-5}</span>
 <span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>

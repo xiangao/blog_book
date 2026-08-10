@@ -10,47 +10,51 @@ Chad Hazlett and Tanvi Shinkre's paper "Demystifying and avoiding the OLS “wei
 Unmodeled heterogeneity and straightforward solutions" has demystified OLS weights for me.
 
 When we have unconfoundedness, that is, we assume there is no unobserved confounders, we usually run a linear regression of $Y$ on $D$ and $X$, where $D$ is the treatment variable and $X$ is the covariates.  We know in fact the unconfoundedness actually is only true for each level of $X$.  If $X$ is low dimensional and discrete, then it's possible to stratify and basically calculate the ATE with g-formula.  However, usually we just do a linear regression
-$$ Y = \alpha + \beta D + \gamma X + \epsilon$$
+$$ Y = \alpha + \beta D + \gamma X + \epsilon$$ {#eq-weights-ols-1}
 and claim we have controlled for $X$, especially when $X$ is high-dimensional or continuous.  At least we claim it's a linear approximation of the truth.  But, how bad is it?
 
 Suppose we are interested in the ATE of $D$ on $Y$.  Say we have discrete variables $X$.  Under unconfoundedness, the ATE is
 
+
 $$
-\begin{align}
+\begin{aligned}
  \tau_{ATE} &= \sum E[Y(1) - Y(0) | X = x] P(X = x) \\
             &= \sum (E[Y|D=1, X=x]- E[Y|D=0, X=x]) P(X=x) \\
             &= \sum DIM_x P(X=x) \\
-\end{align}
-$$
+\end{aligned}
+$$ {#eq-weights-ols-2}
+
 
 This is basically the g-formula, or regression adjustment formula.  We compute the DIM (difference in means) between treated and control for each strata $X=x$, then the weighted average is the ATE, with $\hat P(X=x)$ as weights.
 
 If we have high dimensional $X$, we usually do
-$$ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon $$
+$$ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon $$ {#eq-weights-ols-3}
 
 We would hope $\delta_{reg}$ is close to $\delta_{ATE}$, but we are not sure.
 
 OLS coefficients are:
 
-$$ \hat \beta = (Z'Z)^{-1} Z'y $$
+$$ \hat \beta = (Z'Z)^{-1} Z'y $$ {#eq-weights-ols-4}
 
 Here I use $Z$ to represent all regressors.  Each coefficient is a weighted sum of the outcome,
 
-$$ \hat \tau_{reg} = \sum \omega_i Y_i $$
+$$ \hat \tau_{reg} = \sum \omega_i Y_i $$ {#eq-weights-ols-5}
 
 By FWL theorem,
 
-$$ \hat \tau_{reg} = \frac{\sum Y_i (D_i - \hat d(X_i)) }{\sum (D_i - \hat d(X_i))^2} $$
+$$ \hat \tau_{reg} = \frac{\sum Y_i (D_i - \hat d(X_i)) }{\sum (D_i - \hat d(X_i))^2} $$ {#eq-weights-ols-6}
 
 Here $\hat d(X_i) = \hat p(D_i=1|X_i)$ which is the predicted value of linear regression of $D$ on $X$.  The numerator is the covariance between $Y$ and residualized $D$, the denominator is the variance of the residualized $D$.  Note that the original FWL would have residualized $Y$ here, but it turns out it works the same with the original $Y$.
 
 Therefore the weights are
 
+
 $$
-\begin{align}
+\begin{aligned}
 \omega_i &= \frac{D_i - \hat d(X_i)}{\sum (D_i - \hat d(X_i))^2} \\
-\end{align}
-$$
+\end{aligned}
+$$ {#eq-weights-ols-7}
+
 
 
 Note for the denominator, it's a constant.  It does *not* scale the weights to sum to one --- they sum to **zero**, because $D_i - \hat d(X_i)$ is an OLS residual from a regression that includes an intercept.  What the denominator normalizes is the contrast: since $\sum D_i(D_i - \hat d(X_i)) = \sum (D_i - \hat d(X_i))^2$ (the residual is orthogonal to the fitted values), we get $\sum_i \omega_i D_i = 1$, i.e. the weights on the treated sum to $+1$ and those on the control sum to $-1$.  That is what makes $\sum_i \omega_i Y_i$ a weighted *difference* of means.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $-\hat d(X_i)$ (negative).  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the larger the magnitude of the (negative) weight.
@@ -59,7 +63,7 @@ If these weights are the same as the IPW weights, then we'll get $\tau_{reg}=\ta
 
 Another way to write this as weighted difference in means:
 
-$$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i $$
+$$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i $$ {#eq-weights-ols-8}
 
 where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = -\hat d(X_i)/c$ for control units ($D_i=0$)
 
@@ -73,7 +77,7 @@ Therefore, $\hat \tau_{reg}$ is another weighted average of the outcome, which i
 
 Angrist ([1998](https://doi.org/10.2307/2999578), *Econometrica*) has the strata-wise weights for OLS:
 
-$$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} $$
+$$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} $$ {#eq-weights-ols-9}
 
 this shows that different from ATE, these weights are $\hat d(x) (1-\hat d(x)) \hat P(X=x)$.  The stratas are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.
 

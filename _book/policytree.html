@@ -586,35 +586,35 @@ window.Quarto = {
 <span class="header-section-number">31.1</span> Optimal policy</h2>
 <p>I have a few posts about estimating ATE or CATE. The target has been getting the treatment effect or conditional treatment effect accurately. However, sometimes after estimating the treatment effects, we may be interested in the optimal treatment assignment. For example, a doctor may be interested in how to assign treatment based on patient characteristics. OSHA might be interested in which firms to send inspector to, based on firm characteristics, or past history. We may think we can just assign the treatment to those who benefited most (largest CATE), or any patient who has a positive CATE. However, the objective function for policy is different from the CATE target.</p>
 <p>Suppose we have {Y(0), Y(1), X} and we have estimated the CATE as <span class="math inline">\(\tau(x)=E[Y(1)-Y(0)|X=x]\)</span>. The policy learning problem is to find a policy function that assigns treatment to maximize some utility function.</p>
-<p>Suppose that policy is <span class="math display">\[
+<p>Suppose that policy is <span id="eq-policytree-1"><span class="math display">\[
 \pi \  :  \ X  \rightarrow \{0,1\}
-\]</span> This policy is to assign treatment or control based on <span class="math inline">\(X\)</span>.</p>
+\tag{31.1}\]</span></span> This policy is to assign treatment or control based on <span class="math inline">\(X\)</span>.</p>
 <p>The natural objective function is a value function <span class="math inline">\(V(\pi) = E[Y_i(\pi(X_i))]\)</span>, which is the expected value of outcome with this policy. We’d like to maximize this function.</p>
-<p><span class="math display">\[
+<p><span id="eq-policytree-2"><span class="math display">\[
 V(\pi) = E[Y_i(\pi(X_i))] = E[Y_i(0)]  + E[\tau(X) \pi(X))]
-\]</span> Since <span class="math inline">\(\pi\)</span> only enters through <span class="math inline">\(E[\tau(X)\pi(X)]\)</span>, the maximizer is exactly <span class="math inline">\(\pi(X) = 1\{\tau(X) &gt; 0\}\)</span> — treat everyone with a positive effect. A threshold <span class="math inline">\(c \neq 0\)</span> is not a free choice here: it appears once treatment is costly, where maximizing <span class="math inline">\(E[(\tau(X) - c)\pi(X)]\)</span> gives the rule <span class="math inline">\(\tau(X) &gt; c\)</span> with <span class="math inline">\(c\)</span> the per-unit cost. However, estimating <span class="math inline">\(\tau(X)\)</span> is different from maximizing <span class="math inline">\(V\)</span>.</p>
+\tag{31.2}\]</span></span> Since <span class="math inline">\(\pi\)</span> only enters through <span class="math inline">\(E[\tau(X)\pi(X)]\)</span>, the maximizer is exactly <span class="math inline">\(\pi(X) = 1\{\tau(X) &gt; 0\}\)</span> — treat everyone with a positive effect. A threshold <span class="math inline">\(c \neq 0\)</span> is not a free choice here: it appears once treatment is costly, where maximizing <span class="math inline">\(E[(\tau(X) - c)\pi(X)]\)</span> gives the rule <span class="math inline">\(\tau(X) &gt; c\)</span> with <span class="math inline">\(c\)</span> the per-unit cost. However, estimating <span class="math inline">\(\tau(X)\)</span> is different from maximizing <span class="math inline">\(V\)</span>.</p>
 <p>First, we don’t have the true <span class="math inline">\(\tau\)</span>. The loss function in estimating <span class="math inline">\(\tau(X)\)</span> is different from the loss function in maximizing <span class="math inline">\(V\)</span>. The loss function in estimating <span class="math inline">\(\tau(X)\)</span> is the squared error loss. We’ll see maximizing <span class="math inline">\(V\)</span> is a different problem.</p>
 <p>Second, the <span class="math inline">\(X\)</span> we use to estimate <span class="math inline">\(\tau\)</span> is different from the ones we can use for policy. For example, we have some variables used in CATE estimation that we cannot use for policy, like gender, or age, for discrimination reasons. Or there are variables we have after the experiment that we cannot use for CATE estimation, but we’d like to use for policy learning.</p>
 </section><section id="ipw-loss" class="level2" data-number="31.2"><h2 data-number="31.2" class="anchored" data-anchor-id="ipw-loss">
 <span class="header-section-number">31.2</span> IPW loss</h2>
 <p>Kitagawa and Tetenov (2018) proposed a loss function for policy learning. The loss function is based on the inverse propensity weighting.</p>
-<p><span class="math display">\[
+<p><span id="eq-policytree-3"><span class="math display">\[
 \hat \pi = argmax \{ \hat V(\pi) : \pi \in \Pi \}
-\]</span> <span class="math display">\[
+\tag{31.3}\]</span></span> <span id="eq-policytree-4"><span class="math display">\[
 \hat V(\pi) = \frac{1}{n} \sum_{i=1}^n \frac{1({W_i=\pi(X_i)})} {P[W_i=\pi(X_i) | X_i]} Y_i
-\]</span></p>
+\tag{31.4}\]</span></span></p>
 <p>This is to say when we have <span class="math inline">\(W_i=\pi(X_i)\)</span>, we can use the outcome <span class="math inline">\(Y_i\)</span> to estimate the value function. That is, when we have a policy, we then select the observations that matches that policy then weight the outcome by the inverse propensity score. This is to adjust the fact the there is selection bias for that policy. Therefore we re-weight it by IPW.</p>
 <p>Obviously we don’t have the true propensity score of <span class="math inline">\(W_i=\pi(X_i)\)</span>, so we need to estimate it. We can estimate it by machine learning.</p>
 </section><section id="aipw-loss" class="level2" data-number="31.3"><h2 data-number="31.3" class="anchored" data-anchor-id="aipw-loss">
 <span class="header-section-number">31.3</span> AIPW loss</h2>
 <p>The IPW loss can be not robust to model misspecification. Athey and Wager (2021) proposed a loss function that is robust to model misspecification. The loss function is based on the doubly robust estimator, AIPW.</p>
-<p><span class="math display">\[
+<p><span id="eq-policytree-5"><span class="math display">\[
 \hat \pi = argmax \{ \hat V(\pi) : \pi \in \Pi \}
-\]</span> <span class="math display">\[
+\tag{31.5}\]</span></span> <span id="eq-policytree-6"><span class="math display">\[
 \hat V(\pi) = \frac{1}{n} \sum_{i=1}^n (2\pi(X_i)-1) \hat \Gamma_i
-\]</span> <span class="math display">\[
+\tag{31.6}\]</span></span> <span id="eq-policytree-7"><span class="math display">\[
 \Gamma_i = \hat \mu(1)(X_i) - \hat \mu(0)(X_i) + \frac{W_i}{\hat e(X_i)}(Y_i - \hat \mu(1) (X_i)) - \frac{1-W_i}{1-\hat e(X_i)}(Y_i - \hat \mu(0) (X_i))
-\]</span></p>
+\tag{31.7}\]</span></span></p>
 <p>Note the <span class="math inline">\(\Gamma_i\)</span> is the score from the AIPW estimator. It’s basically the efficient influence function we learned from the nonparametric estimation of ATE. The value function <span class="math inline">\(\hat V(\pi)\)</span> is the score if treated, minus the score if control for each observation. We’d like to maximize this value function.</p>
 <p>The basic idea is for each policy, calculate the score from AIPW estimator. Then calculate the value function. Then search over the policy space for the policy that maximizes the value function.</p>
 <p>This is very computationally intensive task. Right now seems it would work for “shallow” trees. That is, we allow 2 or 3 levels of trees. Otherwise, the search space could be too large to search.</p>
@@ -650,11 +650,11 @@ V(\pi) = E[Y_i(\pi(X_i))] = E[Y_i(0)]  + E[\tau(X) \pi(X))]
 Tree depth:  2 
 Actions:  1: control 2: treated 
 Variable splits: 
-(1) split_variable: X7  split_value: 0.372302 
-  (2) split_variable: X3  split_value: 0.226708 
+(1) split_variable: X2  split_value: -0.339 
+  (2) split_variable: X8  split_value: 0.289465 
     (4) * action: 1 
     (5) * action: 2 
-  (3) split_variable: X1  split_value: 0.227482 
+  (3) split_variable: X5  split_value: -0.783285 
     (6) * action: 2 
     (7) * action: 1 </code></pre>
 </div>
@@ -668,8 +668,8 @@ Variable splits:
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">tree</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
-<div class="grViz html-widget html-fill-item" id="htmlwidget-811e8dd71dbe73181d67" style="width:100%;height:464px;"></div>
-<script type="application/json" data-for="htmlwidget-811e8dd71dbe73181d67">{"x":{"diagram":"digraph nodes { \n node [shape=box] ;\n0 [label=\" X7 <= 0.37 \"] ;\n0 -> 1 [labeldistance=2.5, labelangle=45, headlabel=\"True\"];\n0 -> 2 [labeldistance=2.5, labelangle=-45, headlabel=\"False\"]\n1 [label=\" X3 <= 0.23 \"] ;\n1 -> 3  ;\n1 -> 4  ;\n3  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n4  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n2 [label=\" X1 <= 0.23 \"] ;\n2 -> 5  ;\n2 -> 6  ;\n5  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n6  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<div class="grViz html-widget html-fill-item" id="htmlwidget-dcd297c372da01919581" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-dcd297c372da01919581">{"x":{"diagram":"digraph nodes { \n node [shape=box] ;\n0 [label=\" X2 <= -0.34 \"] ;\n0 -> 1 [labeldistance=2.5, labelangle=45, headlabel=\"True\"];\n0 -> 2 [labeldistance=2.5, labelangle=-45, headlabel=\"False\"]\n1 [label=\" X8 <= 0.29 \"] ;\n1 -> 3  ;\n1 -> 4  ;\n3  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n4  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n2 [label=\" X5 <= -0.78 \"] ;\n2 -> 5  ;\n2 -> 6  ;\n5  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n6  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">X</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span>, <span class="va">X</span><span class="op">[</span>, <span class="fl">2</span><span class="op">]</span>, col <span class="op">=</span> <span class="va">pp</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/abline.html">abline</a></span><span class="op">(</span><span class="fl">0</span>, <span class="op">-</span><span class="fl">1</span>, lwd <span class="op">=</span> <span class="fl">4</span>, col <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1163,14 +1163,14 @@ Variable splits:
 <span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>Suppose that policy is</span>
 <span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>\pi \  :  \ X  \rightarrow <span class="sc">\{</span>0,1<span class="sc">\}</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-1}</span>
 <span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>This policy is to assign treatment or control based on $X$.</span>
 <span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>The natural objective function is a value function $V(\pi) = E<span class="co">[</span><span class="ot">Y_i(\pi(X_i))</span><span class="co">]</span>$, which is the expected value of outcome with this policy.  We'd like to maximize this function.</span>
 <span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>V(\pi) = E<span class="co">[</span><span class="ot">Y_i(\pi(X_i))</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">Y_i(0)</span><span class="co">]</span>  + E<span class="co">[</span><span class="ot">\tau(X) \pi(X))</span><span class="co">]</span></span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-2}</span>
 <span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>Since $\pi$ only enters through $E<span class="co">[</span><span class="ot">\tau(X)\pi(X)</span><span class="co">]</span>$, the maximizer is exactly</span>
 <span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>$\pi(X) = 1<span class="sc">\{</span>\tau(X) &gt; 0<span class="sc">\}</span>$ --- treat everyone with a positive effect.  A</span>
 <span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>threshold $c \neq 0$ is not a free choice here: it appears once treatment is</span>
@@ -1187,10 +1187,10 @@ Variable splits:
 <span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>\hat \pi = argmax <span class="sc">\{</span> \hat V(\pi) : \pi \in \Pi <span class="sc">\}</span></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-3}</span>
 <span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a> \hat V(\pi) = \frac{1}{n} \sum_{i=1}^n \frac{1({W_i=\pi(X_i)})} {P<span class="co">[</span><span class="ot">W_i=\pi(X_i) | X_i</span><span class="co">]</span>} Y_i</span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-4}</span>
 <span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>This is to say when we have $W_i=\pi(X_i)$, we can use the outcome $Y_i$ to estimate the value function.  That is, when we have a policy, we then select the observations that matches that policy then weight the outcome by the inverse propensity score.  This is to adjust the fact the there is selection bias for that policy.  Therefore we re-weight it by IPW.</span>
 <span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a></span>
@@ -1202,13 +1202,13 @@ Variable splits:
 <span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>\hat \pi = argmax <span class="sc">\{</span> \hat V(\pi) : \pi \in \Pi <span class="sc">\}</span></span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-5}</span>
 <span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a> \hat V(\pi) = \frac{1}{n} \sum_{i=1}^n (2\pi(X_i)-1) \hat \Gamma_i</span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-6}</span>
 <span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a> \Gamma_i = \hat \mu(1)(X_i) - \hat \mu(0)(X_i) + \frac{W_i}{\hat e(X_i)}(Y_i - \hat \mu(1) (X_i)) - \frac{1-W_i}{1-\hat e(X_i)}(Y_i - \hat \mu(0) (X_i))</span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-7}</span>
 <span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>Note the $\Gamma_i$ is the score from the AIPW estimator. It's basically the efficient influence function we learned from the nonparametric estimation of ATE.  The value function $\hat V(\pi)$ is the score if treated, minus the score if control for each observation.  We'd like to maximize this value function.</span>
 <span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>

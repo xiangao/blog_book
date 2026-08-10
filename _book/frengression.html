@@ -608,7 +608,7 @@ window.Quarto = {
 
 
 </header><p>In the <a href="./causal-simulation.html">causal simulation chapter</a>, I used Evans and Didelez (2024)’s decomposition of the joint distribution <span class="math inline">\(p(x,a,y)\)</span> into three pieces:</p>
-<p><span class="math display">\[ p(x,a,y) = p(x,a) \cdot p_a(y) \cdot c(x,y|a) \]</span></p>
+<p><span id="eq-frengression-1"><span class="math display">\[ p(x,a,y) = p(x,a) \cdot p_a(y) \cdot c(x,y|a)  \tag{42.1}\]</span></span></p>
 <p>where <span class="math inline">\(p(x,a)\)</span> is the “past” distribution of covariates and treatment, <span class="math inline">\(p_a(y)\)</span> is the causal margin, and <span class="math inline">\(c(x,y|a)\)</span> is the copula linking covariates and outcome given treatment. The <code>causl</code> package implements this with parametric families. We specify Gaussian, binomial, and so on for each piece.</p>
 <p>But real data can be hard to specify parametrically. We may not know the right copula family. The marginal distributions may have mass points, skewness, or other features that are annoying to write down.</p>
 <p>Frengression (Yang, Evans and Shen, 2025) keeps the same decomposition but learns the pieces with neural networks.</p>
@@ -619,12 +619,12 @@ window.Quarto = {
 <section id="the-energy-score" class="level3" data-number="42.1.1"><h3 data-number="42.1.1" class="anchored" data-anchor-id="the-energy-score">
 <span class="header-section-number">42.1.1</span> The Energy Score</h3>
 <p>The energy score is a proper scoring rule for distributions. Given observations <span class="math inline">\(Y\)</span> and samples <span class="math inline">\(\hat Y, \hat Y'\)</span> from the model:</p>
-<p><span class="math display">\[ S(Y, \hat Y, \hat Y') = E\|Y - \hat Y\| - \frac{1}{2}E\|\hat Y - \hat Y'\| \]</span></p>
+<p><span id="eq-frengression-2"><span class="math display">\[ S(Y, \hat Y, \hat Y') = E\|Y - \hat Y\| - \frac{1}{2}E\|\hat Y - \hat Y'\|  \tag{42.2}\]</span></span></p>
 <p>The first term rewards samples close to the truth. The second term keeps the simulated distribution from collapsing to one point. This is why the method targets the full distribution rather than only the mean.</p>
 </section><section id="the-stochastic-network-stonet" class="level3" data-number="42.1.2"><h3 data-number="42.1.2" class="anchored" data-anchor-id="the-stochastic-network-stonet">
 <span class="header-section-number">42.1.2</span> The Stochastic Network (StoNet)</h3>
 <p>The building block is a <code>StoNet</code>, a neural network that adds random noise <span class="math inline">\(\epsilon \sim N(0,I)\)</span> to the input at each layer:</p>
-<p><span class="math display">\[\text{StoNet}(x) = f(x, \epsilon), \quad \epsilon \sim N(0,I)\]</span></p>
+<p><span id="eq-frengression-3"><span class="math display">\[\text{StoNet}(x) = f(x, \epsilon), \quad \epsilon \sim N(0,I) \tag{42.3}\]</span></span></p>
 <p>Different noise draws produce different outputs. Each output is a sample from the learned conditional distribution. So we can:</p>
 <ul>
 <li>
@@ -758,15 +758,15 @@ window.Quarto = {
 <span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/Rfrengression/man/train_y.html">train_y</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">x_mat</span>, <span class="va">z_mat</span>, <span class="va">y_mat</span>,</span>
 <span>                 num_iters <span class="op">=</span> <span class="fl">1000</span>, lr <span class="op">=</span> <span class="fl">1e-3</span>, print_every <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Epoch 1: loss 1.2163, loss_y 0.4750 (0.4900, 0.0300), loss_eta 0.7414 (0.8495, 0.2162)
-Stopping at iter 64 </code></pre>
+<pre><code>Epoch 1: loss 1.2553, loss_y 0.4712 (0.4850, 0.0275), loss_eta 0.7841 (0.8527, 0.1372)
+Stopping at iter 67 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/Rfrengression/man/train_xz.html">train_xz</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">x_mat</span>, <span class="va">z_mat</span>,</span>
 <span>                   num_iters <span class="op">=</span> <span class="fl">1000</span>, lr <span class="op">=</span> <span class="fl">1e-4</span>, print_every <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Epoch 1: loss 3.3826, loss1 3.4799, loss2 0.1945
-Epoch 500: loss 1.3418, loss1 2.7062, loss2 2.7287
-Epoch 1000: loss 1.3540, loss1 2.7128, loss2 2.7175</code></pre>
+<pre><code>Epoch 1: loss 3.4098, loss1 3.5493, loss2 0.2790
+Epoch 500: loss 1.3562, loss1 2.6843, loss2 2.6561
+Epoch 1000: loss 1.3566, loss1 2.7255, loss2 2.7378</code></pre>
 </div>
 </div>
 </section><section id="estimate-ate" class="level3" data-number="42.4.3"><h3 data-number="42.4.3" class="anchored" data-anchor-id="estimate-ate">
@@ -778,7 +778,7 @@ Epoch 1000: loss 1.3540, loss1 2.7128, loss2 2.7175</code></pre>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"Frengression ATE:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="va">y1</span> <span class="op">-</span> <span class="va">y0</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Frengression ATE: 0.1244 </code></pre>
+<pre><code>Frengression ATE: 0.1644 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"True ATE:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="va">true_ate</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -805,7 +805,7 @@ Epoch 1000: loss 1.3540, loss1 2.7128, loss2 2.7175</code></pre>
 <span><span class="va">y0_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html">predict</a></span><span class="op">(</span><span class="va">model_bench</span>, <span class="fu"><a href="https://rdrr.io/r/base/matrix.html">matrix</a></span><span class="op">(</span><span class="fl">0</span>, ncol <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>, type <span class="op">=</span> <span class="st">"mean"</span>, nsample <span class="op">=</span> <span class="fl">5000</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"True ATE (specified):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html">as.numeric</a></span><span class="op">(</span><span class="va">y1_true</span> <span class="op">-</span> <span class="va">y0_true</span><span class="op">)</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>True ATE (specified): 0.0947 </code></pre>
+<pre><code>True ATE (specified): 0.0791 </code></pre>
 </div>
 </div>
 <p>Now we can generate synthetic data and benchmark any method:</p>
@@ -817,11 +817,11 @@ Epoch 1000: loss 1.3540, loss1 2.7128, loss2 2.7175</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"Treatment prevalence:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/mean.html">mean</a></span><span class="op">(</span><span class="va">syn</span><span class="op">$</span><span class="va">x</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Treatment prevalence: 0.922 </code></pre>
+<pre><code>Treatment prevalence: 0.963 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"Outcome prevalence:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/mean.html">mean</a></span><span class="op">(</span><span class="va">syn</span><span class="op">$</span><span class="va">y</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Outcome prevalence: 0.553 </code></pre>
+<pre><code>Outcome prevalence: 0.608 </code></pre>
 </div>
 </div>
 </section><section id="real-data-lalonde" class="level2" data-number="42.6"><h2 data-number="42.6" class="anchored" data-anchor-id="real-data-lalonde">
@@ -854,15 +854,15 @@ Epoch 1000: loss 1.3540, loss1 2.7128, loss2 2.7175</code></pre>
 <span><span class="va">model_lal</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/Rfrengression/man/train_y.html">train_y</a></span><span class="op">(</span><span class="va">model_lal</span>, <span class="va">x_lal</span>, <span class="va">z_sc</span>, <span class="va">y_sc</span>,</span>
 <span>                      num_iters <span class="op">=</span> <span class="fl">1000</span>, lr <span class="op">=</span> <span class="fl">1e-3</span>, print_every <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Epoch 1: loss 1.4664, loss_y 0.7431 (0.8071, 0.1281), loss_eta 0.7233 (0.7965, 0.1464)
-Stopping at iter 88 </code></pre>
+<pre><code>Epoch 1: loss 1.4197, loss_y 0.7264 (0.8092, 0.1656), loss_eta 0.6933 (0.7758, 0.1650)
+Stopping at iter 70 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">model_lal</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/Rfrengression/man/train_xz.html">train_xz</a></span><span class="op">(</span><span class="va">model_lal</span>, <span class="va">x_lal</span>, <span class="va">z_sc</span>,</span>
 <span>                        num_iters <span class="op">=</span> <span class="fl">1000</span>, lr <span class="op">=</span> <span class="fl">1e-4</span>, print_every <span class="op">=</span> <span class="fl">500</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Epoch 1: loss 2.7874, loss1 2.9643, loss2 0.3536
-Epoch 500: loss 1.9974, loss1 3.8619, loss2 3.7290
-Epoch 1000: loss 2.0047, loss1 3.8970, loss2 3.7845</code></pre>
+<pre><code>Epoch 1: loss 2.7893, loss1 2.9761, loss2 0.3737
+Epoch 500: loss 2.0031, loss1 3.8224, loss2 3.6386
+Epoch 1000: loss 2.0489, loss1 3.8967, loss2 3.6957</code></pre>
 </div>
 </div>
 <p>Now specify a known effect and generate data:</p>
@@ -879,7 +879,7 @@ Epoch 1000: loss 2.0047, loss1 3.8970, loss2 3.7845</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"Treatment prevalence:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html">mean</a></span><span class="op">(</span><span class="va">syn_lal</span><span class="op">$</span><span class="va">x</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Treatment prevalence: 0.02 </code></pre>
+<pre><code>Treatment prevalence: 0.005 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"True ATE:"</span>, <span class="fl">0.3</span>, <span class="st">"(standardized) ="</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="fl">0.3</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html">sd</a></span><span class="op">(</span><span class="va">y_lal</span><span class="op">)</span>, <span class="fl">0</span><span class="op">)</span>, <span class="st">"dollars\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -1371,11 +1371,11 @@ Epoch 1000: loss 2.0047, loss1 3.8970, loss2 3.7845</code></pre>
 <span><span class="va">true_ate_lal</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html">as.numeric</a></span><span class="op">(</span><span class="va">y1_lal_true</span> <span class="op">-</span> <span class="va">y0_lal_true</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"True ATE (standardized):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="va">true_ate_lal</span>, <span class="fl">4</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>True ATE (standardized): 0.2984 </code></pre>
+<pre><code>True ATE (standardized): 0.3134 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html">cat</a></span><span class="op">(</span><span class="st">"True ATE (dollars):"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="va">true_ate_lal</span> <span class="op">*</span> <span class="fu"><a href="https://rdrr.io/r/stats/sd.html">sd</a></span><span class="op">(</span><span class="va">y_lal</span><span class="op">)</span>, <span class="fl">0</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>True ATE (dollars): 2229 </code></pre>
+<pre><code>True ATE (dollars): 2341 </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb57"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">B_lal</span> <span class="op">&lt;-</span> <span class="fl">10</span></span>
 <span><span class="va">n_syn_lal</span> <span class="op">&lt;-</span> <span class="fl">2000</span></span>
@@ -2063,7 +2063,7 @@ Epoch 1000: loss 2.0047, loss1 3.8970, loss2 3.7845</code></pre>
 <span id="cb62-5"><a href="#cb62-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb62-6"><a href="#cb62-6" aria-hidden="true" tabindex="-1"></a>In the <span class="co">[</span><span class="ot">causal simulation chapter</span><span class="co">](causal-simulation.qmd)</span>, I used Evans and Didelez (2024)'s decomposition of the joint distribution $p(x,a,y)$ into three pieces:</span>
 <span id="cb62-7"><a href="#cb62-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb62-8"><a href="#cb62-8" aria-hidden="true" tabindex="-1"></a>$$ p(x,a,y) = p(x,a) \cdot p_a(y) \cdot c(x,y|a) $$</span>
+<span id="cb62-8"><a href="#cb62-8" aria-hidden="true" tabindex="-1"></a>$$ p(x,a,y) = p(x,a) \cdot p_a(y) \cdot c(x,y|a) $$ {#eq-frengression-1}</span>
 <span id="cb62-9"><a href="#cb62-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb62-10"><a href="#cb62-10" aria-hidden="true" tabindex="-1"></a>where $p(x,a)$ is the "past" distribution of covariates and treatment, $p_a(y)$ is the causal margin, and $c(x,y|a)$ is the copula linking covariates and outcome given treatment. The <span class="in">`causl`</span> package implements this with parametric families. We specify Gaussian, binomial, and so on for each piece.</span>
 <span id="cb62-11"><a href="#cb62-11" aria-hidden="true" tabindex="-1"></a></span>
@@ -2081,7 +2081,7 @@ Epoch 1000: loss 2.0047, loss1 3.8970, loss2 3.7845</code></pre>
 <span id="cb62-23"><a href="#cb62-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb62-24"><a href="#cb62-24" aria-hidden="true" tabindex="-1"></a>The energy score is a proper scoring rule for distributions. Given observations $Y$ and samples $\hat Y, \hat Y'$ from the model:</span>
 <span id="cb62-25"><a href="#cb62-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb62-26"><a href="#cb62-26" aria-hidden="true" tabindex="-1"></a>$$ S(Y, \hat Y, \hat Y') = E<span class="sc">\|</span>Y - \hat Y<span class="sc">\|</span> - \frac{1}{2}E<span class="sc">\|</span>\hat Y - \hat Y'<span class="sc">\|</span> $$</span>
+<span id="cb62-26"><a href="#cb62-26" aria-hidden="true" tabindex="-1"></a>$$ S(Y, \hat Y, \hat Y') = E<span class="sc">\|</span>Y - \hat Y<span class="sc">\|</span> - \frac{1}{2}E<span class="sc">\|</span>\hat Y - \hat Y'<span class="sc">\|</span> $$ {#eq-frengression-2}</span>
 <span id="cb62-27"><a href="#cb62-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb62-28"><a href="#cb62-28" aria-hidden="true" tabindex="-1"></a>The first term rewards samples close to the truth. The second term keeps the simulated distribution from collapsing to one point. This is why the method targets the full distribution rather than only the mean.</span>
 <span id="cb62-29"><a href="#cb62-29" aria-hidden="true" tabindex="-1"></a></span>
@@ -2089,7 +2089,7 @@ Epoch 1000: loss 2.0047, loss1 3.8970, loss2 3.7845</code></pre>
 <span id="cb62-31"><a href="#cb62-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb62-32"><a href="#cb62-32" aria-hidden="true" tabindex="-1"></a>The building block is a <span class="in">`StoNet`</span>, a neural network that adds random noise $\epsilon \sim N(0,I)$ to the input at each layer:</span>
 <span id="cb62-33"><a href="#cb62-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb62-34"><a href="#cb62-34" aria-hidden="true" tabindex="-1"></a>$$\text{StoNet}(x) = f(x, \epsilon), \quad \epsilon \sim N(0,I)$$</span>
+<span id="cb62-34"><a href="#cb62-34" aria-hidden="true" tabindex="-1"></a>$$\text{StoNet}(x) = f(x, \epsilon), \quad \epsilon \sim N(0,I)$$ {#eq-frengression-3}</span>
 <span id="cb62-35"><a href="#cb62-35" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb62-36"><a href="#cb62-36" aria-hidden="true" tabindex="-1"></a>Different noise draws produce different outputs. Each output is a sample from the learned conditional distribution. So we can:</span>
 <span id="cb62-37"><a href="#cb62-37" aria-hidden="true" tabindex="-1"></a></span>

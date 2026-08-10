@@ -583,35 +583,35 @@ window.Quarto = {
 </header><section id="unit-level-weights-for-ols" class="level2" data-number="4.1"><h2 data-number="4.1" class="anchored" data-anchor-id="unit-level-weights-for-ols">
 <span class="header-section-number">4.1</span> Unit level weights for OLS</h2>
 <p>Chad Hazlett and Tanvi Shinkre’s paper “Demystifying and avoiding the OLS “weighting problem”: Unmodeled heterogeneity and straightforward solutions” has demystified OLS weights for me.</p>
-<p>When we have unconfoundedness, that is, we assume there is no unobserved confounders, we usually run a linear regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(D\)</span> and <span class="math inline">\(X\)</span>, where <span class="math inline">\(D\)</span> is the treatment variable and <span class="math inline">\(X\)</span> is the covariates. We know in fact the unconfoundedness actually is only true for each level of <span class="math inline">\(X\)</span>. If <span class="math inline">\(X\)</span> is low dimensional and discrete, then it’s possible to stratify and basically calculate the ATE with g-formula. However, usually we just do a linear regression <span class="math display">\[ Y = \alpha + \beta D + \gamma X + \epsilon\]</span> and claim we have controlled for <span class="math inline">\(X\)</span>, especially when <span class="math inline">\(X\)</span> is high-dimensional or continuous. At least we claim it’s a linear approximation of the truth. But, how bad is it?</p>
+<p>When we have unconfoundedness, that is, we assume there is no unobserved confounders, we usually run a linear regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(D\)</span> and <span class="math inline">\(X\)</span>, where <span class="math inline">\(D\)</span> is the treatment variable and <span class="math inline">\(X\)</span> is the covariates. We know in fact the unconfoundedness actually is only true for each level of <span class="math inline">\(X\)</span>. If <span class="math inline">\(X\)</span> is low dimensional and discrete, then it’s possible to stratify and basically calculate the ATE with g-formula. However, usually we just do a linear regression <span id="eq-weights-ols-1"><span class="math display">\[ Y = \alpha + \beta D + \gamma X + \epsilon \tag{4.1}\]</span></span> and claim we have controlled for <span class="math inline">\(X\)</span>, especially when <span class="math inline">\(X\)</span> is high-dimensional or continuous. At least we claim it’s a linear approximation of the truth. But, how bad is it?</p>
 <p>Suppose we are interested in the ATE of <span class="math inline">\(D\)</span> on <span class="math inline">\(Y\)</span>. Say we have discrete variables <span class="math inline">\(X\)</span>. Under unconfoundedness, the ATE is</p>
-<p><span class="math display">\[
-\begin{align}
+<p><span id="eq-weights-ols-2"><span class="math display">\[
+\begin{aligned}
 \tau_{ATE} &amp;= \sum E[Y(1) - Y(0) | X = x] P(X = x) \\
             &amp;= \sum (E[Y|D=1, X=x]- E[Y|D=0, X=x]) P(X=x) \\
             &amp;= \sum DIM_x P(X=x) \\
-\end{align}
-\]</span></p>
+\end{aligned}
+\tag{4.2}\]</span></span></p>
 <p>This is basically the g-formula, or regression adjustment formula. We compute the DIM (difference in means) between treated and control for each strata <span class="math inline">\(X=x\)</span>, then the weighted average is the ATE, with <span class="math inline">\(\hat P(X=x)\)</span> as weights.</p>
-<p>If we have high dimensional <span class="math inline">\(X\)</span>, we usually do <span class="math display">\[ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon \]</span></p>
+<p>If we have high dimensional <span class="math inline">\(X\)</span>, we usually do <span id="eq-weights-ols-3"><span class="math display">\[ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon  \tag{4.3}\]</span></span></p>
 <p>We would hope <span class="math inline">\(\delta_{reg}\)</span> is close to <span class="math inline">\(\delta_{ATE}\)</span>, but we are not sure.</p>
 <p>OLS coefficients are:</p>
-<p><span class="math display">\[ \hat \beta = (Z'Z)^{-1} Z'y \]</span></p>
+<p><span id="eq-weights-ols-4"><span class="math display">\[ \hat \beta = (Z'Z)^{-1} Z'y  \tag{4.4}\]</span></span></p>
 <p>Here I use <span class="math inline">\(Z\)</span> to represent all regressors. Each coefficient is a weighted sum of the outcome,</p>
-<p><span class="math display">\[ \hat \tau_{reg} = \sum \omega_i Y_i \]</span></p>
+<p><span id="eq-weights-ols-5"><span class="math display">\[ \hat \tau_{reg} = \sum \omega_i Y_i  \tag{4.5}\]</span></span></p>
 <p>By FWL theorem,</p>
-<p><span class="math display">\[ \hat \tau_{reg} = \frac{\sum Y_i (D_i - \hat d(X_i)) }{\sum (D_i - \hat d(X_i))^2} \]</span></p>
+<p><span id="eq-weights-ols-6"><span class="math display">\[ \hat \tau_{reg} = \frac{\sum Y_i (D_i - \hat d(X_i)) }{\sum (D_i - \hat d(X_i))^2}  \tag{4.6}\]</span></span></p>
 <p>Here <span class="math inline">\(\hat d(X_i) = \hat p(D_i=1|X_i)\)</span> which is the predicted value of linear regression of <span class="math inline">\(D\)</span> on <span class="math inline">\(X\)</span>. The numerator is the covariance between <span class="math inline">\(Y\)</span> and residualized <span class="math inline">\(D\)</span>, the denominator is the variance of the residualized <span class="math inline">\(D\)</span>. Note that the original FWL would have residualized <span class="math inline">\(Y\)</span> here, but it turns out it works the same with the original <span class="math inline">\(Y\)</span>.</p>
 <p>Therefore the weights are</p>
-<p><span class="math display">\[
-\begin{align}
+<p><span id="eq-weights-ols-7"><span class="math display">\[
+\begin{aligned}
 \omega_i &amp;= \frac{D_i - \hat d(X_i)}{\sum (D_i - \hat d(X_i))^2} \\
-\end{align}
-\]</span></p>
+\end{aligned}
+\tag{4.7}\]</span></span></p>
 <p>Note for the denominator, it’s a constant. It does <em>not</em> scale the weights to sum to one — they sum to <strong>zero</strong>, because <span class="math inline">\(D_i - \hat d(X_i)\)</span> is an OLS residual from a regression that includes an intercept. What the denominator normalizes is the contrast: since <span class="math inline">\(\sum D_i(D_i - \hat d(X_i)) = \sum (D_i - \hat d(X_i))^2\)</span> (the residual is orthogonal to the fitted values), we get <span class="math inline">\(\sum_i \omega_i D_i = 1\)</span>, i.e.&nbsp;the weights on the treated sum to <span class="math inline">\(+1\)</span> and those on the control sum to <span class="math inline">\(-1\)</span>. That is what makes <span class="math inline">\(\sum_i \omega_i Y_i\)</span> a weighted <em>difference</em> of means. The numerator for treated units are <span class="math inline">\(1-\hat d(X_i)\)</span>, for control units it’s <span class="math inline">\(-\hat d(X_i)\)</span> (negative). It is similar to IPW weights, which are <span class="math inline">\(1/\hat d(X_i)\)</span> for treated and <span class="math inline">\(1/(1-\hat d(X_i))\)</span> for control. These two sets of weights go the same direction. For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the larger the magnitude of the (negative) weight.</p>
 <p>If these weights are the same as the IPW weights, then we’ll get <span class="math inline">\(\tau_{reg}=\tau_{ATE}\)</span>. However, they are usually different.</p>
 <p>Another way to write this as weighted difference in means:</p>
-<p><span class="math display">\[ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i \]</span></p>
+<p><span id="eq-weights-ols-8"><span class="math display">\[ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i  \tag{4.8}\]</span></span></p>
 <p>where, with <span class="math inline">\(c = \sum (D_i - \hat d(X_i))^2\)</span>, the per-arm weights are <span class="math inline">\(\tilde \omega_i = (1-\hat d(X_i))/c\)</span> for treated units (<span class="math inline">\(D_i=1\)</span>) and <span class="math inline">\(\tilde \omega_i = -\hat d(X_i)/c\)</span> for control units (<span class="math inline">\(D_i=0\)</span>)</p>
 <p>Because <span class="math inline">\(\hat d(X_i)\)</span> is from a linear probability model, it’s possible that it’s not between 0 and 1. In that case, we can have negative weights. The negative weights could mean the observations do not have a match in the other group. For example, <span class="math inline">\(\hat d(X_i) &gt; 1\)</span> will cause the weight <span class="math inline">\((1-\hat d(X_i))/c\)</span> to flip sign and become negative for a treated unit. That means this unit is more like treated units than any control units. In other words, there is no match in the control group. The mirror image happens for a control unit with <span class="math inline">\(\hat d(X_i) &lt; 0\)</span>: its weight <span class="math inline">\(-\hat d(X_i)/c\)</span> flips to <em>positive</em>, so it enters the contrast on the same side as the treated. Either way the unit contributes with the wrong sign.</p>
 <p>The worst thing is that we don’t know which observations have negative weights, unless we look further and actually run a regression of <span class="math inline">\(D\)</span> on <span class="math inline">\(X\)</span>. If we do that, we are doing similar things as in IPW or matching. If we simply do a linear regression, it’s like a black box. We have no idea how bad some negative weights are. We are relying on extrapolation with regression model like this. Even if there is no matched units, we are extrapolating based on linearity.</p>
@@ -619,7 +619,7 @@ window.Quarto = {
 </section><section id="strata-level-weights" class="level2" data-number="4.2"><h2 data-number="4.2" class="anchored" data-anchor-id="strata-level-weights">
 <span class="header-section-number">4.2</span> Strata level weights</h2>
 <p>Angrist (<a href="https://doi.org/10.2307/2999578">1998</a>, <em>Econometrica</em>) has the strata-wise weights for OLS:</p>
-<p><span class="math display">\[ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} \]</span></p>
+<p><span id="eq-weights-ols-9"><span class="math display">\[ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)}  \tag{4.9}\]</span></span></p>
 <p>this shows that different from ATE, these weights are <span class="math inline">\(\hat d(x) (1-\hat d(x)) \hat P(X=x)\)</span>. The stratas are weighted not only by <span class="math inline">\(P(X_i=x)\)</span>, but also by the variance of treatment status. When <span class="math inline">\(\hat d(X_i)\)</span> is close to .5, the weight is the largest.</p>
 <p>If there is no treatment effect heterogeneity, then it does not matter how you weight. When there is treatment effect heterogeneity, this estimator could be very different from ATE.</p>
 <p>Hazlett and Shinkre show that Angrist’s estimator is a special case of a general case. It is only valid when the probability of treatment is linear in X. When you have discrete X and have a saturated model in X, then it’s linear in X. Hazlett and Shinkre showed a more general formula for the weights, but here we assume Angrist’s formula is correct, basically assuming linearity in modeling probability of treatment.</p>
@@ -1184,190 +1184,194 @@ D             2.084644         2.084644</code></pre>
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>Unmodeled heterogeneity and straightforward solutions" has demystified OLS weights for me.</span>
 <span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>When we have unconfoundedness, that is, we assume there is no unobserved confounders, we usually run a linear regression of $Y$ on $D$ and $X$, where $D$ is the treatment variable and $X$ is the covariates.  We know in fact the unconfoundedness actually is only true for each level of $X$.  If $X$ is low dimensional and discrete, then it's possible to stratify and basically calculate the ATE with g-formula.  However, usually we just do a linear regression</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>$$ Y = \alpha + \beta D + \gamma X + \epsilon$$</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>$$ Y = \alpha + \beta D + \gamma X + \epsilon$$ {#eq-weights-ols-1}</span>
 <span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>and claim we have controlled for $X$, especially when $X$ is high-dimensional or continuous.  At least we claim it's a linear approximation of the truth.  But, how bad is it?</span>
 <span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>Suppose we are interested in the ATE of $D$ on $Y$.  Say we have discrete variables $X$.  Under unconfoundedness, the ATE is</span>
 <span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>\begin{align}</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a> \tau_{ATE} &amp;= \sum E<span class="co">[</span><span class="ot">Y(1) - Y(0) | X = x</span><span class="co">]</span> P(X = x) <span class="sc">\\</span></span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>            &amp;= \sum (E<span class="co">[</span><span class="ot">Y|D=1, X=x</span><span class="co">]</span>- E<span class="co">[</span><span class="ot">Y|D=0, X=x</span><span class="co">]</span>) P(X=x) <span class="sc">\\</span></span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>            &amp;= \sum DIM_x P(X=x) <span class="sc">\\</span></span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>\end{align}</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>This is basically the g-formula, or regression adjustment formula.  We compute the DIM (difference in means) between treated and control for each strata $X=x$, then the weighted average is the ATE, with $\hat P(X=x)$ as weights.</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a> \tau_{ATE} &amp;= \sum E<span class="co">[</span><span class="ot">Y(1) - Y(0) | X = x</span><span class="co">]</span> P(X = x) <span class="sc">\\</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>            &amp;= \sum (E<span class="co">[</span><span class="ot">Y|D=1, X=x</span><span class="co">]</span>- E<span class="co">[</span><span class="ot">Y|D=0, X=x</span><span class="co">]</span>) P(X=x) <span class="sc">\\</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>            &amp;= \sum DIM_x P(X=x) <span class="sc">\\</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>$$ {#eq-weights-ols-2}</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>If we have high dimensional $X$, we usually do</span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>$$ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon $$</span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>We would hope $\delta_{reg}$ is close to $\delta_{ATE}$, but we are not sure.</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>This is basically the g-formula, or regression adjustment formula.  We compute the DIM (difference in means) between treated and control for each strata $X=x$, then the weighted average is the ATE, with $\hat P(X=x)$ as weights.</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>If we have high dimensional $X$, we usually do</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>$$ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon $$ {#eq-weights-ols-3}</span>
 <span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>OLS coefficients are:</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>We would hope $\delta_{reg}$ is close to $\delta_{ATE}$, but we are not sure.</span>
 <span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>$$ \hat \beta = (Z'Z)^{-1} Z'y $$</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>OLS coefficients are:</span>
 <span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>Here I use $Z$ to represent all regressors.  Each coefficient is a weighted sum of the outcome,</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>$$ \hat \beta = (Z'Z)^{-1} Z'y $$ {#eq-weights-ols-4}</span>
 <span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{reg} = \sum \omega_i Y_i $$</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>Here I use $Z$ to represent all regressors.  Each coefficient is a weighted sum of the outcome,</span>
 <span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>By FWL theorem,</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{reg} = \sum \omega_i Y_i $$ {#eq-weights-ols-5}</span>
 <span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{reg} = \frac{\sum Y_i (D_i - \hat d(X_i)) }{\sum (D_i - \hat d(X_i))^2} $$</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>By FWL theorem,</span>
 <span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>Here $\hat d(X_i) = \hat p(D_i=1|X_i)$ which is the predicted value of linear regression of $D$ on $X$.  The numerator is the covariance between $Y$ and residualized $D$, the denominator is the variance of the residualized $D$.  Note that the original FWL would have residualized $Y$ here, but it turns out it works the same with the original $Y$.</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{reg} = \frac{\sum Y_i (D_i - \hat d(X_i)) }{\sum (D_i - \hat d(X_i))^2} $$ {#eq-weights-ols-6}</span>
 <span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>Therefore the weights are</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>Here $\hat d(X_i) = \hat p(D_i=1|X_i)$ which is the predicted value of linear regression of $D$ on $X$.  The numerator is the covariance between $Y$ and residualized $D$, the denominator is the variance of the residualized $D$.  Note that the original FWL would have residualized $Y$ here, but it turns out it works the same with the original $Y$.</span>
 <span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>\begin{align}</span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>\omega_i &amp;= \frac{D_i - \hat d(X_i)}{\sum (D_i - \hat d(X_i))^2} <span class="sc">\\</span></span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>\end{align}</span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>Note for the denominator, it's a constant.  It does *not* scale the weights to sum to one --- they sum to **zero**, because $D_i - \hat d(X_i)$ is an OLS residual from a regression that includes an intercept.  What the denominator normalizes is the contrast: since $\sum D_i(D_i - \hat d(X_i)) = \sum (D_i - \hat d(X_i))^2$ (the residual is orthogonal to the fitted values), we get $\sum_i \omega_i D_i = 1$, i.e. the weights on the treated sum to $+1$ and those on the control sum to $-1$.  That is what makes $\sum_i \omega_i Y_i$ a weighted *difference* of means.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $-\hat d(X_i)$ (negative).  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the larger the magnitude of the (negative) weight.</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>Therefore the weights are</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>\begin{aligned}</span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>\omega_i &amp;= \frac{D_i - \hat d(X_i)}{\sum (D_i - \hat d(X_i))^2} <span class="sc">\\</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>\end{aligned}</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>$$ {#eq-weights-ols-7}</span>
 <span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>If these weights are the same as the IPW weights, then we'll get $\tau_{reg}=\tau_{ATE}$.  However, they are usually different.</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>Another way to write this as weighted difference in means:</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>Note for the denominator, it's a constant.  It does *not* scale the weights to sum to one --- they sum to **zero**, because $D_i - \hat d(X_i)$ is an OLS residual from a regression that includes an intercept.  What the denominator normalizes is the contrast: since $\sum D_i(D_i - \hat d(X_i)) = \sum (D_i - \hat d(X_i))^2$ (the residual is orthogonal to the fitted values), we get $\sum_i \omega_i D_i = 1$, i.e. the weights on the treated sum to $+1$ and those on the control sum to $-1$.  That is what makes $\sum_i \omega_i Y_i$ a weighted *difference* of means.  The numerator for treated units are $1-\hat d(X_i)$, for control units it's $-\hat d(X_i)$ (negative).  It is similar to IPW weights, which are $1/\hat d(X_i)$ for treated and $1/(1-\hat d(X_i))$ for control.  These two sets of weights go the same direction.  For the treated, the higher probability of being treated, the lower weight; for the control, the higher probability of being treated, the larger the magnitude of the (negative) weight.</span>
 <span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i $$</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>If these weights are the same as the IPW weights, then we'll get $\tau_{reg}=\tau_{ATE}$.  However, they are usually different.</span>
 <span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = -\hat d(X_i)/c$ for control units ($D_i=0$)</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>Another way to write this as weighted difference in means:</span>
 <span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) &gt; 1$ will cause the weight $(1-\hat d(X_i))/c$ to flip sign and become negative for a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  The mirror image happens for a control unit with $\hat d(X_i) &lt; 0$: its weight $-\hat d(X_i)/c$ flips to *positive*, so it enters the contrast on the same side as the treated.  Either way the unit contributes with the wrong sign.</span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i $$ {#eq-weights-ols-8}</span>
 <span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>The worst thing is that we don't know which observations have negative weights, unless we look further and actually run a regression of $D$ on $X$.  If we do that, we are doing similar things as in IPW or matching.  If we simply do a linear regression, it's like a black box.  We have no idea how bad some negative weights are.  We are relying on extrapolation with regression model like this.  Even if there is no matched units, we are extrapolating based on linearity.</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = -\hat d(X_i)/c$ for control units ($D_i=0$)</span>
 <span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>Therefore, $\hat \tau_{reg}$ is another weighted average of the outcome, which is different from the $\tau_{ATE}$, potentially.  In addition, for $\tau_{ATE}$, we can calculate the difference in means for that strata, given we have observations from both treated and controls.  In the case of linear regression, we might have units that should not be included in the calculation and we don't know about it.</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) &gt; 1$ will cause the weight $(1-\hat d(X_i))/c$ to flip sign and become negative for a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  The mirror image happens for a control unit with $\hat d(X_i) &lt; 0$: its weight $-\hat d(X_i)/c$ flips to *positive*, so it enters the contrast on the same side as the treated.  Either way the unit contributes with the wrong sign.</span>
 <span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Strata level weights</span></span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>The worst thing is that we don't know which observations have negative weights, unless we look further and actually run a regression of $D$ on $X$.  If we do that, we are doing similar things as in IPW or matching.  If we simply do a linear regression, it's like a black box.  We have no idea how bad some negative weights are.  We are relying on extrapolation with regression model like this.  Even if there is no matched units, we are extrapolating based on linearity.</span>
 <span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>Angrist (<span class="co">[</span><span class="ot">1998</span><span class="co">](https://doi.org/10.2307/2999578)</span>, *Econometrica*) has the strata-wise weights for OLS:</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>Therefore, $\hat \tau_{reg}$ is another weighted average of the outcome, which is different from the $\tau_{ATE}$, potentially.  In addition, for $\tau_{ATE}$, we can calculate the difference in means for that strata, given we have observations from both treated and controls.  In the case of linear regression, we might have units that should not be included in the calculation and we don't know about it.</span>
 <span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} $$</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Strata level weights</span></span>
 <span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>this shows that different from ATE, these weights are $\hat d(x) (1-\hat d(x)) \hat P(X=x)$.  The stratas are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.</span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>Angrist (<span class="co">[</span><span class="ot">1998</span><span class="co">](https://doi.org/10.2307/2999578)</span>, *Econometrica*) has the strata-wise weights for OLS:</span>
 <span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a>If there is no treatment effect heterogeneity, then it does not matter how you weight.  When there is treatment effect heterogeneity, this estimator could be very different from ATE.</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a>$$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} $$ {#eq-weights-ols-9}</span>
 <span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>Hazlett and Shinkre show that Angrist's estimator is a special case of a general case.  It is only valid when the probability of treatment is linear in X.  When you have discrete X and have a saturated model in X, then it's linear in X.  Hazlett and Shinkre showed a more general formula for the weights, but here we assume Angrist's formula is correct, basically assuming linearity in modeling probability of treatment.</span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>this shows that different from ATE, these weights are $\hat d(x) (1-\hat d(x)) \hat P(X=x)$.  The stratas are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.</span>
 <span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a><span class="fu">## Recommended estimation approaches</span></span>
-<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>Under no effect heterogeneity and linearity of $Y$ on $D$ and $X$, namely, $E<span class="co">[</span><span class="ot">Y|X, D</span><span class="co">]</span>= \beta_0 + \beta_1 X + \beta_2 D$,  there is no problem with a regression of $Y$ on $D$ and $X$.</span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>If there is no treatment effect heterogeneity, then it does not matter how you weight.  When there is treatment effect heterogeneity, this estimator could be very different from ATE.</span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>Hazlett and Shinkre show that Angrist's estimator is a special case of a general case.  It is only valid when the probability of treatment is linear in X.  When you have discrete X and have a saturated model in X, then it's linear in X.  Hazlett and Shinkre showed a more general formula for the weights, but here we assume Angrist's formula is correct, basically assuming linearity in modeling probability of treatment.</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>If this is not true, then we'll need to be more flexible on the specification to make OLS estimators close to ATE.</span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a><span class="fu">## Recommended estimation approaches</span></span>
 <span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a>Hazlett and Shinkre suggested relaxing the assumption to separate linearity.  Basically allowing different intercepts for $Y(0)$ and $Y(1)$.</span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a>Under no effect heterogeneity and linearity of $Y$ on $D$ and $X$, namely, $E<span class="co">[</span><span class="ot">Y|X, D</span><span class="co">]</span>= \beta_0 + \beta_1 X + \beta_2 D$,  there is no problem with a regression of $Y$ on $D$ and $X$.</span>
 <span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>If that is true, then the following estimators are unbiased:  interaction, imputation, g-computation, and stratification.</span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>If this is not true, then we'll need to be more flexible on the specification to make OLS estimators close to ATE.</span>
 <span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>Interaction estimator is the Lin (<span class="co">[</span><span class="ot">2013</span><span class="co">](https://doi.org/10.1214/12-AOAS583)</span>, *Annals of Applied Statistics*) estimator, basically running a regression of $Y$ on $D$, $\tilde X$, and $D*\tilde X$.  $\tilde X$ is the demeaned $X$.  The coefficient of $D$ is the ATE.</span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>Hazlett and Shinkre suggested relaxing the assumption to separate linearity.  Basically allowing different intercepts for $Y(0)$ and $Y(1)$.</span>
 <span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>Imputation is to run separate regressions for treatment and control group, then use the results to predict outcomes for the other group.  The ATE is the difference in the predicted outcomes.  It turns out the imputation estimator is the same as the interaction estimator.</span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>If that is true, then the following estimators are unbiased:  interaction, imputation, g-computation, and stratification.</span>
 <span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>Stratification and g-computation work when $X$ is discrete.  Basically get the difference in means for each strata and weight by the probability of strata.</span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>Interaction estimator is the Lin (<span class="co">[</span><span class="ot">2013</span><span class="co">](https://doi.org/10.1214/12-AOAS583)</span>, *Annals of Applied Statistics*) estimator, basically running a regression of $Y$ on $D$, $\tilde X$, and $D*\tilde X$.  $\tilde X$ is the demeaned $X$.  The coefficient of $D$ is the ATE.</span>
 <span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>The above mentioned estimators all depend on the linearity assumption.  If that is not the case, then we can use matching, such as "mean balancing" matching.</span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>Imputation is to run separate regressions for treatment and control group, then use the results to predict outcomes for the other group.  The ATE is the difference in the predicted outcomes.  It turns out the imputation estimator is the same as the interaction estimator.</span>
 <span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>Nonparametric estimation is another option if the linearity assumption fails.</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>Stratification and g-computation work when $X$ is discrete.  Basically get the difference in means for each strata and weight by the probability of strata.</span>
 <span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a><span class="fu">## A worked example</span></span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>The above mentioned estimators all depend on the linearity assumption.  If that is not the case, then we can use matching, such as "mean balancing" matching.</span>
 <span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a>Let's make the regression weights $\omega_i$ concrete and compare them to IPW weights $1/\hat d(X_i)$ (treated) and $1/(1-\hat d(X_i))$ (control).</span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a>Nonparametric estimation is another option if the linearity assumption fails.</span>
 <span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-example</span></span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
-<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">500</span></span>
-<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>d_prob <span class="ot">&lt;-</span> <span class="fu">plogis</span>(<span class="fl">0.5</span> <span class="sc">*</span> X)</span>
-<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>D <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, d_prob)</span>
-<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> D <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> X <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(Y, D, X)</span>
-<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a><span class="co"># Regression-implied weights via the FWL residualization of D on X.</span></span>
-<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>d_hat <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat))</span>
-<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a>resid_D <span class="ot">&lt;-</span> dat<span class="sc">$</span>D <span class="sc">-</span> d_hat</span>
-<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>omega_reg <span class="ot">&lt;-</span> resid_D <span class="sc">/</span> <span class="fu">sum</span>(resid_D<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW weights (Horvitz-Thompson), using the same linear-probability d_hat</span></span>
-<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a><span class="co"># purely for comparability with the regression weights above.</span></span>
-<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span> <span class="sc">/</span> d_hat, <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> d_hat))</span>
-<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a><span class="co"># rescale by a single constant so the treated weights average 1; this only</span></span>
-<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a><span class="co"># fixes the axis scale of the plot below and does not change any comparison</span></span>
-<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> ipw <span class="sc">/</span> <span class="fu">sum</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>]) <span class="sc">*</span> <span class="fu">sum</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>)</span>
-<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a>tau_reg <span class="ot">&lt;-</span> <span class="fu">sum</span>(omega_reg <span class="sc">*</span> dat<span class="sc">$</span>Y)</span>
-<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a>tau_lm  <span class="ot">&lt;-</span> <span class="fu">coef</span>(<span class="fu">lm</span>(Y <span class="sc">~</span> D <span class="sc">+</span> X, <span class="at">data =</span> dat))[<span class="st">"D"</span>]</span>
-<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">tau_reg_from_weights =</span> tau_reg, <span class="at">tau_from_lm_coef =</span> tau_lm)</span>
-<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a>The two are numerically identical (up to floating point), confirming $\hat\tau_{reg} = \sum \omega_i Y_i$. Plotting <span class="in">`omega_reg`</span> against <span class="in">`ipw`</span> for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.</span>
-<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-plot</span></span>
-<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
-<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>],</span>
-<span id="cb7-155"><a href="#cb7-155" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
-<span id="cb7-156"><a href="#cb7-156" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Treated units"</span>)</span>
-<span id="cb7-157"><a href="#cb7-157" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>],</span>
-<span id="cb7-158"><a href="#cb7-158" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
-<span id="cb7-159"><a href="#cb7-159" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Control units"</span>)</span>
-<span id="cb7-160"><a href="#cb7-160" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
-<span id="cb7-161"><a href="#cb7-161" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-162"><a href="#cb7-162" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-163"><a href="#cb7-163" aria-hidden="true" tabindex="-1"></a>Note also what this example does *not* show. Here $\hat d(X_i)$ stays inside</span>
-<span id="cb7-164"><a href="#cb7-164" aria-hidden="true" tabindex="-1"></a>$<span class="co">[</span><span class="ot">0.06, 0.99</span><span class="co">]</span>$, so every weight keeps its expected sign and the negative-weight</span>
-<span id="cb7-165"><a href="#cb7-165" aria-hidden="true" tabindex="-1"></a>problem discussed above never materializes. That is a property of this particular</span>
-<span id="cb7-166"><a href="#cb7-166" aria-hidden="true" tabindex="-1"></a>design, not a reassurance. Strengthen the linear index and the linear probability</span>
-<span id="cb7-167"><a href="#cb7-167" aria-hidden="true" tabindex="-1"></a>model starts predicting outside the unit interval:</span>
-<span id="cb7-168"><a href="#cb7-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-171"><a href="#cb7-171" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-172"><a href="#cb7-172" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-negative-weights</span></span>
-<span id="cb7-173"><a href="#cb7-173" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-174"><a href="#cb7-174" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-175"><a href="#cb7-175" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-176"><a href="#cb7-176" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
-<span id="cb7-177"><a href="#cb7-177" aria-hidden="true" tabindex="-1"></a>X2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-178"><a href="#cb7-178" aria-hidden="true" tabindex="-1"></a>D2 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="dv">3</span> <span class="sc">*</span> X2))       <span class="co"># much stronger selection on X</span></span>
-<span id="cb7-179"><a href="#cb7-179" aria-hidden="true" tabindex="-1"></a>dat2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">D =</span> D2, <span class="at">X =</span> X2)</span>
-<span id="cb7-180"><a href="#cb7-180" aria-hidden="true" tabindex="-1"></a>d_hat2 <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat2))</span>
-<span id="cb7-181"><a href="#cb7-181" aria-hidden="true" tabindex="-1"></a>omega2 <span class="ot">&lt;-</span> (dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2) <span class="sc">/</span> <span class="fu">sum</span>((dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2)<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb7-182"><a href="#cb7-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-183"><a href="#cb7-183" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb7-184"><a href="#cb7-184" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_below_0        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
-<span id="cb7-185"><a href="#cb7-185" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_above_1        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&gt;</span> <span class="dv">1</span>),</span>
-<span id="cb7-186"><a href="#cb7-186" aria-hidden="true" tabindex="-1"></a>  <span class="at">treated_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> omega2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
-<span id="cb7-187"><a href="#cb7-187" aria-hidden="true" tabindex="-1"></a>  <span class="at">control_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> omega2 <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb7-188"><a href="#cb7-188" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb7-189"><a href="#cb7-189" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-190"><a href="#cb7-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-191"><a href="#cb7-191" aria-hidden="true" tabindex="-1"></a>Those units are the ones with no counterpart in the other arm, and a plain</span>
-<span id="cb7-192"><a href="#cb7-192" aria-hidden="true" tabindex="-1"></a>regression of $Y$ on $D$ and $X$ gives you no indication that they are there.</span>
-<span id="cb7-193"><a href="#cb7-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a><span class="fu">## A worked example</span></span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a>Let's make the regression weights $\omega_i$ concrete and compare them to IPW weights $1/\hat d(X_i)$ (treated) and $1/(1-\hat d(X_i))$ (control).</span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-example</span></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>d_prob <span class="ot">&lt;-</span> <span class="fu">plogis</span>(<span class="fl">0.5</span> <span class="sc">*</span> X)</span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>D <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, d_prob)</span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> D <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> X <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(Y, D, X)</span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a><span class="co"># Regression-implied weights via the FWL residualization of D on X.</span></span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a>d_hat <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat))</span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a>resid_D <span class="ot">&lt;-</span> dat<span class="sc">$</span>D <span class="sc">-</span> d_hat</span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a>omega_reg <span class="ot">&lt;-</span> resid_D <span class="sc">/</span> <span class="fu">sum</span>(resid_D<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW weights (Horvitz-Thompson), using the same linear-probability d_hat</span></span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a><span class="co"># purely for comparability with the regression weights above.</span></span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span> <span class="sc">/</span> d_hat, <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> d_hat))</span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a><span class="co"># rescale by a single constant so the treated weights average 1; this only</span></span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a><span class="co"># fixes the axis scale of the plot below and does not change any comparison</span></span>
+<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> ipw <span class="sc">/</span> <span class="fu">sum</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>]) <span class="sc">*</span> <span class="fu">sum</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a>tau_reg <span class="ot">&lt;-</span> <span class="fu">sum</span>(omega_reg <span class="sc">*</span> dat<span class="sc">$</span>Y)</span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a>tau_lm  <span class="ot">&lt;-</span> <span class="fu">coef</span>(<span class="fu">lm</span>(Y <span class="sc">~</span> D <span class="sc">+</span> X, <span class="at">data =</span> dat))[<span class="st">"D"</span>]</span>
+<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">tau_reg_from_weights =</span> tau_reg, <span class="at">tau_from_lm_coef =</span> tau_lm)</span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a>The two are numerically identical (up to floating point), confirming $\hat\tau_{reg} = \sum \omega_i Y_i$. Plotting <span class="in">`omega_reg`</span> against <span class="in">`ipw`</span> for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.</span>
+<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-plot</span></span>
+<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-155"><a href="#cb7-155" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-156"><a href="#cb7-156" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-157"><a href="#cb7-157" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
+<span id="cb7-158"><a href="#cb7-158" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>],</span>
+<span id="cb7-159"><a href="#cb7-159" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
+<span id="cb7-160"><a href="#cb7-160" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Treated units"</span>)</span>
+<span id="cb7-161"><a href="#cb7-161" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>],</span>
+<span id="cb7-162"><a href="#cb7-162" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
+<span id="cb7-163"><a href="#cb7-163" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Control units"</span>)</span>
+<span id="cb7-164"><a href="#cb7-164" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb7-165"><a href="#cb7-165" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-166"><a href="#cb7-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-167"><a href="#cb7-167" aria-hidden="true" tabindex="-1"></a>Note also what this example does *not* show. Here $\hat d(X_i)$ stays inside</span>
+<span id="cb7-168"><a href="#cb7-168" aria-hidden="true" tabindex="-1"></a>$<span class="co">[</span><span class="ot">0.06, 0.99</span><span class="co">]</span>$, so every weight keeps its expected sign and the negative-weight</span>
+<span id="cb7-169"><a href="#cb7-169" aria-hidden="true" tabindex="-1"></a>problem discussed above never materializes. That is a property of this particular</span>
+<span id="cb7-170"><a href="#cb7-170" aria-hidden="true" tabindex="-1"></a>design, not a reassurance. Strengthen the linear index and the linear probability</span>
+<span id="cb7-171"><a href="#cb7-171" aria-hidden="true" tabindex="-1"></a>model starts predicting outside the unit interval:</span>
+<span id="cb7-172"><a href="#cb7-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-175"><a href="#cb7-175" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-176"><a href="#cb7-176" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-negative-weights</span></span>
+<span id="cb7-177"><a href="#cb7-177" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-178"><a href="#cb7-178" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-179"><a href="#cb7-179" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-180"><a href="#cb7-180" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
+<span id="cb7-181"><a href="#cb7-181" aria-hidden="true" tabindex="-1"></a>X2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-182"><a href="#cb7-182" aria-hidden="true" tabindex="-1"></a>D2 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="dv">3</span> <span class="sc">*</span> X2))       <span class="co"># much stronger selection on X</span></span>
+<span id="cb7-183"><a href="#cb7-183" aria-hidden="true" tabindex="-1"></a>dat2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">D =</span> D2, <span class="at">X =</span> X2)</span>
+<span id="cb7-184"><a href="#cb7-184" aria-hidden="true" tabindex="-1"></a>d_hat2 <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat2))</span>
+<span id="cb7-185"><a href="#cb7-185" aria-hidden="true" tabindex="-1"></a>omega2 <span class="ot">&lt;-</span> (dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2) <span class="sc">/</span> <span class="fu">sum</span>((dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb7-186"><a href="#cb7-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-187"><a href="#cb7-187" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb7-188"><a href="#cb7-188" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_below_0        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
+<span id="cb7-189"><a href="#cb7-189" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_above_1        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&gt;</span> <span class="dv">1</span>),</span>
+<span id="cb7-190"><a href="#cb7-190" aria-hidden="true" tabindex="-1"></a>  <span class="at">treated_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> omega2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
+<span id="cb7-191"><a href="#cb7-191" aria-hidden="true" tabindex="-1"></a>  <span class="at">control_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> omega2 <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb7-192"><a href="#cb7-192" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-193"><a href="#cb7-193" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb7-194"><a href="#cb7-194" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-195"><a href="#cb7-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-196"><a href="#cb7-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-195"><a href="#cb7-195" aria-hidden="true" tabindex="-1"></a>Those units are the ones with no counterpart in the other arm, and a plain</span>
+<span id="cb7-196"><a href="#cb7-196" aria-hidden="true" tabindex="-1"></a>regression of $Y$ on $D$ and $X$ gives you no indication that they are there.</span>
 <span id="cb7-197"><a href="#cb7-197" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-198"><a href="#cb7-198" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-199"><a href="#cb7-199" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-200"><a href="#cb7-200" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-201"><a href="#cb7-201" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-202"><a href="#cb7-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-203"><a href="#cb7-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-204"><a href="#cb7-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-205"><a href="#cb7-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-206"><a href="#cb7-206" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
