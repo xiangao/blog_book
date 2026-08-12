@@ -6,12 +6,7 @@ date: "2019-01-25"
 
 ## Marginal effects in a linear model
 
-
-Stata's margins command has been a powerful tool for many economists.  It can calculate predicted means as well as predicted marginal effects.  However, we do need to be careful when we use it when fixed effects are included.  In a linear model, everything works out fine.  However, in a non-linear model, you may not want to use margins, since it's not calculating what you have in mind.
-
-In a linear model with fixed effects, we can do it either by "demeaning" every variable, or include dummy variables.  They return the same results.  Fortunately, marginal effects can be calculated the same way in both models.
-
-For example:
+Stata's `margins` command computes predicted means and marginal effects, but care is needed when fixed effects are present. In a linear model the issue is benign: demeaning and dummy-variable approaches return the same coefficients and the same marginal effects.
 
 
 ```{r}
@@ -30,11 +25,9 @@ margins , dydx(mpg)
 
 ```
 
-All is fine.
-
 ## Marginal effects in a non-linear model
 
-In a nonlinear model, we need to be more careful:
+In a nonlinear model the two approaches diverge:
 
 ```{r}
 #| label: stata-chunk2
@@ -71,56 +64,19 @@ model with dummies, just like a linear model (OLS with dummies is the
 same as fixed effect OLS). Poisson model and OLS are unique in this
 sense that there is no "incidental parameter" problem.
 
-We see in this example, margins commands do not return the same
-marginal effects, even though the models are the same.  The reason
-behind this is that in a conditional fixed effect Poisson, the fixed
-effects are not estimated (they are not in the final likelihood
-function that gets estimated).  Therefore, we'll have to make a
-decision what values to use as the values of the fixed effects.
-"margins, predict(nu0)" simply set all fixed effects to zero.  On the
-other hand, margins after Poisson model with dummies does not do that.
-The fixed effect in that case gets estimated.  Therefore the marginal
-effects in that case make more sense.
+The `margins` calls return different marginal effects even though the models are the same. In the conditional fixed-effect Poisson the fixed effects are conditioned out — they are not estimated. `margins, predict(nu0)` sets them to zero, which is arbitrary. The Poisson with dummies estimates them, so `margins` uses actual estimates. The second is more defensible, but for the conditional model the safest route is to report the original coefficients and avoid `margins` for marginal effects entirely.
 
-So our advice for a conditional Poisson model is that we should not
-use margins to calculate marginal effects afterwards; instead, we
-should simply stick with the original coefficient estimates.
-
-The same logic applies to the conditional logit model.  Fixed effects
-are not estimated in that model; simply setting them to zero does not
-make too much sense.  In addition, conditional logit model is not the
-same model as a logit model with dummies, since there is the
-"incidental parameter" problem.  Again, we should just focus on the
-coefficient estimates as the effect on the logged odds.
-
-In other words, for fixed effect (conditional) logit model, the
-situation is worse: you cannot do logit with dummies, unless you have
-a deep panel.  That is, when you have, say, more than 20 observations
-per group, the "incidental parameter" bias becomes negligible.  If you
-stay with conditional logit model, the fixed effects are not
-estimated.  Unfortunately the predicted probability depends on the
-fixed effects.  Stata's margins command after clogit (or xtlogit, fe)
-comes with a few options, but none is reasonable for the fixed
-effects.  For example, the pu0 option is to assume all fixed effects
-being 0.
+The conditional logit is worse. The fixed effects are not estimated, and unlike Poisson there is an incidental-parameter problem, so logit with dummies is inconsistent unless the panel is deep (roughly 20+ observations per unit). With conditional logit the predicted probability depends on the unestimated $\alpha_i$; `margins` after `clogit` or `xtlogit, fe` offers options like `pu0` (set all fixed effects to zero), but none is defensible.
 
 In a fixed effect logit model,
 
 $$ log(P(y=1)/(1-P(y=1))) = \alpha_i +  \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-marginal-effects-fe-1}
 
-Here $\alpha_i$ is fixed effect for each firm.  Therefore,
+Here $\alpha_i$ is the unit fixed effect. Therefore
 
 $$ P(y=1) = F(\alpha_i +  \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2) $$ {#eq-marginal-effects-fe-2}
 
-$F$ is the logistic CDF (logit); for probit it would be the normal CDF.  Therefore, without estimating $\alpha_i$, there is no way to predict $P$ in a reasonable way (assuming $\alpha=0$ is not reasonable to me).
-
-However, if we stick with logged odds ($LO=log(P(y=1)/(1-P(y=1)))$),
-then $LO$ is a linear function of $\alpha_i$ and other covariates.  In
-that case, the marginal effects of $x_1$ or $x_2$ on $Y$ has nothing
-to do with $\alpha_i$.
-
-Therefore, we can use margins command to calculate effects on the
-logged odds, which will be "predict(xb)" option.  Note that `xb` here
+Without estimating $\alpha_i$ there is no way to predict $P$ in a meaningful way. But the log-odds are linear in the covariates, and the marginal effect of $x_1$ or $x_2$ on the log-odds does not involve $\alpha_i$. So `margins` with the `predict(xb)` option — marginal effects on the log-odds scale — is interpretable.  Note that `xb` here
 is $X_{it}\beta$ only — the individual fixed effect $\alpha_i$ is not
 estimated in conditional logit and so is not part of the prediction.
 The logged-odds *effect* of a covariate ($\partial(X\beta)/\partial x$)
@@ -146,12 +102,7 @@ marginsplot
 
 
 
-In this example, we have a fixed effect logit on union status, with
-age and south interaction, age as continuous variable.  Suppose we'd
-like to see the predicted logged odds of union status for different
-age and south/north, then we can still use margins to predict logged
-odds.  But we cannot use margins to predict probability, since the
-fixed effects are not estimated.
+This fits a conditional logit of union status on age, south, and their interaction. `margins` with `predict(xb)` returns predicted log-odds for different age-by-south combinations — but not predicted probabilities, since those require $\alpha_i$.
 
 Read the vertical axis of that plot as a *relative* scale.  Because $\alpha_i$ is
 not estimated, `xb` is each individual's log-odds measured from an unidentified

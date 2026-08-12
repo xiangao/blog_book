@@ -7,45 +7,35 @@ date: "2025-04-15"
 
 ## Panel data
 
-For panel data, the usual set up is:
+The standard panel-data setup is:
 
 $$y_{it} = \alpha + X_{it} \beta + v_i + \epsilon_{it} $$ {#eq-correlated-random-effect-1}
 
 ## Fixed effect
 
-A fixed effect model can be done with OLS on
+The fixed-effect estimator runs OLS on demeaned data:
 
 $$ (y_{it} - \bar y_i) = (X_{it} - \bar X_i) \beta + (\epsilon_{it} - \bar \epsilon_i)$$ {#eq-correlated-random-effect-2}
-This is basically OLS on de-meaned $Y$ and $X$.  Note that the intercept $\alpha$ and the individual effect $v_i$ both drop out after de-meaning by unit.
+Both $\alpha$ and $v_i$ drop out after demeaning by unit.
 
 ## Random effect
 
-The random effect looks at this at different angle:  it treated $v_i + \epsilon_{it}$ as the error term.  There are two components of the error term.  Suppose they are estimated as $\hat \sigma^2_e$ (idiosyncratic component), and $\hat \sigma^2_u$ (individual component).  Then we can do GLS transformation:
+Random effects treat $v_i + \epsilon_{it}$ as a composite error with two variance components: $\hat \sigma^2_e$ (idiosyncratic) and $\hat \sigma^2_u$ (individual). The GLS transformation is
 
 $z^*_{it} = z_{it} - \hat \theta_i \bar z_i$
 
-and $\hat \theta_i = 1 - \sqrt{\frac{\hat \sigma^2_e}{T_i \hat \sigma^2_u + \hat \sigma^2_e}}$
-
-where $T_i$ is the number of observations for individual $i$.
-
-Given estimates of  $\hat \sigma^2_e$  and $\hat \sigma^2_u$, we can run OLS on transformed variables (including $y$ and all $X$'s).  We can iterate the process.
+with $\hat \theta_i = 1 - \sqrt{\hat \sigma^2_e / (T_i \hat \sigma^2_u + \hat \sigma^2_e)}$, where $T_i$ is the number of observations for unit $i$. Given estimated variance components, we run OLS on the transformed variables and iterate.
 
 ## Correlated random effect
 
-Correlated random effect (CRE) can be done by running a random effect model of $y_{it}$ on $X_{it}$, $\bar X_i$, $w_i$ (time-invariant covariates) and a constant.
+The correlated random-effect (CRE) model runs a random-effects regression of $y_{it}$ on $X_{it}$, $\bar X_i$, time-invariant covariates $w_i$, and a constant.
 
-The shortcoming of RE model is that it has to assume $v_i$ and $X_{it}$ are uncorrelated to have a consistent estimator.  If that is not true (most economists don't think it is), then we have an inconsistent estimator.  Meanwhile, FE estimator is consistent, because $v_i$ is not in the error term, it gets cancelled out.
-
-The disadvantage of FE model is that it cannot include any time-invariant covariate, such as race, gender, etc.
-
-The benefit of CRE is that it can include $z_i$'s which are time-invariant, while remain consistent.  In fact, Mundlak and Wooldridge pointed out that CRE estimates on $X_{it}$ are the same as FE estimates.
-
-There is also a Mundlak test to choose between RE or CRE.
+RE requires $v_i$ and $X_{it}$ to be uncorrelated — an assumption most economists reject. FE is consistent regardless, but it cannot estimate time-invariant covariates (race, gender, etc.). CRE has both advantages: it includes time-invariant variables and remains consistent. Mundlak and Wooldridge show that the CRE coefficients on $X_{it}$ are identical to the FE estimates. Testing whether the coefficients on $\bar X_i$ are jointly zero gives the Mundlak test for choosing between RE and CRE.
 
 
 ## Example
 
-Stata 18 implemented CRE in the `xtreg` command, with "cre" option.  The following example is from Stata's website, using the `nlswork` dataset.
+Stata 18 added a `cre` option to `xtreg`. The following uses `nlswork`.
 
 ```{r}
 #| label: setup
@@ -86,9 +76,9 @@ webuse nlswork
 xtreg ln_wage tenure age i.race, fe vce(cluster idcode)
 ```
 
-We see the coefficient estimates are the same for "tenure" and "age", but CRE model allows you to estimate the effect of "race".
+The coefficients on `tenure` and `age` are identical. CRE additionally estimates the effect of `race`.
 
-We can also manually do it by using a RE model on $X$, $\bar X$ and $z$:
+We can replicate this manually by including the group means in a RE model:
 
 ```{stata}
 *| label: stata3
@@ -107,7 +97,7 @@ egen tenure_mean = mean(tenure) if !missing(ln_wage, tenure, age, race), by(idco
 xtreg ln_wage tenure tenure_mean age age_mean i.race, vce(cluster idcode)
 ```
 
-This is what stata's "cre" option is doing behind the scene.
+This is what Stata's `cre` option does internally.
 
 
 

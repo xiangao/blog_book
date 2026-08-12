@@ -7,13 +7,7 @@ date: "2022-04-06"
 
 ## Chow test
 
-Comparing coefficients across regressions is common.  Chow test is one of them.  If you'd like to compare coefficients of regressions for two subsets, that's the original Chow test.
-
-The idea is to interact the subset indicator with all the covariates or only the covariate you are interested (treatment).  If you only interact the dummy with the treatment variable, then you are assuming all other covariates have the same effect across the two subsets.  This may or may not be reasonable.
-
-This post is inspired by Austin Nichols (https://www.stata.com/statalist/archive/2009-11/msg01485.html).  The case with overlapping samples is all from his code.
-
-Let's see a simple example:
+To compare a coefficient across two subsamples, interact the subsample indicator with the covariates and run one pooled regression. If only the treatment is interacted, all other coefficients are constrained equal across subsamples; interacting everything relaxes that. This is the Chow test. (The overlapping-samples extension below follows Austin Nichols's Statalist code.)
 
 ```{r}
 #| label: setup
@@ -49,15 +43,11 @@ esttab south nonsouth suest chow, nogaps mti
 ```
 
 
-In the above example, we are interested in the effect of hours on wage for south and non-south subsets.  The Chow test is to use the entire sample which has both south and nonsouth data.  Then use the interaction of south indicator and hours to find the effect of hours for south and nonsouth.  By including these two subsamples in the same regression, we can test the equality of the two coefficients.
-
-The other way to do this is to use Stata's "suest" command.  This command basically take the two regressions and the variance covariance structure; then a test of the difference between two coefficients can be done.  However, "suest" does not work for some commands.  In my opinion, using interaction can be more flexible.
+The pooled regression with `hours1` and `hours2` replicates the separate south/nonsouth estimates, and `test _b[hours1]-_b[hours2]=0` is the Chow test. Stata's `suest` does the same thing by stacking the two stored estimates and their covariance structure; the interaction approach is more flexible since it works with any estimator.
 
 ## A comparison with two different outcomes
 
-We can also use the same idea to compare the effect of some treatment on two different outcomes, if we have the same set of covariates.  We just need to "stack" the two outcomes and run a pooled regression with some interactions.
-
-Here is an example.
+The same idea compares a coefficient across two different outcomes. Stack the two outcome variables into a long format, interact the covariates with the stacking indicator, and run one regression.
 
 
 ```{stata}
@@ -100,7 +90,7 @@ esttab south smsa suest stacked, nogaps mti
 
 ```
 
-In this example, we are interested in comparing the effect of wage on south vs. smsa (not interesting, but just as an example).  What I did is to reshape it to long format, stacking south and smsa as "Y".  Then creat interaction of other covariates with subsample indicator.  Then run the regression with Y on the interaction terms.
+The two outcomes (`south` and `smsa`) are stacked as `Y`, the covariates are interacted with the stacking indicator, and the pooled regression returns the separate coefficients.
 
 One detail matters a great deal here, and it is easy to skip.  Stacking puts **two
 rows per person** in the data, so the two error terms belonging to the same person
@@ -122,7 +112,7 @@ the $F$-versus-$\chi^2$ finite-sample adjustment.  Note that `robust` alone will
 
 ## Overlapping samples
 
-What if we'd like to compare coefficients for two overlapping subsamples?  As I mentioned, Austin Nichols gave the following example:
+The same method extends to overlapping subsamples. Here south and smsa overlap — some observations belong to both — so a simple split is not possible:
 
 
 ```{stata}
@@ -160,7 +150,7 @@ esttab south smsa suest stacked, nogaps mti
 
 ## IV regression
 
-What about IV regression?
+The interaction approach works with IV. Interact both the endogenous variable and the instrument with the subsample indicator:
 
 
 
@@ -181,11 +171,9 @@ ivregress 2sls wage south (hours1 hours2 = union1 union2)
 test _b[hours1]-_b[hours2]=0
 ```
 
-We can see same Chow kind of test works, with IV regression, if we have the right interaction terms.
-
 ## IV with fixed effects
 
-However, when doing with a fixed effect IV, I seem to have difficulties.  In this example, I use "reghdfe" to do an IV regression with fixed effect.  We can also use "xtivreg2", but "ivreghdfe" is supposed to be faster.
+With fixed effects the pooled regression needs the fixed effects themselves interacted with the subsample indicator. The first attempt below omits this and fails to reproduce the separate estimates:
 
 ::: {.callout-warning}
 The examples below cluster standard errors on `race`, which in `nlsw88` has only three categories (White, Black, Other). Cluster-robust standard errors rely on asymptotics in the number of clusters $G \to \infty$; with $G=3$ they are severely downward-biased, inflating t-statistics and false-positive rates. These chunks use `race` purely to illustrate the fixed-effect/IV mechanics — in an actual analysis, cluster on a variable with many more categories (e.g., `industry` or `occupation`), or on the true level of treatment assignment/sampling design.
@@ -209,9 +197,7 @@ ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race) cluster(race)
 
 ```
 
-We can see I failed to replicate the first two regressions in the third regression.  Why?  Because we'll need the fixed effect to be interacted with the subsample indicator to make it right.
-
-Here is another try:
+The pooled coefficients do not match the separate regressions because the fixed effects are shared. Interacting them with the subsample indicator fixes it:
 
 
 
@@ -237,7 +223,7 @@ ivregress 2sls wage south (hours1 hours2 = union1 union2) i.race1 i.race2, clust
 
 ```
 
-This works.  Basically we use dummies which are interactions of subsample indicator and the fixed effect dummies.  This would not work if we have a lot of fixed effect units.
+This reproduces the separate estimates. The approach builds explicit dummies from the interaction of the fixed-effect variable and the subsample indicator, which becomes impractical when the number of fixed-effect levels is large.
 
 One caution about how those dummies were built.  `race1 = race*(south==1)` multiplies
 a *categorical code* by an indicator, so non-south observations are assigned
@@ -247,9 +233,7 @@ have a 0 category, those observations and all the non-south ones would be silent
 collapsed into the same dummy.  For a general recipe, build the interactions from the
 category dummies directly (`i.race#i.south`) rather than from the code.
 
-But we can trick "reghdfe" to use a two way fixed effect option:
-
-This way we can do a test to see whether hours effect differs between these two samples.
+Alternatively, pass the two interaction variables to `reghdfe`'s absorb option as a two-way fixed effect:
 
 ```{stata}
 *| label: stata7
@@ -271,16 +255,11 @@ test _b[hours1]-_b[hours2]=0
 
 ## Chow test with different covariates
 
-What if we want to compare coefficients across equations with different covariates?  We can still do Chow test.
+The equations need not share the same covariates. If equation 1 includes $X_2$ and equation 2 does not,
 
-Say you have
-$$ Y_1 = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon_1$$ {#eq-chow-test-1}
-$$ Y_2 = \gamma_0 + \gamma_1 X_1  + \epsilon_2$$ {#eq-chow-test-2}
+$$ Y_1 = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon_1, \qquad Y_2 = \gamma_0 + \gamma_1 X_1 + \epsilon_2, $$ {#eq-chow-test-1}
 
-The way you can think of the second equation is that you still have $X_2$ but it is just a constant, which means it will go into the constant term.
-$$ Y_2 = \gamma_0 + \gamma_1 X_1 + \gamma_2 C + \epsilon_2$$ {#eq-chow-test-3}
-
-So we can just replace $X_2$ with a constant in the sample for $Y_2$ and still do Chow test.
+the second equation implicitly sets the coefficient on $X_2$ to zero. In the stacked regression, replace $X_2$ with a constant (e.g. 1) for the $Y_2$ subsample, so that its "coefficient" is absorbed into the intercept:
 
 ```{stata}
 *| label: stata8
@@ -312,17 +291,11 @@ test _b[hours1]-_b[hours2]=0
 esttab  suest chow, nogaps mti
 ```
 
-The stacking method reproduces `suest`'s point estimates: the separate
-`reg south wage hours tenure` gives wage $=-.0119584$, hours $=.004828$,
-tenure $=-.0024032$, and the stacked model returns the same three numbers.  Read
-them off the two tables separately rather than trying to compare columns, though
--- as noted earlier, `suest` stores its coefficients under equation-qualified
-names (`south:wage`) while the stacked model stores plain `wage`, so `esttab`
-puts them on different rows and the columns do not line up.  For standard errors you can use "robust" or "cluster" option in "reg" command.
+The stacked model reproduces `suest`'s point estimates exactly. (The `esttab` columns do not line up because `suest` stores equation-qualified names like `south:wage` while the stacked model stores plain `wage`.)
 
 ## Conclusion
 
-For testing cross equations hypotheses, we can use "suest" or Chow type "stacking" method.  Sometimes people use "sureg".  I prefer not use "sureg".  It is a GLS estimator for all the equations together.  It relies on assumptions of the error term of the whole system.  It assumes homoscedasticity for example.  If it's true, then GLS is more efficient; if not, then it is *inefficient* and its reported standard errors are invalid.  (It is not biased: a GLS estimator built on the wrong error covariance still satisfies the same moment conditions, exactly as weighted least squares with the wrong weights remains consistent.)  If the equations have the same covariates, then it returns the same coefficient estimates as the single equation estimates.  If different covariates, then different estimates as the single equation estimates.
+`suest` and the stacking method both test cross-equation hypotheses with robust standard errors. `sureg` does the same under a GLS framework, but it assumes homoscedastic errors across equations; under misspecification it remains consistent but its standard errors are invalid. When the equations share covariates `sureg` and OLS give the same point estimates; with different covariates they diverge.
 
-The nice thing about Chow test is that it is very flexible, and it does not rely on Stata's internal functions.  You can do it with R or other programs.  And it works for complicated models too, usually, as long as the single equation works.   "suest" needs the results stored before hand, which may not be available even within stata.
+The stacking approach is the most portable. It works in any language, extends to IV and fixed-effect models, and requires only that the single-equation estimator works — no special post-estimation infrastructure.
 

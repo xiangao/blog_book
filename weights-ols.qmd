@@ -6,12 +6,13 @@ date: "2025-01-16"
 
 ## Unit level weights for OLS
 
-Chad Hazlett and Tanvi Shinkre's paper "Demystifying and avoiding the OLS “weighting problem”:
-Unmodeled heterogeneity and straightforward solutions" has demystified OLS weights for me.
+This chapter follows Hazlett and Shinkre, “Demystifying and Avoiding the OLS 'Weighting Problem': Unmodeled Heterogeneity and Straightforward Solutions.”
 
-When we have unconfoundedness, that is, we assume there is no unobserved confounders, we usually run a linear regression of $Y$ on $D$ and $X$, where $D$ is the treatment variable and $X$ is the covariates.  We know in fact the unconfoundedness actually is only true for each level of $X$.  If $X$ is low dimensional and discrete, then it's possible to stratify and basically calculate the ATE with g-formula.  However, usually we just do a linear regression
-$$ Y = \alpha + \beta D + \gamma X + \epsilon$$ {#eq-weights-ols-1}
-and claim we have controlled for $X$, especially when $X$ is high-dimensional or continuous.  At least we claim it's a linear approximation of the truth.  But, how bad is it?
+Under unconfoundedness, the identifying assumption holds at each level of $X$. When $X$ is discrete and low-dimensional, we can stratify and compute the ATE by the g-formula. In practice we usually run a linear regression
+
+$$ Y = \alpha + \beta D + \gamma X + \epsilon $$ {#eq-weights-ols-1}
+
+and treat $\hat\beta$ as the treatment effect, relying on linearity to span the covariate space. The question is what this estimator is actually weighting.
 
 Suppose we are interested in the ATE of $D$ on $Y$.  Say we have discrete variables $X$.  Under unconfoundedness, the ATE is
 
@@ -69,9 +70,7 @@ where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \o
 
 Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) > 1$ will cause the weight $(1-\hat d(X_i))/c$ to flip sign and become negative for a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  The mirror image happens for a control unit with $\hat d(X_i) < 0$: its weight $-\hat d(X_i)/c$ flips to *positive*, so it enters the contrast on the same side as the treated.  Either way the unit contributes with the wrong sign.
 
-The worst thing is that we don't know which observations have negative weights, unless we look further and actually run a regression of $D$ on $X$.  If we do that, we are doing similar things as in IPW or matching.  If we simply do a linear regression, it's like a black box.  We have no idea how bad some negative weights are.  We are relying on extrapolation with regression model like this.  Even if there is no matched units, we are extrapolating based on linearity.
-
-Therefore, $\hat \tau_{reg}$ is another weighted average of the outcome, which is different from the $\tau_{ATE}$, potentially.  In addition, for $\tau_{ATE}$, we can calculate the difference in means for that strata, given we have observations from both treated and controls.  In the case of linear regression, we might have units that should not be included in the calculation and we don't know about it.
+The negative weights are invisible unless we examine $\hat d(X_i)$ directly — which is to say, unless we look at the propensity score. A linear regression of $Y$ on $D$ and $X$ hides the extrapolation. So $\hat\tau_{\text{reg}}$ is a weighted average of outcomes with weights that differ from the ATE weights, and some of those weights may carry the wrong sign without the researcher knowing.
 
 ##  Strata level weights
 
@@ -83,32 +82,20 @@ this shows that different from ATE, these weights are $\hat d(x) (1-\hat d(x)) \
 
 If there is no treatment effect heterogeneity, then it does not matter how you weight.  When there is treatment effect heterogeneity, this estimator could be very different from ATE.
 
-Hazlett and Shinkre show that Angrist's estimator is a special case of a general case.  It is only valid when the probability of treatment is linear in X.  When you have discrete X and have a saturated model in X, then it's linear in X.  Hazlett and Shinkre showed a more general formula for the weights, but here we assume Angrist's formula is correct, basically assuming linearity in modeling probability of treatment.
+Hazlett and Shinkre show that Angrist's formula is a special case: it is exact when the probability of treatment is linear in $X$ (as in a saturated model with discrete $X$). They derive a more general formula, but the Angrist version suffices under linearity of $d(X)$.
 
 
 ## Recommended estimation approaches
 
-Under no effect heterogeneity and linearity of $Y$ on $D$ and $X$, namely, $E[Y|X, D]= \beta_0 + \beta_1 X + \beta_2 D$,  there is no problem with a regression of $Y$ on $D$ and $X$.
+Under constant effects and linearity, $E[Y \mid X, D] = \beta_0 + \beta_1 X + \beta_2 D$, a regression of $Y$ on $D$ and $X$ recovers the ATE without further adjustment. When the linearity or constant-effects assumption fails, Hazlett and Shinkre suggest relaxing to *separate* linearity — allowing different intercepts for $Y(0)$ and $Y(1)$. Under that weaker assumption, several estimators are unbiased for the ATE.
 
-If this is not true, then we'll need to be more flexible on the specification to make OLS estimators close to ATE.
+The interaction (Lin [2013](https://doi.org/10.1214/12-AOAS583)) estimator regresses $Y$ on $D$, $\tilde X = X - \bar X$, and $D \tilde X$; the coefficient on $D$ is the ATE. The imputation estimator fits separate regressions for treated and control, predicts counterfactual outcomes for the other group, and takes the average difference — algebraically, it returns the same estimate. Stratification and g-computation do the same for discrete $X$: compute the stratum-level difference in means and weight by the stratum probability.
 
-Hazlett and Shinkre suggested relaxing the assumption to separate linearity.  Basically allowing different intercepts for $Y(0)$ and $Y(1)$.
-
-If that is true, then the following estimators are unbiased:  interaction, imputation, g-computation, and stratification.
-
-Interaction estimator is the Lin ([2013](https://doi.org/10.1214/12-AOAS583), *Annals of Applied Statistics*) estimator, basically running a regression of $Y$ on $D$, $\tilde X$, and $D*\tilde X$.  $\tilde X$ is the demeaned $X$.  The coefficient of $D$ is the ATE.
-
-Imputation is to run separate regressions for treatment and control group, then use the results to predict outcomes for the other group.  The ATE is the difference in the predicted outcomes.  It turns out the imputation estimator is the same as the interaction estimator.
-
-Stratification and g-computation work when $X$ is discrete.  Basically get the difference in means for each strata and weight by the probability of strata.
-
-The above mentioned estimators all depend on the linearity assumption.  If that is not the case, then we can use matching, such as "mean balancing" matching.
-
-Nonparametric estimation is another option if the linearity assumption fails.
+All of these still rely on linearity within each arm. When that fails, matching (e.g. mean-balancing) or nonparametric estimation is needed.
 
 ## A worked example
 
-Let's make the regression weights $\omega_i$ concrete and compare them to IPW weights $1/\hat d(X_i)$ (treated) and $1/(1-\hat d(X_i))$ (control).
+We make the regression weights $\omega_i$ concrete and compare them to IPW weights $1/\hat d(X_i)$ (treated) and $1/(1-\hat d(X_i))$ (control).
 
 ```{r}
 #| label: fwl-weights-example

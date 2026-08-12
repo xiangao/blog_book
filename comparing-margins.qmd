@@ -4,12 +4,9 @@ date: "2019-04-22"
 ---
 
 
-## Comparing Marginal effects
+## Comparing marginal effects
 
-Stata's margins command has been a powerful tool for many economists.  It can calculate predicted means as well as predicted marginal effects.  Sometimes we'd like to compare those marginal effects.  People use margins and marginsplot to generate marginal effects; then draw conclusions on whether there is a difference between marginal effects, based on whether the confidence intervals overlap or not. However, that can actually be wrong. In this post, I'd like to introduce a way to compare effects.
-
-
-For example:
+A common practice is to plot marginal effects with `margins` and `marginsplot`, then conclude two effects differ whenever their confidence intervals do not overlap. This can be wrong — overlapping intervals do not imply no significant difference, because the test depends on the joint distribution of the two estimates, not on their marginal distributions separately.
 ```{r}
 #| echo: false
 #| message: false
@@ -34,17 +31,13 @@ graph export "marginsplot2.svg", as(svg) replace
 
 ![](marginsplot2.svg)
 
-Here we run a logit model of diabetes and have female indicator and continuous age variable and their interaction as predictors.
+We fit a logit of diabetes on female, age, and their interaction. The first `margins` call gives predicted probabilities by gender; the second (with `r.female`) gives the female-vs-male contrast at each age. (On the general question of marginal effects in nonlinear models, see the previous chapter — the coefficient on the link scale is usually more interpretable.)
 
-See my other post about interpreting marginal effects in non-linear model.  In general we recommend against going after marginal effects in a non-linear model, instead we should focus on original coefficients.  However, in case you still want to do that (many people do), here is an example.  Suppose you are interested in comparing the effect of female on probability, at different ages, ranging from 20 to 70.  The first margins command above tells you the predicted probability for each gender, the second tells the difference between the two genders.  
+The female effect at age 20 is $.006$ and at age 30 is $.009$; their confidence intervals overlap. It is tempting to conclude the two effects are not significantly different, but that conclusion does not follow. For two effects $x$ and $y$ from the same model,
 
-People tend to draw conclusions based on the confidence intervals overlapping or not.  That is, if the confidence intervals of two effects overlap, then there is no statistically significant difference between the two effects.  This actually can be wrong.  The reason is that the confidence intervals are based on individual variable's distribution, that is, how big the variance of that estimate.  The difference between two effects, however, depends on the joint distribution of the two effects.  That is, the variances of the two effects, and the covariance between the two effects.  We should expect two effects are correlated, since they are derived from estimates from the same model, and often the same data.  Therefore, two effects with overlapping confidence intervals do not necessarily mean the difference between the two is not statistically different from zero.  
+$$ \text{Var}(x - y) = \text{Var}(x) + \text{Var}(y) - 2\,\text{Cov}(x, y). $$ {#eq-comparing-margins-1}
 
-To see this, suppose we are interested in $x-y$, the difference between two effects $x$ and $y$,
-$$ Var(x-y)=Var(x) + Var(y) - 2 Cov(x,y) $$ {#eq-comparing-margins-1}
-The variance of the difference is the sum of the two variances, minus *twice* the covariance of $x$ and $y$.  When we draw confidence intervals of marginal effects, $x$ and $y$, they are determined by $Var(x)$ and $Var(y)$, respectively.   But the confidence interval of $x-y$ should be based on $Var(x-y)$, which is affected by $Cov(x,y)$.  When $x$ and $y$ are highly correlated, the variance of the difference can become small, and therefore the estimated $x-y$ can be statistically significant, even if the two confidence intervals overlap (meaning the variances of $x$ and $y$ can be relatively large). 
-
-For example, we see in the second margins output, the effect of female on probability is .006 at point 1 (age 20), .0087 at point 2 (age 30).  If you'd like to compare these two effects, you see their confidence intervals overlap.  It's easy to draw a conclusion that these two effects do not differ statistically because their confidence intervals overlap.  However, if we do a statistical test of the difference, we see the difference is significant.
+When $x$ and $y$ are positively correlated — as they will be, coming from the same fit — the variance of their difference can be much smaller than either individual variance. So the difference can be significant even when the individual intervals overlap.
 
 
 ```{stata}
@@ -58,7 +51,7 @@ lincom _b[r1vs0.female@2._at] - _b[r1vs0.female@1._at]
 
 We can do this with native Stata syntax: `margins ..., post` posts the estimated contrasts as if they were regular coefficients (named `r1vs0.female@1._at`, `r1vs0.female@2._at`, etc. — check `matrix list e(b)` to see the exact names), so `lincom` can test any linear combination of them natively, without depending on a user-written command.
 
-Fortunately, margins has an option to show this difference, by contrast(atcontrast(r)).  This is to say comparing all other points to the reference category.
+`margins` can compute these differences directly with `contrast(atcontrast(r))`, which compares each evaluation point to the reference:
 
 ```{stata}
 *| cache: true

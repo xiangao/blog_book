@@ -8,15 +8,13 @@ date: "2021-11-03"
 
 ## OLS cannot be ATE (most of the time)
 
-Tymon Słoczyński has this [cool paper](https://people.brandeis.edu/~tslocz/Sloczynski_paper_regression.pdf) which helps me understand OLS better.
+[Słoczyński](https://people.brandeis.edu/~tslocz/Sloczynski_paper_regression.pdf) clarifies when the OLS coefficient on a treatment dummy can and cannot be read as the ATE.
 
-A common setup in empirical studies:
+Consider the standard setup:
 
 $$ y = \alpha + \tau d + X \beta $$ {#eq-ols-ate-1}
 
-$d$ is the treatment dummy, $X$ is the covariates.  This model assumes homogeneous treatment effect.  That is, $\tau$ is the ATE if treatment effect is homogeneous.  But, if not, then $\tau$ is not ATE anymore, although most people treat it as ATE.  Obviously we are assuming the usual unconfoundedness; that is, there are no other variables other than $X$ are driving both $d$ and $y$.
-
-In this paper, Słoczyński showed that $\tau$ is actually a convex combination of ATT and ATU (average treatment effect for the untreated), if treatment has heterogeneous effects.  Therefore it can be close to ATE, or it can be quite different, depending on the weight on ATT and ATU.  More surprisingly, he showed that the weights are inversely proportional to the proportion of treated vs untreated.  The more number of treated units, the less weight is on ATT!
+Here $d$ is the treatment dummy and $X$ the covariates, under unconfoundedness. If the treatment effect is homogeneous, $\tau$ is the ATE. Under heterogeneous effects, $\tau$ is a convex combination of ATT and ATU — but with weights that are inversely proportional to the treatment shares. The more treated units there are, the less weight falls on ATT.
 
 By definition,
 
@@ -31,9 +29,7 @@ where $\rho = P(d=1)$, the proportion of treated; $\tau_{ATT} = E(y(1)-y(0) | d=
 
 From these two equations, we see that $\tau$ and $\tau_{ATE}$ are quite different, unless the weight on ATT happens to equal $\rho$.  A caution on reading this too simply: the clean form $\tau = (1-\rho)\tau_{ATT} + \rho\tau_{ATU}$ with $\rho = P(d=1)$ is the **no-covariate special case** (or, with covariates, holds in terms of *covariate-adjusted* treatment-probability weights, not the raw marginal share).  In Słoczyński's general result the weights depend on the conditional treatment probabilities (the propensity score), so a 50/50 *marginal* treatment share alone does **not** guarantee that OLS recovers the ATE — what matters is the covariate-adjusted weighting.  With that caveat, the intuition stands: the more imbalanced the (conditional) treatment probabilities, the further OLS can be from the ATE.
 
-These results are based on the fact ATT, ATU and ATE can be calculated if we have the true propensity score, then we can estimate the heterogeneous effect by including the propensity score as an additional covariate.  If we don't, then we can include the estimated propensity score as an additional covariate.
-
-Słoczyński has a package in R and stata "hettreatreg".
+Given the true propensity score, ATT, ATU, and ATE can be separated. In practice we use the estimated propensity score. Słoczyński provides the `hettreatreg` package in R and Stata.
 
 ```{r}
 #| label: chunk1

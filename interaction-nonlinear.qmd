@@ -5,76 +5,29 @@ date: "2017-12-07"
 
 
 
-## Interaction term in a non-linear model
+## The issue
 
-In a non-linear model (for example, logit or poisson model), the interpretation of the coefficient on the interaction term is tricky.  [Ai and Norton (2003)](https://pdfs.semanticscholar.org/6285/8e64d9a337504d72cb862c4cc1e7fd27a7a0.pdf) points out that the interaction term coefficient is not the same as people can interpret as in a linear model; that is, how much effect of $x1$ changes with the value of $x2$.  They interpret this as a cross partial derivative of the nonlinear response function $E(y)$ with respect to $x_1$ and $x_2$ — a quantity that involves the model's other coefficients and the values of all covariates, not just the estimated interaction coefficient $\beta_{12}$. As a result, this cross partial derivative can differ in magnitude, sign, and even statistical significance from $\beta_{12}$ itself.
+In a linear model with interaction,
 
-If we have a linear model with interaction:
+$$ E(y) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1 x_2, $$ {#eq-interaction-nonlinear-1}
 
-$$ E(y) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-interaction-nonlinear-1}
+the cross partial derivative is simply the coefficient:
 
-Then, the marginal effect
+$$ \frac{\partial^2 E(y)}{\partial x_1 \partial x_2} = \beta_{12}. $$ {#eq-interaction-nonlinear-2}
 
-$$ \frac{\partial^2 E(y)}{\partial x_1 \partial x_2} = \beta_{12} $$ {#eq-interaction-nonlinear-2}
+In a nonlinear model — logit, Poisson, or any link function $F$ — the same coefficient $\beta_{12}$ sits on the *link* scale:
 
-That is, $\beta_{12}$ is the second derivative of $E(y)$ on $x_1$ and $x_2$.  The marginal effect of $x_1$ is $\frac{\partial E(y)}{\partial x_1} = \beta_1 + \beta_{12} x_2$, which is linear in $x_2$ but does not itself depend on any nonlinear transformation, since the model is linear.
+$$ F(E(y)) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1 x_2. $$ {#eq-interaction-nonlinear-3}
 
-In a non-linear model,
+The cross partial of $F(E(y))$ is still $\beta_{12}$. But the cross partial of $E(y)$ itself — the quantity most researchers want — is not:
 
-$$ F(E(y)) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-interaction-nonlinear-3}
+$$ \frac{\partial^2 E(y)}{\partial x_1 \partial x_2} = \beta_{12} G'(\eta) + (\beta_{1} + \beta_{12} x_2)(\beta_2 + \beta_{12} x_1) G''(\eta), $$ {#eq-interaction-nonlinear-5}
 
-$$ \frac{\partial^2 F(E(y))}{\partial x_1 \partial x_2} = \beta_{12} $$ {#eq-interaction-nonlinear-4}
+where $G = F^{-1}$ and $\eta$ is the linear predictor. This is the point of [Ai and Norton (2003)](https://pdfs.semanticscholar.org/6285/8e64d9a337504d72cb862c4cc1e7fd27a7a0.pdf): the probability-scale interaction effect depends on every coefficient, varies across the covariate space, and can differ in sign and significance from $\beta_{12}$.
 
-Here, the partial derivative of $F(E(y))$ on $x_1$ and $x_2$ is still $\beta_{12}$.  However, most people are interested in $\frac{\partial^2 E(y)}{\partial x_1 \partial x_2}$.  
+The deeper issue is that nonlinearity alone generates a nonzero cross partial — even without an interaction term. Drop $\beta_{12}$ and the cross partial on $E(y)$ is still $\beta_1 \beta_2 G''(\eta) \ne 0$ whenever the link is curved. The marginal effect of $x_1$ depends on $x_2$ in any nonlinear model, interaction or not.
 
-$$ \frac{\partial^2 E(y)}{\partial x_1 \partial x_2} = \beta_{12} G'(\eta) + (\beta_{1} + \beta_{12} x_2)(\beta_2 + \beta_{12} x_1) G''(\eta)$$ {#eq-interaction-nonlinear-5}
-
-where $G()$ is the inverse function of $F()$ and $\eta$ is the linear predictor.
-
-It is true that in a non-linear model with interaction, the marginal effect of $x_1$ differs with different values of $x_2$.  However, even if we have a non-linear model without interaction, the marginal effect of $x_1$ is still different with different values of $x_2$. To see this, consider a nonlinear model with no interaction term at all:
-
-$$ F(E(y)) = \beta_1 x_1 + \beta_2 x_2 $$ {#eq-interaction-nonlinear-6}
-
-$$ \frac{\partial^2 E(y)}{\partial x_1 \partial x_2} =  (\beta_{1} \beta_2 ) G''(\eta)$$ {#eq-interaction-nonlinear-7}
-
-Therefore, when we set up our model, 
-
-$$ F(E(y)) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-interaction-nonlinear-8}
-
-we have in mind that we allow interaction of $x_1$ and $x_2$ to interact for the effect on $F(E(y))$; not on $E(y)$.
-
-We agree with Bill Greene (2013), "Interaction Effects in Models for Nonlinear
-Outcomes" (Lugano lecture notes; the copy formerly at
-`people.stern.nyu.edu/wgreene/Lugano2013/` is no longer online, but the argument
-appears in Greene's *Econometric Analysis*, 8th ed., sec. 17.3). In
-a nonlinear model, the partial effects (as Greene calls it) is
-nonlinear, regardless of the model.  For example, in a logit model,
-even if you don't have an interaction term in your model, the effect
-of $x_1$ will still be different for every value of $x_2$, simply
-because it's a nonlinear model.
-
- As Greene put it at the summary section,
-"Build the model based on appropriate statistical procedures and principles. Statistical testing
-about the model specification is done at this step Hypothesis tests are about model coefficients
-and about the structural aspects of the model specifications. Partial effects are neither
-coefficients nor elements of the specification of the model. They are implications of the specified
-and estimated model."
-
-We also agree with [Maarten Buis 2010](http://www.stata-journal.com/sjpdf.html?articlenum=st0194), that we should use multiplicative effect in a non-linear model.  That is, in a non-linear model,
-
-$$ F(E(y)) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-interaction-nonlinear-9}
-
-We should pay more attention to 
-
-$$ \frac{\partial^2 F(E(y))}{\partial x_1 \partial x_2} = \beta_{12} $$ {#eq-interaction-nonlinear-10}
-
-For example, in a logit model,
-
-$$ log(P(y=1)/(1-P(y=1))) = \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-interaction-nonlinear-11}
-
-That is, the log of odds is a linear function of $x_1$ and $x_2$ and interaction.  The interaction effect has the same interpretation as the linear model, in terms of log of odds.  
-
-Or, it becomes multiplicative effect when we talk about odds ratios.  Stata's "margins" command is a great tool to calculate marginal effects in various situations, as shown in [Maarten Buis 2010](http://www.stata-journal.com/sjpdf.html?articlenum=st0194).
+Greene (*Econometric Analysis*, 8th ed., sec. 17.3) and [Buis (2010)](http://www.stata-journal.com/sjpdf.html?articlenum=st0194) draw the same conclusion: the model is specified on the link scale, and that is where coefficients and their tests are interpretable. In a logit, $\beta_{12}$ is the interaction on log-odds; exponentiating gives an odds-ratio interaction that is multiplicative. Partial effects on the probability scale are *implications* of the model, not parameters of it — they should be computed from the fitted model (via `margins` or `marginaleffects`), not read off the coefficient table.
 
 ## A worked example
 

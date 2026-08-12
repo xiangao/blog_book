@@ -8,21 +8,17 @@ date: "2021-10-23"
 
 ## TWFE
 
-Two-way fixed effect model has been widely used, especially in difference-in-difference situation, when we have a panel data with pre and post data.  The basic setup is:
+The two-way fixed-effect model is standard for difference-in-differences with panel data:
 
 $$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-1}
 
-with $X$ has $k$ variables, $t$ has $T$ periods, and $i$ has $N$ units.
-
-For a linear model, we know we can put in $k$ unit dummies and $T$ time dummies to estimate the model.  When we have a lot of dummies, this becomes inefficient, sometimes infeasible.  When we have nonlinear models, such as Poisson, or logit, then this becomes even more difficult.
+with $k$ covariates, $T$ periods, and $N$ units. In a linear model we can include $N$ unit dummies and $T$ time dummies, but this becomes impractical when either dimension is large. In nonlinear models the problem is worse.
 
 ## TWM
 
-The recent Wooldridge paper (https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) showed that two-way Mundlak regression (TWM) can be useful, not only in the common event time situation, but also in staggered TWFE situation.  But in this post I'll only talk about common event time situation (which is the case that all treated units get treated at the same period, and stay treated afterwards).  The staggered situation (treated units get treated at different periods) will be a different post.
+[Wooldridge (2021)](https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) shows that the two-way Mundlak regression (TWM) works for both common and staggered treatment timing. This chapter covers the common-timing case; staggered timing is treated separately.
 
-The idea of Mundlak (1978) is the following.
-
-In the one-way fixed effect case,
+The idea goes back to Mundlak (1978). In the one-way case,
 
 $$ y_{it} = x_{it} \beta + c_i + u_{it} $$ {#eq-mundlak-device-2}
 
@@ -34,11 +30,9 @@ Then
 
 $$ y_{it} = x_{it} \beta + \bar x_i \theta + \eta_i + u_{it} $$ {#eq-mundlak-device-4}
 
-This $\eta_i + u_{it}$ becomes the composite error term.  This becomes a model including $\bar x_i$'s, which are additional $k$ variables, instead of including a set of unit dummies.  This model can be estimated by either Pooled OLS (POLS), or random effect.  The estimated coefficients $\beta$ are identical.  The standard errors are the same too, after clustering on units. In other words, if we include means of $x$'s as controls, then POLS and random effect models are identical.
+The composite error is $\eta_i + u_{it}$. Instead of $N$ unit dummies we add $k$ group means. This model can be estimated by pooled OLS or random effects; the coefficients are identical, and so are the standard errors once we cluster on units.
 
-The by-product of this equation is that if $\theta = 0$, then $c_i$ is uncorrelated with $x_{it}$; therefore a random effect is good.  Otherwise we should do fixed effect.  This is the Mundlak form of the Hausman test: under the random-effects assumptions, testing $\theta = 0$ is asymptotically equivalent to the classical Hausman test, and it has the practical advantage of working directly with cluster-robust standard errors, where the classical form can break down.
-
-Here is an example:
+A by-product: testing $\theta = 0$ is the Mundlak form of the Hausman test. Under the random-effects assumptions it is asymptotically equivalent to the classical Hausman test, with the practical advantage of working directly with cluster-robust standard errors.
 
 ```{r}
 #| label: setup
@@ -68,23 +62,17 @@ reg ln_wage age union mean_age mean_union, cluster(idcode)
 xtreg ln_wage age union mean_age mean_union, re cluster(idcode)
 ```
 
-Clearly we see in the these three models, the coefficients and standard errors on age and union are the same.
+All three models return the same coefficients and standard errors on age and union.
 
-What Wooldridge (2021) shows is that this (Mundlak) works for two-way fixed effect too.
-
-That is, for the TWFE,
+Wooldridge (2021) extends this to the two-way case. For the TWFE,
 $$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-5}
 it's equivalent to estimate
 
 $$ y_{it} = X_{it} \beta + X_{i \cdot} \lambda + X_{\cdot t} \theta + u_{it} $$ {#eq-mundlak-device-6}
 
-where $X_{i \cdot}$ is the unit specific averages over time, and $X_{\cdot t}$ is the time specific averages over units.  This is basically some kind of control function approach.  That is, from FWL theorem, these two models are equivalent.  See Wooldridge 2021 for proof.
+where $X_{i \cdot}$ is the unit-specific average over time and $X_{\cdot t}$ is the time-specific average over units. By FWL, the two models are equivalent (see Wooldridge 2021 for the proof). Wooldridge calls this the two-way Mundlak (TWM) model.
 
-Wooldridge calls this POLS of regressing $y_{it}$ on regressors $X_{it}$ and two sets of additional controls $X_{i \cdot}$ and $X_{\cdot t}$ Two-way Mundlak (TWM) model.
-
-One advantage of TWM is that it has potentially huge cut on the number of regressors, if you use the dummy variable approach for the TWFE.
-
-The other advantage is that you can actually include time-invariant or unit-invariant variables in the regression and the $\beta$'s remain unchanged.  We all know that in TWFE model you cannot include those time-invariant or unit-invariant variables in the model.
+TWM has two advantages over the dummy-variable approach. It can sharply reduce the number of regressors. And it allows time-invariant or unit-invariant variables in the regression without disturbing the $\beta$ estimates.
 
 We can see in the following example of POLS (which is TWM), we add in `race`, which is **time-invariant** --- constant within a person, but varying across people.  (In `nlswork` the within-person standard deviation of `race` is exactly 0, while within any given year it is about 0.50, so it is emphatically not unit-invariant.)  It can be estimated in TWM, but would not be estimable in TWFE.  Notice that coefficients on age and union remain unchanged.
 
@@ -295,7 +283,7 @@ use.
 
 ## Applications of TWM to DID in common treatment timing
 
-There is an extension of Mundlak device that if $x_{it}$ can be seen as an interaction between a time-invariant variable and an unit-invariant variable,
+There is an extension: if $x_{it}$ can be written as an interaction between a time-invariant and a unit-invariant variable,
 
 $$ x_{itj} = z_{ij} * m_{tj} $$ {#eq-mundlak-device-7}
 
@@ -304,11 +292,11 @@ Then
 $$ \bar x_{i \cdot j} = z_{ij} \bar m_j $$ {#eq-mundlak-device-8}
 $$ \bar x_{\cdot t j} = \bar z_{j}  m_{tj} $$ {#eq-mundlak-device-9}
 
-In other words, the two averages of $x$ are constant times $z_{ij}$ and constant times $m_{tj}$ respectively.  By Mundlak, we can just include $z_{ij}$ and $m_{tj}$ as control in additional to $x_{it}$ to get the same estimates as TWFE.  This makes things much easier, as we'll see later.
+The two averages are just constants times $z_{ij}$ and $m_{tj}$ respectively. So by Mundlak we can include $z_{ij}$ and $m_{tj}$ as controls instead.
 
-Wooldridge 2021 goes on showing that TWM works in common treatment time, and also in staggered timing setting, as long as we allow flexible interactions of treatment cohorts and treatment periods.  It's truly remarkable that he showed that TWM can be so powerful!  In this post I am going to just use simulation to show TWM in common treatment timing; staggered timing setting will be another post.  All the codes are based on Wooldridge's do files he shared in his dropbox.
+Wooldridge (2021) shows that TWM extends to staggered timing as well, provided we allow flexible interactions of treatment cohorts and periods. The simulation below covers the common-timing case. The code follows Wooldridge's do files.
 
-In a common timing setting, treatment comes in at one time, all the treated units are treated at the same time.  There is the parallel trend assumption that assumes that the treatment group and control group have the same trend before treatment.  Also there is no anticipation assumption.
+In the common-timing setting all treated units are treated at the same period. The identifying assumptions are parallel trends and no anticipation.
 
 
 $$ y_{it} = w_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-10}
@@ -367,11 +355,9 @@ xtset id year
 tab year w
 ```
 
-In this data set, we have 100 units, four years (2012 to 2015).  Half units are treated, treatment happens on 2014.  Treatment dummy $d$, $w$ is $d * post$.  Treatment effect is 2.5 in year 2014, and 3.5 in year 2015.  If we estimate ATT for the entire post treatment period, we should expect to see ATT about 3, given the balanced panel.
+We have 100 units over four years (2012--2015). Half are treated starting in 2014 ($w = d \times \text{post}$). The treatment effect is 2.5 in 2014 and 3.5 in 2015, so the overall post-period ATT should be about 3 in this balanced panel.
 
-All the following code are from Wooldridge.  I just used it on the simulated data.
-
-The difficulty is that we have to be careful and mindful about what we want to estimate, then come up with the correct code for all those interaction terms.
+The code below is from Wooldridge. The main difficulty is specifying the correct interaction terms for each estimand.
 
 ```{stata}
 *| label: stata4
