@@ -573,13 +573,11 @@ window.Quarto = {
 
 </header><section id="treatment-effects-in-observational-studies" class="level2" data-number="11.1"><h2 data-number="11.1" class="anchored" data-anchor-id="treatment-effects-in-observational-studies">
 <span class="header-section-number">11.1</span> Treatment effects in observational studies</h2>
-<p>Despite the popularity of randomized experiments in economics nowadays, most situations we have observational data in economic studies. One reason is experiments are expensive; the other reason is that sometimes it is simply not feasible to have experiments. If we have observational data, and we’d like to draw causal conclusions, then we have a few different situations. The worse situation is that we have an endogenous treatment. Or to say, we have unobserved confounders. In that case, we need instrumental variables. However instruments are hard to find, and even harder to justify. If we assume we don’t have unobserved confounders. Or to say, we have conditional independence of the treatment variable. That is, conditional on other variables in the model, there is no unobserved confounders. If that assumption holds, then we can make causal inference.</p>
-<p>Stata has a set of eteffects and teffects commands are designed for treatment effects. eteffects is for treatment effects when you have endogenous treatment. In that case, you’ll need instruments to model treatment at first stage. Then eteffects use control function approach for the second stage of modeling treatment effects on outcome. In this blog, we are trying to understand how teffects works. That is, when we don’t need an instruments, or say we assume no unobserved confounders.</p>
+<p>Most economic data are observational. With unobserved confounders we need instrumental variables, but instruments are hard to find and harder to justify. Under conditional independence — no unobserved confounders given the covariates — we can proceed without them.</p>
+<p>Stata’s <code>teffects</code> suite implements the standard estimators under conditional independence. (The companion <code>eteffects</code> handles endogenous treatment via a control-function approach with instruments.) This chapter walks through how <code>teffects</code> works.</p>
 <section id="regression-adjustment-ra" class="level3" data-number="11.1.1"><h3 data-number="11.1.1" class="anchored" data-anchor-id="regression-adjustment-ra">
 <span class="header-section-number">11.1.1</span> Regression adjustment (RA)</h3>
-<p>The RA method is to allow all covariates’ effects differ between treatment and control. That is, it is the same model as an outcome model with treatment interacting with all other covariates.</p>
-<section id="example" class="level4" data-number="11.1.1.1"><h4 data-number="11.1.1.1" class="anchored" data-anchor-id="example">
-<span class="header-section-number">11.1.1.1</span> Example:</h4>
+<p>RA allows all covariate effects to differ between treatment and control — equivalent to an outcome model with treatment interacted with all covariates.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> bweightex</span>
@@ -679,8 +677,8 @@ Expression: Linear prediction, predict()
 ------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>We can see the teffects return the same ATE(Average Treatment Effect) as the margins command after a regression with treatment interacting with all other covariates.</p>
-<p>To estimate ATET (or ATT, Average Treatment effected on the Treated),</p>
+<p><code>teffects ra</code> returns the same ATE as <code>margins r.mbsmoke</code> after the interacted regression.</p>
+<p>For the ATET (average treatment effect on the treated):</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> bweightex</span>
@@ -780,13 +778,13 @@ Expression: Linear prediction, predict()
 ------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>It is the comparison of treatment’s effect on the potential outcomes, for the treated. That’s why in margins, we have subpop(mbsmoke) option.</p>
-</section></section><section id="inverse-probability-weighting-ipw" class="level3" data-number="11.1.2"><h3 data-number="11.1.2" class="anchored" data-anchor-id="inverse-probability-weighting-ipw">
+<p>The ATET compares potential outcomes for the treated subpopulation, hence the <code>subpop(mbsmoke)</code> option in <code>margins</code>.</p>
+</section><section id="inverse-probability-weighting-ipw" class="level3" data-number="11.1.2"><h3 data-number="11.1.2" class="anchored" data-anchor-id="inverse-probability-weighting-ipw">
 <span class="header-section-number">11.1.2</span> Inverse Probability Weighting (IPW)</h3>
-<p>IPW estimators have two steps. The first step is to estimate the treatment model, that is, treatment as a function of some covariates. Usually a logit model is used. Then the probability of treatment is estimated. In the second stage, the inverse probability is used as weights to compute the outcome difference between treatment versus control units.</p>
+<p>IPW has two steps. First, estimate the treatment model (typically logit) to obtain the propensity score. Second, use inverse-probability weights to compute the outcome difference between treated and control units.</p>
 <p>These steps produce consistent estimates of the effect parameters because the treatment is assumed to be independent of the potential outcomes after conditioning on the covariates.</p>
 <p>We can manually conduct the two steps, but the nice thing about using Stata’s teffects is that it takes account of the noise of estimating probability in the first step when calculating standard errors in the second step.</p>
-<section id="example-1" class="level4" data-number="11.1.2.1"><h4 data-number="11.1.2.1" class="anchored" data-anchor-id="example-1">
+<section id="example" class="level4" data-number="11.1.2.1"><h4 data-number="11.1.2.1" class="anchored" data-anchor-id="example">
 <span class="header-section-number">11.1.2.1</span> example</h4>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
@@ -882,11 +880,11 @@ Linear regression                               Number of obs     =      4,642
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>In the above example, we run teffects ipw and then manually replicate the two steps. The only thing different is the standard error for the treatment effect.</p>
+<p>The manual two-step replication matches the point estimate; the only difference is the standard error (the manual version does not account for first-stage estimation noise).</p>
 </section></section><section id="doubly-robust-estimators" class="level3" data-number="11.1.3"><h3 data-number="11.1.3" class="anchored" data-anchor-id="doubly-robust-estimators">
 <span class="header-section-number">11.1.3</span> Doubly robust estimators</h3>
-<p>RA estimator estimates the outcome directly, IPW estimates the treatment assignment. There is also a group of estimators called doubly-robust estimators. They estimate both stages, and only require one of these stages to be correctly specified.</p>
-<p>Stata implemented the augmented-IPW (AIPW) combination proposed by Robins and Rotnitzky (1995) and the IPW-regression-adjustment (IPWRA) combination proposed by Wooldridge (2010).</p>
+<p>RA models the outcome; IPW models the treatment assignment. Doubly-robust estimators model both, requiring only one to be correctly specified.</p>
+<p>Stata implements the AIPW combination of Robins and Rotnitzky (1995) and the IPWRA combination of Wooldridge (2010).</p>
 <p>The AIPW estimator augments the IPW estimator with a correction term built from the outcome model. Double robustness is best stated as a <strong>consistency</strong> property: AIPW is consistent if <em>either</em> the treatment model <em>or</em> the outcome model is correctly specified (not necessarily both). It is <em>not</em> that the correction term literally “goes to zero” when the treatment model is right and the outcome model is wrong — with a misspecified outcome model the correction term does not generally vanish. Rather, the two pieces are constructed so that the estimator’s bias cancels in the limit as long as one of the two models is right.</p>
 <p>The IPWRA estimator uses IPW probability weights when performing RA. The weights do not affect the accuracy of the RA estimator if the treatment model is wrong and the outcome model is correct. The weights correct the RA estimator if the treatment model is correct and the outcome model is wrong.</p>
 <p>Here we run the two commands, then manually replicate both as a two-step (“plug-in”) procedure. <code>teffects</code> estimates the treatment and outcome models jointly by GMM/ML, using the joint estimation to get standard errors that account for first-stage estimation noise; the manual two-step version below gets essentially the same point estimate but not the correct standard errors (for the same reason noted above for IPW).</p>
@@ -1166,15 +1164,13 @@ Log likelihood = -2082.3879                             Pseudo R2     = 0.0665
 <p>The mean of <code>aipw_i</code> is close to <code>teffects aipw</code>’s ATE (small differences are expected: <code>teffects</code> estimates the treatment and outcome models jointly by ML, while this is a two-step plug-in version).</p>
 </section></section><section id="matching" class="level2" data-number="11.2"><h2 data-number="11.2" class="anchored" data-anchor-id="matching">
 <span class="header-section-number">11.2</span> Matching</h2>
-<p>First let’s emphasize that matching usually does not deal with endogenous treatment problem. Some people have the wrong impression that matching resolves the endogeneity problem, but in fact it only helps for selection on observables. If you have selection on unobservables, or unobserved confounders, matching does not help.</p>
-<p>Matching aims to balance the distribution of covariates in the treatment and control groups. That’s all it does, to make comparisons between apples, not apples to oranges. In that sense, regression does that too. We use regression to adjust for differences between treatment and control. However, regression sometimes rely on extrapolation too much, when data do not overlap between treatment and control. It’s not that matching can do magic on non-overlapping data, but it can make it clear that how bad the non-overlapping problem is. Simply running regression blindly will not have the researchers realize the non-overlapping problem. Combining matching with regression is probably a better idea. That is, running regression on matched sample is recommended.</p>
-<p>Here we introduced a few popular matching methods implemented in Stata, namely nnmatch, psmatch, and cem.</p>
+<p>Matching does not solve the endogeneity problem. It addresses selection on observables only; with unobserved confounders it does not help.</p>
+<p>What matching does is balance the covariate distributions across treatment and control groups. Regression does this too, but matching makes the lack of overlap visible — a plain regression can extrapolate far outside the support without warning. Running regression on a matched sample combines the strengths of both approaches.</p>
+<p>Below we cover three matching methods in Stata: propensity score matching, nearest-neighbor matching, and coarsened exact matching.</p>
 <section id="propensity-score-matching" class="level3" data-number="11.2.1"><h3 data-number="11.2.1" class="anchored" data-anchor-id="propensity-score-matching">
 <span class="header-section-number">11.2.1</span> Propensity score matching</h3>
-<p>The ideal situation of matching is exact matching; that is, treatment and control units can match to each other with exactly the same value of all covariates. This is often not possible, as the number of covariates increase and if they are not discrete. In high dimension (many covariates to match), it is very hard or even impossible to find exact matches. Therefore, how to reduce from high dimension to low dimension is key. Rosenbaum and Rubin 1983 proved that propensity score provides the one-dimension representation of high-dimension of covariates. Therefore, we only need to find matches based on propensity scores.</p>
-<p>In Stata, teffects psmatch can do estimation after matching on propensity scores. Stata’s psmatch2 command has been popular for propensity score matching too. The nice thing of these commands is that it does two steps in one command: first it estimate the logit or probit model for propensity score, then match the treatment and control groups, then estimate the outcome equation on matched sample. The standard errors are correct based on all these steps. If we do this manually, standard errors will not be correct.</p>
-<section id="example-2" class="level4" data-number="11.2.1.1"><h4 data-number="11.2.1.1" class="anchored" data-anchor-id="example-2">
-<span class="header-section-number">11.2.1.1</span> example</h4>
+<p>Exact matching on all covariates is ideal but infeasible in high dimensions. Rosenbaum and Rubin (1983) showed that the propensity score provides a scalar sufficient statistic, reducing the matching problem to one dimension.</p>
+<p>Stata’s <code>teffects psmatch</code> and <code>psmatch2</code> both estimate the propensity score, match, and compute the treatment effect with correct standard errors in one step.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> cattaneo2</span>
@@ -1246,10 +1242,10 @@ Log likelihood = -2043.2504                             Pseudo R2     = 0.0841
 . </code></pre>
 </div>
 </div>
-<p>In the above example, suppose we are interesting in mbsmoke’s effect on bweight. If we match smoking mothers with non-smoking mothers, by age, first baby, and education, the the teffects psmatch gives us the treatment effect on the treated. We can do this in two steps. First, by psmatch2 we generate _weight, which is a number for how many times a control unit is used to match to a treatment unit. Notice that to match teffects result, we use logit, and ties option. By default, teffects psmatch includes all ties (control units that have the same propensity scores that are close enough), but psmatch2 by default only include one. Then in the second step, we run a regression with _weight as the weight. Notice the standard errors will differ. We should use the standard errors reported in teffects.</p>
-</section></section><section id="nearest-neighbor-matching" class="level3" data-number="11.2.2"><h3 data-number="11.2.2" class="anchored" data-anchor-id="nearest-neighbor-matching">
+<p><code>teffects psmatch</code> gives the ATT of smoking on birthweight. The manual replication uses <code>psmatch2</code> with <code>logit</code> and <code>ties</code> (by default <code>teffects</code> includes all tied matches, while <code>psmatch2</code> keeps only one), then runs a weighted regression. Point estimates match; standard errors should be taken from <code>teffects</code>.</p>
+</section><section id="nearest-neighbor-matching" class="level3" data-number="11.2.2"><h3 data-number="11.2.2" class="anchored" data-anchor-id="nearest-neighbor-matching">
 <span class="header-section-number">11.2.2</span> Nearest neighbor matching</h3>
-<p>Stata has the nnmatch option for teffects. nnmatch by default uses Mahalanobis distance, it can also specify to have exact matching. The advantage is this is nonparametric.</p>
+<p><code>teffects nnmatch</code> uses Mahalanobis distance by default and can also enforce exact matching on discrete covariates. It is nonparametric.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> cattaneo2</span>
@@ -1299,10 +1295,10 @@ ATET         |
 . </code></pre>
 </div>
 </div>
-<p>Notice the specification is different in these two models.</p>
+<p>Note the specification difference: <code>nnmatch</code> lists covariates in the outcome parentheses, <code>psmatch</code> lists them in the treatment parentheses.</p>
 </section><section id="coarsened-exact-matching-cem" class="level3" data-number="11.2.3"><h3 data-number="11.2.3" class="anchored" data-anchor-id="coarsened-exact-matching-cem">
 <span class="header-section-number">11.2.3</span> Coarsened Exact Matching (CEM)</h3>
-<p>CEM is not part of teffects. But Stata does have cem package implemented.</p>
+<p>CEM is available as a separate Stata package.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> cattaneo2</span>
@@ -1364,7 +1360,7 @@ mmarried  6.4e-15  8.4e-15        0        0        0        0        0
 . </code></pre>
 </div>
 </div>
-<p>In the above example, we use CEM on the same covariates, then apply weights in the final regression. The disadvantage is that we have not accounted for the noise in calculating those weights.</p>
+<p>CEM creates exact-match strata on coarsened covariates and generates weights for the final regression. The standard errors do not account for the matching step.</p>
 </section></section><section id="modern-matching-in-r-balance-diagnostics-and-entropy-weighting" class="level2" data-number="11.3"><h2 data-number="11.3" class="anchored" data-anchor-id="modern-matching-in-r-balance-diagnostics-and-entropy-weighting">
 <span class="header-section-number">11.3</span> Modern matching in R: balance diagnostics and entropy weighting</h2>
 <p>The 2019 vintage of this chapter used Stata’s <code>teffects</code> throughout. R’s <code>MatchIt</code> and <code>WeightIt</code> packages have since become the standard for matching workflows, and <code>cobalt</code> provides publication-quality balance tables and plots that are now expected in applied papers.</p>
@@ -2033,336 +2029,332 @@ Adjusted     98.46     185</code></pre>
 <span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Treatment effects in observational studies</span></span>
 <span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>Despite the popularity of randomized experiments in economics nowadays, most situations we have observational data in economic studies.  One reason is experiments are expensive; the other reason is that sometimes it is simply not feasible to have experiments.  If we have observational data, and we'd like to draw causal conclusions, then we have a few different situations.  The worse situation is that we have an endogenous treatment.  Or to say, we have unobserved confounders.  In that case, we need instrumental variables.  However instruments are hard to find, and even harder to justify.  If we assume we don't have unobserved confounders.  Or to say, we have conditional independence of the treatment variable.  That is, conditional on other variables in the model, there is no unobserved confounders.  If that assumption holds, then we can make causal inference.</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>Most economic data are observational. With unobserved confounders we need instrumental variables, but instruments are hard to find and harder to justify. Under conditional independence — no unobserved confounders given the covariates — we can proceed without them.</span>
 <span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>Stata has a set of eteffects and teffects commands are designed for treatment effects.  eteffects is for treatment effects when you have endogenous treatment.  In that case, you'll need instruments to model treatment at first stage.  Then eteffects use control function approach for the second stage of modeling treatment effects on outcome.  In this blog, we are trying to understand how teffects works.  That is, when we don't need an instruments, or say we assume no unobserved confounders.</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>Stata's <span class="in">`teffects`</span> suite implements the standard estimators under conditional independence. (The companion <span class="in">`eteffects`</span> handles endogenous treatment via a control-function approach with instruments.) This chapter walks through how <span class="in">`teffects`</span> works.</span>
 <span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="fu">### Regression adjustment (RA)</span></span>
 <span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>The RA method is to allow all covariates' effects differ between treatment and control.  That is, it is the same model as an outcome model with treatment interacting with all other covariates.</span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>RA allows all covariate effects to differ between treatment and control — equivalent to an outcome model with treatment interacted with all covariates.</span>
 <span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Example:</span></span>
-<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk1</span></span>
-<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a>webuse bweightex</span>
-<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ra</span> (bweight prenatal1 mmarried mage fbaby) (mbsmoke)</span>
-<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a>reg bweight i.mbsmoke<span class="do">##c.(prenatal1 mmarried mage fbaby)</span></span>
-<span id="cb29-31"><a href="#cb29-31" aria-hidden="true" tabindex="-1"></a>margins r.mbsmoke</span>
-<span id="cb29-32"><a href="#cb29-32" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk1</span></span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>webuse bweightex</span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ra</span> (bweight prenatal1 mmarried mage fbaby) (mbsmoke)</span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a>reg bweight i.mbsmoke<span class="do">##c.(prenatal1 mmarried mage fbaby)</span></span>
+<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>margins r.mbsmoke</span>
+<span id="cb29-30"><a href="#cb29-30" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb29-31"><a href="#cb29-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-32"><a href="#cb29-32" aria-hidden="true" tabindex="-1"></a><span class="in">`teffects ra`</span> returns the same ATE as <span class="in">`margins r.mbsmoke`</span> after the interacted regression.</span>
 <span id="cb29-33"><a href="#cb29-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-34"><a href="#cb29-34" aria-hidden="true" tabindex="-1"></a>We can see the teffects return the same ATE(Average Treatment Effect) as the margins command after a regression with treatment interacting with all other covariates.</span>
+<span id="cb29-34"><a href="#cb29-34" aria-hidden="true" tabindex="-1"></a>For the ATET (average treatment effect on the treated):</span>
 <span id="cb29-35"><a href="#cb29-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-36"><a href="#cb29-36" aria-hidden="true" tabindex="-1"></a>To estimate ATET (or ATT, Average Treatment effected on the Treated),</span>
-<span id="cb29-37"><a href="#cb29-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-40"><a href="#cb29-40" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-41"><a href="#cb29-41" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk2</span></span>
-<span id="cb29-42"><a href="#cb29-42" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-43"><a href="#cb29-43" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-44"><a href="#cb29-44" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-45"><a href="#cb29-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-46"><a href="#cb29-46" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-47"><a href="#cb29-47" aria-hidden="true" tabindex="-1"></a>webuse bweightex</span>
-<span id="cb29-48"><a href="#cb29-48" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ra</span> (bweight prenatal1 mmarried mage fbaby) (mbsmoke), atet</span>
-<span id="cb29-49"><a href="#cb29-49" aria-hidden="true" tabindex="-1"></a>reg bweight i.mbsmoke<span class="do">##c.(prenatal1 mmarried mage fbaby)</span></span>
-<span id="cb29-50"><a href="#cb29-50" aria-hidden="true" tabindex="-1"></a>margins r.mbsmoke, <span class="fu">subpop</span>(mbsmoke)</span>
-<span id="cb29-51"><a href="#cb29-51" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb29-38"><a href="#cb29-38" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-39"><a href="#cb29-39" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk2</span></span>
+<span id="cb29-40"><a href="#cb29-40" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-41"><a href="#cb29-41" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-42"><a href="#cb29-42" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-43"><a href="#cb29-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-44"><a href="#cb29-44" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-45"><a href="#cb29-45" aria-hidden="true" tabindex="-1"></a>webuse bweightex</span>
+<span id="cb29-46"><a href="#cb29-46" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ra</span> (bweight prenatal1 mmarried mage fbaby) (mbsmoke), atet</span>
+<span id="cb29-47"><a href="#cb29-47" aria-hidden="true" tabindex="-1"></a>reg bweight i.mbsmoke<span class="do">##c.(prenatal1 mmarried mage fbaby)</span></span>
+<span id="cb29-48"><a href="#cb29-48" aria-hidden="true" tabindex="-1"></a>margins r.mbsmoke, <span class="fu">subpop</span>(mbsmoke)</span>
+<span id="cb29-49"><a href="#cb29-49" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb29-50"><a href="#cb29-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-51"><a href="#cb29-51" aria-hidden="true" tabindex="-1"></a>The ATET compares potential outcomes for the treated subpopulation, hence the <span class="in">`subpop(mbsmoke)`</span> option in <span class="in">`margins`</span>.</span>
 <span id="cb29-52"><a href="#cb29-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-53"><a href="#cb29-53" aria-hidden="true" tabindex="-1"></a>It is the comparison of treatment's effect on the potential outcomes, for the treated.  That's why in margins, we have subpop(mbsmoke) option.</span>
-<span id="cb29-54"><a href="#cb29-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-53"><a href="#cb29-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-54"><a href="#cb29-54" aria-hidden="true" tabindex="-1"></a><span class="fu">### Inverse Probability Weighting (IPW)</span></span>
 <span id="cb29-55"><a href="#cb29-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-56"><a href="#cb29-56" aria-hidden="true" tabindex="-1"></a><span class="fu">### Inverse Probability Weighting (IPW)</span></span>
-<span id="cb29-57"><a href="#cb29-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-56"><a href="#cb29-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-57"><a href="#cb29-57" aria-hidden="true" tabindex="-1"></a>IPW has two steps. First, estimate the treatment model (typically logit) to obtain the propensity score. Second, use inverse-probability weights to compute the outcome difference between treated and control units.</span>
 <span id="cb29-58"><a href="#cb29-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-59"><a href="#cb29-59" aria-hidden="true" tabindex="-1"></a>IPW estimators have two steps.  The first step is to estimate the treatment model, that is, treatment as a function of some covariates. Usually a logit model is used.  Then the probability of treatment is estimated.  In the second stage, the inverse probability is used as weights to compute the outcome difference between treatment versus control units.</span>
-<span id="cb29-60"><a href="#cb29-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-61"><a href="#cb29-61" aria-hidden="true" tabindex="-1"></a>These steps produce consistent estimates of the effect parameters</span>
-<span id="cb29-62"><a href="#cb29-62" aria-hidden="true" tabindex="-1"></a>because the treatment is assumed to be independent of the potential</span>
-<span id="cb29-63"><a href="#cb29-63" aria-hidden="true" tabindex="-1"></a>outcomes after conditioning on the covariates.</span>
+<span id="cb29-59"><a href="#cb29-59" aria-hidden="true" tabindex="-1"></a>These steps produce consistent estimates of the effect parameters</span>
+<span id="cb29-60"><a href="#cb29-60" aria-hidden="true" tabindex="-1"></a>because the treatment is assumed to be independent of the potential</span>
+<span id="cb29-61"><a href="#cb29-61" aria-hidden="true" tabindex="-1"></a>outcomes after conditioning on the covariates.</span>
+<span id="cb29-62"><a href="#cb29-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-63"><a href="#cb29-63" aria-hidden="true" tabindex="-1"></a>We can manually conduct the two steps, but the nice thing about using Stata's teffects is that it takes account of the noise of estimating probability in the first step when calculating standard errors in the second step.</span>
 <span id="cb29-64"><a href="#cb29-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-65"><a href="#cb29-65" aria-hidden="true" tabindex="-1"></a>We can manually conduct the two steps, but the nice thing about using Stata's teffects is that it takes account of the noise of estimating probability in the first step when calculating standard errors in the second step.</span>
-<span id="cb29-66"><a href="#cb29-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-67"><a href="#cb29-67" aria-hidden="true" tabindex="-1"></a><span class="fu">#### example</span></span>
-<span id="cb29-70"><a href="#cb29-70" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-71"><a href="#cb29-71" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk3</span></span>
-<span id="cb29-72"><a href="#cb29-72" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-73"><a href="#cb29-73" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-74"><a href="#cb29-74" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-75"><a href="#cb29-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-76"><a href="#cb29-76" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-77"><a href="#cb29-77" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
-<span id="cb29-78"><a href="#cb29-78" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ipw</span> (bweight) (mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu, probit)</span></span>
-<span id="cb29-79"><a href="#cb29-79" aria-hidden="true" tabindex="-1"></a>probit mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu</span></span>
-<span id="cb29-80"><a href="#cb29-80" aria-hidden="true" tabindex="-1"></a>predict ps</span>
-<span id="cb29-81"><a href="#cb29-81" aria-hidden="true" tabindex="-1"></a>replace <span class="at">ps =</span> <span class="dv">1</span><span class="sc">/</span>ps <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">1</span></span>
-<span id="cb29-82"><a href="#cb29-82" aria-hidden="true" tabindex="-1"></a>replace <span class="at">ps =</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>ps) <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">0</span></span>
-<span id="cb29-83"><a href="#cb29-83" aria-hidden="true" tabindex="-1"></a>reg bweight mbsmoke [<span class="at">pweight=</span>ps]</span>
-<span id="cb29-84"><a href="#cb29-84" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-65"><a href="#cb29-65" aria-hidden="true" tabindex="-1"></a><span class="fu">#### example</span></span>
+<span id="cb29-68"><a href="#cb29-68" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-69"><a href="#cb29-69" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk3</span></span>
+<span id="cb29-70"><a href="#cb29-70" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-71"><a href="#cb29-71" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-72"><a href="#cb29-72" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-73"><a href="#cb29-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-74"><a href="#cb29-74" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-75"><a href="#cb29-75" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
+<span id="cb29-76"><a href="#cb29-76" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ipw</span> (bweight) (mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu, probit)</span></span>
+<span id="cb29-77"><a href="#cb29-77" aria-hidden="true" tabindex="-1"></a>probit mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu</span></span>
+<span id="cb29-78"><a href="#cb29-78" aria-hidden="true" tabindex="-1"></a>predict ps</span>
+<span id="cb29-79"><a href="#cb29-79" aria-hidden="true" tabindex="-1"></a>replace <span class="at">ps =</span> <span class="dv">1</span><span class="sc">/</span>ps <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">1</span></span>
+<span id="cb29-80"><a href="#cb29-80" aria-hidden="true" tabindex="-1"></a>replace <span class="at">ps =</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>ps) <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">0</span></span>
+<span id="cb29-81"><a href="#cb29-81" aria-hidden="true" tabindex="-1"></a>reg bweight mbsmoke [<span class="at">pweight=</span>ps]</span>
+<span id="cb29-82"><a href="#cb29-82" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-83"><a href="#cb29-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-84"><a href="#cb29-84" aria-hidden="true" tabindex="-1"></a><span class="at">The manual two-step replication matches the point estimate; the only difference is the standard error (the manual version does not account for first-stage estimation noise).</span></span>
 <span id="cb29-85"><a href="#cb29-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-86"><a href="#cb29-86" aria-hidden="true" tabindex="-1"></a><span class="at">In the above example, we run teffects ipw and then manually replicate the two steps.  The only thing different is the standard error for the treatment effect.</span></span>
+<span id="cb29-86"><a href="#cb29-86" aria-hidden="true" tabindex="-1"></a><span class="at">### Doubly robust estimators</span></span>
 <span id="cb29-87"><a href="#cb29-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-88"><a href="#cb29-88" aria-hidden="true" tabindex="-1"></a><span class="at">### Doubly robust estimators</span></span>
+<span id="cb29-88"><a href="#cb29-88" aria-hidden="true" tabindex="-1"></a><span class="at">RA models the outcome; IPW models the treatment assignment. Doubly-robust estimators model both, requiring only one to be correctly specified.</span></span>
 <span id="cb29-89"><a href="#cb29-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-90"><a href="#cb29-90" aria-hidden="true" tabindex="-1"></a><span class="at">RA estimator estimates the outcome directly, IPW estimates the treatment assignment.  There is also a group of estimators called doubly-robust estimators.  They estimate both stages, and only require one of these stages to be correctly specified.</span></span>
+<span id="cb29-90"><a href="#cb29-90" aria-hidden="true" tabindex="-1"></a><span class="at">Stata implements the AIPW combination of Robins and Rotnitzky (1995) and the IPWRA combination of Wooldridge (2010).</span></span>
 <span id="cb29-91"><a href="#cb29-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-92"><a href="#cb29-92" aria-hidden="true" tabindex="-1"></a><span class="at">Stata implemented the augmented-IPW (AIPW) combination proposed by Robins and Rotnitzky (1995) and the IPW-regression-adjustment (IPWRA) combination proposed by Wooldridge (2010).</span></span>
+<span id="cb29-92"><a href="#cb29-92" aria-hidden="true" tabindex="-1"></a><span class="at">The AIPW estimator augments the IPW estimator with a correction term built from the outcome model. Double robustness is best stated as a **consistency** property: AIPW is consistent if *either* the treatment model *or* the outcome model is correctly specified (not necessarily both). It is *not* that the correction term literally "goes to zero" when the treatment model is right and the outcome model is wrong — with a misspecified outcome model the correction term does not generally vanish. Rather, the two pieces are constructed so that the estimator's bias cancels in the limit as long as one of the two models is right.</span></span>
 <span id="cb29-93"><a href="#cb29-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-94"><a href="#cb29-94" aria-hidden="true" tabindex="-1"></a><span class="at">The AIPW estimator augments the IPW estimator with a correction term built from the outcome model. Double robustness is best stated as a **consistency** property: AIPW is consistent if *either* the treatment model *or* the outcome model is correctly specified (not necessarily both). It is *not* that the correction term literally "goes to zero" when the treatment model is right and the outcome model is wrong — with a misspecified outcome model the correction term does not generally vanish. Rather, the two pieces are constructed so that the estimator's bias cancels in the limit as long as one of the two models is right.</span></span>
+<span id="cb29-94"><a href="#cb29-94" aria-hidden="true" tabindex="-1"></a><span class="at">The IPWRA estimator uses IPW probability weights when performing RA. The weights do not affect the accuracy of the RA estimator if the treatment model is wrong and the outcome model is correct. The weights correct the RA estimator if the treatment model is correct and the outcome model is wrong.</span></span>
 <span id="cb29-95"><a href="#cb29-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-96"><a href="#cb29-96" aria-hidden="true" tabindex="-1"></a><span class="at">The IPWRA estimator uses IPW probability weights when performing RA. The weights do not affect the accuracy of the RA estimator if the treatment model is wrong and the outcome model is correct. The weights correct the RA estimator if the treatment model is correct and the outcome model is wrong.</span></span>
+<span id="cb29-96"><a href="#cb29-96" aria-hidden="true" tabindex="-1"></a><span class="at">Here we run the two commands, then manually replicate both as a two-step ("plug-in") procedure. </span><span class="st">`</span>teffects<span class="st">`</span><span class="at"> estimates the treatment and outcome models jointly by GMM/ML, using the joint estimation to get standard errors that account for first-stage estimation noise; the manual two-step version below gets essentially the same point estimate but not the correct standard errors (for the same reason noted above for IPW).</span></span>
 <span id="cb29-97"><a href="#cb29-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-98"><a href="#cb29-98" aria-hidden="true" tabindex="-1"></a><span class="at">Here we run the two commands, then manually replicate both as a two-step ("plug-in") procedure. </span><span class="st">`</span>teffects<span class="st">`</span><span class="at"> estimates the treatment and outcome models jointly by GMM/ML, using the joint estimation to get standard errors that account for first-stage estimation noise; the manual two-step version below gets essentially the same point estimate but not the correct standard errors (for the same reason noted above for IPW).</span></span>
-<span id="cb29-99"><a href="#cb29-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-102"><a href="#cb29-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-103"><a href="#cb29-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk4</span></span>
-<span id="cb29-104"><a href="#cb29-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-105"><a href="#cb29-105" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-106"><a href="#cb29-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-107"><a href="#cb29-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-108"><a href="#cb29-108" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-109"><a href="#cb29-109" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
-<span id="cb29-110"><a href="#cb29-110" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ipwra</span> (bweight mmarried mage prenatal1 fbaby)  (mbsmoke mmarried mage prenatal1 fbaby)</span>
-<span id="cb29-111"><a href="#cb29-111" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">aipw</span> (bweight mmarried mage prenatal1 fbaby) (mbsmoke mmarried mage prenatal1 fbaby)</span>
-<span id="cb29-112"><a href="#cb29-112" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-100"><a href="#cb29-100" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-101"><a href="#cb29-101" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk4</span></span>
+<span id="cb29-102"><a href="#cb29-102" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-103"><a href="#cb29-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-104"><a href="#cb29-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-105"><a href="#cb29-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-106"><a href="#cb29-106" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-107"><a href="#cb29-107" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
+<span id="cb29-108"><a href="#cb29-108" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">ipwra</span> (bweight mmarried mage prenatal1 fbaby)  (mbsmoke mmarried mage prenatal1 fbaby)</span>
+<span id="cb29-109"><a href="#cb29-109" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">aipw</span> (bweight mmarried mage prenatal1 fbaby) (mbsmoke mmarried mage prenatal1 fbaby)</span>
+<span id="cb29-110"><a href="#cb29-110" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-111"><a href="#cb29-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-112"><a href="#cb29-112" aria-hidden="true" tabindex="-1"></a><span class="at">**Manual IPWRA:** first estimate the propensity score, then run *weighted* regression adjustment within each treatment arm, using the inverse probability of the *observed* treatment status as weights:</span></span>
 <span id="cb29-113"><a href="#cb29-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-114"><a href="#cb29-114" aria-hidden="true" tabindex="-1"></a><span class="at">**Manual IPWRA:** first estimate the propensity score, then run *weighted* regression adjustment within each treatment arm, using the inverse probability of the *observed* treatment status as weights:</span></span>
-<span id="cb29-115"><a href="#cb29-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-118"><a href="#cb29-118" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-119"><a href="#cb29-119" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk4b</span></span>
-<span id="cb29-120"><a href="#cb29-120" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-121"><a href="#cb29-121" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-122"><a href="#cb29-122" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-123"><a href="#cb29-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-124"><a href="#cb29-124" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-125"><a href="#cb29-125" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
-<span id="cb29-126"><a href="#cb29-126" aria-hidden="true" tabindex="-1"></a>logit mbsmoke mmarried mage prenatal1 fbaby</span>
-<span id="cb29-127"><a href="#cb29-127" aria-hidden="true" tabindex="-1"></a>predict ps</span>
-<span id="cb29-128"><a href="#cb29-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-129"><a href="#cb29-129" aria-hidden="true" tabindex="-1"></a>gen <span class="at">wgt1 =</span> mbsmoke<span class="sc">/</span>ps</span>
-<span id="cb29-130"><a href="#cb29-130" aria-hidden="true" tabindex="-1"></a>gen <span class="at">wgt0 =</span> (<span class="dv">1</span><span class="sc">-</span>mbsmoke)<span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>ps)</span>
-<span id="cb29-131"><a href="#cb29-131" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">1</span> [<span class="at">pweight=</span>wgt1]</span>
-<span id="cb29-132"><a href="#cb29-132" aria-hidden="true" tabindex="-1"></a>predict mu1_ipwra</span>
-<span id="cb29-133"><a href="#cb29-133" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">0</span> [<span class="at">pweight=</span>wgt0]</span>
-<span id="cb29-134"><a href="#cb29-134" aria-hidden="true" tabindex="-1"></a>predict mu0_ipwra</span>
-<span id="cb29-135"><a href="#cb29-135" aria-hidden="true" tabindex="-1"></a>gen <span class="at">tau_ipwra_i =</span> mu1_ipwra <span class="sc">-</span> mu0_ipwra</span>
-<span id="cb29-136"><a href="#cb29-136" aria-hidden="true" tabindex="-1"></a>sum tau_ipwra_i</span>
-<span id="cb29-137"><a href="#cb29-137" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-116"><a href="#cb29-116" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-117"><a href="#cb29-117" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk4b</span></span>
+<span id="cb29-118"><a href="#cb29-118" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-119"><a href="#cb29-119" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-120"><a href="#cb29-120" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-121"><a href="#cb29-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-122"><a href="#cb29-122" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-123"><a href="#cb29-123" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
+<span id="cb29-124"><a href="#cb29-124" aria-hidden="true" tabindex="-1"></a>logit mbsmoke mmarried mage prenatal1 fbaby</span>
+<span id="cb29-125"><a href="#cb29-125" aria-hidden="true" tabindex="-1"></a>predict ps</span>
+<span id="cb29-126"><a href="#cb29-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-127"><a href="#cb29-127" aria-hidden="true" tabindex="-1"></a>gen <span class="at">wgt1 =</span> mbsmoke<span class="sc">/</span>ps</span>
+<span id="cb29-128"><a href="#cb29-128" aria-hidden="true" tabindex="-1"></a>gen <span class="at">wgt0 =</span> (<span class="dv">1</span><span class="sc">-</span>mbsmoke)<span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>ps)</span>
+<span id="cb29-129"><a href="#cb29-129" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">1</span> [<span class="at">pweight=</span>wgt1]</span>
+<span id="cb29-130"><a href="#cb29-130" aria-hidden="true" tabindex="-1"></a>predict mu1_ipwra</span>
+<span id="cb29-131"><a href="#cb29-131" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">0</span> [<span class="at">pweight=</span>wgt0]</span>
+<span id="cb29-132"><a href="#cb29-132" aria-hidden="true" tabindex="-1"></a>predict mu0_ipwra</span>
+<span id="cb29-133"><a href="#cb29-133" aria-hidden="true" tabindex="-1"></a>gen <span class="at">tau_ipwra_i =</span> mu1_ipwra <span class="sc">-</span> mu0_ipwra</span>
+<span id="cb29-134"><a href="#cb29-134" aria-hidden="true" tabindex="-1"></a>sum tau_ipwra_i</span>
+<span id="cb29-135"><a href="#cb29-135" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-136"><a href="#cb29-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-137"><a href="#cb29-137" aria-hidden="true" tabindex="-1"></a><span class="at">The mean of </span><span class="st">`</span>tau_ipwra_i<span class="st">`</span><span class="at"> matches </span><span class="st">`</span>teffects ipwra<span class="st">`</span><span class="at">'s ATE.</span></span>
 <span id="cb29-138"><a href="#cb29-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-139"><a href="#cb29-139" aria-hidden="true" tabindex="-1"></a><span class="at">The mean of </span><span class="st">`</span>tau_ipwra_i<span class="st">`</span><span class="at"> matches </span><span class="st">`</span>teffects ipwra<span class="st">`</span><span class="at">'s ATE.</span></span>
-<span id="cb29-140"><a href="#cb29-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-141"><a href="#cb29-141" aria-hidden="true" tabindex="-1"></a><span class="at">**Manual AIPW:** estimate outcome models $\hat\mu_1(X)$, $\hat\mu_0(X)$ (unweighted, one per arm) and the propensity score $\hat p(X)$, then combine via the augmented-IPW formula</span></span>
-<span id="cb29-142"><a href="#cb29-142" aria-hidden="true" tabindex="-1"></a><span class="at">$$ \hat</span><span class="sc">\t</span><span class="at">au_{i}^{aipw} = D_i</span><span class="sc">\f</span><span class="at">rac{Y_i-\hat\mu_1(X_i)}{\hat p(X_i)} + \hat\mu_1(X_i) - (1-D_i)</span><span class="sc">\f</span><span class="at">rac{Y_i-\hat\mu_0(X_i)}{1-\hat p(X_i)} - \hat\mu_0(X_i) $$ {#eq-treatment-matching-1}</span></span>
-<span id="cb29-143"><a href="#cb29-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-146"><a href="#cb29-146" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-147"><a href="#cb29-147" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk4c</span></span>
-<span id="cb29-148"><a href="#cb29-148" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-149"><a href="#cb29-149" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-150"><a href="#cb29-150" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-151"><a href="#cb29-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-152"><a href="#cb29-152" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-153"><a href="#cb29-153" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
-<span id="cb29-154"><a href="#cb29-154" aria-hidden="true" tabindex="-1"></a>logit mbsmoke mmarried mage prenatal1 fbaby</span>
-<span id="cb29-155"><a href="#cb29-155" aria-hidden="true" tabindex="-1"></a>predict ps</span>
-<span id="cb29-156"><a href="#cb29-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-157"><a href="#cb29-157" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">1</span></span>
-<span id="cb29-158"><a href="#cb29-158" aria-hidden="true" tabindex="-1"></a>predict mu1_aipw</span>
-<span id="cb29-159"><a href="#cb29-159" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">0</span></span>
-<span id="cb29-160"><a href="#cb29-160" aria-hidden="true" tabindex="-1"></a>predict mu0_aipw</span>
-<span id="cb29-161"><a href="#cb29-161" aria-hidden="true" tabindex="-1"></a>gen <span class="at">aipw_i =</span> mbsmoke<span class="sc">*</span>(bweight<span class="sc">-</span>mu1_aipw)<span class="sc">/</span>ps <span class="sc">+</span> mu1_aipw <span class="sc">-</span> (<span class="dv">1</span><span class="sc">-</span>mbsmoke)<span class="sc">*</span>(bweight<span class="sc">-</span>mu0_aipw)<span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>ps) <span class="sc">-</span> mu0_aipw</span>
-<span id="cb29-162"><a href="#cb29-162" aria-hidden="true" tabindex="-1"></a>sum aipw_i</span>
-<span id="cb29-163"><a href="#cb29-163" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-139"><a href="#cb29-139" aria-hidden="true" tabindex="-1"></a><span class="at">**Manual AIPW:** estimate outcome models $\hat\mu_1(X)$, $\hat\mu_0(X)$ (unweighted, one per arm) and the propensity score $\hat p(X)$, then combine via the augmented-IPW formula</span></span>
+<span id="cb29-140"><a href="#cb29-140" aria-hidden="true" tabindex="-1"></a><span class="at">$$ \hat</span><span class="sc">\t</span><span class="at">au_{i}^{aipw} = D_i</span><span class="sc">\f</span><span class="at">rac{Y_i-\hat\mu_1(X_i)}{\hat p(X_i)} + \hat\mu_1(X_i) - (1-D_i)</span><span class="sc">\f</span><span class="at">rac{Y_i-\hat\mu_0(X_i)}{1-\hat p(X_i)} - \hat\mu_0(X_i) $$ {#eq-treatment-matching-1}</span></span>
+<span id="cb29-141"><a href="#cb29-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-144"><a href="#cb29-144" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-145"><a href="#cb29-145" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk4c</span></span>
+<span id="cb29-146"><a href="#cb29-146" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-147"><a href="#cb29-147" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-148"><a href="#cb29-148" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-149"><a href="#cb29-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-150"><a href="#cb29-150" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-151"><a href="#cb29-151" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
+<span id="cb29-152"><a href="#cb29-152" aria-hidden="true" tabindex="-1"></a>logit mbsmoke mmarried mage prenatal1 fbaby</span>
+<span id="cb29-153"><a href="#cb29-153" aria-hidden="true" tabindex="-1"></a>predict ps</span>
+<span id="cb29-154"><a href="#cb29-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-155"><a href="#cb29-155" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">1</span></span>
+<span id="cb29-156"><a href="#cb29-156" aria-hidden="true" tabindex="-1"></a>predict mu1_aipw</span>
+<span id="cb29-157"><a href="#cb29-157" aria-hidden="true" tabindex="-1"></a>reg bweight mmarried mage prenatal1 fbaby <span class="cf">if</span> mbsmoke<span class="sc">==</span><span class="dv">0</span></span>
+<span id="cb29-158"><a href="#cb29-158" aria-hidden="true" tabindex="-1"></a>predict mu0_aipw</span>
+<span id="cb29-159"><a href="#cb29-159" aria-hidden="true" tabindex="-1"></a>gen <span class="at">aipw_i =</span> mbsmoke<span class="sc">*</span>(bweight<span class="sc">-</span>mu1_aipw)<span class="sc">/</span>ps <span class="sc">+</span> mu1_aipw <span class="sc">-</span> (<span class="dv">1</span><span class="sc">-</span>mbsmoke)<span class="sc">*</span>(bweight<span class="sc">-</span>mu0_aipw)<span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>ps) <span class="sc">-</span> mu0_aipw</span>
+<span id="cb29-160"><a href="#cb29-160" aria-hidden="true" tabindex="-1"></a>sum aipw_i</span>
+<span id="cb29-161"><a href="#cb29-161" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-162"><a href="#cb29-162" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-163"><a href="#cb29-163" aria-hidden="true" tabindex="-1"></a><span class="at">The mean of </span><span class="st">`</span>aipw_i<span class="st">`</span><span class="at"> is close to </span><span class="st">`</span>teffects aipw<span class="st">`</span><span class="at">'s ATE (small differences are expected: </span><span class="st">`</span>teffects<span class="st">`</span><span class="at"> estimates the treatment and outcome models jointly by ML, while this is a two-step plug-in version).</span></span>
 <span id="cb29-164"><a href="#cb29-164" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-165"><a href="#cb29-165" aria-hidden="true" tabindex="-1"></a><span class="at">The mean of </span><span class="st">`</span>aipw_i<span class="st">`</span><span class="at"> is close to </span><span class="st">`</span>teffects aipw<span class="st">`</span><span class="at">'s ATE (small differences are expected: </span><span class="st">`</span>teffects<span class="st">`</span><span class="at"> estimates the treatment and outcome models jointly by ML, while this is a two-step plug-in version).</span></span>
+<span id="cb29-165"><a href="#cb29-165" aria-hidden="true" tabindex="-1"></a><span class="at">## Matching</span></span>
 <span id="cb29-166"><a href="#cb29-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-167"><a href="#cb29-167" aria-hidden="true" tabindex="-1"></a><span class="at">## Matching</span></span>
+<span id="cb29-167"><a href="#cb29-167" aria-hidden="true" tabindex="-1"></a><span class="at">Matching does not solve the endogeneity problem. It addresses selection on observables only; with unobserved confounders it does not help.</span></span>
 <span id="cb29-168"><a href="#cb29-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-169"><a href="#cb29-169" aria-hidden="true" tabindex="-1"></a><span class="at">First let's emphasize that matching usually does not deal with endogenous treatment problem.  Some people have the wrong impression that matching resolves the endogeneity problem, but in fact it only helps for selection on observables.  If you have selection on unobservables, or unobserved confounders, matching does not help.</span></span>
+<span id="cb29-169"><a href="#cb29-169" aria-hidden="true" tabindex="-1"></a><span class="at">What matching does is balance the covariate distributions across treatment and control groups. Regression does this too, but matching makes the lack of overlap visible — a plain regression can extrapolate far outside the support without warning. Running regression on a matched sample combines the strengths of both approaches.</span></span>
 <span id="cb29-170"><a href="#cb29-170" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-171"><a href="#cb29-171" aria-hidden="true" tabindex="-1"></a><span class="at">Matching aims to balance the distribution of covariates in the treatment and control groups.  That's all it does, to make comparisons between apples, not apples to oranges.  In that sense, regression does that too.  We use regression to adjust for differences between treatment and control.  However, regression sometimes rely on extrapolation too much, when data do not overlap between treatment and control.  It's not that matching can do magic on non-overlapping data, but it can make it clear that how bad the non-overlapping problem is.  Simply running regression blindly will not have the researchers realize the non-overlapping problem.  Combining matching with regression is probably a better idea.  That is, running regression on matched sample is recommended.</span></span>
+<span id="cb29-171"><a href="#cb29-171" aria-hidden="true" tabindex="-1"></a><span class="at">Below we cover three matching methods in Stata: propensity score matching, nearest-neighbor matching, and coarsened exact matching.</span></span>
 <span id="cb29-172"><a href="#cb29-172" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-173"><a href="#cb29-173" aria-hidden="true" tabindex="-1"></a><span class="at">Here we introduced a few popular matching methods implemented in Stata, namely nnmatch, psmatch, and cem.</span></span>
+<span id="cb29-173"><a href="#cb29-173" aria-hidden="true" tabindex="-1"></a><span class="at">### Propensity score matching</span></span>
 <span id="cb29-174"><a href="#cb29-174" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-175"><a href="#cb29-175" aria-hidden="true" tabindex="-1"></a><span class="at">### Propensity score matching</span></span>
+<span id="cb29-175"><a href="#cb29-175" aria-hidden="true" tabindex="-1"></a><span class="at">Exact matching on all covariates is ideal but infeasible in high dimensions. Rosenbaum and Rubin (1983) showed that the propensity score provides a scalar sufficient statistic, reducing the matching problem to one dimension.</span></span>
 <span id="cb29-176"><a href="#cb29-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-177"><a href="#cb29-177" aria-hidden="true" tabindex="-1"></a><span class="at">The ideal situation of matching is exact matching; that is, treatment and control units can match to each other with exactly the same value of all covariates.  This is often not possible, as the number of covariates increase and if they are not discrete.  In high dimension (many covariates to match), it is very hard or even impossible to find exact matches.  Therefore, how to reduce from high dimension to low dimension is key.  Rosenbaum and Rubin 1983 proved that propensity score provides the one-dimension representation of high-dimension of covariates.  Therefore, we only need to find matches based on propensity scores.</span></span>
+<span id="cb29-177"><a href="#cb29-177" aria-hidden="true" tabindex="-1"></a><span class="at">Stata's </span><span class="st">`</span>teffects psmatch<span class="st">`</span><span class="at"> and </span><span class="st">`</span>psmatch2<span class="st">`</span><span class="at"> both estimate the propensity score, match, and compute the treatment effect with correct standard errors in one step.</span></span>
 <span id="cb29-178"><a href="#cb29-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-179"><a href="#cb29-179" aria-hidden="true" tabindex="-1"></a><span class="at">In Stata, teffects psmatch can do estimation after matching on propensity scores.  Stata's psmatch2 command has been popular for propensity score matching too.  The nice thing of these commands is that it does two steps in one command: first it estimate the logit or probit model for propensity score, then match the treatment and control groups, then estimate the outcome equation on matched sample.  The standard errors are correct based on all these steps.  If we do this manually, standard errors will not be correct.</span></span>
-<span id="cb29-180"><a href="#cb29-180" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-181"><a href="#cb29-181" aria-hidden="true" tabindex="-1"></a><span class="at">#### example</span></span>
-<span id="cb29-182"><a href="#cb29-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-185"><a href="#cb29-185" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-186"><a href="#cb29-186" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk5</span></span>
-<span id="cb29-187"><a href="#cb29-187" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-188"><a href="#cb29-188" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-189"><a href="#cb29-189" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-190"><a href="#cb29-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-191"><a href="#cb29-191" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-192"><a href="#cb29-192" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
-<span id="cb29-193"><a href="#cb29-193" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">psmatch</span> (bweight) (mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu), atet</span></span>
-<span id="cb29-194"><a href="#cb29-194" aria-hidden="true" tabindex="-1"></a>psmatch2 mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu, logit ties</span></span>
-<span id="cb29-195"><a href="#cb29-195" aria-hidden="true" tabindex="-1"></a>reg bweight mbsmoke   [<span class="at">aweight=</span>_weight]</span>
+<span id="cb29-181"><a href="#cb29-181" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-182"><a href="#cb29-182" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk5</span></span>
+<span id="cb29-183"><a href="#cb29-183" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-184"><a href="#cb29-184" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-185"><a href="#cb29-185" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-186"><a href="#cb29-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-187"><a href="#cb29-187" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-188"><a href="#cb29-188" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
+<span id="cb29-189"><a href="#cb29-189" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">psmatch</span> (bweight) (mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu), atet</span></span>
+<span id="cb29-190"><a href="#cb29-190" aria-hidden="true" tabindex="-1"></a>psmatch2 mbsmoke mmarried c.mage<span class="do">##c.mage fbaby medu, logit ties</span></span>
+<span id="cb29-191"><a href="#cb29-191" aria-hidden="true" tabindex="-1"></a>reg bweight mbsmoke   [<span class="at">aweight=</span>_weight]</span>
+<span id="cb29-192"><a href="#cb29-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-193"><a href="#cb29-193" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-194"><a href="#cb29-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-195"><a href="#cb29-195" aria-hidden="true" tabindex="-1"></a><span class="st">`</span>teffects psmatch<span class="st">`</span><span class="at"> gives the ATT of smoking on birthweight. The manual replication uses </span><span class="st">`</span>psmatch2<span class="st">`</span><span class="at"> with </span><span class="st">`</span>logit<span class="st">`</span><span class="at"> and </span><span class="st">`</span>ties<span class="st">`</span><span class="at"> (by default </span><span class="st">`</span>teffects<span class="st">`</span><span class="at"> includes all tied matches, while </span><span class="st">`</span>psmatch2<span class="st">`</span><span class="at"> keeps only one), then runs a weighted regression. Point estimates match; standard errors should be taken from </span><span class="st">`</span>teffects<span class="st">`</span><span class="at">.</span></span>
 <span id="cb29-196"><a href="#cb29-196" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-197"><a href="#cb29-197" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-197"><a href="#cb29-197" aria-hidden="true" tabindex="-1"></a><span class="at">### Nearest neighbor matching</span></span>
 <span id="cb29-198"><a href="#cb29-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-199"><a href="#cb29-199" aria-hidden="true" tabindex="-1"></a><span class="at">In the above example, suppose we are interesting in mbsmoke's effect on bweight.  If we match smoking mothers with non-smoking mothers, by age, first baby, and education, the the teffects psmatch gives us the treatment effect on the treated.  We can do this in two steps.  First, by psmatch2 we generate _weight, which is a number for how many times a control unit is used to match to a treatment unit.  Notice that to match teffects result, we use logit, and ties option.  By default, teffects psmatch includes all ties (control units that have the same propensity scores that are close enough), but psmatch2 by default only include one.  Then in the second step, we run a regression with _weight as the weight.  Notice the standard errors will differ.  We should use the standard errors reported in teffects.</span></span>
+<span id="cb29-199"><a href="#cb29-199" aria-hidden="true" tabindex="-1"></a><span class="st">`</span>teffects nnmatch<span class="st">`</span><span class="at"> uses Mahalanobis distance by default and can also enforce exact matching on discrete covariates. It is nonparametric.</span></span>
 <span id="cb29-200"><a href="#cb29-200" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-201"><a href="#cb29-201" aria-hidden="true" tabindex="-1"></a><span class="at">### Nearest neighbor matching</span></span>
-<span id="cb29-202"><a href="#cb29-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-203"><a href="#cb29-203" aria-hidden="true" tabindex="-1"></a><span class="at">Stata has the nnmatch option for teffects.  nnmatch by default uses Mahalanobis distance, it can also specify to have exact matching.  The advantage is this is nonparametric.</span></span>
-<span id="cb29-204"><a href="#cb29-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-205"><a href="#cb29-205" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-208"><a href="#cb29-208" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-209"><a href="#cb29-209" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk6</span></span>
-<span id="cb29-210"><a href="#cb29-210" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-211"><a href="#cb29-211" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-212"><a href="#cb29-212" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-213"><a href="#cb29-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-214"><a href="#cb29-214" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-215"><a href="#cb29-215" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
-<span id="cb29-216"><a href="#cb29-216" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">nnmatch</span>  (bweight mmarried mage fbaby medu) (mbsmoke) , atet</span>
-<span id="cb29-217"><a href="#cb29-217" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">psmatch</span> (bweight) (mbsmoke mmarried mage fbaby medu), atet</span>
-<span id="cb29-218"><a href="#cb29-218" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-219"><a href="#cb29-219" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
-<span id="cb29-220"><a href="#cb29-220" aria-hidden="true" tabindex="-1"></a><span class="at">Notice the specification is different in these two models.</span></span>
+<span id="cb29-201"><a href="#cb29-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-204"><a href="#cb29-204" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-205"><a href="#cb29-205" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk6</span></span>
+<span id="cb29-206"><a href="#cb29-206" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-207"><a href="#cb29-207" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-208"><a href="#cb29-208" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-209"><a href="#cb29-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-210"><a href="#cb29-210" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-211"><a href="#cb29-211" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
+<span id="cb29-212"><a href="#cb29-212" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">nnmatch</span>  (bweight mmarried mage fbaby medu) (mbsmoke) , atet</span>
+<span id="cb29-213"><a href="#cb29-213" aria-hidden="true" tabindex="-1"></a>teffects <span class="fu">psmatch</span> (bweight) (mbsmoke mmarried mage fbaby medu), atet</span>
+<span id="cb29-214"><a href="#cb29-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-215"><a href="#cb29-215" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-216"><a href="#cb29-216" aria-hidden="true" tabindex="-1"></a><span class="at">Note the specification difference: </span><span class="st">`</span>nnmatch<span class="st">`</span><span class="at"> lists covariates in the outcome parentheses, </span><span class="st">`</span>psmatch<span class="st">`</span><span class="at"> lists them in the treatment parentheses.</span></span>
+<span id="cb29-217"><a href="#cb29-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-218"><a href="#cb29-218" aria-hidden="true" tabindex="-1"></a><span class="at">### Coarsened Exact Matching (CEM)</span></span>
+<span id="cb29-219"><a href="#cb29-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-220"><a href="#cb29-220" aria-hidden="true" tabindex="-1"></a><span class="at">CEM is available as a separate Stata package.</span></span>
 <span id="cb29-221"><a href="#cb29-221" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-222"><a href="#cb29-222" aria-hidden="true" tabindex="-1"></a><span class="at">### Coarsened Exact Matching (CEM)</span></span>
-<span id="cb29-223"><a href="#cb29-223" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-224"><a href="#cb29-224" aria-hidden="true" tabindex="-1"></a><span class="at">CEM is not part of teffects.  But Stata does have cem package implemented.</span></span>
-<span id="cb29-225"><a href="#cb29-225" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-228"><a href="#cb29-228" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-229"><a href="#cb29-229" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk7</span></span>
-<span id="cb29-230"><a href="#cb29-230" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb29-231"><a href="#cb29-231" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb29-232"><a href="#cb29-232" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-233"><a href="#cb29-233" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-234"><a href="#cb29-234" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb29-235"><a href="#cb29-235" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
-<span id="cb29-236"><a href="#cb29-236" aria-hidden="true" tabindex="-1"></a>cem  mmarried mage fbaby medu, <span class="fu">treatment</span>(mbsmoke)</span>
-<span id="cb29-237"><a href="#cb29-237" aria-hidden="true" tabindex="-1"></a>reg bweight mbsmoke   [<span class="at">aweight=</span>cem_weights]</span>
-<span id="cb29-238"><a href="#cb29-238" aria-hidden="true" tabindex="-1"></a><span class="sc">*</span> Note<span class="sc">:</span> cem creates the variable <span class="st">"cem_weights"</span> (plural). We spell it out</span>
-<span id="cb29-239"><a href="#cb29-239" aria-hidden="true" tabindex="-1"></a><span class="sc">*</span> <span class="cf">in</span> full here rather than relying on Stata<span class="st">'s automatic variable-name</span></span>
-<span id="cb29-240"><a href="#cb29-240" aria-hidden="true" tabindex="-1"></a><span class="st">* abbreviation matching, to keep the reference unambiguous.</span></span>
+<span id="cb29-224"><a href="#cb29-224" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-225"><a href="#cb29-225" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk7</span></span>
+<span id="cb29-226"><a href="#cb29-226" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb29-227"><a href="#cb29-227" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb29-228"><a href="#cb29-228" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-229"><a href="#cb29-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-230"><a href="#cb29-230" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb29-231"><a href="#cb29-231" aria-hidden="true" tabindex="-1"></a>webuse cattaneo2</span>
+<span id="cb29-232"><a href="#cb29-232" aria-hidden="true" tabindex="-1"></a>cem  mmarried mage fbaby medu, <span class="fu">treatment</span>(mbsmoke)</span>
+<span id="cb29-233"><a href="#cb29-233" aria-hidden="true" tabindex="-1"></a>reg bweight mbsmoke   [<span class="at">aweight=</span>cem_weights]</span>
+<span id="cb29-234"><a href="#cb29-234" aria-hidden="true" tabindex="-1"></a><span class="sc">*</span> Note<span class="sc">:</span> cem creates the variable <span class="st">"cem_weights"</span> (plural). We spell it out</span>
+<span id="cb29-235"><a href="#cb29-235" aria-hidden="true" tabindex="-1"></a><span class="sc">*</span> <span class="cf">in</span> full here rather than relying on Stata<span class="st">'s automatic variable-name</span></span>
+<span id="cb29-236"><a href="#cb29-236" aria-hidden="true" tabindex="-1"></a><span class="st">* abbreviation matching, to keep the reference unambiguous.</span></span>
+<span id="cb29-237"><a href="#cb29-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-238"><a href="#cb29-238" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-239"><a href="#cb29-239" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-240"><a href="#cb29-240" aria-hidden="true" tabindex="-1"></a><span class="st">CEM creates exact-match strata on coarsened covariates and generates weights for the final regression. The standard errors do not account for the matching step.</span></span>
 <span id="cb29-241"><a href="#cb29-241" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-242"><a href="#cb29-242" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-242"><a href="#cb29-242" aria-hidden="true" tabindex="-1"></a><span class="st">## Modern matching in R: balance diagnostics and entropy weighting</span></span>
 <span id="cb29-243"><a href="#cb29-243" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-244"><a href="#cb29-244" aria-hidden="true" tabindex="-1"></a><span class="st">In the above example, we use CEM on the same covariates, then apply weights in the final regression.  The disadvantage is that we have not accounted for the noise in calculating those weights.</span></span>
-<span id="cb29-245"><a href="#cb29-245" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-246"><a href="#cb29-246" aria-hidden="true" tabindex="-1"></a><span class="st">## Modern matching in R: balance diagnostics and entropy weighting</span></span>
-<span id="cb29-247"><a href="#cb29-247" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-248"><a href="#cb29-248" aria-hidden="true" tabindex="-1"></a><span class="st">The 2019 vintage of this chapter used Stata'</span>s <span class="st">`</span><span class="at">teffects</span><span class="st">`</span> throughout. R<span class="st">'s</span></span>
-<span id="cb29-249"><a href="#cb29-249" aria-hidden="true" tabindex="-1"></a><span class="st">`MatchIt` and `WeightIt` packages have since become the standard for matching</span></span>
-<span id="cb29-250"><a href="#cb29-250" aria-hidden="true" tabindex="-1"></a><span class="st">workflows, and `cobalt` provides publication-quality balance tables and plots</span></span>
-<span id="cb29-251"><a href="#cb29-251" aria-hidden="true" tabindex="-1"></a><span class="st">that are now expected in applied papers.</span></span>
-<span id="cb29-252"><a href="#cb29-252" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-253"><a href="#cb29-253" aria-hidden="true" tabindex="-1"></a><span class="st">### Balance checking with cobalt</span></span>
-<span id="cb29-254"><a href="#cb29-254" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-255"><a href="#cb29-255" aria-hidden="true" tabindex="-1"></a><span class="st">After any matching or weighting step, always inspect covariate balance.</span></span>
-<span id="cb29-256"><a href="#cb29-256" aria-hidden="true" tabindex="-1"></a><span class="st">`cobalt`'</span>s <span class="st">`</span><span class="at">bal.tab()</span><span class="st">`</span> and <span class="st">`</span><span class="at">love.plot()</span><span class="st">`</span> are the go<span class="sc">-</span>to tools<span class="sc">:</span></span>
-<span id="cb29-257"><a href="#cb29-257" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-260"><a href="#cb29-260" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-261"><a href="#cb29-261" aria-hidden="true" tabindex="-1"></a><span class="at">#| echo: true</span></span>
-<span id="cb29-262"><a href="#cb29-262" aria-hidden="true" tabindex="-1"></a><span class="at">#| message: false</span></span>
-<span id="cb29-263"><a href="#cb29-263" aria-hidden="true" tabindex="-1"></a><span class="at">#| warning: false</span></span>
-<span id="cb29-264"><a href="#cb29-264" aria-hidden="true" tabindex="-1"></a><span class="at">#| cache: true</span></span>
-<span id="cb29-265"><a href="#cb29-265" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-266"><a href="#cb29-266" aria-hidden="true" tabindex="-1"></a><span class="at">library(MatchIt)</span></span>
-<span id="cb29-267"><a href="#cb29-267" aria-hidden="true" tabindex="-1"></a><span class="at">library(cobalt)</span></span>
-<span id="cb29-268"><a href="#cb29-268" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-269"><a href="#cb29-269" aria-hidden="true" tabindex="-1"></a><span class="at"># Propensity score matching on the lalonde data</span></span>
-<span id="cb29-270"><a href="#cb29-270" aria-hidden="true" tabindex="-1"></a><span class="at">data("lalonde", package = "MatchIt")</span></span>
-<span id="cb29-271"><a href="#cb29-271" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-272"><a href="#cb29-272" aria-hidden="true" tabindex="-1"></a><span class="at">m_out &lt;- matchit(treat ~ age + educ + race + married + nodegree +</span></span>
-<span id="cb29-273"><a href="#cb29-273" aria-hidden="true" tabindex="-1"></a><span class="at">                   re74 + re75,</span></span>
-<span id="cb29-274"><a href="#cb29-274" aria-hidden="true" tabindex="-1"></a><span class="at">                 data = lalonde, method = "nearest", distance = "glm",</span></span>
-<span id="cb29-275"><a href="#cb29-275" aria-hidden="true" tabindex="-1"></a><span class="at">                 ratio = 1)</span></span>
-<span id="cb29-276"><a href="#cb29-276" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-277"><a href="#cb29-277" aria-hidden="true" tabindex="-1"></a><span class="at"># Balance table: standardized mean differences before and after matching</span></span>
-<span id="cb29-278"><a href="#cb29-278" aria-hidden="true" tabindex="-1"></a><span class="at">bal.tab(m_out, stats = c("mean.diffs", "variance.ratios"), thresholds = c(m = 0.1))</span></span>
-<span id="cb29-279"><a href="#cb29-279" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-280"><a href="#cb29-280" aria-hidden="true" tabindex="-1"></a><span class="at"># Love plot: visualize balance improvement</span></span>
-<span id="cb29-281"><a href="#cb29-281" aria-hidden="true" tabindex="-1"></a><span class="at">love.plot(m_out, stats = "mean.diffs", threshold = 0.1,</span></span>
-<span id="cb29-282"><a href="#cb29-282" aria-hidden="true" tabindex="-1"></a><span class="at">          abs = TRUE, var.order = "unadjusted")</span></span>
-<span id="cb29-283"><a href="#cb29-283" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
-<span id="cb29-284"><a href="#cb29-284" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-285"><a href="#cb29-285" aria-hidden="true" tabindex="-1"></a>The love plot shows each covariate<span class="st">'s standardized mean difference (SMD)</span></span>
-<span id="cb29-286"><a href="#cb29-286" aria-hidden="true" tabindex="-1"></a><span class="st">before matching (open circles) and after (filled circles). The vertical line</span></span>
-<span id="cb29-287"><a href="#cb29-287" aria-hidden="true" tabindex="-1"></a><span class="st">at SMD = 0.1 is the conventional threshold for "balanced." If post-matching</span></span>
-<span id="cb29-288"><a href="#cb29-288" aria-hidden="true" tabindex="-1"></a><span class="st">points cross the line, the matching is not improving balance and a different</span></span>
-<span id="cb29-289"><a href="#cb29-289" aria-hidden="true" tabindex="-1"></a><span class="st">specification is needed.</span></span>
-<span id="cb29-290"><a href="#cb29-290" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-291"><a href="#cb29-291" aria-hidden="true" tabindex="-1"></a><span class="st">That is exactly what happens here, which is why it is worth running the</span></span>
-<span id="cb29-292"><a href="#cb29-292" aria-hidden="true" tabindex="-1"></a><span class="st">diagnostic rather than assuming. 1:1 nearest-neighbour matching on the</span></span>
-<span id="cb29-293"><a href="#cb29-293" aria-hidden="true" tabindex="-1"></a><span class="st">propensity score leaves four of the nine covariates *above* the 0.1 threshold,</span></span>
-<span id="cb29-294"><a href="#cb29-294" aria-hidden="true" tabindex="-1"></a><span class="st">`race` worst of all (an adjusted SMD of 0.37 for the black indicator), while</span></span>
-<span id="cb29-295"><a href="#cb29-295" aria-hidden="true" tabindex="-1"></a><span class="st">discarding 244 of the 429 controls. Matching on a propensity score balances the</span></span>
-<span id="cb29-296"><a href="#cb29-296" aria-hidden="true" tabindex="-1"></a><span class="st">score, not necessarily the covariates that went into it.</span></span>
-<span id="cb29-297"><a href="#cb29-297" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-298"><a href="#cb29-298" aria-hidden="true" tabindex="-1"></a><span class="st">### Entropy balancing</span></span>
-<span id="cb29-299"><a href="#cb29-299" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-300"><a href="#cb29-300" aria-hidden="true" tabindex="-1"></a><span class="st">Propensity score matching discards unmatched units and can reduce effective</span></span>
-<span id="cb29-301"><a href="#cb29-301" aria-hidden="true" tabindex="-1"></a><span class="st">sample size substantially. **Entropy balancing** (Hainmueller 2012) keeps all</span></span>
-<span id="cb29-302"><a href="#cb29-302" aria-hidden="true" tabindex="-1"></a><span class="st">units and reweights the control group so that weighted covariate moments</span></span>
-<span id="cb29-303"><a href="#cb29-303" aria-hidden="true" tabindex="-1"></a><span class="st">exactly match the treatment group — without discarding anyone.</span></span>
-<span id="cb29-304"><a href="#cb29-304" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-307"><a href="#cb29-307" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-308"><a href="#cb29-308" aria-hidden="true" tabindex="-1"></a><span class="st">#| echo: true</span></span>
-<span id="cb29-309"><a href="#cb29-309" aria-hidden="true" tabindex="-1"></a><span class="st">#| message: false</span></span>
-<span id="cb29-310"><a href="#cb29-310" aria-hidden="true" tabindex="-1"></a><span class="st">#| warning: false</span></span>
-<span id="cb29-311"><a href="#cb29-311" aria-hidden="true" tabindex="-1"></a><span class="st">#| cache: true</span></span>
-<span id="cb29-312"><a href="#cb29-312" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-313"><a href="#cb29-313" aria-hidden="true" tabindex="-1"></a><span class="st">library(WeightIt)</span></span>
-<span id="cb29-314"><a href="#cb29-314" aria-hidden="true" tabindex="-1"></a><span class="st">library(cobalt)</span></span>
-<span id="cb29-315"><a href="#cb29-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-316"><a href="#cb29-316" aria-hidden="true" tabindex="-1"></a><span class="st"># Entropy balancing: exact balance on means, variances, and covariances</span></span>
-<span id="cb29-317"><a href="#cb29-317" aria-hidden="true" tabindex="-1"></a><span class="st">w_out &lt;- weightit(treat ~ age + educ + race + married + nodegree +</span></span>
-<span id="cb29-318"><a href="#cb29-318" aria-hidden="true" tabindex="-1"></a><span class="st">                    re74 + re75,</span></span>
-<span id="cb29-319"><a href="#cb29-319" aria-hidden="true" tabindex="-1"></a><span class="st">                  data = lalonde, method = "ebal", estimand = "ATT",</span></span>
-<span id="cb29-320"><a href="#cb29-320" aria-hidden="true" tabindex="-1"></a><span class="st">                  moments = 1)   # moments=1: balance means only</span></span>
-<span id="cb29-321"><a href="#cb29-321" aria-hidden="true" tabindex="-1"></a><span class="st">                                 # moments=2: balance means + variances</span></span>
-<span id="cb29-322"><a href="#cb29-322" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-323"><a href="#cb29-323" aria-hidden="true" tabindex="-1"></a><span class="st">summary(w_out)</span></span>
+<span id="cb29-244"><a href="#cb29-244" aria-hidden="true" tabindex="-1"></a><span class="st">The 2019 vintage of this chapter used Stata'</span>s <span class="st">`</span><span class="at">teffects</span><span class="st">`</span> throughout. R<span class="st">'s</span></span>
+<span id="cb29-245"><a href="#cb29-245" aria-hidden="true" tabindex="-1"></a><span class="st">`MatchIt` and `WeightIt` packages have since become the standard for matching</span></span>
+<span id="cb29-246"><a href="#cb29-246" aria-hidden="true" tabindex="-1"></a><span class="st">workflows, and `cobalt` provides publication-quality balance tables and plots</span></span>
+<span id="cb29-247"><a href="#cb29-247" aria-hidden="true" tabindex="-1"></a><span class="st">that are now expected in applied papers.</span></span>
+<span id="cb29-248"><a href="#cb29-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-249"><a href="#cb29-249" aria-hidden="true" tabindex="-1"></a><span class="st">### Balance checking with cobalt</span></span>
+<span id="cb29-250"><a href="#cb29-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-251"><a href="#cb29-251" aria-hidden="true" tabindex="-1"></a><span class="st">After any matching or weighting step, always inspect covariate balance.</span></span>
+<span id="cb29-252"><a href="#cb29-252" aria-hidden="true" tabindex="-1"></a><span class="st">`cobalt`'</span>s <span class="st">`</span><span class="at">bal.tab()</span><span class="st">`</span> and <span class="st">`</span><span class="at">love.plot()</span><span class="st">`</span> are the go<span class="sc">-</span>to tools<span class="sc">:</span></span>
+<span id="cb29-253"><a href="#cb29-253" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-256"><a href="#cb29-256" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-257"><a href="#cb29-257" aria-hidden="true" tabindex="-1"></a><span class="at">#| echo: true</span></span>
+<span id="cb29-258"><a href="#cb29-258" aria-hidden="true" tabindex="-1"></a><span class="at">#| message: false</span></span>
+<span id="cb29-259"><a href="#cb29-259" aria-hidden="true" tabindex="-1"></a><span class="at">#| warning: false</span></span>
+<span id="cb29-260"><a href="#cb29-260" aria-hidden="true" tabindex="-1"></a><span class="at">#| cache: true</span></span>
+<span id="cb29-261"><a href="#cb29-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-262"><a href="#cb29-262" aria-hidden="true" tabindex="-1"></a><span class="at">library(MatchIt)</span></span>
+<span id="cb29-263"><a href="#cb29-263" aria-hidden="true" tabindex="-1"></a><span class="at">library(cobalt)</span></span>
+<span id="cb29-264"><a href="#cb29-264" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-265"><a href="#cb29-265" aria-hidden="true" tabindex="-1"></a><span class="at"># Propensity score matching on the lalonde data</span></span>
+<span id="cb29-266"><a href="#cb29-266" aria-hidden="true" tabindex="-1"></a><span class="at">data("lalonde", package = "MatchIt")</span></span>
+<span id="cb29-267"><a href="#cb29-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-268"><a href="#cb29-268" aria-hidden="true" tabindex="-1"></a><span class="at">m_out &lt;- matchit(treat ~ age + educ + race + married + nodegree +</span></span>
+<span id="cb29-269"><a href="#cb29-269" aria-hidden="true" tabindex="-1"></a><span class="at">                   re74 + re75,</span></span>
+<span id="cb29-270"><a href="#cb29-270" aria-hidden="true" tabindex="-1"></a><span class="at">                 data = lalonde, method = "nearest", distance = "glm",</span></span>
+<span id="cb29-271"><a href="#cb29-271" aria-hidden="true" tabindex="-1"></a><span class="at">                 ratio = 1)</span></span>
+<span id="cb29-272"><a href="#cb29-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-273"><a href="#cb29-273" aria-hidden="true" tabindex="-1"></a><span class="at"># Balance table: standardized mean differences before and after matching</span></span>
+<span id="cb29-274"><a href="#cb29-274" aria-hidden="true" tabindex="-1"></a><span class="at">bal.tab(m_out, stats = c("mean.diffs", "variance.ratios"), thresholds = c(m = 0.1))</span></span>
+<span id="cb29-275"><a href="#cb29-275" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-276"><a href="#cb29-276" aria-hidden="true" tabindex="-1"></a><span class="at"># Love plot: visualize balance improvement</span></span>
+<span id="cb29-277"><a href="#cb29-277" aria-hidden="true" tabindex="-1"></a><span class="at">love.plot(m_out, stats = "mean.diffs", threshold = 0.1,</span></span>
+<span id="cb29-278"><a href="#cb29-278" aria-hidden="true" tabindex="-1"></a><span class="at">          abs = TRUE, var.order = "unadjusted")</span></span>
+<span id="cb29-279"><a href="#cb29-279" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-280"><a href="#cb29-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-281"><a href="#cb29-281" aria-hidden="true" tabindex="-1"></a>The love plot shows each covariate<span class="st">'s standardized mean difference (SMD)</span></span>
+<span id="cb29-282"><a href="#cb29-282" aria-hidden="true" tabindex="-1"></a><span class="st">before matching (open circles) and after (filled circles). The vertical line</span></span>
+<span id="cb29-283"><a href="#cb29-283" aria-hidden="true" tabindex="-1"></a><span class="st">at SMD = 0.1 is the conventional threshold for "balanced." If post-matching</span></span>
+<span id="cb29-284"><a href="#cb29-284" aria-hidden="true" tabindex="-1"></a><span class="st">points cross the line, the matching is not improving balance and a different</span></span>
+<span id="cb29-285"><a href="#cb29-285" aria-hidden="true" tabindex="-1"></a><span class="st">specification is needed.</span></span>
+<span id="cb29-286"><a href="#cb29-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-287"><a href="#cb29-287" aria-hidden="true" tabindex="-1"></a><span class="st">That is exactly what happens here, which is why it is worth running the</span></span>
+<span id="cb29-288"><a href="#cb29-288" aria-hidden="true" tabindex="-1"></a><span class="st">diagnostic rather than assuming. 1:1 nearest-neighbour matching on the</span></span>
+<span id="cb29-289"><a href="#cb29-289" aria-hidden="true" tabindex="-1"></a><span class="st">propensity score leaves four of the nine covariates *above* the 0.1 threshold,</span></span>
+<span id="cb29-290"><a href="#cb29-290" aria-hidden="true" tabindex="-1"></a><span class="st">`race` worst of all (an adjusted SMD of 0.37 for the black indicator), while</span></span>
+<span id="cb29-291"><a href="#cb29-291" aria-hidden="true" tabindex="-1"></a><span class="st">discarding 244 of the 429 controls. Matching on a propensity score balances the</span></span>
+<span id="cb29-292"><a href="#cb29-292" aria-hidden="true" tabindex="-1"></a><span class="st">score, not necessarily the covariates that went into it.</span></span>
+<span id="cb29-293"><a href="#cb29-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-294"><a href="#cb29-294" aria-hidden="true" tabindex="-1"></a><span class="st">### Entropy balancing</span></span>
+<span id="cb29-295"><a href="#cb29-295" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-296"><a href="#cb29-296" aria-hidden="true" tabindex="-1"></a><span class="st">Propensity score matching discards unmatched units and can reduce effective</span></span>
+<span id="cb29-297"><a href="#cb29-297" aria-hidden="true" tabindex="-1"></a><span class="st">sample size substantially. **Entropy balancing** (Hainmueller 2012) keeps all</span></span>
+<span id="cb29-298"><a href="#cb29-298" aria-hidden="true" tabindex="-1"></a><span class="st">units and reweights the control group so that weighted covariate moments</span></span>
+<span id="cb29-299"><a href="#cb29-299" aria-hidden="true" tabindex="-1"></a><span class="st">exactly match the treatment group — without discarding anyone.</span></span>
+<span id="cb29-300"><a href="#cb29-300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-303"><a href="#cb29-303" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-304"><a href="#cb29-304" aria-hidden="true" tabindex="-1"></a><span class="st">#| echo: true</span></span>
+<span id="cb29-305"><a href="#cb29-305" aria-hidden="true" tabindex="-1"></a><span class="st">#| message: false</span></span>
+<span id="cb29-306"><a href="#cb29-306" aria-hidden="true" tabindex="-1"></a><span class="st">#| warning: false</span></span>
+<span id="cb29-307"><a href="#cb29-307" aria-hidden="true" tabindex="-1"></a><span class="st">#| cache: true</span></span>
+<span id="cb29-308"><a href="#cb29-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-309"><a href="#cb29-309" aria-hidden="true" tabindex="-1"></a><span class="st">library(WeightIt)</span></span>
+<span id="cb29-310"><a href="#cb29-310" aria-hidden="true" tabindex="-1"></a><span class="st">library(cobalt)</span></span>
+<span id="cb29-311"><a href="#cb29-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-312"><a href="#cb29-312" aria-hidden="true" tabindex="-1"></a><span class="st"># Entropy balancing: exact balance on means, variances, and covariances</span></span>
+<span id="cb29-313"><a href="#cb29-313" aria-hidden="true" tabindex="-1"></a><span class="st">w_out &lt;- weightit(treat ~ age + educ + race + married + nodegree +</span></span>
+<span id="cb29-314"><a href="#cb29-314" aria-hidden="true" tabindex="-1"></a><span class="st">                    re74 + re75,</span></span>
+<span id="cb29-315"><a href="#cb29-315" aria-hidden="true" tabindex="-1"></a><span class="st">                  data = lalonde, method = "ebal", estimand = "ATT",</span></span>
+<span id="cb29-316"><a href="#cb29-316" aria-hidden="true" tabindex="-1"></a><span class="st">                  moments = 1)   # moments=1: balance means only</span></span>
+<span id="cb29-317"><a href="#cb29-317" aria-hidden="true" tabindex="-1"></a><span class="st">                                 # moments=2: balance means + variances</span></span>
+<span id="cb29-318"><a href="#cb29-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-319"><a href="#cb29-319" aria-hidden="true" tabindex="-1"></a><span class="st">summary(w_out)</span></span>
+<span id="cb29-320"><a href="#cb29-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-321"><a href="#cb29-321" aria-hidden="true" tabindex="-1"></a><span class="st"># Check balance</span></span>
+<span id="cb29-322"><a href="#cb29-322" aria-hidden="true" tabindex="-1"></a><span class="st">bal.tab(w_out, stats = "mean.diffs", thresholds = c(m = 0.1))</span></span>
+<span id="cb29-323"><a href="#cb29-323" aria-hidden="true" tabindex="-1"></a><span class="st">love.plot(w_out, threshold = 0.1, abs = TRUE)</span></span>
 <span id="cb29-324"><a href="#cb29-324" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-325"><a href="#cb29-325" aria-hidden="true" tabindex="-1"></a><span class="st"># Check balance</span></span>
-<span id="cb29-326"><a href="#cb29-326" aria-hidden="true" tabindex="-1"></a><span class="st">bal.tab(w_out, stats = "mean.diffs", thresholds = c(m = 0.1))</span></span>
-<span id="cb29-327"><a href="#cb29-327" aria-hidden="true" tabindex="-1"></a><span class="st">love.plot(w_out, threshold = 0.1, abs = TRUE)</span></span>
-<span id="cb29-328"><a href="#cb29-328" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-329"><a href="#cb29-329" aria-hidden="true" tabindex="-1"></a><span class="st"># Weighted outcome regression</span></span>
-<span id="cb29-330"><a href="#cb29-330" aria-hidden="true" tabindex="-1"></a><span class="st">library(lmtest); library(sandwich)</span></span>
-<span id="cb29-331"><a href="#cb29-331" aria-hidden="true" tabindex="-1"></a><span class="st">m_eb &lt;- lm(re78 ~ treat + age + educ + race + married + nodegree +</span></span>
-<span id="cb29-332"><a href="#cb29-332" aria-hidden="true" tabindex="-1"></a><span class="st">             re74 + re75,</span></span>
-<span id="cb29-333"><a href="#cb29-333" aria-hidden="true" tabindex="-1"></a><span class="st">           data = lalonde, weights = w_out$weights)</span></span>
-<span id="cb29-334"><a href="#cb29-334" aria-hidden="true" tabindex="-1"></a><span class="st">coeftest(m_eb, vcov = vcovHC(m_eb, type = "HC3"))["treat", ]</span></span>
-<span id="cb29-335"><a href="#cb29-335" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
-<span id="cb29-336"><a href="#cb29-336" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-337"><a href="#cb29-337" aria-hidden="true" tabindex="-1"></a><span class="st">Entropy balancing delivers on its promise here: the largest absolute</span></span>
-<span id="cb29-338"><a href="#cb29-338" aria-hidden="true" tabindex="-1"></a><span class="st">standardized mean difference after weighting is **exactly zero**, since the</span></span>
-<span id="cb29-339"><a href="#cb29-339" aria-hidden="true" tabindex="-1"></a><span class="st">weights are chosen to satisfy the mean-balance constraints as equalities. All</span></span>
-<span id="cb29-340"><a href="#cb29-340" aria-hidden="true" tabindex="-1"></a><span class="st">429 controls are retained.</span></span>
-<span id="cb29-341"><a href="#cb29-341" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-342"><a href="#cb29-342" aria-hidden="true" tabindex="-1"></a><span class="st">| Method | Pros | Cons |</span></span>
-<span id="cb29-343"><a href="#cb29-343" aria-hidden="true" tabindex="-1"></a><span class="st">|---|---|---|</span></span>
-<span id="cb29-344"><a href="#cb29-344" aria-hidden="true" tabindex="-1"></a><span class="st">| PSM (nearest neighbor) | Intuitive; respects overlap | Discards units; balance not guaranteed |</span></span>
-<span id="cb29-345"><a href="#cb29-345" aria-hidden="true" tabindex="-1"></a><span class="st">| CEM | Exact balance in bins | Requires discretizing continuous vars |</span></span>
-<span id="cb29-346"><a href="#cb29-346" aria-hidden="true" tabindex="-1"></a><span class="st">| Entropy balancing | Exact mean balance; keeps all units | Weights can be extreme; no variance balance by default |</span></span>
-<span id="cb29-347"><a href="#cb29-347" aria-hidden="true" tabindex="-1"></a><span class="st">| IPW (logistic) | Simple; relies only on the treatment model | Not doubly robust on its own; extreme weights if overlap is poor |</span></span>
-<span id="cb29-348"><a href="#cb29-348" aria-hidden="true" tabindex="-1"></a><span class="st">| AIPW / IPWRA | Doubly robust: consistent if *either* the treatment or outcome model is correct | Needs both models specified; more moving parts |</span></span>
+<span id="cb29-325"><a href="#cb29-325" aria-hidden="true" tabindex="-1"></a><span class="st"># Weighted outcome regression</span></span>
+<span id="cb29-326"><a href="#cb29-326" aria-hidden="true" tabindex="-1"></a><span class="st">library(lmtest); library(sandwich)</span></span>
+<span id="cb29-327"><a href="#cb29-327" aria-hidden="true" tabindex="-1"></a><span class="st">m_eb &lt;- lm(re78 ~ treat + age + educ + race + married + nodegree +</span></span>
+<span id="cb29-328"><a href="#cb29-328" aria-hidden="true" tabindex="-1"></a><span class="st">             re74 + re75,</span></span>
+<span id="cb29-329"><a href="#cb29-329" aria-hidden="true" tabindex="-1"></a><span class="st">           data = lalonde, weights = w_out$weights)</span></span>
+<span id="cb29-330"><a href="#cb29-330" aria-hidden="true" tabindex="-1"></a><span class="st">coeftest(m_eb, vcov = vcovHC(m_eb, type = "HC3"))["treat", ]</span></span>
+<span id="cb29-331"><a href="#cb29-331" aria-hidden="true" tabindex="-1"></a><span class="st">```</span></span>
+<span id="cb29-332"><a href="#cb29-332" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-333"><a href="#cb29-333" aria-hidden="true" tabindex="-1"></a><span class="st">Entropy balancing delivers on its promise here: the largest absolute</span></span>
+<span id="cb29-334"><a href="#cb29-334" aria-hidden="true" tabindex="-1"></a><span class="st">standardized mean difference after weighting is **exactly zero**, since the</span></span>
+<span id="cb29-335"><a href="#cb29-335" aria-hidden="true" tabindex="-1"></a><span class="st">weights are chosen to satisfy the mean-balance constraints as equalities. All</span></span>
+<span id="cb29-336"><a href="#cb29-336" aria-hidden="true" tabindex="-1"></a><span class="st">429 controls are retained.</span></span>
+<span id="cb29-337"><a href="#cb29-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-338"><a href="#cb29-338" aria-hidden="true" tabindex="-1"></a><span class="st">| Method | Pros | Cons |</span></span>
+<span id="cb29-339"><a href="#cb29-339" aria-hidden="true" tabindex="-1"></a><span class="st">|---|---|---|</span></span>
+<span id="cb29-340"><a href="#cb29-340" aria-hidden="true" tabindex="-1"></a><span class="st">| PSM (nearest neighbor) | Intuitive; respects overlap | Discards units; balance not guaranteed |</span></span>
+<span id="cb29-341"><a href="#cb29-341" aria-hidden="true" tabindex="-1"></a><span class="st">| CEM | Exact balance in bins | Requires discretizing continuous vars |</span></span>
+<span id="cb29-342"><a href="#cb29-342" aria-hidden="true" tabindex="-1"></a><span class="st">| Entropy balancing | Exact mean balance; keeps all units | Weights can be extreme; no variance balance by default |</span></span>
+<span id="cb29-343"><a href="#cb29-343" aria-hidden="true" tabindex="-1"></a><span class="st">| IPW (logistic) | Simple; relies only on the treatment model | Not doubly robust on its own; extreme weights if overlap is poor |</span></span>
+<span id="cb29-344"><a href="#cb29-344" aria-hidden="true" tabindex="-1"></a><span class="st">| AIPW / IPWRA | Doubly robust: consistent if *either* the treatment or outcome model is correct | Needs both models specified; more moving parts |</span></span>
+<span id="cb29-345"><a href="#cb29-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-346"><a href="#cb29-346" aria-hidden="true" tabindex="-1"></a><span class="st">For most applications, entropy balancing or IPW with trimmed weights (via</span></span>
+<span id="cb29-347"><a href="#cb29-347" aria-hidden="true" tabindex="-1"></a><span class="st">`WeightIt`'</span>s <span class="st">`</span><span class="at">trim()</span><span class="st">`</span>) is preferred over PSM<span class="sc">:</span> better effective sample size,</span>
+<span id="cb29-348"><a href="#cb29-348" aria-hidden="true" tabindex="-1"></a>guaranteed balance, and easy integration with doubly<span class="sc">-</span>robust estimators.</span>
 <span id="cb29-349"><a href="#cb29-349" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-350"><a href="#cb29-350" aria-hidden="true" tabindex="-1"></a><span class="st">For most applications, entropy balancing or IPW with trimmed weights (via</span></span>
-<span id="cb29-351"><a href="#cb29-351" aria-hidden="true" tabindex="-1"></a><span class="st">`WeightIt`'</span>s <span class="st">`</span><span class="at">trim()</span><span class="st">`</span>) is preferred over PSM<span class="sc">:</span> better effective sample size,</span>
-<span id="cb29-352"><a href="#cb29-352" aria-hidden="true" tabindex="-1"></a>guaranteed balance, and easy integration with doubly<span class="sc">-</span>robust estimators.</span>
-<span id="cb29-353"><a href="#cb29-353" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-354"><a href="#cb29-354" aria-hidden="true" tabindex="-1"></a>See also the [weighting chapter](weighting<span class="sc">-</span>part2.qmd) <span class="cf">for</span> IPW estimators and</span>
-<span id="cb29-355"><a href="#cb29-355" aria-hidden="true" tabindex="-1"></a>the [OLS<span class="sc">-</span>ATE chapter](ols<span class="sc">-</span>ate.qmd) <span class="cf">for</span> regression<span class="sc">-</span>based approaches.</span>
-<span id="cb29-356"><a href="#cb29-356" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-357"><a href="#cb29-357" aria-hidden="true" tabindex="-1"></a><span class="sc">---</span></span>
-<span id="cb29-358"><a href="#cb29-358" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-359"><a href="#cb29-359" aria-hidden="true" tabindex="-1"></a><span class="er">&lt;</span><span class="sc">!--</span> see<span class="sc">-</span>also<span class="sc">-</span>footer <span class="sc">-</span><span class="ot">-&gt;</span></span>
-<span id="cb29-360"><a href="#cb29-360" aria-hidden="true" tabindex="-1"></a><span class="er">*</span>Systematic treatment<span class="sc">:</span> [R](https<span class="sc">:</span><span class="er">//</span>xiangao.github.io<span class="sc">/</span>causal_econometrics_guide<span class="sc">/</span>matching.html) · [Julia](https<span class="sc">:</span><span class="er">//</span>xiangao.github.io<span class="sc">/</span>causal_econometrics_julia<span class="sc">/</span>matching.html).<span class="sc">*</span></span>
+<span id="cb29-350"><a href="#cb29-350" aria-hidden="true" tabindex="-1"></a>See also the [weighting chapter](weighting<span class="sc">-</span>part2.qmd) <span class="cf">for</span> IPW estimators and</span>
+<span id="cb29-351"><a href="#cb29-351" aria-hidden="true" tabindex="-1"></a>the [OLS<span class="sc">-</span>ATE chapter](ols<span class="sc">-</span>ate.qmd) <span class="cf">for</span> regression<span class="sc">-</span>based approaches.</span>
+<span id="cb29-352"><a href="#cb29-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-353"><a href="#cb29-353" aria-hidden="true" tabindex="-1"></a><span class="sc">---</span></span>
+<span id="cb29-354"><a href="#cb29-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-355"><a href="#cb29-355" aria-hidden="true" tabindex="-1"></a><span class="er">&lt;</span><span class="sc">!--</span> see<span class="sc">-</span>also<span class="sc">-</span>footer <span class="sc">-</span><span class="ot">-&gt;</span></span>
+<span id="cb29-356"><a href="#cb29-356" aria-hidden="true" tabindex="-1"></a><span class="er">*</span>Systematic treatment<span class="sc">:</span> [R](https<span class="sc">:</span><span class="er">//</span>xiangao.github.io<span class="sc">/</span>causal_econometrics_guide<span class="sc">/</span>matching.html) · [Julia](https<span class="sc">:</span><span class="er">//</span>xiangao.github.io<span class="sc">/</span>causal_econometrics_julia<span class="sc">/</span>matching.html).<span class="sc">*</span></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

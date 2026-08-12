@@ -571,45 +571,31 @@ window.Quarto = {
   
 
 
-</header><p>This is based on R’s MatchIt and WeightIt packages and their documentations. All credits go to Noah Greifer and coauthors. I write to summarize what I have learned.</p>
-<section id="assumptions" class="level2" data-number="14.1"><h2 data-number="14.1" class="anchored" data-anchor-id="assumptions">
-<span class="header-section-number">14.1</span> Assumptions</h2>
-<p>Matching or weighting is usually used in observational studies. We have the following assumptions before using matching or weighting to make a causal claim:</p>
-<ol type="1">
-<li>SUTVA</li>
-<li>ignorability (unconfoundedness, or no unobserved confounders)</li>
-<li>overlap (common support, or positivity)</li>
-</ol>
-<p>With these assumptions, we can try to identify the treatment effect in an observational study.</p>
-</section><section id="problem" class="level2" data-number="14.2"><h2 data-number="14.2" class="anchored" data-anchor-id="problem">
-<span class="header-section-number">14.2</span> Problem</h2>
-<p>The second assumption is saying controlling for <span class="math inline">\(X\)</span>, the treatment assignment <span class="math inline">\(D\)</span> is independent of the potential outcomes <span class="math inline">\(Y(0)\)</span> and <span class="math inline">\(Y(1)\)</span>, i.e., we have a pseudo-randomized experiment.</p>
-<p>In reality, it’s rare we have a balanced distribution of <span class="math inline">\(X\)</span> for treated and control. That’s when we need to use matching or weighting to balance the distribution of <span class="math inline">\(X\)</span> between treatment and control groups.</p>
-</section><section id="weighting-methods" class="level2" data-number="14.3"><h2 data-number="14.3" class="anchored" data-anchor-id="weighting-methods">
-<span class="header-section-number">14.3</span> weighting methods</h2>
-<p>The idea of weighting is to use weights to creat a pseudo population which has a balanced distribution of <span class="math inline">\(X\)</span> for treated and control groups. The most popular weighting method is inverse probability of treatment weighting (IPTW). IPTW uses the propensity score to create weights.</p>
-<p>There are a few other weighting methods that are gaining popularity.</p>
-<section id="inverse-probability-of-treatment-weighting-iptw" class="level3" data-number="14.3.1"><h3 data-number="14.3.1" class="anchored" data-anchor-id="inverse-probability-of-treatment-weighting-iptw">
-<span class="header-section-number">14.3.1</span> Inverse probability of treatment weighting (IPTW)</h3>
+</header><p>This chapter follows R’s <code>WeightIt</code> package (Greifer et al.). The assumptions — SUTVA, ignorability, and overlap — are the same as in the <a href="./matching-part1.html">matching chapter</a>.</p>
+<section id="weighting-methods" class="level2" data-number="14.1"><h2 data-number="14.1" class="anchored" data-anchor-id="weighting-methods">
+<span class="header-section-number">14.1</span> Weighting methods</h2>
+<p>Weighting creates a pseudo-population in which <span class="math inline">\(X\)</span> is balanced across treatment and control. The most common approach is inverse probability of treatment weighting (IPTW), which uses the propensity score. Several alternatives are gaining traction.</p>
+<section id="inverse-probability-of-treatment-weighting-iptw" class="level3" data-number="14.1.1"><h3 data-number="14.1.1" class="anchored" data-anchor-id="inverse-probability-of-treatment-weighting-iptw">
+<span class="header-section-number">14.1.1</span> Inverse probability of treatment weighting (IPTW)</h3>
 <p>IPTW is the most common weighting method. It uses the inverse of the propensity score as weights. For the <strong>ATE</strong>, weight each treated unit by <span class="math inline">\(1/p\)</span> and each control unit by <span class="math inline">\(1/(1-p)\)</span>, where <span class="math inline">\(p\)</span> is the propensity score. For the <strong>ATT</strong> — which is what the examples below request via <code>estimand = "ATT"</code> — the treated units all get weight <span class="math inline">\(1\)</span> and the controls get <span class="math inline">\(p/(1-p)\)</span>; you can see this in the weight summaries, where the treated range is exactly <span class="math inline">\(1\)</span> to <span class="math inline">\(1\)</span>. Either way the point is the same: create a pseudo population in which the distribution of <span class="math inline">\(X\)</span> is balanced between the groups.</p>
-</section><section id="covariate-balancing-propensity-score-cbps" class="level3" data-number="14.3.2"><h3 data-number="14.3.2" class="anchored" data-anchor-id="covariate-balancing-propensity-score-cbps">
-<span class="header-section-number">14.3.2</span> Covariate balancing propensity score (CBPS)</h3>
+</section><section id="covariate-balancing-propensity-score-cbps" class="level3" data-number="14.1.2"><h3 data-number="14.1.2" class="anchored" data-anchor-id="covariate-balancing-propensity-score-cbps">
+<span class="header-section-number">14.1.2</span> Covariate balancing propensity score (CBPS)</h3>
 <p>The same idea, but with a different way to estimate the propensity score. CBPS is a form of logistic regression where balance constraints are incorporated to a generalized method of moments estimation of the model coefficients.</p>
-</section><section id="entropy-balancing" class="level3" data-number="14.3.3"><h3 data-number="14.3.3" class="anchored" data-anchor-id="entropy-balancing">
-<span class="header-section-number">14.3.3</span> Entropy balancing</h3>
+</section><section id="entropy-balancing" class="level3" data-number="14.1.3"><h3 data-number="14.1.3" class="anchored" data-anchor-id="entropy-balancing">
+<span class="header-section-number">14.1.3</span> Entropy balancing</h3>
 <p>Entropy balancing involves the specification of an optimization problem, the solution to which is then used to compute the weights. The constraints of the primal optimization problem correspond to covariate balance on the means (for binary and multi-category treatments) or treatment-covariate covariances (for continuous treatments), positivity of the weights, and that the weights sum to a certain value. Entropy balancing is doubly robust (for the ATT) in the sense that it is consistent either when the true propensity score model is a logistic regression of the treatment on the covariates or when the true outcome model for the control units is a linear regression of the outcome on the covariates, and it attains a semi-parametric efficiency bound when both are true. Entropy balancing will always yield exact mean balance on the included terms (not necessarily on the distribution of the covariates).</p>
-</section><section id="energy-balancing" class="level3" data-number="14.3.4"><h3 data-number="14.3.4" class="anchored" data-anchor-id="energy-balancing">
-<span class="header-section-number">14.3.4</span> Energy balancing</h3>
+</section><section id="energy-balancing" class="level3" data-number="14.1.4"><h3 data-number="14.1.4" class="anchored" data-anchor-id="energy-balancing">
+<span class="header-section-number">14.1.4</span> Energy balancing</h3>
 <p>Energy balancing is a method of estimating weights using optimization without a propensity score.</p>
 <p>The primary benefit of energy balancing is that all features of the covariate distribution are balanced, not just means, as with other optimization-based methods like entropy balancing.</p>
-</section><section id="superlearner" class="level3" data-number="14.3.5"><h3 data-number="14.3.5" class="anchored" data-anchor-id="superlearner">
-<span class="header-section-number">14.3.5</span> SuperLearner</h3>
+</section><section id="superlearner" class="level3" data-number="14.1.5"><h3 data-number="14.1.5" class="anchored" data-anchor-id="superlearner">
+<span class="header-section-number">14.1.5</span> SuperLearner</h3>
 <p>SuperLearner works by fitting several machine learning models to the treatment and covariates and then taking a weighted combination of the generated predicted values to use as the propensity scores, which are then used to construct weights.</p>
-</section></section><section id="example" class="level2" data-number="14.4"><h2 data-number="14.4" class="anchored" data-anchor-id="example">
-<span class="header-section-number">14.4</span> Example</h2>
+</section></section><section id="example" class="level2" data-number="14.2"><h2 data-number="14.2" class="anchored" data-anchor-id="example">
+<span class="header-section-number">14.2</span> Example</h2>
 <p>Here is an example with Lalonde data, we are interested in the effect of treatment on “re78” (real earnings 1978).</p>
-<section id="ipw" class="level3" data-number="14.4.1"><h3 data-number="14.4.1" class="anchored" data-anchor-id="ipw">
-<span class="header-section-number">14.4.1</span> IPW</h3>
+<section id="ipw" class="level3" data-number="14.2.1"><h3 data-number="14.2.1" class="anchored" data-anchor-id="ipw">
+<span class="header-section-number">14.2.1</span> IPW</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="st"><a href="https://ngreifer.github.io/WeightIt/">"WeightIt"</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://ngreifer.github.io/cobalt/">cobalt</a></span><span class="op">)</span></span>
@@ -688,8 +674,8 @@ Unadjusted  429.       185
 Adjusted     99.82     185</code></pre>
 </div>
 </div>
-</section><section id="entropy-balancing-1" class="level3" data-number="14.4.2"><h3 data-number="14.4.2" class="anchored" data-anchor-id="entropy-balancing-1">
-<span class="header-section-number">14.4.2</span> entropy balancing</h3>
+</section><section id="entropy-balancing-1" class="level3" data-number="14.2.2"><h3 data-number="14.2.2" class="anchored" data-anchor-id="entropy-balancing-1">
+<span class="header-section-number">14.2.2</span> entropy balancing</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">w.out2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://ngreifer.github.io/WeightIt/reference/weightit.html">weightit</a></span><span class="op">(</span><span class="va">treat</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">educ</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span> <span class="va">nodegree</span> <span class="op">+</span> <span class="va">re74</span> <span class="op">+</span> <span class="va">re75</span>,</span>
 <span>                  data <span class="op">=</span> <span class="va">lalonde</span>, estimand <span class="op">=</span> <span class="st">"ATT"</span>, method <span class="op">=</span> <span class="st">"ebal"</span><span class="op">)</span></span>
@@ -771,8 +757,8 @@ Type: probs
 Comparison: 1 - 0</code></pre>
 </div>
 </div>
-</section><section id="energy-balancing-1" class="level3" data-number="14.4.3"><h3 data-number="14.4.3" class="anchored" data-anchor-id="energy-balancing-1">
-<span class="header-section-number">14.4.3</span> energy balancing</h3>
+</section><section id="energy-balancing-1" class="level3" data-number="14.2.3"><h3 data-number="14.2.3" class="anchored" data-anchor-id="energy-balancing-1">
+<span class="header-section-number">14.2.3</span> energy balancing</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">w.out3</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html">tryCatch</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="https://ngreifer.github.io/WeightIt/reference/weightit.html">weightit</a></span><span class="op">(</span><span class="va">treat</span> <span class="op">~</span> <span class="va">age</span> <span class="op">+</span> <span class="va">educ</span> <span class="op">+</span> <span class="va">race</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span></span>
@@ -829,8 +815,8 @@ Comparison: 1 - 0</code></pre>
 </div>
 </div>
 <p>Two things are worth noticing in that output rather than passing over it. First, the estimand changed: <code>w.out3</code> requests the <strong>ATE</strong>, while the entropy-balancing fit above targeted the <strong>ATT</strong>, so the two numbers (<span class="math inline">\(-73\)</span> against <span class="math inline">\(1273\)</span>) are not competing estimates of the same quantity. Second, look at the weight summary. Entropy balancing gives every treated unit a weight of exactly <span class="math inline">\(1\)</span>, as the ATT requires. Energy balancing spreads the treated weights from <span class="math inline">\(0\)</span> to <span class="math inline">\(14.0\)</span> — one treated unit is effectively discarded and another counts as fourteen — and the resulting standard error (<span class="math inline">\(1085\)</span>) is much larger than entropy balancing’s (<span class="math inline">\(770\)</span>). Balancing the whole covariate <em>distribution</em> rather than just its means is a genuine advantage, but it is bought with weight variability, and that shows up directly in the precision of the estimate.</p>
-</section></section><section id="comparing-matching-and-weighting" class="level2" data-number="14.5"><h2 data-number="14.5" class="anchored" data-anchor-id="comparing-matching-and-weighting">
-<span class="header-section-number">14.5</span> comparing matching and weighting</h2>
+</section></section><section id="comparing-matching-and-weighting" class="level2" data-number="14.3"><h2 data-number="14.3" class="anchored" data-anchor-id="comparing-matching-and-weighting">
+<span class="header-section-number">14.3</span> comparing matching and weighting</h2>
 <p>Matching and weighting are popular in different fields. We used to say matching involves discarding data therefore changing the estimand, but now with full matching and other methods, matching can be done without losing data. We used to believe weighting can be unstable, as weights can be highly variable, but with CBPS, entropy balancing and energy balancing, weighting can perform much better.</p>
 <p>So, in practice, we can try different methods, either matching or weighting, and see which one gives us better balance. Then use “marginaleffects” to get the treatment effect.</p>
 <hr>
@@ -1306,148 +1292,130 @@ Comparison: 1 - 0</code></pre>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>This is based on R's MatchIt and WeightIt packages and their documentations.  All credits go to Noah Greifer and coauthors.  I write to summarize what I have learned.</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>This chapter follows R's <span class="in">`WeightIt`</span> package (Greifer et al.). The assumptions — SUTVA, ignorability, and overlap — are the same as in the <span class="co">[</span><span class="ot">matching chapter</span><span class="co">](matching-part1.qmd)</span>.</span>
 <span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Assumptions</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Weighting methods</span></span>
 <span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>Matching or weighting is usually used in observational studies.  We have the following assumptions before using matching or weighting to make a causal claim:</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>Weighting creates a pseudo-population in which $X$ is balanced across treatment and control. The most common approach is inverse probability of treatment weighting (IPTW), which uses the propensity score. Several alternatives are gaining traction.</span>
 <span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>SUTVA</span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>ignorability (unconfoundedness, or no unobserved confounders)</span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>overlap (common support, or positivity)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="fu">### Inverse probability of treatment weighting (IPTW)</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>IPTW is the most common weighting method.  It uses the inverse of the propensity score as weights.  For the **ATE**, weight each treated unit by $1/p$ and each control unit by $1/(1-p)$, where $p$ is the propensity score.  For the **ATT** --- which is what the examples below request via <span class="in">`estimand = "ATT"`</span> --- the treated units all get weight $1$ and the controls get $p/(1-p)$; you can see this in the weight summaries, where the treated range is exactly $1$ to $1$.  Either way the point is the same: create a pseudo population in which the distribution of $X$ is balanced between the groups.</span>
 <span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>With these assumptions, we can try to identify the treatment effect in an observational study.</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="fu">### Covariate balancing propensity score (CBPS)</span></span>
 <span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="fu">## Problem</span></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>The same idea, but with a different way to estimate the propensity score.  CBPS is a form of logistic regression where balance constraints are incorporated to a generalized method of moments estimation of the model coefficients.</span>
 <span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>The second assumption is saying controlling for $X$, the treatment assignment $D$ is independent of the potential outcomes $Y(0)$ and $Y(1)$, i.e., we have a pseudo-randomized experiment.</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a><span class="fu">### Entropy balancing</span></span>
 <span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>In reality, it's rare we have a balanced distribution of $X$ for treated and control.  That's when we need to use matching or weighting to balance the distribution of $X$ between treatment and control groups.</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>Entropy balancing involves the specification of an optimization problem, the solution to which is then used to compute the weights. The constraints of the primal optimization problem correspond to covariate balance on the means (for binary and multi-category treatments) or treatment-covariate covariances (for continuous treatments), positivity of the weights, and that the weights sum to a certain value.  Entropy balancing is doubly robust (for the ATT) in the sense that it is consistent either when the true propensity score model is a logistic regression of the treatment on the covariates or when the true outcome model for the control units is a linear regression of the outcome on the covariates, and it attains a semi-parametric efficiency bound when both are true. Entropy balancing will always yield exact mean balance on the included terms (not necessarily on the distribution of the covariates).</span>
 <span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a><span class="fu">## weighting methods</span></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a><span class="fu">### Energy balancing</span></span>
 <span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>The idea of weighting is to use weights to creat a pseudo population which has a balanced distribution of $X$ for treated and control groups.  The most popular weighting method is inverse probability of treatment weighting (IPTW).  IPTW uses the propensity score to create weights.</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>Energy balancing is a method of estimating weights using optimization without a propensity score.</span>
 <span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>There are a few other weighting methods that are gaining popularity.</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>The primary benefit of energy balancing is that all features of the covariate distribution are balanced, not just means, as with other optimization-based methods like entropy balancing.</span>
 <span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a><span class="fu">### Inverse probability of treatment weighting (IPTW)</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a><span class="fu">### SuperLearner</span></span>
 <span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>IPTW is the most common weighting method.  It uses the inverse of the propensity score as weights.  For the **ATE**, weight each treated unit by $1/p$ and each control unit by $1/(1-p)$, where $p$ is the propensity score.  For the **ATT** --- which is what the examples below request via <span class="in">`estimand = "ATT"`</span> --- the treated units all get weight $1$ and the controls get $p/(1-p)$; you can see this in the weight summaries, where the treated range is exactly $1$ to $1$.  Either way the point is the same: create a pseudo population in which the distribution of $X$ is balanced between the groups.</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>SuperLearner works by fitting several machine learning models to the treatment and covariates and then taking a weighted combination of the generated predicted values to use as the propensity scores, which are then used to construct weights.</span>
 <span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a><span class="fu">### Covariate balancing propensity score (CBPS)</span></span>
-<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>The same idea, but with a different way to estimate the propensity score.  CBPS is a form of logistic regression where balance constraints are incorporated to a generalized method of moments estimation of the model coefficients.</span>
-<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a><span class="fu">### Entropy balancing</span></span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>Entropy balancing involves the specification of an optimization problem, the solution to which is then used to compute the weights. The constraints of the primal optimization problem correspond to covariate balance on the means (for binary and multi-category treatments) or treatment-covariate covariances (for continuous treatments), positivity of the weights, and that the weights sum to a certain value.  Entropy balancing is doubly robust (for the ATT) in the sense that it is consistent either when the true propensity score model is a logistic regression of the treatment on the covariates or when the true outcome model for the control units is a linear regression of the outcome on the covariates, and it attains a semi-parametric efficiency bound when both are true. Entropy balancing will always yield exact mean balance on the included terms (not necessarily on the distribution of the covariates).</span>
-<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a><span class="fu">### Energy balancing</span></span>
-<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>Energy balancing is a method of estimating weights using optimization without a propensity score.</span>
-<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>The primary benefit of energy balancing is that all features of the covariate distribution are balanced, not just means, as with other optimization-based methods like entropy balancing.</span>
-<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a><span class="fu">### SuperLearner</span></span>
-<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>SuperLearner works by fitting several machine learning models to the treatment and covariates and then taking a weighted combination of the generated predicted values to use as the propensity scores, which are then used to construct weights.</span>
-<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
-<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a>Here is an example with Lalonde data, we are interested in the effect of treatment on "re78" (real earnings 1978).</span>
-<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a><span class="fu">### IPW</span></span>
-<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"WeightIt"</span>)</span>
-<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cobalt)</span>
-<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(lalonde)</span>
-<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a>w.out1 <span class="ot">&lt;-</span> <span class="fu">weightit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span> nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde, <span class="at">estimand =</span> <span class="st">"ATT"</span>, <span class="at">method =</span> <span class="st">"glm"</span>)</span>
-<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a>w.out1 <span class="co">#print the output</span></span>
-<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(w.out1)</span>
-<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-74"><a href="#cb17-74" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-75"><a href="#cb17-75" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>Here is an example with Lalonde data, we are interested in the effect of treatment on "re78" (real earnings 1978).</span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a><span class="fu">### IPW</span></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"WeightIt"</span>)</span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cobalt)</span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(lalonde)</span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>w.out1 <span class="ot">&lt;-</span> <span class="fu">weightit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span> nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde, <span class="at">estimand =</span> <span class="st">"ATT"</span>, <span class="at">method =</span> <span class="st">"glm"</span>)</span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>w.out1 <span class="co">#print the output</span></span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(w.out1)</span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cobalt)</span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a><span class="fu">bal.tab</span>(w.out1, <span class="at">stats =</span> <span class="fu">c</span>(<span class="st">"m"</span>, <span class="st">"v"</span>), <span class="at">thresholds =</span> <span class="fu">c</span>(<span class="at">m =</span> .<span class="dv">05</span>))</span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a><span class="fu">### entropy balancing</span></span>
+<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a>w.out2 <span class="ot">&lt;-</span> <span class="fu">weightit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span> nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde, <span class="at">estimand =</span> <span class="st">"ATT"</span>, <span class="at">method =</span> <span class="st">"ebal"</span>)</span>
+<span id="cb17-72"><a href="#cb17-72" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(w.out2)</span>
+<span id="cb17-73"><a href="#cb17-73" aria-hidden="true" tabindex="-1"></a><span class="fu">bal.tab</span>(w.out2, <span class="at">stats =</span> <span class="fu">c</span>(<span class="st">"m"</span>, <span class="st">"v"</span>), <span class="at">thresholds =</span> <span class="fu">c</span>(<span class="at">m =</span> .<span class="dv">05</span>))</span>
+<span id="cb17-74"><a href="#cb17-74" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-75"><a href="#cb17-75" aria-hidden="true" tabindex="-1"></a>Suppose we are satisfied with the balance, we can use the weights to estimate the treatment effect.  We can use the "marginaleffects" package to do that.</span>
 <span id="cb17-76"><a href="#cb17-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-77"><a href="#cb17-77" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cobalt)</span>
-<span id="cb17-78"><a href="#cb17-78" aria-hidden="true" tabindex="-1"></a><span class="fu">bal.tab</span>(w.out1, <span class="at">stats =</span> <span class="fu">c</span>(<span class="st">"m"</span>, <span class="st">"v"</span>), <span class="at">thresholds =</span> <span class="fu">c</span>(<span class="at">m =</span> .<span class="dv">05</span>))</span>
-<span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a><span class="fu">### entropy balancing</span></span>
-<span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-85"><a href="#cb17-85" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a>w.out2 <span class="ot">&lt;-</span> <span class="fu">weightit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span> nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde, <span class="at">estimand =</span> <span class="st">"ATT"</span>, <span class="at">method =</span> <span class="st">"ebal"</span>)</span>
-<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(w.out2)</span>
-<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a><span class="fu">bal.tab</span>(w.out2, <span class="at">stats =</span> <span class="fu">c</span>(<span class="st">"m"</span>, <span class="st">"v"</span>), <span class="at">thresholds =</span> <span class="fu">c</span>(<span class="at">m =</span> .<span class="dv">05</span>))</span>
-<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a>Suppose we are satisfied with the balance, we can use the weights to estimate the treatment effect.  We can use the "marginaleffects" package to do that.</span>
-<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit outcome model</span></span>
-<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm_weightit</span>(re78 <span class="sc">~</span> treat <span class="sc">*</span> (age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a>                                     nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75),</span>
-<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> lalonde, <span class="at">weightit =</span> w.out2)</span>
-<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a><span class="co"># G-computation for the treatment effect</span></span>
-<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"marginaleffects"</span>)</span>
-<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(fit, <span class="at">variables =</span> <span class="st">"treat"</span>,</span>
-<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(lalonde, treat <span class="sc">==</span> <span class="dv">1</span>))</span>
-<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a><span class="fu">### energy balancing</span></span>
-<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-115"><a href="#cb17-115" aria-hidden="true" tabindex="-1"></a>w.out3 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
-<span id="cb17-116"><a href="#cb17-116" aria-hidden="true" tabindex="-1"></a>  <span class="fu">weightit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb17-117"><a href="#cb17-117" aria-hidden="true" tabindex="-1"></a>                  nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75, <span class="at">data =</span> lalonde,</span>
-<span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a>                <span class="at">method =</span> <span class="st">"energy"</span>, <span class="at">estimand =</span> <span class="st">"ATE"</span>),</span>
-<span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) { <span class="fu">message</span>(<span class="st">"Energy balancing failed: "</span>, e<span class="sc">$</span>message); <span class="cn">NULL</span> }</span>
-<span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(w.out3)) <span class="fu">summary</span>(w.out3)</span>
-<span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-129"><a href="#cb17-129" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(w.out3)) {</span>
-<span id="cb17-130"><a href="#cb17-130" aria-hidden="true" tabindex="-1"></a>  fit <span class="ot">&lt;-</span> <span class="fu">lm_weightit</span>(re78 <span class="sc">~</span> treat <span class="sc">*</span> (age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb17-131"><a href="#cb17-131" aria-hidden="true" tabindex="-1"></a>                                       nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75),</span>
-<span id="cb17-132"><a href="#cb17-132" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> lalonde, <span class="at">weightit =</span> w.out3)</span>
-<span id="cb17-133"><a href="#cb17-133" aria-hidden="true" tabindex="-1"></a>  <span class="co"># G-computation for the treatment effect</span></span>
-<span id="cb17-134"><a href="#cb17-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">avg_comparisons</span>(fit, <span class="at">variables =</span> <span class="st">"treat"</span>)</span>
-<span id="cb17-135"><a href="#cb17-135" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit outcome model</span></span>
+<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm_weightit</span>(re78 <span class="sc">~</span> treat <span class="sc">*</span> (age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a>                                     nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75),</span>
+<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> lalonde, <span class="at">weightit =</span> w.out2)</span>
+<span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a><span class="co"># G-computation for the treatment effect</span></span>
+<span id="cb17-85"><a href="#cb17-85" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"marginaleffects"</span>)</span>
+<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(fit, <span class="at">variables =</span> <span class="st">"treat"</span>,</span>
+<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(lalonde, treat <span class="sc">==</span> <span class="dv">1</span>))</span>
+<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a><span class="fu">### energy balancing</span></span>
+<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a>w.out3 <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">weightit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a>                  nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75, <span class="at">data =</span> lalonde,</span>
+<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a>                <span class="at">method =</span> <span class="st">"energy"</span>, <span class="at">estimand =</span> <span class="st">"ATE"</span>),</span>
+<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) { <span class="fu">message</span>(<span class="st">"Energy balancing failed: "</span>, e<span class="sc">$</span>message); <span class="cn">NULL</span> }</span>
+<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(w.out3)) <span class="fu">summary</span>(w.out3)</span>
+<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(w.out3)) {</span>
+<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a>  fit <span class="ot">&lt;-</span> <span class="fu">lm_weightit</span>(re78 <span class="sc">~</span> treat <span class="sc">*</span> (age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a>                                       nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75),</span>
+<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a>                     <span class="at">data =</span> lalonde, <span class="at">weightit =</span> w.out3)</span>
+<span id="cb17-115"><a href="#cb17-115" aria-hidden="true" tabindex="-1"></a>  <span class="co"># G-computation for the treatment effect</span></span>
+<span id="cb17-116"><a href="#cb17-116" aria-hidden="true" tabindex="-1"></a>  <span class="fu">avg_comparisons</span>(fit, <span class="at">variables =</span> <span class="st">"treat"</span>)</span>
+<span id="cb17-117"><a href="#cb17-117" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a>Two things are worth noticing in that output rather than passing over it. First,</span>
+<span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a>the estimand changed: <span class="in">`w.out3`</span> requests the **ATE**, while the entropy-balancing</span>
+<span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a>fit above targeted the **ATT**, so the two numbers ($-73$ against $1273$) are not</span>
+<span id="cb17-124"><a href="#cb17-124" aria-hidden="true" tabindex="-1"></a>competing estimates of the same quantity. Second, look at the weight summary.</span>
+<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a>Entropy balancing gives every treated unit a weight of exactly $1$, as the ATT</span>
+<span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a>requires. Energy balancing spreads the treated weights from $0$ to $14.0$ --- one</span>
+<span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a>treated unit is effectively discarded and another counts as fourteen --- and the</span>
+<span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a>resulting standard error ($1085$) is much larger than entropy balancing's ($770$).</span>
+<span id="cb17-129"><a href="#cb17-129" aria-hidden="true" tabindex="-1"></a>Balancing the whole covariate *distribution* rather than just its means is a</span>
+<span id="cb17-130"><a href="#cb17-130" aria-hidden="true" tabindex="-1"></a>genuine advantage, but it is bought with weight variability, and that shows up</span>
+<span id="cb17-131"><a href="#cb17-131" aria-hidden="true" tabindex="-1"></a>directly in the precision of the estimate.</span>
+<span id="cb17-132"><a href="#cb17-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-133"><a href="#cb17-133" aria-hidden="true" tabindex="-1"></a><span class="fu">## comparing matching and weighting</span></span>
+<span id="cb17-134"><a href="#cb17-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-135"><a href="#cb17-135" aria-hidden="true" tabindex="-1"></a>Matching and weighting are popular in different fields.  We used to say matching involves discarding data therefore changing the estimand, but now with full matching and other methods, matching can be done without losing data.  We used to believe weighting can be unstable, as weights can be highly variable, but with CBPS, entropy balancing and energy balancing, weighting can perform much better.</span>
 <span id="cb17-136"><a href="#cb17-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-137"><a href="#cb17-137" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-137"><a href="#cb17-137" aria-hidden="true" tabindex="-1"></a>So, in practice, we can try different methods, either matching or weighting, and see which one gives us better balance. Then use "marginaleffects" to get the treatment effect.</span>
 <span id="cb17-138"><a href="#cb17-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-139"><a href="#cb17-139" aria-hidden="true" tabindex="-1"></a>Two things are worth noticing in that output rather than passing over it. First,</span>
-<span id="cb17-140"><a href="#cb17-140" aria-hidden="true" tabindex="-1"></a>the estimand changed: <span class="in">`w.out3`</span> requests the **ATE**, while the entropy-balancing</span>
-<span id="cb17-141"><a href="#cb17-141" aria-hidden="true" tabindex="-1"></a>fit above targeted the **ATT**, so the two numbers ($-73$ against $1273$) are not</span>
-<span id="cb17-142"><a href="#cb17-142" aria-hidden="true" tabindex="-1"></a>competing estimates of the same quantity. Second, look at the weight summary.</span>
-<span id="cb17-143"><a href="#cb17-143" aria-hidden="true" tabindex="-1"></a>Entropy balancing gives every treated unit a weight of exactly $1$, as the ATT</span>
-<span id="cb17-144"><a href="#cb17-144" aria-hidden="true" tabindex="-1"></a>requires. Energy balancing spreads the treated weights from $0$ to $14.0$ --- one</span>
-<span id="cb17-145"><a href="#cb17-145" aria-hidden="true" tabindex="-1"></a>treated unit is effectively discarded and another counts as fourteen --- and the</span>
-<span id="cb17-146"><a href="#cb17-146" aria-hidden="true" tabindex="-1"></a>resulting standard error ($1085$) is much larger than entropy balancing's ($770$).</span>
-<span id="cb17-147"><a href="#cb17-147" aria-hidden="true" tabindex="-1"></a>Balancing the whole covariate *distribution* rather than just its means is a</span>
-<span id="cb17-148"><a href="#cb17-148" aria-hidden="true" tabindex="-1"></a>genuine advantage, but it is bought with weight variability, and that shows up</span>
-<span id="cb17-149"><a href="#cb17-149" aria-hidden="true" tabindex="-1"></a>directly in the precision of the estimate.</span>
-<span id="cb17-150"><a href="#cb17-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-151"><a href="#cb17-151" aria-hidden="true" tabindex="-1"></a><span class="fu">## comparing matching and weighting</span></span>
-<span id="cb17-152"><a href="#cb17-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-153"><a href="#cb17-153" aria-hidden="true" tabindex="-1"></a>Matching and weighting are popular in different fields.  We used to say matching involves discarding data therefore changing the estimand, but now with full matching and other methods, matching can be done without losing data.  We used to believe weighting can be unstable, as weights can be highly variable, but with CBPS, entropy balancing and energy balancing, weighting can perform much better.</span>
-<span id="cb17-154"><a href="#cb17-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-155"><a href="#cb17-155" aria-hidden="true" tabindex="-1"></a>So, in practice, we can try different methods, either matching or weighting, and see which one gives us better balance. Then use "marginaleffects" to get the treatment effect.</span>
-<span id="cb17-156"><a href="#cb17-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-157"><a href="#cb17-157" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb17-158"><a href="#cb17-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-159"><a href="#cb17-159" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb17-160"><a href="#cb17-160" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/matching.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/matching.html).*</span>
+<span id="cb17-139"><a href="#cb17-139" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb17-140"><a href="#cb17-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-141"><a href="#cb17-141" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb17-142"><a href="#cb17-142" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/matching.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/matching.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

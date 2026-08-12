@@ -572,9 +572,8 @@ window.Quarto = {
 
 
 </header><section id="comparing-marginal-effects" class="level2" data-number="6.1"><h2 data-number="6.1" class="anchored" data-anchor-id="comparing-marginal-effects">
-<span class="header-section-number">6.1</span> Comparing Marginal effects</h2>
-<p>Stata’s margins command has been a powerful tool for many economists. It can calculate predicted means as well as predicted marginal effects. Sometimes we’d like to compare those marginal effects. People use margins and marginsplot to generate marginal effects; then draw conclusions on whether there is a difference between marginal effects, based on whether the confidence intervals overlap or not. However, that can actually be wrong. In this post, I’d like to introduce a way to compare effects.</p>
-<p>For example:</p>
+<span class="header-section-number">6.1</span> Comparing marginal effects</h2>
+<p>A common practice is to plot marginal effects with <code>margins</code> and <code>marginsplot</code>, then conclude two effects differ whenever their confidence intervals do not overlap. This can be wrong — overlapping intervals do not imply no significant difference, because the test depends on the joint distribution of the two estimates, not on their marginal distributions separately.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nhanes2f, <span class="kw">clear</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">logit</span> diabetes i.female##c.age, <span class="kw">nolog</span></span>
@@ -685,11 +684,10 @@ file marginsplot2.svg saved as SVG format</code></pre>
 </div>
 <p><img src="marginsplot1.svg" class="img-fluid"></p>
 <p><img src="marginsplot2.svg" class="img-fluid"></p>
-<p>Here we run a logit model of diabetes and have female indicator and continuous age variable and their interaction as predictors.</p>
-<p>See my other post about interpreting marginal effects in non-linear model. In general we recommend against going after marginal effects in a non-linear model, instead we should focus on original coefficients. However, in case you still want to do that (many people do), here is an example. Suppose you are interested in comparing the effect of female on probability, at different ages, ranging from 20 to 70. The first margins command above tells you the predicted probability for each gender, the second tells the difference between the two genders.</p>
-<p>People tend to draw conclusions based on the confidence intervals overlapping or not. That is, if the confidence intervals of two effects overlap, then there is no statistically significant difference between the two effects. This actually can be wrong. The reason is that the confidence intervals are based on individual variable’s distribution, that is, how big the variance of that estimate. The difference between two effects, however, depends on the joint distribution of the two effects. That is, the variances of the two effects, and the covariance between the two effects. We should expect two effects are correlated, since they are derived from estimates from the same model, and often the same data. Therefore, two effects with overlapping confidence intervals do not necessarily mean the difference between the two is not statistically different from zero.</p>
-<p>To see this, suppose we are interested in <span class="math inline">\(x-y\)</span>, the difference between two effects <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span>, <span id="eq-comparing-margins-1"><span class="math display">\[ Var(x-y)=Var(x) + Var(y) - 2 Cov(x,y)  \tag{6.1}\]</span></span> The variance of the difference is the sum of the two variances, minus <em>twice</em> the covariance of <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span>. When we draw confidence intervals of marginal effects, <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span>, they are determined by <span class="math inline">\(Var(x)\)</span> and <span class="math inline">\(Var(y)\)</span>, respectively. But the confidence interval of <span class="math inline">\(x-y\)</span> should be based on <span class="math inline">\(Var(x-y)\)</span>, which is affected by <span class="math inline">\(Cov(x,y)\)</span>. When <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> are highly correlated, the variance of the difference can become small, and therefore the estimated <span class="math inline">\(x-y\)</span> can be statistically significant, even if the two confidence intervals overlap (meaning the variances of <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> can be relatively large).</p>
-<p>For example, we see in the second margins output, the effect of female on probability is .006 at point 1 (age 20), .0087 at point 2 (age 30). If you’d like to compare these two effects, you see their confidence intervals overlap. It’s easy to draw a conclusion that these two effects do not differ statistically because their confidence intervals overlap. However, if we do a statistical test of the difference, we see the difference is significant.</p>
+<p>We fit a logit of diabetes on female, age, and their interaction. The first <code>margins</code> call gives predicted probabilities by gender; the second (with <code>r.female</code>) gives the female-vs-male contrast at each age. (On the general question of marginal effects in nonlinear models, see the previous chapter — the coefficient on the link scale is usually more interpretable.)</p>
+<p>The female effect at age 20 is <span class="math inline">\(.006\)</span> and at age 30 is <span class="math inline">\(.009\)</span>; their confidence intervals overlap. It is tempting to conclude the two effects are not significantly different, but that conclusion does not follow. For two effects <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> from the same model,</p>
+<p><span id="eq-comparing-margins-1"><span class="math display">\[ \text{Var}(x - y) = \text{Var}(x) + \text{Var}(y) - 2\,\text{Cov}(x, y).  \tag{6.1}\]</span></span></p>
+<p>When <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> are positively correlated — as they will be, coming from the same fit — the variance of their difference can be much smaller than either individual variance. So the difference can be significant even when the individual intervals overlap.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nhanes2f, <span class="kw">clear</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">logit</span> diabetes i.female##c.age, <span class="kw">nolog</span></span>
@@ -763,7 +761,7 @@ Expression: Pr(diabetes), predict()
 </div>
 </div>
 <p>We can do this with native Stata syntax: <code>margins ..., post</code> posts the estimated contrasts as if they were regular coefficients (named <code>r1vs0.female@1._at</code>, <code>r1vs0.female@2._at</code>, etc. — check <code>matrix list e(b)</code> to see the exact names), so <code>lincom</code> can test any linear combination of them natively, without depending on a user-written command.</p>
-<p>Fortunately, margins has an option to show this difference, by contrast(atcontrast(r)). This is to say comparing all other points to the reference category.</p>
+<p><code>margins</code> can compute these differences directly with <code>contrast(atcontrast(r))</code>, which compares each evaluation point to the reference:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nhanes2f, <span class="kw">clear</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">logit</span> diabetes i.female##c.age, <span class="kw">nolog</span></span>
@@ -1304,77 +1302,70 @@ file marginsplot3.svg saved as SVG format</code></pre>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparing Marginal effects</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparing marginal effects</span></span>
 <span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>Stata's margins command has been a powerful tool for many economists.  It can calculate predicted means as well as predicted marginal effects.  Sometimes we'd like to compare those marginal effects.  People use margins and marginsplot to generate marginal effects; then draw conclusions on whether there is a difference between marginal effects, based on whether the confidence intervals overlap or not. However, that can actually be wrong. In this post, I'd like to introduce a way to compare effects.</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>For example:</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>A common practice is to plot marginal effects with <span class="in">`margins`</span> and <span class="in">`marginsplot`</span>, then conclude two effects differ whenever their confidence intervals do not overlap. This can be wrong — overlapping intervals do not imply no significant difference, because the test depends on the joint distribution of the two estimates, not on their marginal distributions separately.</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="in">margins female,  at(age=(20 30 40 50 60 70)) </span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="in">margins female,  at(age=(20 30 40 50 60 70)) </span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="in">marginsplot</span></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot1.svg", as(svg) replace</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) </span></span>
 <span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="in">marginsplot</span></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot1.svg", as(svg) replace</span></span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) </span></span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="in">marginsplot</span></span>
-<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot2.svg", as(svg) replace</span></span>
-<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot1.svg)</span></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot2.svg)</span></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>Here we run a logit model of diabetes and have female indicator and continuous age variable and their interaction as predictors.</span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>See my other post about interpreting marginal effects in non-linear model.  In general we recommend against going after marginal effects in a non-linear model, instead we should focus on original coefficients.  However, in case you still want to do that (many people do), here is an example.  Suppose you are interested in comparing the effect of female on probability, at different ages, ranging from 20 to 70.  The first margins command above tells you the predicted probability for each gender, the second tells the difference between the two genders.  </span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>People tend to draw conclusions based on the confidence intervals overlapping or not.  That is, if the confidence intervals of two effects overlap, then there is no statistically significant difference between the two effects.  This actually can be wrong.  The reason is that the confidence intervals are based on individual variable's distribution, that is, how big the variance of that estimate.  The difference between two effects, however, depends on the joint distribution of the two effects.  That is, the variances of the two effects, and the covariance between the two effects.  We should expect two effects are correlated, since they are derived from estimates from the same model, and often the same data.  Therefore, two effects with overlapping confidence intervals do not necessarily mean the difference between the two is not statistically different from zero.  </span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot2.svg", as(svg) replace</span></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot1.svg)</span></span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot2.svg)</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>We fit a logit of diabetes on female, age, and their interaction. The first <span class="in">`margins`</span> call gives predicted probabilities by gender; the second (with <span class="in">`r.female`</span>) gives the female-vs-male contrast at each age. (On the general question of marginal effects in nonlinear models, see the previous chapter — the coefficient on the link scale is usually more interpretable.)</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>The female effect at age 20 is $.006$ and at age 30 is $.009$; their confidence intervals overlap. It is tempting to conclude the two effects are not significantly different, but that conclusion does not follow. For two effects $x$ and $y$ from the same model,</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>$$ \text{Var}(x - y) = \text{Var}(x) + \text{Var}(y) - 2\,\text{Cov}(x, y). $$ {#eq-comparing-margins-1}</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>When $x$ and $y$ are positively correlated — as they will be, coming from the same fit — the variance of their difference can be much smaller than either individual variance. So the difference can be significant even when the individual intervals overlap.</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>To see this, suppose we are interested in $x-y$, the difference between two effects $x$ and $y$,</span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>$$ Var(x-y)=Var(x) + Var(y) - 2 Cov(x,y) $$ {#eq-comparing-margins-1}</span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>The variance of the difference is the sum of the two variances, minus *twice* the covariance of $x$ and $y$.  When we draw confidence intervals of marginal effects, $x$ and $y$, they are determined by $Var(x)$ and $Var(y)$, respectively.   But the confidence interval of $x-y$ should be based on $Var(x-y)$, which is affected by $Cov(x,y)$.  When $x$ and $y$ are highly correlated, the variance of the difference can become small, and therefore the estimated $x-y$ can be statistically significant, even if the two confidence intervals overlap (meaning the variances of $x$ and $y$ can be relatively large). </span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>For example, we see in the second margins output, the effect of female on probability is .006 at point 1 (age 20), .0087 at point 2 (age 30).  If you'd like to compare these two effects, you see their confidence intervals overlap.  It's easy to draw a conclusion that these two effects do not differ statistically because their confidence intervals overlap.  However, if we do a statistical test of the difference, we see the difference is significant.</span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) post</span></span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="in">lincom _b[r1vs0.female@2._at] - _b[r1vs0.female@1._at]</span></span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>We can do this with native Stata syntax: <span class="in">`margins ..., post`</span> posts the estimated contrasts as if they were regular coefficients (named <span class="in">`r1vs0.female@1._at`</span>, <span class="in">`r1vs0.female@2._at`</span>, etc. — check <span class="in">`matrix list e(b)`</span> to see the exact names), so <span class="in">`lincom`</span> can test any linear combination of them natively, without depending on a user-written command.</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) post</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="in">lincom _b[r1vs0.female@2._at] - _b[r1vs0.female@1._at]</span></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>We can do this with native Stata syntax: <span class="in">`margins ..., post`</span> posts the estimated contrasts as if they were regular coefficients (named <span class="in">`r1vs0.female@1._at`</span>, <span class="in">`r1vs0.female@2._at`</span>, etc. — check <span class="in">`matrix list e(b)`</span> to see the exact names), so <span class="in">`lincom`</span> can test any linear combination of them natively, without depending on a user-written command.</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">`margins`</span> can compute these differences directly with <span class="in">`contrast(atcontrast(r))`</span>, which compares each evaluation point to the reference:</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
 <span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>Fortunately, margins has an option to show this difference, by contrast(atcontrast(r)).  This is to say comparing all other points to the reference category.</span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) contrast(atcontrast(r))</span></span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a><span class="in">marginsplot</span></span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot3.svg", as(svg) replace</span></span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
-<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
-<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) contrast(atcontrast(r))</span></span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a><span class="in">marginsplot</span></span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot3.svg", as(svg) replace</span></span>
-<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot3.svg)</span></span>
-<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>From this we see the difference of effects between point 2 and 1 is .0026, and significant — the same conclusion the <span class="in">`lincom`</span> test gave above.</span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot3.svg)</span></span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>From this we see the difference of effects between point 2 and 1 is .0026, and significant — the same conclusion the <span class="in">`lincom`</span> test gave above.</span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

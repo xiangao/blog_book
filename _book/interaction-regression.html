@@ -573,14 +573,12 @@ window.Quarto = {
 
 </header><section id="interaction-with-two-binary-variables" class="level2" data-number="1.1"><h2 data-number="1.1" class="anchored" data-anchor-id="interaction-with-two-binary-variables">
 <span class="header-section-number">1.1</span> Interaction with two binary variables</h2>
-<p>In a regression model with interaction term, people tend to pay attention to only the coefficient of the interaction term.</p>
-<p>Let’s start with the simplest situation: <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> are binary and coded 0/1.</p>
+<p>Start with the simplest case: two binary variables <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> coded 0/1.</p>
 <p><span id="eq-interaction-regression-1"><span class="math display">\[ E(y) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1x_2  \tag{1.1}\]</span></span></p>
-<p>In this case, we have a saturated model; that is, we have three coefficients representing additive effects from the baseline situation (both <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> being 0). There are four different situations, with four combinations of <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span>.</p>
-<p>A lot of people just pay attention to the interaction term. In the case of studying treatment effects between two groups, say female and male, that makes sense, the interaction term representing the difference between male and female in terms of treatment effect.</p>
-<p>In this model:</p>
+<p>The model is saturated — three coefficients for three contrasts from the baseline <span class="math inline">\((x_1, x_2) = (0, 0)\)</span>, one for each of the other three cells. Often only the interaction term gets attention. When the two variables are treatment and group, the interaction is the difference in treatment effects between groups, and that may be all that matters. But in other designs all four cells are substantively interesting, and then <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\beta_2\)</span> matter too.</p>
+<p>Consider the model:</p>
 <p><span id="eq-interaction-regression-2"><span class="math display">\[ E(y) = \beta_0 + \beta_1 female + \beta_2 treatment + \beta_{12} female*treatment  \tag{1.2}\]</span></span></p>
-<p>The two dummy-coded binary variables, female and treatment, form four combinations. The following 2x2 table represents the expected means of the four cells(combinations).</p>
+<p>The four cell means are:</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 15%">
@@ -605,16 +603,10 @@ window.Quarto = {
 </tr>
 </tbody>
 </table>
-<p>We can see from this table that, for example,</p>
-<p><span class="math display">\[\beta_0=E(Y|(0,0))\]</span> {#eq-interaction-regression-7};</p>
-<p>that is, <span class="math inline">\(\beta_0\)</span> is the expected mean of the cell (0,0) (male and control).</p>
-<p><span class="math display">\[\beta_0 + \beta_1 =E(Y|(1,0))\]</span> {#eq-interaction-regression-8};</p>
-<p>that is ,<span class="math inline">\(\beta_0 + \beta_1\)</span> is the expected mean of the cell (1,0) (female and control). And so on.</p>
-<p>Now,</p>
+<p>Each <span class="math inline">\(\beta\)</span> reads off the table: <span class="math inline">\(\beta_0\)</span> is the baseline cell mean, <span class="math inline">\(\beta_1\)</span> the female premium among controls, <span class="math inline">\(\beta_2\)</span> the treatment effect among males. The interaction</p>
 <p><span id="eq-interaction-regression-9"><span class="math display">\[ \beta_{12} = (E(Y|(1,1))-E(Y|(0,1)))-(E(Y|(1,0))-E(Y|(0,0)))  \tag{1.7}\]</span></span></p>
-<p>that is, the coefficient on the interaction term is actually the difference in difference. That’s why in many situations, people are only interested in the interaction coefficient, since they are only interested in the diff-in-diff estimates. The usual diff-in-diff estimator in the causal inference literature refers to something similar, instead of female vs.&nbsp;male, people are interested in the treatment effect difference in before and after treatment. If we simply replace female/male dummy with before/after dummy, we can use the same logic. In those situations, it’s fine to mainly focus on the interaction term coefficient.</p>
-<p>In some other situations, the three coefficients are equally important. It depends on your interest. For example, if we are interested in studying differences between union member and non-union member and black vs.&nbsp;non-black, we may not be only interested in the interaction effect. Instead, we might be interested in all four cells, maybe all possible pairwise comparisons. In that case, we should pay attention to all three coefficients. Stata’s “margins” command is of great help if we’d like to compare the cell means.</p>
-<p>Let’s take a look from a sample example in Stata:</p>
+<p>is the difference in differences — the treatment effect for females minus the treatment effect for males. When the research question is “does the treatment effect differ by group?”, the interaction term is the answer. Replace female/male with before/after and the same expression is the standard DiD estimator.</p>
+<p>But sometimes the interest is in all four cells. Union membership crossed with race, for example — we may want all six pairwise comparisons, not just the interaction. Stata’s <code>margins</code> command computes these directly:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> union3</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> ln_wage i.union##i.<span class="bn">black</span>, <span class="fu">r</span></span>
@@ -687,21 +679,15 @@ Expression: Linear prediction, predict()
 . </code></pre>
 </div>
 </div>
-<p>What we get by using “margins union#black” is the four cell means of <span class="math inline">\(E(Y)\)</span>, in this case, log of wage. Then “margins union#black, pwcompare” tells us all pairwise comparison of these four cell means. Instead of only paying attention to the interaction coefficient, in this case we might be interested in some comparisons of the four different situations of union and black. In this example, all six pairwise comparisons of the cell means have 95% confidence intervals that do not include zero — and yet the interaction term is insignificant (<span class="math inline">\(p = 0.455\)</span>). The two facts are compatible, and seeing why is the point. Each pairwise comparison asks whether two cells differ <em>from each other</em>. The interaction asks whether the <em>difference between two of those differences</em> is non-zero. Every simple contrast can be large and precisely estimated while the difference of differences is small relative to its own standard error, which is exactly what happens here: the union premium is clearly positive for both groups, but the <em>gap</em> between the two premiums (<span class="math inline">\(0.039\)</span>) is not distinguishable from zero.</p>
+<p>The <code>margins</code> call reports the four cell means; <code>pwcompare</code> gives all six pairwise comparisons. In this example, all six pairwise contrasts are significant at 95% — yet the interaction term is insignificant (<span class="math inline">\(p = 0.455\)</span>). The two facts are compatible. Each pairwise comparison asks whether two cells differ from each other. The interaction asks whether the <em>difference between two of those differences</em> is non-zero — a second-order quantity with its own, larger standard error. Here the union premium is clearly positive for both groups, but the gap between the two premiums (<span class="math inline">\(0.039\)</span>) is not distinguishable from zero.</p>
 </section><section id="interaction-with-continuous-variables" class="level2" data-number="1.2"><h2 data-number="1.2" class="anchored" data-anchor-id="interaction-with-continuous-variables">
 <span class="header-section-number">1.2</span> Interaction with continuous variables</h2>
-<p>Let’s start with the simplest situation: <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> are continuous.</p>
-<p><span id="eq-interaction-regression-10"><span class="math display">\[ E(y) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2  \tag{1.8}\]</span></span></p>
-<p>In this case, we recommend “centering” <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> if they are continuous; that is, subtracting the mean value from each continuous independent variable when they are involved in the interaction term. Centering is a linear transformation, so it does not change the model’s fitted values, <span class="math inline">\(R^2\)</span>, or the coefficient, standard error, t-statistic, or p-value of the interaction term <span class="math inline">\(\beta_{12}\)</span> itself. What it does change is the interpretation of the main effects:</p>
-<ol type="1">
-<li>To reduce apparent multi-collinearity between the main effects and the interaction term. If the range of <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> include only positive numbers, <span class="math inline">\(x_1*x_2\)</span> can be highly correlated with <span class="math inline">\(x_1\)</span> and/or <span class="math inline">\(x_2\)</span>, which inflates the standard errors of <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\beta_2\)</span> (but not <span class="math inline">\(\beta_{12}\)</span>) and makes those two coefficients numerically unstable to estimate, even though the model’s predictions are unaffected.</li>
-</ol>
-<p>“Centering” reduces the correlation between the interaction term and the main-effect variables. If the original variables are normally distributed, the interaction term after centering is actually uncorrelated with the (centered) main effects. When they are not normally distributed, centering will still reduce the correlation to a large degree. This is an interpretational and numerical-stability convenience for <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\beta_2\)</span>, not a fix that improves estimation of the interaction effect itself.</p>
-<ol start="2" type="1">
-<li>To help with interpretation. In a model with interaction, <span class="math inline">\(\beta_1\)</span> represents the effect of <span class="math inline">\(x_1\)</span> when <span class="math inline">\(x_2\)</span> is zero. However, in many situations, zero is not within the range of <span class="math inline">\(x_2\)</span>. After centering, centered <span class="math inline">\(x_2\)</span> at zero simply means original <span class="math inline">\(x_2\)</span> at its mean value, so <span class="math inline">\(\beta_1\)</span> is now the effect of <span class="math inline">\(x_1\)</span> evaluated at the mean of <span class="math inline">\(x_2\)</span> instead of at <span class="math inline">\(x_2=0\)</span>.</li>
-</ol>
-<p>When we have dummy variable interacting with continuous variable, only continuous variable should be centered.</p>
-<p>Again, Stata’s margins command is helpful.</p>
+<p>With continuous <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span>,</p>
+<p><span id="eq-interaction-regression-10"><span class="math display">\[ E(y) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1 x_2  \tag{1.8}\]</span></span></p>
+<p>centering both variables — subtracting each mean before forming the product — is a linear transformation that leaves fitted values, <span class="math inline">\(R^2\)</span>, and everything about <span class="math inline">\(\beta_{12}\)</span> unchanged. What it changes is <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\beta_2\)</span>.</p>
+<p>First, it reduces collinearity. When <span class="math inline">\(x_1\)</span> and <span class="math inline">\(x_2\)</span> are positive, <span class="math inline">\(x_1 x_2\)</span> is mechanically correlated with both, inflating the standard errors of <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\beta_2\)</span>. Centering breaks most of that correlation (all of it under normality), stabilizing the main-effect estimates without altering the interaction.</p>
+<p>Second, it fixes the interpretation. In the uncentered model, <span class="math inline">\(\beta_1\)</span> is the effect of <span class="math inline">\(x_1\)</span> when <span class="math inline">\(x_2 = 0\)</span>, and zero may be outside the support of <span class="math inline">\(x_2\)</span>. After centering, <span class="math inline">\(\beta_1\)</span> is the effect of <span class="math inline">\(x_1\)</span> evaluated at the mean of <span class="math inline">\(x_2\)</span> — a quantity that is always interpretable. When a dummy interacts with a continuous variable, only the continuous variable should be centered.</p>
+<p>Stata’s <code>margins</code> command computes the conditional predictions directly:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">sysuse</span> auto</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">sum</span> mpg</span>
@@ -795,7 +781,7 @@ Variables that uniquely identify margins: mpg_centered foreign
 . </code></pre>
 </div>
 </div>
-<p>In this example, the graph shows the predicted price for foreign and domestic cars at different level of mpg.</p>
+<p>The graph shows predicted price for foreign and domestic cars across the range of mpg.</p>
 
 
 <!-- -->
@@ -1270,104 +1256,80 @@ Variables that uniquely identify margins: mpg_centered foreign
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="fu">## Interaction with two binary variables</span></span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>In a regression model with interaction term, people tend to pay attention to only the coefficient of the interaction term.</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>Start with the simplest case: two binary variables $x_1$ and $x_2$ coded 0/1.</span>
 <span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>Let's start with the simplest situation: $x_1$ and $x_2$ are binary and coded 0/1.</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>$$ E(y) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1x_2 $$ {#eq-interaction-regression-1}</span>
 <span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>$$ E(y) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1x_2 $$ {#eq-interaction-regression-1}</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>The model is saturated — three coefficients for three contrasts from the baseline $(x_1, x_2) = (0, 0)$, one for each of the other three cells. Often only the interaction term gets attention. When the two variables are treatment and group, the interaction is the difference in treatment effects between groups, and that may be all that matters. But in other designs all four cells are substantively interesting, and then $\beta_1$ and $\beta_2$ matter too.</span>
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>In this case, we have a saturated model; that is, we have three coefficients representing additive effects from the baseline situation (both $x_1$ and $x_2$ being 0).  There are four different situations, with four combinations of $x_1$ and $x_2$.</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>Consider the model:</span>
 <span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>A lot of people just pay attention to the interaction term.   In the case of studying treatment effects between two groups, say female and male, that makes sense, the interaction term representing the difference between male and female in terms of treatment effect.</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>In this model:</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>$$ E(y) = \beta_0 + \beta_1 female + \beta_2 treatment + \beta_{12} female*treatment $$ {#eq-interaction-regression-2}</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>The four cell means are:</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>$$ E(y) = \beta_0 + \beta_1 female + \beta_2 treatment + \beta_{12} female*treatment $$ {#eq-interaction-regression-2}</span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>The two dummy-coded binary variables, female and treatment, form four combinations.  The following 2x2 table represents the expected means of the four cells(combinations).</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span>               <span class="pp">|</span>  male                   <span class="pp">|</span>  female                                        <span class="pp">|</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="pp">| -------------</span> <span class="pp">|:-----------------------:|:----------------------------------------------:|</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> control       <span class="pp">|</span>  $$ \beta_0 $$ {#eq-interaction-regression-3}          <span class="pp">|</span>  $$ \beta_0 + \beta_1 $$ {#eq-interaction-regression-4}                        <span class="pp">|</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> treatment     <span class="pp">|</span> $$ \beta_0 + \beta_2 $$ {#eq-interaction-regression-5} <span class="pp">|</span>  $$ \beta_0 + \beta_1 + \beta_2 + \beta_{12}$$ {#eq-interaction-regression-6} <span class="pp">|</span></span>
 <span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span>               <span class="pp">|</span>  male                   <span class="pp">|</span>  female                                        <span class="pp">|</span></span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="pp">| -------------</span> <span class="pp">|:-----------------------:|:----------------------------------------------:|</span></span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> control       <span class="pp">|</span>  $$ \beta_0 $$ {#eq-interaction-regression-3}          <span class="pp">|</span>  $$ \beta_0 + \beta_1 $$ {#eq-interaction-regression-4}                        <span class="pp">|</span></span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> treatment     <span class="pp">|</span> $$ \beta_0 + \beta_2 $$ {#eq-interaction-regression-5} <span class="pp">|</span>  $$ \beta_0 + \beta_1 + \beta_2 + \beta_{12}$$ {#eq-interaction-regression-6} <span class="pp">|</span></span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>We can see from this table that, for example,</span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>$$\beta_0=E(Y|(0,0))$$ {#eq-interaction-regression-7};</span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>that is, $\beta_0$ is the expected mean of the cell (0,0) (male and control).</span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>$$\beta_0 + \beta_1 =E(Y|(1,0))$$ {#eq-interaction-regression-8};</span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>that is ,$\beta_0 + \beta_1$ is the expected mean of the cell (1,0) (female and control).  And so on.</span>
-<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>Now,</span>
-<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>$$ \beta_{12} = (E(Y|(1,1))-E(Y|(0,1)))-(E(Y|(1,0))-E(Y|(0,0))) $$ {#eq-interaction-regression-9}</span>
-<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>that is, the coefficient on the interaction term is actually the difference in difference.  That's why in many situations, people are only interested in the interaction coefficient, since they are only interested in the diff-in-diff estimates.  The usual diff-in-diff estimator in the causal inference literature refers to something similar, instead of female vs. male, people are interested in the treatment effect difference in before and after treatment.  If we simply replace female/male dummy with before/after dummy, we can use the same logic.  In those situations, it's fine to mainly focus on the interaction term coefficient.</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>Each $\beta$ reads off the table: $\beta_0$ is the baseline cell mean, $\beta_1$ the female premium among controls, $\beta_2$ the treatment effect among males. The interaction</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>$$ \beta_{12} = (E(Y|(1,1))-E(Y|(0,1)))-(E(Y|(1,0))-E(Y|(0,0))) $$ {#eq-interaction-regression-9}</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>is the difference in differences — the treatment effect for females minus the treatment effect for males. When the research question is "does the treatment effect differ by group?", the interaction term is the answer. Replace female/male with before/after and the same expression is the standard DiD estimator.</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>But sometimes the interest is in all four cells. Union membership crossed with race, for example — we may want all six pairwise comparisons, not just the interaction. Stata's <span class="in">`margins`</span> command computes these directly:</span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk</span></span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>webuse union3</span>
+<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>reg ln_wage i.union<span class="do">##i.black, r</span></span>
+<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a>margins union<span class="co">#black</span></span>
+<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a>margins union<span class="co">#black, pwcompare</span></span>
 <span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a>In some other situations, the three coefficients are equally important.  It depends on your interest.  For example, if we are interested in studying differences between union member and non-union member and black vs. non-black, we may not be only interested in the interaction effect.  Instead, we might be interested in all four cells, maybe all possible pairwise comparisons.  In that case, we should pay attention to all three coefficients.  Stata's "margins" command is of great help if we'd like to compare the cell means.</span>
-<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a>Let's take a look from a sample example in Stata:</span>
+<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>The <span class="in">`margins`</span> call reports the four cell means; <span class="in">`pwcompare`</span> gives all six pairwise comparisons. In this example, all six pairwise contrasts are significant at 95% — yet the interaction term is insignificant ($p = 0.455$). The two facts are compatible. Each pairwise comparison asks whether two cells differ from each other. The interaction asks whether the *difference between two of those differences* is non-zero — a second-order quantity with its own, larger standard error. Here the union premium is clearly positive for both groups, but the gap between the two premiums ($0.039$) is not distinguishable from zero.</span>
+<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk</span></span>
-<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a><span class="fu">## Interaction with continuous variables</span></span>
+<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>With continuous $x_1$ and $x_2$,</span>
+<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>$$ E(y) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1 x_2 $$ {#eq-interaction-regression-10}</span>
+<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a>centering both variables — subtracting each mean before forming the product — is a linear transformation that leaves fitted values, $R^2$, and everything about $\beta_{12}$ unchanged. What it changes is $\beta_1$ and $\beta_2$.</span>
 <span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a>webuse union3</span>
-<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>reg ln_wage i.union<span class="do">##i.black, r</span></span>
-<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>margins union<span class="co">#black</span></span>
-<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a>margins union<span class="co">#black, pwcompare</span></span>
-<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a>First, it reduces collinearity. When $x_1$ and $x_2$ are positive, $x_1 x_2$ is mechanically correlated with both, inflating the standard errors of $\beta_1$ and $\beta_2$. Centering breaks most of that correlation (all of it under normality), stabilizing the main-effect estimates without altering the interaction.</span>
+<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>Second, it fixes the interpretation. In the uncentered model, $\beta_1$ is the effect of $x_1$ when $x_2 = 0$, and zero may be outside the support of $x_2$. After centering, $\beta_1$ is the effect of $x_1$ evaluated at the mean of $x_2$ — a quantity that is always interpretable. When a dummy interacts with a continuous variable, only the continuous variable should be centered.</span>
+<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>Stata's <span class="in">`margins`</span> command computes the conditional predictions directly:</span>
+<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a>What we get by using "margins union#black" is the four cell means of $E(Y)$, in this case, log of wage.  Then "margins union#black, pwcompare" tells us all pairwise comparison of these four cell means.  Instead of only paying attention to the interaction coefficient, in this case we might be interested in some comparisons of the four different situations of union and black.  In this example, all six pairwise comparisons of the cell means have 95% confidence intervals that do not include zero — and yet the interaction term is insignificant ($p = 0.455$). The two facts are compatible, and seeing why is the point. Each pairwise comparison asks whether two cells differ *from each other*. The interaction asks whether the *difference between two of those differences* is non-zero. Every simple contrast can be large and precisely estimated while the difference of differences is small relative to its own standard error, which is exactly what happens here: the union premium is clearly positive for both groups, but the *gap* between the two premiums ($0.039$) is not distinguishable from zero.</span>
-<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a><span class="fu">## Interaction with continuous variables</span></span>
-<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a>Let's start with the simplest situation: $x_1$ and $x_2$ are continuous.</span>
+<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk2</span></span>
+<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
 <span id="cb5-76"><a href="#cb5-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a>$$ E(y) = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-interaction-regression-10}</span>
-<span id="cb5-78"><a href="#cb5-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-79"><a href="#cb5-79" aria-hidden="true" tabindex="-1"></a>In this case, we recommend "centering" $x_1$ and $x_2$ if they are continuous; that is, subtracting the mean value from each continuous independent variable when they are involved in the interaction term.  Centering is a linear transformation, so it does not change the model's fitted values, $R^2$, or the coefficient, standard error, t-statistic, or p-value of the interaction term $\beta_{12}$ itself. What it does change is the interpretation of the main effects:</span>
-<span id="cb5-80"><a href="#cb5-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-81"><a href="#cb5-81" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>To reduce apparent multi-collinearity between the main effects and the interaction term.  If the range of $x_1$ and $x_2$ include only positive numbers, $x_1*x_2$ can be highly correlated with $x_1$ and/or $x_2$, which inflates the standard errors of $\beta_1$ and $\beta_2$ (but not $\beta_{12}$) and makes those two coefficients numerically unstable to estimate, even though the model's predictions are unaffected.</span>
-<span id="cb5-82"><a href="#cb5-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-83"><a href="#cb5-83" aria-hidden="true" tabindex="-1"></a>"Centering" reduces the correlation between the interaction term and the main-effect variables. If the original variables are normally distributed, the interaction term after centering is actually uncorrelated with the (centered) main effects. When they are not normally distributed, centering will still reduce the correlation to a large degree. This is an interpretational and numerical-stability convenience for $\beta_1$ and $\beta_2$, not a fix that improves estimation of the interaction effect itself.</span>
+<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a>sysuse auto</span>
+<span id="cb5-78"><a href="#cb5-78" aria-hidden="true" tabindex="-1"></a>sum mpg</span>
+<span id="cb5-79"><a href="#cb5-79" aria-hidden="true" tabindex="-1"></a>gen mpg_centered<span class="ot">=</span>mpg<span class="sc">-</span><span class="fu">r</span>(mean)</span>
+<span id="cb5-80"><a href="#cb5-80" aria-hidden="true" tabindex="-1"></a>sum mpg_centered</span>
+<span id="cb5-81"><a href="#cb5-81" aria-hidden="true" tabindex="-1"></a>reg price i.foreign<span class="do">##c.mpg_centered</span></span>
+<span id="cb5-82"><a href="#cb5-82" aria-hidden="true" tabindex="-1"></a>margins foreign, <span class="fu">at</span>(<span class="at">mpg_centered=</span>(<span class="sc">-</span><span class="dv">3</span> (<span class="dv">1</span>) <span class="dv">3</span>))</span>
+<span id="cb5-83"><a href="#cb5-83" aria-hidden="true" tabindex="-1"></a>marginsplot</span>
 <span id="cb5-84"><a href="#cb5-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-85"><a href="#cb5-85" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>To help with interpretation.  In a model with interaction, $\beta_1$ represents the effect of $x_1$ when $x_2$ is zero.  However, in many situations, zero is not within the range of $x_2$.  After centering, centered $x_2$ at zero simply means original $x_2$ at its mean value, so $\beta_1$ is now the effect of $x_1$ evaluated at the mean of $x_2$ instead of at $x_2=0$.</span>
+<span id="cb5-85"><a href="#cb5-85" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb5-86"><a href="#cb5-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-87"><a href="#cb5-87" aria-hidden="true" tabindex="-1"></a>When we have dummy variable interacting with continuous variable, only continuous variable should be centered.</span>
-<span id="cb5-88"><a href="#cb5-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-89"><a href="#cb5-89" aria-hidden="true" tabindex="-1"></a>Again, Stata's margins command is helpful.</span>
-<span id="cb5-90"><a href="#cb5-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-91"><a href="#cb5-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-94"><a href="#cb5-94" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb5-95"><a href="#cb5-95" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk2</span></span>
-<span id="cb5-96"><a href="#cb5-96" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb5-97"><a href="#cb5-97" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb5-98"><a href="#cb5-98" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb5-99"><a href="#cb5-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-100"><a href="#cb5-100" aria-hidden="true" tabindex="-1"></a>sysuse auto</span>
-<span id="cb5-101"><a href="#cb5-101" aria-hidden="true" tabindex="-1"></a>sum mpg</span>
-<span id="cb5-102"><a href="#cb5-102" aria-hidden="true" tabindex="-1"></a>gen mpg_centered<span class="ot">=</span>mpg<span class="sc">-</span><span class="fu">r</span>(mean)</span>
-<span id="cb5-103"><a href="#cb5-103" aria-hidden="true" tabindex="-1"></a>sum mpg_centered</span>
-<span id="cb5-104"><a href="#cb5-104" aria-hidden="true" tabindex="-1"></a>reg price i.foreign<span class="do">##c.mpg_centered</span></span>
-<span id="cb5-105"><a href="#cb5-105" aria-hidden="true" tabindex="-1"></a>margins foreign, <span class="fu">at</span>(<span class="at">mpg_centered=</span>(<span class="sc">-</span><span class="dv">3</span> (<span class="dv">1</span>) <span class="dv">3</span>))</span>
-<span id="cb5-106"><a href="#cb5-106" aria-hidden="true" tabindex="-1"></a>marginsplot</span>
-<span id="cb5-107"><a href="#cb5-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-108"><a href="#cb5-108" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb5-109"><a href="#cb5-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-110"><a href="#cb5-110" aria-hidden="true" tabindex="-1"></a>In this example, the graph shows the predicted price for foreign and domestic cars at different level of mpg.</span>
-<span id="cb5-111"><a href="#cb5-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-87"><a href="#cb5-87" aria-hidden="true" tabindex="-1"></a>The graph shows predicted price for foreign and domestic cars across the range of mpg.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
