@@ -256,6 +256,10 @@ The selection subsection was the only part of the bad-control argument carried b
 
 Chapter now has three DAGs: occupation as simultaneous mediator and collider; treatment re-dated to perceived sex at hiring (with the positivity result); and sample selection. Full book re-rendered, 49/49.
 
+## Prose tightening pass (2026-08-12)
+
+Voice and concision edit across 25 chapters. Removed informal patterns ("Let's", "cool paper", "I found", "All credits go to", "people tend to", "has been a powerful tool", "basically"), compressed wordy openings and multi-sentence explanations into shorter paratactic prose, and switched first-person singular to "we" throughout. 189 insertions, 467 deletions. Chapters touched: interaction-regression, interaction-nonlinear, chow-test, weights-ols, marginal-effects-fe, comparing-margins, fixed-random-effect, mundlak-device, correlated-random-effect, treatment-matching, ols-ate, bartik-instrument, bunching, causal-simulation, sensitivity-analysis, power-list-experiment, gwg, proximal-intro, proximal-simulation, lmtp, stata-cate, matching-part1, weighting-part2, mediation-analysis, more-cre. Source committed, rendered, pushed.
+
 ## Selection-simulation pass (2026-07-30, gwg)
 
 The selection subsection argued open/closed paths and empty adjustment sets but never said how much the problem costs. Two new cached chunks fix that. The extract has no non-workers, so a simulation is the only honest route.
