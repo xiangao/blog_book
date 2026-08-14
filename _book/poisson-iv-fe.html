@@ -551,7 +551,7 @@ window.Quarto = {
 <main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./count-data.html">Count Data &amp; Specialized Models</a></li><li class="breadcrumb-item"><a href="./poisson-iv-fe.html"><span class="chapter-number">26</span>&nbsp; <span class="chapter-title">IV in Fixed effect Poisson with many fixed effects</span></a></li></ol></nav><div class="quarto-title">
 <div class="quarto-title-block"><div><h1 class="title">
 <span class="chapter-number">26</span>&nbsp; <span class="chapter-title">IV in Fixed effect Poisson with many fixed effects</span>
-</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
 </div>
 
 
@@ -597,12 +597,12 @@ window.Quarto = {
 </section><section id="example" class="level2" data-number="26.3"><h2 data-number="26.3" class="anchored" data-anchor-id="example">
 <span class="header-section-number">26.3</span> Example</h2>
 <div class="cell" data-collectcode="true">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>* control <span class="kw">function</span> approach</span>
+<details class="code-fold"><summary>Show code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>* control <span class="kw">function</span> approach</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> website</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>reghdfe time phone frfam, absorb(ad female) <span class="kw">resid</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">predict</span> <span class="kw">double</span> u2h_fe, <span class="kw">resid</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>ppmlhdfe visits time u2h_fe frfam, absorb(ad female)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
+</details><div class="cell-output cell-output-stdout">
 <pre><code>(Visits to website)
 
 (dropped 1 singleton observations)
@@ -685,14 +685,14 @@ Absorbed degrees of freedom:
 <p>In this example, “time” is the endogenous variable, and “phone” is the instrument. We first run the first stage regression with “reghdfe”, and get the control-function residual “u2h_fe”. Then we include “time” and “u2h_fe” in the second stage regression with “ppmlhdfe”. “ad” and “female” are two fixed effects. The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.</p>
 <p>To verify our control function approach, we do the same with a linear model. A word of caution on “it just works”: for the <em>linear</em> model, inserting the first-stage residual is the standard 2SLS-equivalent control function. For the <em>Poisson</em> model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch.&nbsp;18) assumes: a <strong>continuous</strong> endogenous variable, a <strong>linear</strong> first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption). Outside that structure (e.g.&nbsp;a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above). There is a package “ivreghdfe” we use to verify our two step process.</p>
 <div class="cell" data-collectcode="true">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span> <span class="ot">all</span></span>
+<details class="code-fold"><summary>Show code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span> <span class="ot">all</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> website</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>ivreghdfe visits frfam (time=phone), absorb(ad female)</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>* now the control <span class="kw">function</span> apparoach</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>reghdfe time phone frfam , absorb(ad female) <span class="kw">resid</span></span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">predict</span> u2h_fe, <span class="kw">resid</span></span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>reghdfe visits time u2h_fe frfam , absorb(ad female)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
+</details><div class="cell-output cell-output-stdout">
 <pre><code>(Visits to website)
 
 (dropped 1 singleton observations)
@@ -809,7 +809,7 @@ Absorbed degrees of freedom:
 <span class="header-section-number">26.4</span> Bootstrapping standard errors</h2>
 <p>Suppose we need clustered standard errors on “ad”.</p>
 <div class="cell" data-collectcode="true">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>* <span class="kw">bootstrap</span>, suppose we need to <span class="kw">cluster</span> <span class="kw">by</span> <span class="st">"ad"</span></span>
+<details class="code-fold"><summary>Show code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>* <span class="kw">bootstrap</span>, suppose we need to <span class="kw">cluster</span> <span class="kw">by</span> <span class="st">"ad"</span></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>* Note: bootstrap's idcluster(newid) below gives each resampled COPY <span class="kw">of</span> a</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>* <span class="kw">cluster</span> its own <span class="kw">unique</span> id -- necessary because a <span class="kw">cluster</span> can <span class="kw">be</span> drawn <span class="kw">more</span></span>
 <span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>* than once within a replicate, and those <span class="kw">duplicates</span> must <span class="kw">be</span> treated <span class="kw">as</span></span>
@@ -834,7 +834,7 @@ Absorbed degrees of freedom:
 <span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>xtset, <span class="kw">clear</span></span>
 <span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="kw">bootstrap</span> <span class="fu">r</span>(b_time) , reps(100) <span class="dv">seed</span>(123) <span class="kw">cluster</span>(ad) idcluster(newid) : ppmlhdfe_cf</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
+</details><div class="cell-output cell-output-stdout">
 <pre><code>(Visits to website)
 
 
@@ -884,7 +884,7 @@ Bootstrap results                                          Number of obs = 499
 <span class="header-section-number">26.6.3</span> A worked example</h3>
 <p>The <code>website</code> data used earlier does not have the shape that causes trouble — its fixed effects have 13 and 2 levels, with roughly 90 observations each, so a logit with dummies would be perfectly well behaved there. This simulates something more awkward instead: a count outcome, a binary endogenous regressor, an instrument, and two thousand units with between two and six observations each.</p>
 <div class="cell" data-collectcode="true">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">preserve</span></span>
+<details class="code-fold"><summary>Show code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">preserve</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="dv">seed</span> 20260731</span>
 <span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="kw">obs</span> 2000</span>
@@ -926,7 +926,7 @@ Bootstrap results                                          Number of obs = 499
 <span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a><span class="kw">di</span> <span class="st">"CF, CRE (Mundlak) logit         = "</span> %8.6f b_cre</span>
 <span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a><span class="kw">di</span> <span class="st">"CF, linear FE first stage       = "</span> %8.6f b_lin</span>
 <span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="kw">restore</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
+</details><div class="cell-output cell-output-stdout">
 <pre><code>Number of observations (_N) was 0, now 2,000.
 
 
