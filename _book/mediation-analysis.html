@@ -633,6 +633,8 @@ Defined Parameters:
     total             0.643    0.012   51.956    0.000</code></pre>
 </div>
 </div>
+<p>We simulate <span class="math inline">\(n = 10{,}000\)</span> observations with <span class="math inline">\(X \sim N(0,1)\)</span>, <span class="math inline">\(M = 0.5X + \varepsilon_2\)</span> and <span class="math inline">\(Y = 0.7M + 0.3X + \varepsilon_1\)</span>, both errors standard normal. So the true direct effect is <span class="math inline">\(a = 0.3\)</span>, the mediator coefficient is <span class="math inline">\(b = 0.7\)</span>, the treatment-to-mediator path is <span class="math inline">\(c = 0.5\)</span>, the indirect effect is <span class="math inline">\(bc = 0.35\)</span> and the total is 0.65. There is no confounding of any kind.</p>
+<p><code>lavaan</code> recovers all of it: <span class="math inline">\(a = 0.286\)</span>, <span class="math inline">\(b = 0.699\)</span>, <span class="math inline">\(c = 0.511\)</span>, giving <span class="math inline">\(bc = 0.357\)</span> and a total of 0.643. The model is saturated (0 degrees of freedom), so the perfect fit statistic carries no information.</p>
 <p>The same analysis in Stata:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="kw">obs</span> 10000</span>
@@ -843,6 +845,8 @@ Sample Size Used: 10000
 Simulations: 100 </code></pre>
 </div>
 </div>
+<p>And it does. The two component regressions give <span class="math inline">\(c = 0.510954\)</span> and, in the outcome equation, <span class="math inline">\(a = 0.285582\)</span> and <span class="math inline">\(b = 0.699006\)</span> — the same numbers <code>lavaan</code> produced. <code><a href="https://rdrr.io/pkg/mediation/man/mediate.html">mediate()</a></code> then reports ACME 0.35684 (against a true 0.35), ADE 0.28540 (against 0.30) and a total effect of 0.64224 (against 0.65), with the proportion mediated at 0.555. The simulation-based intervals all exclude zero.</p>
+<p>The point is that on this data the causal machinery adds nothing — which is the right outcome for a DGP with no confounding, a linear outcome model and no treatment-mediator interaction. Its value appears when those conditions fail.</p>
 </section><section id="binary-outcome" class="level2" data-number="28.3"><h2 data-number="28.3" class="anchored" data-anchor-id="binary-outcome">
 <span class="header-section-number">28.3</span> Binary outcome</h2>
 <p>For example, in the case of binary outcome, the traditional approach will have difficulties. We can estimate the outcome model and mediator model jointly, but the total effects are not easy to decompose into direct and indirect effect (see Imai et al, page 320 https://imai.fas.harvard.edu/research/files/BaronKenny.pdf).</p>
@@ -883,6 +887,8 @@ Sample Size Used: 265
 Simulations: 100 </code></pre>
 </div>
 </div>
+<p>Here the decomposition does something the linear example could not. The <code>framing</code> data has a binary outcome (<code>cong_mesg</code>, whether the subject sent a message to Congress) modelled by probit, with anxiety (<code>emo</code>) as the mediator. ACME comes out at 0.0813 under control and 0.0824 under treatment, both significant, while the direct effects are 0.0183 and 0.0194 with <span class="math inline">\(p = 0.72\)</span> and the total effect is 0.1007 with <span class="math inline">\(p = 0.24\)</span>.</p>
+<p>Read that pattern carefully: the <em>total</em> effect is not distinguishable from zero, and neither is the direct effect, yet the mediated effect clearly is. A study reporting only the total effect would have concluded the framing treatment did nothing. The proportion mediated is reported as 0.63, but note its interval runs from <span class="math inline">\(-13.7\)</span> to <span class="math inline">\(4.3\)</span> — a ratio whose denominator is indistinguishable from zero is not a usable quantity, and this is the standard reason not to lean on “proportion mediated”.</p>
 <p>“mediation” package has more functionalities, such as multilevel, interaction of treatment and mediator, etc.</p>
 <p>Stata’s sem and gsem commands can model different situations, but the direct effect and indirect effects are not easy to compute, especially when you have binary outcome, or other non-continuous outcome situations. They are not designed for causal mediation analysis.</p>
 </section><section id="going-further-formal-causal-mediation" class="level2" data-number="28.4"><h2 data-number="28.4" class="anchored" data-anchor-id="going-further-formal-causal-mediation">
@@ -1393,127 +1399,163 @@ Simulations: 100 </code></pre>
 <span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span>
 <span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>The same analysis in Stata:</span>
-<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
-<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
-<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 10000</span></span>
-<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a><span class="in">gen x= rnormal()</span></span>
-<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a><span class="in">gen m= .5*x + rnormal()</span></span>
-<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a><span class="in">gen y= .7*m + .3*x +rnormal()</span></span>
-<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a><span class="in">sem (y &lt;- x m) (m &lt;- x)</span></span>
-<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a><span class="in">estat teffects</span></span>
-<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a>The above examples should have direct effect of .3 and indirect effect of .35, and total effect of .65.</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>We simulate $n = 10{,}000$ observations with $X \sim N(0,1)$,</span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>$M = 0.5X + \varepsilon_2$ and $Y = 0.7M + 0.3X + \varepsilon_1$, both errors</span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>standard normal. So the true direct effect is $a = 0.3$, the mediator</span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>coefficient is $b = 0.7$, the treatment-to-mediator path is $c = 0.5$, the</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>indirect effect is $bc = 0.35$ and the total is 0.65. There is no confounding of</span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>any kind.</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a><span class="in">`lavaan`</span> recovers all of it: $a = 0.286$, $b = 0.699$, $c = 0.511$, giving</span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>$bc = 0.357$ and a total of 0.643. The model is saturated (0 degrees of</span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>freedom), so the perfect fit statistic carries no information.</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>The same analysis in Stata:</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
 <span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a><span class="fu">## Causal Mediation analysis</span></span>
-<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>The traditional mediation analysis has been criticized for the lack of causal interpretation.  Without manipulation of the mediator, it is hard to interpret the effects causally, because even if the treatment is from random experiments, the mediator is often not.  Therefore there could be an unmeasured confounder that is causing both $M$ and $Y$.</span>
-<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>R's "mediation" package is for causal mediation analysis.  It uses simulation to estimate the causal effects of treatment, under assumptions of sequential ignorability.</span>
-<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
-<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a><span class="fu">## Identifying assumptions for natural (in)direct effects</span></span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 10000</span></span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a><span class="in">gen x= rnormal()</span></span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a><span class="in">gen m= .5*x + rnormal()</span></span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a><span class="in">gen y= .7*m + .3*x +rnormal()</span></span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a><span class="in">sem (y &lt;- x m) (m &lt;- x)</span></span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a><span class="in">estat teffects</span></span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>Before reading the <span class="in">`mediate()`</span> output causally, the following must hold (this is "sequential ignorability" plus the standard support and link conditions):</span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>The above examples should have direct effect of .3 and indirect effect of .35, and total effect of .65.</span>
 <span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Treatment ignorability** — no unmeasured treatment–outcome confounding given covariates $W$.</span>
-<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Mediator ignorability** — no unmeasured mediator–outcome confounding given $W$ and treatment.</span>
-<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**No treatment-induced confounding** — no variable affected by the treatment confounds the mediator–outcome relationship (this is the strong, often-violated condition).</span>
-<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Positivity** — both treatment and mediator have positive probability across $W$.</span>
-<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Consistency** — observed outcomes equal the corresponding potential outcomes.</span>
-<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Cross-world independence** — the condition underlying natural effects, which no single experiment can test.</span>
-<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a>Mediator ignorability and the no-treatment-induced-confounding condition are the ones that usually break, because the mediator is rarely randomized.</span>
-<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a>It estimates the following quantities:</span>
-<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>$$\tau_i = Y_i(1, M_i(1)) - Y_i(0, M_i(0))$$ {#eq-mediation-analysis-3}</span>
-<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a>This is the total treatment effect, which is to say, what's the change in $Y$ if we change each unit from control to treated, hypothetically?</span>
-<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a>Then this can be decomposed into the causal mediation effects:</span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a><span class="fu">## Causal Mediation analysis</span></span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a>The traditional mediation analysis has been criticized for the lack of causal interpretation.  Without manipulation of the mediator, it is hard to interpret the effects causally, because even if the treatment is from random experiments, the mediator is often not.  Therefore there could be an unmeasured confounder that is causing both $M$ and $Y$.</span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a>R's "mediation" package is for causal mediation analysis.  It uses simulation to estimate the causal effects of treatment, under assumptions of sequential ignorability.</span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a><span class="fu">## Identifying assumptions for natural (in)direct effects</span></span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a>Before reading the <span class="in">`mediate()`</span> output causally, the following must hold (this is "sequential ignorability" plus the standard support and link conditions):</span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Treatment ignorability** — no unmeasured treatment–outcome confounding given covariates $W$.</span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Mediator ignorability** — no unmeasured mediator–outcome confounding given $W$ and treatment.</span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**No treatment-induced confounding** — no variable affected by the treatment confounds the mediator–outcome relationship (this is the strong, often-violated condition).</span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>**Positivity** — both treatment and mediator have positive probability across $W$.</span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>**Consistency** — observed outcomes equal the corresponding potential outcomes.</span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>**Cross-world independence** — the condition underlying natural effects, which no single experiment can test.</span>
 <span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a>$$\delta_i(t) = Y_i(t, M_i(1)) - Y_i(t, M_i(0))$$ {#eq-mediation-analysis-4}</span>
-<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a>for treatment status $t=0,1$.  This is to say, given treatment status, what's the mediation effect?</span>
-<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>$$\eta_i(t) = Y_i(1, M_i(t)) - Y_i(0, M_i(t)) $$ {#eq-mediation-analysis-5}</span>
-<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a>for treatment status $t=0,1$.  This is to say, given mediator status for each treatment status, what's the direct effect?</span>
-<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a>Therefore there are four quantities estimated, direct and mediation effect for treated and control.</span>
-<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>R's "mediation" needs users to feed two models, outcome model and mediation model.</span>
-<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>If we study the same data, we would expect it returns the same estimates as the traditional methods.  However, the causal mediation models can be much more flexible in outcome and mediation models.</span>
-<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mediation)</span>
-<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a>med.fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(M <span class="sc">~</span> X, <span class="at">data=</span>Data)</span>
-<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(med.fit)</span>
-<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>out.fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> X <span class="sc">+</span> M,<span class="at">data=</span>Data)</span>
-<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(out.fit)</span>
-<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a>med.out <span class="ot">&lt;-</span> <span class="fu">mediate</span>(med.fit, out.fit, <span class="at">treat =</span> <span class="st">"X"</span>, <span class="at">mediator =</span> <span class="st">"M"</span>, <span class="at">sims =</span> <span class="dv">100</span>)</span>
-<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(med.out)</span>
-<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a>Mediator ignorability and the no-treatment-induced-confounding condition are the ones that usually break, because the mediator is rarely randomized.</span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>It estimates the following quantities:</span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a>$$\tau_i = Y_i(1, M_i(1)) - Y_i(0, M_i(0))$$ {#eq-mediation-analysis-3}</span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>This is the total treatment effect, which is to say, what's the change in $Y$ if we change each unit from control to treated, hypothetically?</span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>Then this can be decomposed into the causal mediation effects:</span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a>$$\delta_i(t) = Y_i(t, M_i(1)) - Y_i(t, M_i(0))$$ {#eq-mediation-analysis-4}</span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>for treatment status $t=0,1$.  This is to say, given treatment status, what's the mediation effect?</span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a>$$\eta_i(t) = Y_i(1, M_i(t)) - Y_i(0, M_i(t)) $$ {#eq-mediation-analysis-5}</span>
+<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a>for treatment status $t=0,1$.  This is to say, given mediator status for each treatment status, what's the direct effect?</span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a>Therefore there are four quantities estimated, direct and mediation effect for treated and control.</span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a>R's "mediation" needs users to feed two models, outcome model and mediation model.</span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>If we study the same data, we would expect it returns the same estimates as the traditional methods.  However, the causal mediation models can be much more flexible in outcome and mediation models.</span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
 <span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a><span class="fu">## Binary outcome</span></span>
-<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a>For example, in the case of binary outcome, the traditional approach will have difficulties.  We can estimate the outcome model and mediator model jointly, but the total effects are not easy to decompose into direct and indirect effect (see Imai et al, page 320 https://imai.fas.harvard.edu/research/files/BaronKenny.pdf).</span>
-<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a>The causal mediation analysis framework is much more general.</span>
-<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mediation)</span>
-<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(framing)</span>
-<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a>med.fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(emo <span class="sc">~</span> treat <span class="sc">+</span> age <span class="sc">+</span> educ <span class="sc">+</span> gender <span class="sc">+</span> income, <span class="at">data =</span> framing)</span>
-<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a>out.fit <span class="ot">&lt;-</span> <span class="fu">glm</span>(cong_mesg <span class="sc">~</span> emo <span class="sc">+</span> treat <span class="sc">+</span> age <span class="sc">+</span> educ <span class="sc">+</span> gender <span class="sc">+</span> income,</span>
-<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a>               <span class="at">data =</span> framing, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="st">"probit"</span>))</span>
-<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a>med.out <span class="ot">&lt;-</span> <span class="fu">mediate</span>(med.fit, out.fit, <span class="at">treat =</span> <span class="st">"treat"</span>, <span class="at">mediator =</span> <span class="st">"emo"</span>,</span>
-<span id="cb13-147"><a href="#cb13-147" aria-hidden="true" tabindex="-1"></a>                     <span class="at">robustSE =</span> <span class="cn">TRUE</span>, <span class="at">sims =</span> <span class="dv">100</span>)</span>
-<span id="cb13-148"><a href="#cb13-148" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(med.out)</span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mediation)</span>
+<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a>med.fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(M <span class="sc">~</span> X, <span class="at">data=</span>Data)</span>
+<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(med.fit)</span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a>out.fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> X <span class="sc">+</span> M,<span class="at">data=</span>Data)</span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(out.fit)</span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a>med.out <span class="ot">&lt;-</span> <span class="fu">mediate</span>(med.fit, out.fit, <span class="at">treat =</span> <span class="st">"X"</span>, <span class="at">mediator =</span> <span class="st">"M"</span>, <span class="at">sims =</span> <span class="dv">100</span>)</span>
+<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(med.out)</span>
+<span id="cb13-135"><a href="#cb13-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a>And it does. The two component regressions give $c = 0.510954$ and, in the</span>
+<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a>outcome equation, $a = 0.285582$ and $b = 0.699006$ — the same numbers <span class="in">`lavaan`</span></span>
+<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a>produced. <span class="in">`mediate()`</span> then reports ACME 0.35684 (against a true 0.35), ADE</span>
+<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a>0.28540 (against 0.30) and a total effect of 0.64224 (against 0.65), with the</span>
+<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a>proportion mediated at 0.555. The simulation-based intervals all exclude zero.</span>
+<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a>The point is that on this data the causal machinery adds nothing — which is the</span>
+<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a>right outcome for a DGP with no confounding, a linear outcome model and no</span>
+<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a>treatment-mediator interaction. Its value appears when those conditions fail.</span>
+<span id="cb13-147"><a href="#cb13-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-148"><a href="#cb13-148" aria-hidden="true" tabindex="-1"></a><span class="fu">## Binary outcome</span></span>
 <span id="cb13-149"><a href="#cb13-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-150"><a href="#cb13-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-150"><a href="#cb13-150" aria-hidden="true" tabindex="-1"></a>For example, in the case of binary outcome, the traditional approach will have difficulties.  We can estimate the outcome model and mediator model jointly, but the total effects are not easy to decompose into direct and indirect effect (see Imai et al, page 320 https://imai.fas.harvard.edu/research/files/BaronKenny.pdf).</span>
 <span id="cb13-151"><a href="#cb13-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-152"><a href="#cb13-152" aria-hidden="true" tabindex="-1"></a>"mediation" package has more functionalities, such as multilevel, interaction of treatment and mediator, etc.</span>
+<span id="cb13-152"><a href="#cb13-152" aria-hidden="true" tabindex="-1"></a>The causal mediation analysis framework is much more general.</span>
 <span id="cb13-153"><a href="#cb13-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-154"><a href="#cb13-154" aria-hidden="true" tabindex="-1"></a>Stata's sem and gsem commands can model different situations, but the direct effect and indirect effects are not easy to compute, especially when you have binary outcome, or other non-continuous outcome situations.  They are not designed for causal mediation analysis.</span>
-<span id="cb13-155"><a href="#cb13-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-156"><a href="#cb13-156" aria-hidden="true" tabindex="-1"></a><span class="fu">## Going further: formal causal mediation</span></span>
-<span id="cb13-157"><a href="#cb13-157" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-158"><a href="#cb13-158" aria-hidden="true" tabindex="-1"></a>The <span class="in">`mediation`</span> package above implements sequential ignorability — a specific</span>
-<span id="cb13-159"><a href="#cb13-159" aria-hidden="true" tabindex="-1"></a>set of identifying assumptions. The <span class="co">[</span><span class="ot">causal mediation chapter</span><span class="co">](causal-mediation.qmd)</span></span>
-<span id="cb13-160"><a href="#cb13-160" aria-hidden="true" tabindex="-1"></a>covers the assumptions more formally, introduces the controlled direct effect</span>
-<span id="cb13-161"><a href="#cb13-161" aria-hidden="true" tabindex="-1"></a>(CDE) and natural direct/indirect effects (NDE/NIE) using potential-outcome</span>
-<span id="cb13-162"><a href="#cb13-162" aria-hidden="true" tabindex="-1"></a>notation, and discusses identification with unmeasured mediator–outcome</span>
-<span id="cb13-163"><a href="#cb13-163" aria-hidden="true" tabindex="-1"></a>confounding. If your setting involves a non-binary outcome, treatment–mediator</span>
-<span id="cb13-164"><a href="#cb13-164" aria-hidden="true" tabindex="-1"></a>interaction, or you need a doubly-robust estimator, start there.</span>
-<span id="cb13-165"><a href="#cb13-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-166"><a href="#cb13-166" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb13-167"><a href="#cb13-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-168"><a href="#cb13-168" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb13-169"><a href="#cb13-169" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/mediation.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/mediation.html).*</span>
+<span id="cb13-154"><a href="#cb13-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-157"><a href="#cb13-157" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-158"><a href="#cb13-158" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb13-159"><a href="#cb13-159" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb13-160"><a href="#cb13-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-161"><a href="#cb13-161" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mediation)</span>
+<span id="cb13-162"><a href="#cb13-162" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(framing)</span>
+<span id="cb13-163"><a href="#cb13-163" aria-hidden="true" tabindex="-1"></a>med.fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(emo <span class="sc">~</span> treat <span class="sc">+</span> age <span class="sc">+</span> educ <span class="sc">+</span> gender <span class="sc">+</span> income, <span class="at">data =</span> framing)</span>
+<span id="cb13-164"><a href="#cb13-164" aria-hidden="true" tabindex="-1"></a>out.fit <span class="ot">&lt;-</span> <span class="fu">glm</span>(cong_mesg <span class="sc">~</span> emo <span class="sc">+</span> treat <span class="sc">+</span> age <span class="sc">+</span> educ <span class="sc">+</span> gender <span class="sc">+</span> income,</span>
+<span id="cb13-165"><a href="#cb13-165" aria-hidden="true" tabindex="-1"></a>               <span class="at">data =</span> framing, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="st">"probit"</span>))</span>
+<span id="cb13-166"><a href="#cb13-166" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb13-167"><a href="#cb13-167" aria-hidden="true" tabindex="-1"></a>med.out <span class="ot">&lt;-</span> <span class="fu">mediate</span>(med.fit, out.fit, <span class="at">treat =</span> <span class="st">"treat"</span>, <span class="at">mediator =</span> <span class="st">"emo"</span>,</span>
+<span id="cb13-168"><a href="#cb13-168" aria-hidden="true" tabindex="-1"></a>                     <span class="at">robustSE =</span> <span class="cn">TRUE</span>, <span class="at">sims =</span> <span class="dv">100</span>)</span>
+<span id="cb13-169"><a href="#cb13-169" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(med.out)</span>
+<span id="cb13-170"><a href="#cb13-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-171"><a href="#cb13-171" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-172"><a href="#cb13-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-173"><a href="#cb13-173" aria-hidden="true" tabindex="-1"></a>Here the decomposition does something the linear example could not. The</span>
+<span id="cb13-174"><a href="#cb13-174" aria-hidden="true" tabindex="-1"></a><span class="in">`framing`</span> data has a binary outcome (<span class="in">`cong_mesg`</span>, whether the subject sent a</span>
+<span id="cb13-175"><a href="#cb13-175" aria-hidden="true" tabindex="-1"></a>message to Congress) modelled by probit, with anxiety (<span class="in">`emo`</span>) as the mediator.</span>
+<span id="cb13-176"><a href="#cb13-176" aria-hidden="true" tabindex="-1"></a>ACME comes out at 0.0813 under control and 0.0824 under treatment, both</span>
+<span id="cb13-177"><a href="#cb13-177" aria-hidden="true" tabindex="-1"></a>significant, while the direct effects are 0.0183 and 0.0194 with $p = 0.72$ and</span>
+<span id="cb13-178"><a href="#cb13-178" aria-hidden="true" tabindex="-1"></a>the total effect is 0.1007 with $p = 0.24$.</span>
+<span id="cb13-179"><a href="#cb13-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-180"><a href="#cb13-180" aria-hidden="true" tabindex="-1"></a>Read that pattern carefully: the *total* effect is not distinguishable from</span>
+<span id="cb13-181"><a href="#cb13-181" aria-hidden="true" tabindex="-1"></a>zero, and neither is the direct effect, yet the mediated effect clearly is. A</span>
+<span id="cb13-182"><a href="#cb13-182" aria-hidden="true" tabindex="-1"></a>study reporting only the total effect would have concluded the framing treatment</span>
+<span id="cb13-183"><a href="#cb13-183" aria-hidden="true" tabindex="-1"></a>did nothing. The proportion mediated is reported as 0.63, but note its interval</span>
+<span id="cb13-184"><a href="#cb13-184" aria-hidden="true" tabindex="-1"></a>runs from $-13.7$ to $4.3$ — a ratio whose denominator is indistinguishable from</span>
+<span id="cb13-185"><a href="#cb13-185" aria-hidden="true" tabindex="-1"></a>zero is not a usable quantity, and this is the standard reason not to lean on</span>
+<span id="cb13-186"><a href="#cb13-186" aria-hidden="true" tabindex="-1"></a>"proportion mediated".</span>
+<span id="cb13-187"><a href="#cb13-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-188"><a href="#cb13-188" aria-hidden="true" tabindex="-1"></a>"mediation" package has more functionalities, such as multilevel, interaction of treatment and mediator, etc.</span>
+<span id="cb13-189"><a href="#cb13-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-190"><a href="#cb13-190" aria-hidden="true" tabindex="-1"></a>Stata's sem and gsem commands can model different situations, but the direct effect and indirect effects are not easy to compute, especially when you have binary outcome, or other non-continuous outcome situations.  They are not designed for causal mediation analysis.</span>
+<span id="cb13-191"><a href="#cb13-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-192"><a href="#cb13-192" aria-hidden="true" tabindex="-1"></a><span class="fu">## Going further: formal causal mediation</span></span>
+<span id="cb13-193"><a href="#cb13-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-194"><a href="#cb13-194" aria-hidden="true" tabindex="-1"></a>The <span class="in">`mediation`</span> package above implements sequential ignorability — a specific</span>
+<span id="cb13-195"><a href="#cb13-195" aria-hidden="true" tabindex="-1"></a>set of identifying assumptions. The <span class="co">[</span><span class="ot">causal mediation chapter</span><span class="co">](causal-mediation.qmd)</span></span>
+<span id="cb13-196"><a href="#cb13-196" aria-hidden="true" tabindex="-1"></a>covers the assumptions more formally, introduces the controlled direct effect</span>
+<span id="cb13-197"><a href="#cb13-197" aria-hidden="true" tabindex="-1"></a>(CDE) and natural direct/indirect effects (NDE/NIE) using potential-outcome</span>
+<span id="cb13-198"><a href="#cb13-198" aria-hidden="true" tabindex="-1"></a>notation, and discusses identification with unmeasured mediator–outcome</span>
+<span id="cb13-199"><a href="#cb13-199" aria-hidden="true" tabindex="-1"></a>confounding. If your setting involves a non-binary outcome, treatment–mediator</span>
+<span id="cb13-200"><a href="#cb13-200" aria-hidden="true" tabindex="-1"></a>interaction, or you need a doubly-robust estimator, start there.</span>
+<span id="cb13-201"><a href="#cb13-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-202"><a href="#cb13-202" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb13-203"><a href="#cb13-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-204"><a href="#cb13-204" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb13-205"><a href="#cb13-205" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/mediation.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/mediation.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

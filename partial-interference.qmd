@@ -110,7 +110,7 @@ set.seed(42)
 
 ### Generate Clustered Data
 
-The `generate_fixed_cluster()` function creates synthetic data where the interference structure is known.
+The `generate_fixed_cluster()` function creates synthetic data where the interference structure is known. We build 200 clusters of 5 units each — 2 in group 0 and 3 in group 1, 1,000 units in all. The direct effect is $\tau = 1$, and the spillover is 0.5 per treated neighbour in group 0 and 0.1 per treated neighbour in group 1. Treatment prevalence comes out at 0.477.
 
 ```{r}
 #| label: gen_data
@@ -236,6 +236,16 @@ where $s_0 = 2$ is the size of group 0. The stride for the second dimension is $
 
 Some configurations do not have enough observations. The `se > 0` filter removes degenerate cases.
 
+Reading the estimates against that table: configuration 0 (no treated
+neighbours) gives 0.677 against a true 1.0, configuration 1 gives 1.572 against
+1.5, configuration 3 gives 1.447 against 1.1, and configuration 4 gives 1.870
+against 1.6. Single-dataset estimates for individual configurations are noisy,
+which is what the Monte Carlo below is for.
+
+Clustered IPW gives 0.491, 1.591, 1.404, 1.865 and so on across the same
+configurations — close to the AIPW numbers but not identical, as expected from
+two different estimators of the same quantities.
+
 ## Monte Carlo Validation
 
 Now run a small Monte Carlo. Generate data 100 times, estimate $\beta(G)$ each time, and check bias, SE calibration, and coverage.
@@ -328,6 +338,21 @@ kable(tbl_int, digits = 3, row.names = FALSE,
       caption = sprintf("Clustered AIPW (group 0, %d clusters, %d reps)",
                         n_clusters, n_reps))
 ```
+
+Over 100 replications the picture is mixed, and the failure is informative.
+Configuration $(1,0)$ recovers its truth well — mean 1.569 against 1.5, bias
+0.069, coverage 89.9% — and $(0,1)$ better still, 1.083 against 1.1 with 93.0%
+coverage. But $(0,0)$ is badly behaved: mean 2.107 against a true 1.0, and an
+empirical standard deviation of 8.760 against a mean reported standard error of
+0.448. The estimator is not merely biased there; its own standard error
+understates the sampling variability by a factor of nearly twenty, and coverage
+is 82% only because a few enormous outliers drag the mean while most draws sit
+near the truth.
+
+The reason is positivity. Configuration $(0,0)$ requires a unit with *no*
+treated neighbours in either group, and with treatment prevalence near 0.5 in
+clusters of five that configuration is rare, so the inverse-probability weights
+attached to it are extreme.
 
 ```{r}
 #| label: mc_hist

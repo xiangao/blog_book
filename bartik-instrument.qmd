@@ -118,6 +118,14 @@ df
 
 ```
 
+The simulation has $L = 1000$ locations, $T = 4$ periods and $K = 4$
+industries, 16,000 location-industry-period rows. Baseline shares $z_{lk0}$ are
+uniform draws normalised to sum to one within each location, national industry
+growth is $g_{kt} \sim N(0, 0.1^2)$, current shares add a uniform perturbation
+and are renormalised, and local industry growth is
+$g_{lkt} = g_{kt} + N(0, 0.1^2)$. Local employment growth is
+$x_{lt} = \sum_k z_{lkt} g_{lkt}$. The true $\beta$ is 1.
+
 This assumes we observe the industry shares at time 0 ($z_{lk0}$), and the industry growth rates ($g_{kt}$).  We also observe the industry shares at time $t$ ($z_{lkt}$).  The employment growth rate at location $l$ and time $t$ ($g_{lkt}$) is a function of $g_{kt}$ plus some noise.  We can calculate the $x_{lt}$, which is the weighted sum of industry growth rates.
 
 
@@ -136,6 +144,11 @@ df_lt <- df |>
   mutate(y_lt = beta * x_lt + sigma[3] * g_tilde_lkt)
 ```
 
+The outcome is $y_{lt} = \beta x_{lt} + \sigma_3 \tilde g_{lt}$, where
+$\tilde g_{lt}$ is the location's mean deviation of local from national industry
+growth. That deviation also enters $x_{lt}$, which is the endogeneity: local
+shocks drive both employment growth and wage growth.
+
 If we run OLS on raw data, we'll get biased results.
 
 ```{r}
@@ -150,6 +163,10 @@ result_ols <-
 modelsummary(result_ols)
 
 ```
+
+OLS gives 1.336 with a standard error of 0.008, against a true $\beta$ of 1 —
+biased upward by a third, and far outside any confidence interval. The
+endogenous $\tilde g_{lt}$ is doing the damage.
 
 Now we generate the Bartik instrument.  We calculate the Bartik instrument as the weighted sum of $z_{lk0}$ and $g_{kt}$.
 
@@ -177,6 +194,11 @@ result_tsls <- df_lt |>
 modelsummary::modelsummary(result_tsls)
 ```
 
+
+The Bartik instrument recovers the truth: 2SLS gives 0.990 with a standard error
+of 0.012, against $\beta = 1$, where OLS gave 1.336. The instrument is built
+from baseline shares and *national* growth rates, neither of which contains the
+local shock $\tilde g_{lt}$, which is what breaks the endogeneity.
 
 ### Calculate Rotemberg weights
 
@@ -272,7 +294,16 @@ bw
 sum(bw$product)
 ```
 
-The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator.
+The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator, and it is: 0.9894 against the 2SLS estimate of 0.990. The
+decomposition is exact, not approximate.
+
+Reading the table, the weights are far from uniform across the sixteen
+industry-period cells. Period 3 carries most of the weight — its four $\alpha$
+values are 0.138, 0.222, 0.076 and 0.136, summing to 0.57 — while period 2
+contributes almost nothing and even goes slightly negative
+($\alpha = -0.008$ and $-0.0004$ for its first two industries). The
+just-identified $\beta_k$ estimates are all near the true 1, ranging from 0.74
+to 1.19, which is what we should see in a simulation with a homogeneous effect.
 
 
 Note there is no restriction for $\alpha$, other than the sum is 1.  Therefore it can be negative or positive, and individual weights can exceed 1, as long as they sum to 1.  In GPSS the Rotemberg weights routinely take negative values and values greater than 1; this is a feature used to flag problematic instruments.
@@ -353,3 +384,8 @@ sum(bw$product)
 
 <!-- see-also-footer -->
 *Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/shift-share-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/shift-share-iv.html).*
+
+The reduced-form decomposition sums to 0.9091 rather than 0.9894, and that is
+not an error: it decomposes the reduced-form coefficient (the effect of the
+instrument on the outcome), not the 2SLS coefficient. The two differ by the
+first stage, which is not exactly 1.

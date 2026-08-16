@@ -43,7 +43,7 @@ The BW model has two advantages. It recovers the fixed-effect coefficient while 
 
 ## BW model in R
 
-R's [`panelr`](https://panelr.jacob-long.com/articles/wbm.html) package implements BW models directly.
+R's [`panelr`](https://panelr.jacob-long.com/articles/wbm.html) package implements BW models directly. The data are `WageData`, a balanced panel of 595 men observed over 7 years. We model log wage on weeks worked, union membership, marital status and occupation, all time-varying, plus two time-invariant covariates — black and female — that a fixed-effect model could not touch.
 
 
 ```{r}
@@ -57,6 +57,14 @@ model1 <- wbm(lwage ~ wks + union + ms + occ | blk + fem, data = wages)
 summary(model1)
 ```
 
+The within estimates are 0.00 for weeks, 0.06 for union, $-0.08$ for married
+and $-0.08$ for occupation. The between estimates for the same four variables
+are 0.01, 0.15, 0.17 and $-0.41$ — two to five times larger, and for `ms` the
+opposite sign. That gap is the reason the fixed-versus-random choice matters
+here: a random-effects model without the decomposition would blend the two and
+report neither. The time-invariant covariates come out at $-0.15$ for black and
+$-0.32$ for female, quantities a fixed-effect model cannot produce at all.
+
 Compare with `lfe`.
 
 ```{r}
@@ -67,7 +75,12 @@ library(lfe)
 model2 <- felm(lwage ~ wks + union + ms + occ | id, data = wages)
 summary(model2)
 ```
-The within coefficients are identical to machine precision (`WageData` is a balanced panel: 7 waves, 595 individuals). `panelr` additionally estimates the time-invariant covariates `blk` and `fem`. `lfe` supports clustered standard errors, which `panelr` does not.
+`felm` gives 0.001083, 0.064320, $-0.082905$ and $-0.077507$ — the same four
+numbers `panelr` reported as within effects, identical to machine precision
+(`WageData` is a balanced panel: 7 waves, 595 individuals). That is the BW
+model's selling point: it reproduces the fixed-effect estimates exactly while
+also estimating the time-invariant covariates `blk` and `fem`, which `felm`
+cannot. `lfe` supports clustered standard errors, which `panelr` does not.
 
 ```{r}
 #| echo: true
@@ -77,9 +90,19 @@ model3 <- felm(lwage ~ wks + union + ms + occ | id | 0 | id, data = wages)
 summary(model3)
 ```
 
+Clustering on `id` leaves every coefficient untouched and changes the standard
+errors substantially: `union` goes from 0.0254 to 0.0409, `ms` from 0.0322 to
+0.0474, `wks` from 0.00102 to 0.00133. Two of the four results do not survive.
+`union` falls from $p = 0.011$ to $p = 0.117$ and `ms` from $0.010$ to $0.081$;
+only `occ` stays significant at 5%. With 7 observations per man the residuals
+are serially correlated, and the unclustered standard errors were treating 4,165
+observations as though they were independent draws.
+
 ## BW model in Stata
 
-Stata has no dedicated BW command, but `xtreg` suffices.
+Stata has no dedicated BW command, but `xtreg` suffices. We switch to `nlswork`,
+an unbalanced panel of 4,710 women over 28,510 person-years, and regress log
+wage on age.
 
 ```{r}
 #| echo: false
@@ -97,6 +120,10 @@ xtreg ln_w age, fe cluster(idcode)
 
 ```
 
+The fixed-effect estimate is $.0181349$ with a clustered standard error of
+$.0006099$: within a woman, each additional year of age raises log wage by about
+1.8%. Keep that number in view — the BW model has to reproduce it.
+
 Generate the group mean and run the BW estimation.
 ```{stata}
 *| cache: true
@@ -106,7 +133,7 @@ xtset idcode
 bysort idcode: center age, prefix(d) mean(m)
 xtreg ln_w dage mage i.race, re cluster(idcode)
 ```
-In this BW model, we use the centered (within-group-demeaned) `dage` together with the group mean `mage`, which gives the standard within-between (Mundlak) decomposition: the coefficient on `dage`, .0181, is exactly the fixed-effect ("within") coefficient on age, and the coefficient on `mage`, .0226, is directly the between effect. And we have the effect of time-invariant covariate race estimated.  The advantage of using xtreg is that we have clustered standard errors implemented.
+In this BW model, we use the centered (within-group-demeaned) `dage` together with the group mean `mage`, which gives the standard within-between (Mundlak) decomposition: the coefficient on `dage`, .0181349, is exactly the fixed-effect ("within") coefficient on age reported above — the same seven digits, with a standard error of .00061 against .0006099 — and the coefficient on `mage`, .022558, is directly the between effect. Women who are older on average earn about 2.3% more per year of average age, against a within-woman return of 1.8%; the between effect is larger because it also carries cohort and selection differences that the within estimate sweeps out. And we have the effect of time-invariant covariate race estimated: Black women earn 11.9% less ($-.1190246$, SE .0127), while the "Other" category is not distinguishable from white ($.0975$, $p = 0.114$).  The advantage of using xtreg is that we have clustered standard errors implemented.
 
 Note: if we instead ran `xtreg ln_w age mage i.race, re cluster(idcode)` — using the raw (uncentered) `age` together with `mage` — we would get the *contextual model* instead: the coefficient on `age` stays .0181, but the coefficient on `mage` becomes .0044, the "contextual effect" (the *additional* between-effect on top of the within effect). The two models are algebraically related: contextual-model mage = Mundlak-model mage − Mundlak-model dage (here, .0226 − .0181 ≈ .0044).
 

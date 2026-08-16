@@ -104,7 +104,14 @@ This plot shows that even 3 times as strong as "female", the confounder is not s
 
 Even with an IV model, we need sensitivity analysis.  The worry would be there could be an unobserved confounder that affects both the instrument and the outcome.  
 
-Cinelli and Hazlett have a package "iv.sensemakr" for this.  The usage is similar to "sensemakr". 
+Cinelli and Hazlett have a package "iv.sensemakr" for this.  The usage is similar to "sensemakr".
+
+The example is Card's returns-to-schooling data, 3,010 men from the 1976 NLS.
+The outcome is log wage, the treatment is years of education, and the instrument
+is `nearc4`, an indicator for growing up near a four-year college. The covariates
+are experience and its square, race, region, and urban indicators. The concern
+the sensitivity analysis addresses is a confounder affecting both proximity to a
+college and wages.
 
 ```{r}
 
@@ -137,7 +144,31 @@ summary(card.sens)
 
 ```
 
-The basic idea is to run an IV regression, then apply sensmakr to that model.  In this case, the authors use "black" and "smsa" as benchmark covariates.  The authors believe these are important factors.  A quick look at the result we can see that a confounder as strong as "black" or "smsa" is not strong enough to explain away the treatment effect.  We can also plot a contour plot to see how strong the confounder needs to be to explain away the treatment effect.
+The basic idea is to run an IV regression, then apply sensemakr to that model.  In this case, the authors use "black" and "smsa" as benchmark covariates.  The authors believe these are important factors.
+
+The IV estimate is 0.132 with $t = 2.33$, $p = 0.02$, and an Anderson-Rubin
+confidence interval of $[0.025, 0.285]$ that excludes zero. Read the sensitivity
+statistics next to that, and the picture is not reassuring. The Robustness Value
+is 0.00667 — two-thirds of one percent. Compare the OLS example earlier in this
+chapter, where $RV_{q=1}$ was 13.9%. This IV result is roughly twenty times more
+fragile than that one.
+
+The benchmark bounds make it concrete, and they point the other way from what one
+might hope. A confounder as strong as `black` explains 0.22% of the residual
+variance of the instrument and 7.5% of the outcome, and under it the adjusted
+interval becomes $[-0.021, 0.402]$. For `smsa` the figures are 0.64% and 2.0%,
+giving $[-0.019, 0.396]$. **Both intervals contain zero.** A confounder no
+stronger than either benchmark covariate is enough to remove the significance of
+the estimate.
+
+That `smsa` number is worth a second look on its own terms: its instrument-side
+partial $R^2$ of 0.00639 sits just under the Robustness Value of 0.00667, so a
+confounder of that strength lands essentially exactly on the tipping point. The
+two diagnostics agree.
+
+None of this says the Card estimate is wrong. It says the identification rests on
+the instrument being cleaner than `black` or `smsa` are as predictors, which is
+an assumption about college proximity that the data cannot check. We can also plot a contour plot to see how strong the confounder needs to be to explain away the treatment effect.
 
 ```{r}
 #| results: 'asis'

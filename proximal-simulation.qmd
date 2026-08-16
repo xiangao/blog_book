@@ -122,6 +122,19 @@ data_sim <- data |>
 
 ```
 
+The simulation draws $n = 100{,}000$ two-period observations. There is an
+unobserved confounder $u \sim N(0,1)$ and two observed covariates
+$x_1, x_2 \sim N(0,1)$. Treatment at time 1 is
+$a_1 \sim \text{Bernoulli}(\Lambda(2u + 1.5x_1))$ and at time 2 is
+$a_2 \sim \text{Bernoulli}(\Lambda(u + a_1 + x_1))$. The outcomes are
+$y_1 = 1.5u + 0.5x_1 + \varepsilon_1$ and
+$y_2 = y_1 + 2.5u + 2.5x_1 + 3a_2 + \varepsilon_2$.
+
+So the effect of interest is the 3 on $a_2$. The construction then relabels
+$a_1$ as the negative control exposure $z$ and $y_1$ as the negative control
+outcome $w$ — note that $y_1$ does not depend on $a_1$, which is exactly the
+assumption discussed at the end of this chapter.
+
 We can use the simple 2sls:
 
 
@@ -140,6 +153,11 @@ lm2 <- lm(y ~ a + x +  what, data = data_sim)
 summary(lm2)
 
 ```
+
+The 2SLS coefficient on $a$ is 3.021 with a standard error of 0.035, against the
+true 3. The coefficient on the fitted proxy `what` is 2.666, which is the ratio
+of the confounder's loading on the outcome to its loading on the proxy, not an
+effect of interest.
 
 Or we can use more sophisticated methods.  Here I use the m-estimation code by Paul Zivich:  https://github.com/pzivich/publications-code/blob/master/ProximalCI/proximal_sims_r.R.  This code is to construct estimating equations, then use root finding to find the parameter estimates.
 
@@ -237,7 +255,9 @@ rmpcl
 #mpcl_mest(data_sim)
 ```
 
-Both the 2sls and the m-estimation give us the same estimate of the causal effect of treatment on outcome, which is 3.  The m estimator can be more general.  2sls is good for the linear case.
+The m-estimator gives 3.0211 with a standard error of 0.0198.
+
+Both the 2sls and the m-estimation give us the same estimate of the causal effect of treatment on outcome, which is 3 — identical to four decimal places, 3.021126 either way. The standard errors differ, 0.0198 against 0.0353, and the m-estimator's is the one to use: it accounts for the estimation of the first stage, which the plug-in 2SLS standard error does not.  The m estimator can be more general.  2sls is good for the linear case.
 
 However, the main issue is the assumption that there is no link from A1 to Y1.
 

@@ -684,8 +684,9 @@ file marginsplot2.svg saved as SVG format</code></pre>
 </div>
 <p><img src="marginsplot1.svg" class="img-fluid"></p>
 <p><img src="marginsplot2.svg" class="img-fluid"></p>
-<p>We fit a logit of diabetes on female, age, and their interaction. The first <code>margins</code> call gives predicted probabilities by gender; the second (with <code>r.female</code>) gives the female-vs-male contrast at each age. (On the general question of marginal effects in nonlinear models, see the previous chapter — the coefficient on the link scale is usually more interpretable.)</p>
-<p>The female effect at age 20 is <span class="math inline">\(.006\)</span> and at age 30 is <span class="math inline">\(.009\)</span>; their confidence intervals overlap. It is tempting to conclude the two effects are not significantly different, but that conclusion does not follow. For two effects <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> from the same model,</p>
+<p>We fit a logit of diabetes on female, age, and their interaction, on 10,335 NHANES II respondents. The interaction is <span class="math inline">\(-0.0207\)</span> with a standard error of 0.0078, so the female-male gap narrows with age. The first <code>margins</code> call gives predicted probabilities by gender; the second (with <code>r.female</code>) gives the female-vs-male contrast at each age. (On the general question of marginal effects in nonlinear models, see the previous chapter — the coefficient on the link scale is usually more interpretable.)</p>
+<p>Those contrasts run <span class="math inline">\(.0061\)</span>, <span class="math inline">\(.0087\)</span>, <span class="math inline">\(.0114\)</span>, <span class="math inline">\(.0130\)</span>, <span class="math inline">\(.0099\)</span> and <span class="math inline">\(-.0042\)</span> at ages 20 through 70, significant through age 50 and not thereafter — the gap widens, peaks in middle age, then closes and reverses sign.</p>
+<p>Now the point of the chapter. The female effect at age 20 is <span class="math inline">\(.0061\)</span> with a 95% interval of <span class="math inline">\([.0020, .0102]\)</span>, and at age 30 it is <span class="math inline">\(.0087\)</span> with an interval of <span class="math inline">\([.0031, .0142]\)</span>. Those intervals overlap across most of their length. It is tempting to conclude the two effects are not significantly different, but that conclusion does not follow. For two effects <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> from the same model,</p>
 <p><span id="eq-comparing-margins-1"><span class="math display">\[ \text{Var}(x - y) = \text{Var}(x) + \text{Var}(y) - 2\,\text{Cov}(x, y).  \tag{6.1}\]</span></span></p>
 <p>When <span class="math inline">\(x\)</span> and <span class="math inline">\(y\)</span> are positively correlated — as they will be, coming from the same fit — the variance of their difference can be much smaller than either individual variance. So the difference can be significant even when the individual intervals overlap.</p>
 <div class="cell">
@@ -760,6 +761,9 @@ Expression: Pr(diabetes), predict()
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
+<p>The test gives a difference of <span class="math inline">\(.0025709\)</span> with a standard error of <span class="math inline">\(.0007946\)</span>, <span class="math inline">\(z = 3.24\)</span> and <span class="math inline">\(p = 0.001\)</span>. The two effects are different, despite intervals that overlap heavily.</p>
+<p>The standard error is what makes the point. Each individual contrast carries a standard error of <span class="math inline">\(.0021\)</span> and <span class="math inline">\(.0028\)</span>, but their <em>difference</em> carries only <span class="math inline">\(.00079\)</span> — smaller than either. Solving <span class="math inline">\(\text{Var}(x-y) = \text{Var}(x) + \text{Var}(y) - 2\text{Cov}(x,y)\)</span> for the correlation gives about <span class="math inline">\(0.99\)</span>: the two contrasts come from the same fitted model evaluated ten years apart, so they move together almost perfectly, and nearly all of their variance cancels in the difference.</p>
+<p>Had we ignored the covariance and used <span class="math inline">\(\sqrt{\text{Var}(x)+\text{Var}(y)} = .0035\)</span>, we would have got <span class="math inline">\(z = 0.73\)</span> and <span class="math inline">\(p = 0.46\)</span>. Same data, same two numbers, opposite conclusion. That is the cost of reading overlap off a graph.</p>
 <p>We can do this with native Stata syntax: <code>margins ..., post</code> posts the estimated contrasts as if they were regular coefficients (named <code>r1vs0.female@1._at</code>, <code>r1vs0.female@2._at</code>, etc. — check <code>matrix list e(b)</code> to see the exact names), so <code>lincom</code> can test any linear combination of them natively, without depending on a user-written command.</p>
 <p><code>margins</code> can compute these differences directly with <code>contrast(atcontrast(r))</code>, which compares each evaluation point to the reference:</p>
 <div class="cell">
@@ -830,7 +834,7 @@ file marginsplot3.svg saved as SVG format</code></pre>
 </div>
 </div>
 <p><img src="marginsplot3.svg" class="img-fluid"></p>
-<p>From this we see the difference of effects between point 2 and 1 is .0026, and significant — the same conclusion the <code>lincom</code> test gave above.</p>
+<p>From this we see the difference of effects between point 2 and 1 is .0026, with <span class="math inline">\(\chi^2(1) = 10.47\)</span> and <span class="math inline">\(p = 0.0012\)</span> — the same conclusion the <code>lincom</code> test gave above, and indeed the same test: <span class="math inline">\(3.24^2 = 10.5\)</span>. The remaining rows compare each later age to age 20, and the widening gap is significant through age 50 ((4 vs 1): <span class="math inline">\(\chi^2 = 5.48\)</span>, <span class="math inline">\(p = 0.019\)</span>) before losing precision.</p>
 
 
 <!-- -->
@@ -1329,43 +1333,71 @@ file marginsplot3.svg saved as SVG format</code></pre>
 <span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot2.svg)</span></span>
 <span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>We fit a logit of diabetes on female, age, and their interaction. The first <span class="in">`margins`</span> call gives predicted probabilities by gender; the second (with <span class="in">`r.female`</span>) gives the female-vs-male contrast at each age. (On the general question of marginal effects in nonlinear models, see the previous chapter — the coefficient on the link scale is usually more interpretable.)</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>We fit a logit of diabetes on female, age, and their interaction, on 10,335 NHANES II respondents. The interaction is $-0.0207$ with a standard error of 0.0078, so the female-male gap narrows with age. The first <span class="in">`margins`</span> call gives predicted probabilities by gender; the second (with <span class="in">`r.female`</span>) gives the female-vs-male contrast at each age. (On the general question of marginal effects in nonlinear models, see the previous chapter — the coefficient on the link scale is usually more interpretable.)</span>
 <span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>The female effect at age 20 is $.006$ and at age 30 is $.009$; their confidence intervals overlap. It is tempting to conclude the two effects are not significantly different, but that conclusion does not follow. For two effects $x$ and $y$ from the same model,</span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>$$ \text{Var}(x - y) = \text{Var}(x) + \text{Var}(y) - 2\,\text{Cov}(x, y). $$ {#eq-comparing-margins-1}</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>Those contrasts run $.0061$, $.0087$, $.0114$, $.0130$, $.0099$ and $-.0042$ at</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>ages 20 through 70, significant through age 50 and not thereafter — the gap</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>widens, peaks in middle age, then closes and reverses sign.</span>
 <span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>When $x$ and $y$ are positively correlated — as they will be, coming from the same fit — the variance of their difference can be much smaller than either individual variance. So the difference can be significant even when the individual intervals overlap.</span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
-<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) post</span></span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="in">lincom _b[r1vs0.female@2._at] - _b[r1vs0.female@1._at]</span></span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>We can do this with native Stata syntax: <span class="in">`margins ..., post`</span> posts the estimated contrasts as if they were regular coefficients (named <span class="in">`r1vs0.female@1._at`</span>, <span class="in">`r1vs0.female@2._at`</span>, etc. — check <span class="in">`matrix list e(b)`</span> to see the exact names), so <span class="in">`lincom`</span> can test any linear combination of them natively, without depending on a user-written command.</span>
-<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">`margins`</span> can compute these differences directly with <span class="in">`contrast(atcontrast(r))`</span>, which compares each evaluation point to the reference:</span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
-<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) contrast(atcontrast(r))</span></span>
-<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a><span class="in">marginsplot</span></span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot3.svg", as(svg) replace</span></span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot3.svg)</span></span>
-<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>Now the point of the chapter. The female effect at age 20 is $.0061$ with a 95%</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>interval of $<span class="co">[</span><span class="ot">.0020, .0102</span><span class="co">]</span>$, and at age 30 it is $.0087$ with an interval of</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>$<span class="co">[</span><span class="ot">.0031, .0142</span><span class="co">]</span>$. Those intervals overlap across most of their length. It is</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>tempting to conclude the two effects are not significantly different, but that conclusion does not follow. For two effects $x$ and $y$ from the same model,</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>$$ \text{Var}(x - y) = \text{Var}(x) + \text{Var}(y) - 2\,\text{Cov}(x, y). $$ {#eq-comparing-margins-1}</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>When $x$ and $y$ are positively correlated — as they will be, coming from the same fit — the variance of their difference can be much smaller than either individual variance. So the difference can be significant even when the individual intervals overlap.</span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) post</span></span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a><span class="in">lincom _b[r1vs0.female@2._at] - _b[r1vs0.female@1._at]</span></span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>The test gives a difference of $.0025709$ with a standard error of $.0007946$,</span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>$z = 3.24$ and $p = 0.001$. The two effects are different, despite intervals</span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>that overlap heavily.</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>The standard error is what makes the point. Each individual contrast carries a</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>standard error of $.0021$ and $.0028$, but their *difference* carries only</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>$.00079$ — smaller than either. Solving</span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>$\text{Var}(x-y) = \text{Var}(x) + \text{Var}(y) - 2\text{Cov}(x,y)$ for the</span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>correlation gives about $0.99$: the two contrasts come from the same fitted</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>model evaluated ten years apart, so they move together almost perfectly, and</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>nearly all of their variance cancels in the difference.</span>
 <span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>From this we see the difference of effects between point 2 and 1 is .0026, and significant — the same conclusion the <span class="in">`lincom`</span> test gave above.</span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>Had we ignored the covariance and used</span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>$\sqrt{\text{Var}(x)+\text{Var}(y)} = .0035$, we would have got $z = 0.73$ and</span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>$p = 0.46$. Same data, same two numbers, opposite conclusion. That is the cost</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a>of reading overlap off a graph.</span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>We can do this with native Stata syntax: <span class="in">`margins ..., post`</span> posts the estimated contrasts as if they were regular coefficients (named <span class="in">`r1vs0.female@1._at`</span>, <span class="in">`r1vs0.female@2._at`</span>, etc. — check <span class="in">`matrix list e(b)`</span> to see the exact names), so <span class="in">`lincom`</span> can test any linear combination of them natively, without depending on a user-written command.</span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="in">`margins`</span> can compute these differences directly with <span class="in">`contrast(atcontrast(r))`</span>, which compares each evaluation point to the reference:</span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nhanes2f, clear</span></span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="in">logit diabetes i.female##c.age, nolog</span></span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="in">margins r.female,  at(age=(20 30 40 50 60 70)) contrast(atcontrast(r))</span></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a><span class="in">marginsplot</span></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a><span class="in">graph export "marginsplot3.svg", as(svg) replace</span></span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="al">![](marginsplot3.svg)</span></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>From this we see the difference of effects between point 2 and 1 is .0026, with</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>$\chi^2(1) = 10.47$ and $p = 0.0012$ — the same conclusion the <span class="in">`lincom`</span> test</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>gave above, and indeed the same test: $3.24^2 = 10.5$. The remaining rows compare</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>each later age to age 20, and the widening gap is significant through age 50</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>((4 vs 1): $\chi^2 = 5.48$, $p = 0.019$) before losing precision.</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

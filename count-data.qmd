@@ -114,7 +114,14 @@ For raw code, please visit [case1: poisson](https://github.com/xiangao/poisson) 
 
 ## Quick worked example
 
-All five models on a single small dataset (n = 1000, ~40% zeros):
+All five models on a single small dataset (n = 1000, ~40% zeros).
+
+The DGP is a zero-inflated Poisson built in two independent pieces. We draw
+$x \sim N(0,1)$ and $z \sim N(0,1)$, independent of each other. The count part
+is $y_c \sim \text{Poisson}(\exp(1.5 + 0.8x))$ and the zero part is
+$y_b \sim \text{Bernoulli}(\Lambda(1 + 2z))$, with the observed outcome
+$y = y_c \cdot y_b$. So the true slope on $x$ is 0.8, and — this is the feature
+that drives the results — the zero process depends on $z$ alone, never on $x$.
 
 ```{r}
 #| label: quick-example
@@ -171,6 +178,11 @@ knitr::kable(
   caption = "True x coefficient = 0.8"
 )
 ```
+
+The sample comes out 39% zeros with a non-zero mean of 6.79. The estimated
+slopes are 0.850 for Poisson, 0.824 for negative binomial, 0.803 for ZIP with
+the correct zero model, 0.802 for ZIP with the wrong one, 0.803 for the hurdle
+model, and 0.458 for log-linear OLS.
 
 The first five models recover the true `x` slope of 0.8 reasonably well; the
 log-linear row is included to make the earlier claim checkable, and needs reading

@@ -107,6 +107,31 @@ try {
     window.localStorage.setItem("quarto-reader-mode", "false");
   }
 } catch (e) {}
+</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script><script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
 </script><link rel="stylesheet" href="style.css">
 </head>
 <body class="nav-sidebar floating fullcontent quarto-light">
@@ -625,6 +650,8 @@ Correlation of Fixed Effects:
 Weeks -0.174</code></pre>
 </div>
 </div>
+<p>The data are the OSIC pulmonary-fibrosis panel: 1,549 spirometry readings from 176 patients, with forced vital capacity (<code>FVC</code>) as the outcome and <code>Weeks</code> since baseline as the time variable. The model gives each patient a random intercept and slope.</p>
+<p>The fixed effects are an intercept of 2810.3 (SE 62.9) and a slope of <span class="math inline">\(-4.263\)</span> (SE 0.438): average FVC declines by about 4.3 units per week, and the <span class="math inline">\(t\)</span> of <span class="math inline">\(-9.7\)</span> leaves little doubt about the direction. The variance components show where the heterogeneity lives — a patient-intercept standard deviation of 828.7 against a residual of 136.4, so patients differ far more in level than any single measurement deviates from that patient’s own line. The slope SD of 5.09 against a mean slope of <span class="math inline">\(-4.26\)</span> means the rate of decline itself varies substantially across patients, with some improving.</p>
 <p>The <code>lme4</code> model gives point estimates for the fixed effects and variance components. Now do the same model in <code>numpyro</code>, where the output is a posterior distribution for the parameters.</p>
 </section></section><section id="example-2-numpyro-hierarchical-model" class="level2" data-number="47.2"><h2 data-number="47.2" class="anchored" data-anchor-id="example-2-numpyro-hierarchical-model">
 <span class="header-section-number">47.2</span> Example 2: Numpyro hierarchical model</h2>
@@ -1280,147 +1307,161 @@ sigma_obs     208.1       2.9    208.1     203.5     212.8     2891.2      1.00<
 <span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(reg1)</span>
 <span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>The <span class="in">`lme4`</span> model gives point estimates for the fixed effects and variance</span>
-<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>components. Now do the same model in <span class="in">`numpyro`</span>, where the output is a posterior</span>
-<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>distribution for the parameters.</span>
-<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example 2: Numpyro hierarchical model</span></span>
-<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>The Python model has the same structure as the <span class="in">`lme4`</span> model: each patient gets</span>
-<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a>an intercept and slope, drawn from a population-level distribution.</span>
-<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; The NumPyro/Python chunks in this chapter are shown for reading but not</span></span>
-<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; executed (</span><span class="in">`eval: false`</span><span class="at">), because the render environment does not have</span></span>
-<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; </span><span class="in">`numpyro`</span><span class="at">/</span><span class="in">`jax`</span><span class="at"> installed. Run them in a Python environment with those</span></span>
-<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; packages to reproduce the posterior summaries described in the text.</span></span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>The data are the OSIC pulmonary-fibrosis panel: 1,549 spirometry readings from</span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>176 patients, with forced vital capacity (<span class="in">`FVC`</span>) as the outcome and <span class="in">`Weeks`</span></span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>since baseline as the time variable. The model gives each patient a random</span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>intercept and slope.</span>
+<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a>The fixed effects are an intercept of 2810.3 (SE 62.9) and a slope of $-4.263$</span>
+<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>(SE 0.438): average FVC declines by about 4.3 units per week, and the $t$ of</span>
+<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a>$-9.7$ leaves little doubt about the direction. The variance components show</span>
+<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a>where the heterogeneity lives — a patient-intercept standard deviation of 828.7</span>
+<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a>against a residual of 136.4, so patients differ far more in level than any single</span>
+<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a>measurement deviates from that patient's own line. The slope SD of 5.09 against</span>
+<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a>a mean slope of $-4.26$ means the rate of decline itself varies substantially</span>
+<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a>across patients, with some improving.</span>
 <span id="cb9-72"><a href="#cb9-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-75"><a href="#cb9-75" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb9-76"><a href="#cb9-76" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb9-77"><a href="#cb9-77" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-73"><a href="#cb9-73" aria-hidden="true" tabindex="-1"></a>The <span class="in">`lme4`</span> model gives point estimates for the fixed effects and variance</span>
+<span id="cb9-74"><a href="#cb9-74" aria-hidden="true" tabindex="-1"></a>components. Now do the same model in <span class="in">`numpyro`</span>, where the output is a posterior</span>
+<span id="cb9-75"><a href="#cb9-75" aria-hidden="true" tabindex="-1"></a>distribution for the parameters.</span>
+<span id="cb9-76"><a href="#cb9-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-77"><a href="#cb9-77" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example 2: Numpyro hierarchical model</span></span>
 <span id="cb9-78"><a href="#cb9-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
-<span id="cb9-80"><a href="#cb9-80" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb9-81"><a href="#cb9-81" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
-<span id="cb9-82"><a href="#cb9-82" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
-<span id="cb9-83"><a href="#cb9-83" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpyro</span>
-<span id="cb9-84"><a href="#cb9-84" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpyro.distributions <span class="im">as</span> dist</span>
-<span id="cb9-85"><a href="#cb9-85" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.infer <span class="im">import</span> MCMC, NUTS</span>
+<span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a>The Python model has the same structure as the <span class="in">`lme4`</span> model: each patient gets</span>
+<span id="cb9-80"><a href="#cb9-80" aria-hidden="true" tabindex="-1"></a>an intercept and slope, drawn from a population-level distribution.</span>
+<span id="cb9-81"><a href="#cb9-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-82"><a href="#cb9-82" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; The NumPyro/Python chunks in this chapter are shown for reading but not</span></span>
+<span id="cb9-83"><a href="#cb9-83" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; executed (</span><span class="in">`eval: false`</span><span class="at">), because the render environment does not have</span></span>
+<span id="cb9-84"><a href="#cb9-84" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; </span><span class="in">`numpyro`</span><span class="at">/</span><span class="in">`jax`</span><span class="at"> installed. Run them in a Python environment with those</span></span>
+<span id="cb9-85"><a href="#cb9-85" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; packages to reproduce the posterior summaries described in the text.</span></span>
 <span id="cb9-86"><a href="#cb9-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-87"><a href="#cb9-87" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the same data</span></span>
-<span id="cb9-88"><a href="#cb9-88" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> pd.read_csv(<span class="st">"osic_pulmonary_fibrosis.csv"</span>).sort_values([<span class="st">"Patient"</span>, <span class="st">"Weeks"</span>])</span>
-<span id="cb9-89"><a href="#cb9-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-90"><a href="#cb9-90" aria-hidden="true" tabindex="-1"></a><span class="co"># Encode patient IDs as integers</span></span>
-<span id="cb9-91"><a href="#cb9-91" aria-hidden="true" tabindex="-1"></a>patients, patient_ids <span class="op">=</span> pd.factorize(data[<span class="st">"Patient"</span>])</span>
-<span id="cb9-92"><a href="#cb9-92" aria-hidden="true" tabindex="-1"></a>n_patients <span class="op">=</span> <span class="bu">len</span>(patient_ids)</span>
-<span id="cb9-93"><a href="#cb9-93" aria-hidden="true" tabindex="-1"></a>weeks <span class="op">=</span> jnp.array(data[<span class="st">"Weeks"</span>].values, dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb9-94"><a href="#cb9-94" aria-hidden="true" tabindex="-1"></a>fvc   <span class="op">=</span> jnp.array(data[<span class="st">"FVC"</span>].values,   dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb9-95"><a href="#cb9-95" aria-hidden="true" tabindex="-1"></a>pat   <span class="op">=</span> jnp.array(patients,              dtype<span class="op">=</span><span class="bu">int</span>)</span>
-<span id="cb9-96"><a href="#cb9-96" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-97"><a href="#cb9-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-98"><a href="#cb9-98" aria-hidden="true" tabindex="-1"></a>Drawing <span class="in">`alpha`</span> and <span class="in">`beta`</span> from independent Normal priors, as below, gives</span>
-<span id="cb9-99"><a href="#cb9-99" aria-hidden="true" tabindex="-1"></a>patient-level intercepts and slopes with *zero* covariance by construction --</span>
-<span id="cb9-100"><a href="#cb9-100" aria-hidden="true" tabindex="-1"></a>that corresponds to <span class="in">`FVC ~ Weeks + (1|Patient) + (0+Weeks|Patient)`</span>, not</span>
-<span id="cb9-101"><a href="#cb9-101" aria-hidden="true" tabindex="-1"></a><span class="in">`(1+Weeks|Patient)`</span>. <span class="in">`lme4`</span>'s <span class="in">`(1+Weeks|Patient)`</span> estimates a full</span>
-<span id="cb9-102"><a href="#cb9-102" aria-hidden="true" tabindex="-1"></a>(unstructured, correlated) 2x2 covariance matrix for the intercept and</span>
-<span id="cb9-103"><a href="#cb9-103" aria-hidden="true" tabindex="-1"></a>slope. To match that in <span class="in">`numpyro`</span>, draw <span class="in">`(alpha, beta)`</span> jointly from a</span>
-<span id="cb9-104"><a href="#cb9-104" aria-hidden="true" tabindex="-1"></a><span class="in">`MultivariateNormal`</span> with an LKJ-Cholesky prior on the correlation matrix:</span>
-<span id="cb9-105"><a href="#cb9-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-108"><a href="#cb9-108" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb9-109"><a href="#cb9-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb9-110"><a href="#cb9-110" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-89"><a href="#cb9-89" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb9-90"><a href="#cb9-90" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb9-91"><a href="#cb9-91" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-92"><a href="#cb9-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-93"><a href="#cb9-93" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb9-94"><a href="#cb9-94" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb9-95"><a href="#cb9-95" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax</span>
+<span id="cb9-96"><a href="#cb9-96" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb9-97"><a href="#cb9-97" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpyro</span>
+<span id="cb9-98"><a href="#cb9-98" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpyro.distributions <span class="im">as</span> dist</span>
+<span id="cb9-99"><a href="#cb9-99" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.infer <span class="im">import</span> MCMC, NUTS</span>
+<span id="cb9-100"><a href="#cb9-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-101"><a href="#cb9-101" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the same data</span></span>
+<span id="cb9-102"><a href="#cb9-102" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> pd.read_csv(<span class="st">"osic_pulmonary_fibrosis.csv"</span>).sort_values([<span class="st">"Patient"</span>, <span class="st">"Weeks"</span>])</span>
+<span id="cb9-103"><a href="#cb9-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-104"><a href="#cb9-104" aria-hidden="true" tabindex="-1"></a><span class="co"># Encode patient IDs as integers</span></span>
+<span id="cb9-105"><a href="#cb9-105" aria-hidden="true" tabindex="-1"></a>patients, patient_ids <span class="op">=</span> pd.factorize(data[<span class="st">"Patient"</span>])</span>
+<span id="cb9-106"><a href="#cb9-106" aria-hidden="true" tabindex="-1"></a>n_patients <span class="op">=</span> <span class="bu">len</span>(patient_ids)</span>
+<span id="cb9-107"><a href="#cb9-107" aria-hidden="true" tabindex="-1"></a>weeks <span class="op">=</span> jnp.array(data[<span class="st">"Weeks"</span>].values, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb9-108"><a href="#cb9-108" aria-hidden="true" tabindex="-1"></a>fvc   <span class="op">=</span> jnp.array(data[<span class="st">"FVC"</span>].values,   dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb9-109"><a href="#cb9-109" aria-hidden="true" tabindex="-1"></a>pat   <span class="op">=</span> jnp.array(patients,              dtype<span class="op">=</span><span class="bu">int</span>)</span>
+<span id="cb9-110"><a href="#cb9-110" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb9-111"><a href="#cb9-111" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-112"><a href="#cb9-112" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hierarchical_fvc(pat, weeks, fvc<span class="op">=</span><span class="va">None</span>):</span>
-<span id="cb9-113"><a href="#cb9-113" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Population-level priors</span></span>
-<span id="cb9-114"><a href="#cb9-114" aria-hidden="true" tabindex="-1"></a>    mu_alpha    <span class="op">=</span> numpyro.sample(<span class="st">"mu_alpha"</span>,    dist.Normal(<span class="fl">2500.</span>, <span class="fl">500.</span>))</span>
-<span id="cb9-115"><a href="#cb9-115" aria-hidden="true" tabindex="-1"></a>    mu_beta     <span class="op">=</span> numpyro.sample(<span class="st">"mu_beta"</span>,     dist.Normal(<span class="fl">0.</span>, <span class="fl">5.</span>))</span>
-<span id="cb9-116"><a href="#cb9-116" aria-hidden="true" tabindex="-1"></a>    sigma_obs   <span class="op">=</span> numpyro.sample(<span class="st">"sigma_obs"</span>,   dist.HalfNormal(<span class="fl">300.</span>))</span>
-<span id="cb9-117"><a href="#cb9-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-118"><a href="#cb9-118" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Correlated patient-level random intercepts and slopes: LKJ prior on</span></span>
-<span id="cb9-119"><a href="#cb9-119" aria-hidden="true" tabindex="-1"></a>    <span class="co"># the correlation matrix, HalfNormal priors on the per-parameter scales,</span></span>
-<span id="cb9-120"><a href="#cb9-120" aria-hidden="true" tabindex="-1"></a>    <span class="co"># combined into a Cholesky-factorized covariance -- this is the numpyro</span></span>
-<span id="cb9-121"><a href="#cb9-121" aria-hidden="true" tabindex="-1"></a>    <span class="co"># analogue of lme4's unstructured (1 + Weeks | Patient).</span></span>
-<span id="cb9-122"><a href="#cb9-122" aria-hidden="true" tabindex="-1"></a>    sigma_re <span class="op">=</span> numpyro.sample(<span class="st">"sigma_re"</span>, dist.HalfNormal(jnp.array([<span class="fl">300.</span>, <span class="fl">3.</span>])))</span>
-<span id="cb9-123"><a href="#cb9-123" aria-hidden="true" tabindex="-1"></a>    L_corr   <span class="op">=</span> numpyro.sample(<span class="st">"L_corr"</span>, dist.LKJCholesky(<span class="dv">2</span>, concentration<span class="op">=</span><span class="fl">2.0</span>))</span>
-<span id="cb9-124"><a href="#cb9-124" aria-hidden="true" tabindex="-1"></a>    L_cov    <span class="op">=</span> jnp.diag(sigma_re) <span class="op">@</span> L_corr</span>
+<span id="cb9-112"><a href="#cb9-112" aria-hidden="true" tabindex="-1"></a>Drawing <span class="in">`alpha`</span> and <span class="in">`beta`</span> from independent Normal priors, as below, gives</span>
+<span id="cb9-113"><a href="#cb9-113" aria-hidden="true" tabindex="-1"></a>patient-level intercepts and slopes with *zero* covariance by construction --</span>
+<span id="cb9-114"><a href="#cb9-114" aria-hidden="true" tabindex="-1"></a>that corresponds to <span class="in">`FVC ~ Weeks + (1|Patient) + (0+Weeks|Patient)`</span>, not</span>
+<span id="cb9-115"><a href="#cb9-115" aria-hidden="true" tabindex="-1"></a><span class="in">`(1+Weeks|Patient)`</span>. <span class="in">`lme4`</span>'s <span class="in">`(1+Weeks|Patient)`</span> estimates a full</span>
+<span id="cb9-116"><a href="#cb9-116" aria-hidden="true" tabindex="-1"></a>(unstructured, correlated) 2x2 covariance matrix for the intercept and</span>
+<span id="cb9-117"><a href="#cb9-117" aria-hidden="true" tabindex="-1"></a>slope. To match that in <span class="in">`numpyro`</span>, draw <span class="in">`(alpha, beta)`</span> jointly from a</span>
+<span id="cb9-118"><a href="#cb9-118" aria-hidden="true" tabindex="-1"></a><span class="in">`MultivariateNormal`</span> with an LKJ-Cholesky prior on the correlation matrix:</span>
+<span id="cb9-119"><a href="#cb9-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-122"><a href="#cb9-122" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb9-123"><a href="#cb9-123" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb9-124"><a href="#cb9-124" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
 <span id="cb9-125"><a href="#cb9-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-126"><a href="#cb9-126" aria-hidden="true" tabindex="-1"></a>    mu_re <span class="op">=</span> jnp.stack([mu_alpha, mu_beta])</span>
-<span id="cb9-127"><a href="#cb9-127" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> numpyro.plate(<span class="st">"patients"</span>, n_patients):</span>
-<span id="cb9-128"><a href="#cb9-128" aria-hidden="true" tabindex="-1"></a>        re <span class="op">=</span> numpyro.sample(<span class="st">"re"</span>, dist.MultivariateNormal(mu_re, scale_tril<span class="op">=</span>L_cov))</span>
-<span id="cb9-129"><a href="#cb9-129" aria-hidden="true" tabindex="-1"></a>    alpha, beta <span class="op">=</span> re[:, <span class="dv">0</span>], re[:, <span class="dv">1</span>]</span>
-<span id="cb9-130"><a href="#cb9-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-131"><a href="#cb9-131" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Likelihood</span></span>
-<span id="cb9-132"><a href="#cb9-132" aria-hidden="true" tabindex="-1"></a>    mu <span class="op">=</span> alpha[pat] <span class="op">+</span> beta[pat] <span class="op">*</span> weeks</span>
-<span id="cb9-133"><a href="#cb9-133" aria-hidden="true" tabindex="-1"></a>    numpyro.sample(<span class="st">"fvc"</span>, dist.Normal(mu, sigma_obs), obs<span class="op">=</span>fvc)</span>
-<span id="cb9-134"><a href="#cb9-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-135"><a href="#cb9-135" aria-hidden="true" tabindex="-1"></a><span class="co"># Run NUTS sampler</span></span>
-<span id="cb9-136"><a href="#cb9-136" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> NUTS(hierarchical_fvc)</span>
-<span id="cb9-137"><a href="#cb9-137" aria-hidden="true" tabindex="-1"></a>mcmc   <span class="op">=</span> MCMC(kernel, num_warmup<span class="op">=</span><span class="dv">500</span>, num_samples<span class="op">=</span><span class="dv">1000</span>, num_chains<span class="op">=</span><span class="dv">2</span>)</span>
-<span id="cb9-138"><a href="#cb9-138" aria-hidden="true" tabindex="-1"></a>mcmc.run(jax.random.PRNGKey(<span class="dv">0</span>), pat, weeks, fvc)</span>
-<span id="cb9-139"><a href="#cb9-139" aria-hidden="true" tabindex="-1"></a>mcmc.print_summary()</span>
-<span id="cb9-140"><a href="#cb9-140" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-141"><a href="#cb9-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-142"><a href="#cb9-142" aria-hidden="true" tabindex="-1"></a>The <span class="in">`mcmc.print_summary()`</span> output shows posterior means, standard deviations,</span>
-<span id="cb9-143"><a href="#cb9-143" aria-hidden="true" tabindex="-1"></a>and credible intervals. Approximate output looks like this:</span>
+<span id="cb9-126"><a href="#cb9-126" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> hierarchical_fvc(pat, weeks, fvc<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb9-127"><a href="#cb9-127" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Population-level priors</span></span>
+<span id="cb9-128"><a href="#cb9-128" aria-hidden="true" tabindex="-1"></a>    mu_alpha    <span class="op">=</span> numpyro.sample(<span class="st">"mu_alpha"</span>,    dist.Normal(<span class="fl">2500.</span>, <span class="fl">500.</span>))</span>
+<span id="cb9-129"><a href="#cb9-129" aria-hidden="true" tabindex="-1"></a>    mu_beta     <span class="op">=</span> numpyro.sample(<span class="st">"mu_beta"</span>,     dist.Normal(<span class="fl">0.</span>, <span class="fl">5.</span>))</span>
+<span id="cb9-130"><a href="#cb9-130" aria-hidden="true" tabindex="-1"></a>    sigma_obs   <span class="op">=</span> numpyro.sample(<span class="st">"sigma_obs"</span>,   dist.HalfNormal(<span class="fl">300.</span>))</span>
+<span id="cb9-131"><a href="#cb9-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-132"><a href="#cb9-132" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Correlated patient-level random intercepts and slopes: LKJ prior on</span></span>
+<span id="cb9-133"><a href="#cb9-133" aria-hidden="true" tabindex="-1"></a>    <span class="co"># the correlation matrix, HalfNormal priors on the per-parameter scales,</span></span>
+<span id="cb9-134"><a href="#cb9-134" aria-hidden="true" tabindex="-1"></a>    <span class="co"># combined into a Cholesky-factorized covariance -- this is the numpyro</span></span>
+<span id="cb9-135"><a href="#cb9-135" aria-hidden="true" tabindex="-1"></a>    <span class="co"># analogue of lme4's unstructured (1 + Weeks | Patient).</span></span>
+<span id="cb9-136"><a href="#cb9-136" aria-hidden="true" tabindex="-1"></a>    sigma_re <span class="op">=</span> numpyro.sample(<span class="st">"sigma_re"</span>, dist.HalfNormal(jnp.array([<span class="fl">300.</span>, <span class="fl">3.</span>])))</span>
+<span id="cb9-137"><a href="#cb9-137" aria-hidden="true" tabindex="-1"></a>    L_corr   <span class="op">=</span> numpyro.sample(<span class="st">"L_corr"</span>, dist.LKJCholesky(<span class="dv">2</span>, concentration<span class="op">=</span><span class="fl">2.0</span>))</span>
+<span id="cb9-138"><a href="#cb9-138" aria-hidden="true" tabindex="-1"></a>    L_cov    <span class="op">=</span> jnp.diag(sigma_re) <span class="op">@</span> L_corr</span>
+<span id="cb9-139"><a href="#cb9-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-140"><a href="#cb9-140" aria-hidden="true" tabindex="-1"></a>    mu_re <span class="op">=</span> jnp.stack([mu_alpha, mu_beta])</span>
+<span id="cb9-141"><a href="#cb9-141" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> numpyro.plate(<span class="st">"patients"</span>, n_patients):</span>
+<span id="cb9-142"><a href="#cb9-142" aria-hidden="true" tabindex="-1"></a>        re <span class="op">=</span> numpyro.sample(<span class="st">"re"</span>, dist.MultivariateNormal(mu_re, scale_tril<span class="op">=</span>L_cov))</span>
+<span id="cb9-143"><a href="#cb9-143" aria-hidden="true" tabindex="-1"></a>    alpha, beta <span class="op">=</span> re[:, <span class="dv">0</span>], re[:, <span class="dv">1</span>]</span>
 <span id="cb9-144"><a href="#cb9-144" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-145"><a href="#cb9-145" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-146"><a href="#cb9-146" aria-hidden="true" tabindex="-1"></a><span class="in">                mean       std    median      5.0%     95.0%     n_eff     r_hat</span></span>
-<span id="cb9-147"><a href="#cb9-147" aria-hidden="true" tabindex="-1"></a><span class="in">mu_alpha     2678.4      12.3    2678.2    2657.8    2699.3    1842.1      1.00</span></span>
-<span id="cb9-148"><a href="#cb9-148" aria-hidden="true" tabindex="-1"></a><span class="in">mu_beta        -2.34      0.18    -2.34     -2.64     -2.05    2103.4      1.00</span></span>
-<span id="cb9-149"><a href="#cb9-149" aria-hidden="true" tabindex="-1"></a><span class="in">sigma_alpha   368.2      11.1    367.4     349.9     386.8     1654.3      1.00</span></span>
-<span id="cb9-150"><a href="#cb9-150" aria-hidden="true" tabindex="-1"></a><span class="in">sigma_beta      2.89      0.14     2.89      2.66      3.12    2234.5      1.00</span></span>
-<span id="cb9-151"><a href="#cb9-151" aria-hidden="true" tabindex="-1"></a><span class="in">sigma_obs     208.1       2.9    208.1     203.5     212.8     2891.2      1.00</span></span>
-<span id="cb9-152"><a href="#cb9-152" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-153"><a href="#cb9-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-156"><a href="#cb9-156" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb9-157"><a href="#cb9-157" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb9-158"><a href="#cb9-158" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare population-level estimates to lme4</span></span>
-<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> mcmc.get_samples()</span>
-<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Numpyro posterior mean mu_alpha:"</span>, jnp.mean(samples[<span class="st">"mu_alpha"</span>]).item())</span>
-<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Numpyro posterior mean mu_beta: "</span>, jnp.mean(samples[<span class="st">"mu_beta"</span>]).item())</span>
-<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
-<span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"lme4 fixed effects:"</span>)</span>
-<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"  Intercept:"</span>, <span class="fl">2678.3</span>)   <span class="co"># from R summary(reg1)</span></span>
-<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"  Weeks:    "</span>, <span class="op">-</span><span class="fl">2.34</span>)</span>
-<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a><span class="co"># Posterior predictive for a single patient</span></span>
-<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a>p0_alpha <span class="op">=</span> samples[<span class="st">"alpha"</span>][:, <span class="dv">0</span>]   <span class="co"># patient 0 intercept samples</span></span>
-<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>p0_beta  <span class="op">=</span> samples[<span class="st">"beta"</span>][:, <span class="dv">0</span>]    <span class="co"># patient 0 slope samples</span></span>
+<span id="cb9-145"><a href="#cb9-145" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Likelihood</span></span>
+<span id="cb9-146"><a href="#cb9-146" aria-hidden="true" tabindex="-1"></a>    mu <span class="op">=</span> alpha[pat] <span class="op">+</span> beta[pat] <span class="op">*</span> weeks</span>
+<span id="cb9-147"><a href="#cb9-147" aria-hidden="true" tabindex="-1"></a>    numpyro.sample(<span class="st">"fvc"</span>, dist.Normal(mu, sigma_obs), obs<span class="op">=</span>fvc)</span>
+<span id="cb9-148"><a href="#cb9-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-149"><a href="#cb9-149" aria-hidden="true" tabindex="-1"></a><span class="co"># Run NUTS sampler</span></span>
+<span id="cb9-150"><a href="#cb9-150" aria-hidden="true" tabindex="-1"></a>kernel <span class="op">=</span> NUTS(hierarchical_fvc)</span>
+<span id="cb9-151"><a href="#cb9-151" aria-hidden="true" tabindex="-1"></a>mcmc   <span class="op">=</span> MCMC(kernel, num_warmup<span class="op">=</span><span class="dv">500</span>, num_samples<span class="op">=</span><span class="dv">1000</span>, num_chains<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb9-152"><a href="#cb9-152" aria-hidden="true" tabindex="-1"></a>mcmc.run(jax.random.PRNGKey(<span class="dv">0</span>), pat, weeks, fvc)</span>
+<span id="cb9-153"><a href="#cb9-153" aria-hidden="true" tabindex="-1"></a>mcmc.print_summary()</span>
+<span id="cb9-154"><a href="#cb9-154" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-155"><a href="#cb9-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-156"><a href="#cb9-156" aria-hidden="true" tabindex="-1"></a>The <span class="in">`mcmc.print_summary()`</span> output shows posterior means, standard deviations,</span>
+<span id="cb9-157"><a href="#cb9-157" aria-hidden="true" tabindex="-1"></a>and credible intervals. Approximate output looks like this:</span>
+<span id="cb9-158"><a href="#cb9-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a><span class="in">                mean       std    median      5.0%     95.0%     n_eff     r_hat</span></span>
+<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a><span class="in">mu_alpha     2678.4      12.3    2678.2    2657.8    2699.3    1842.1      1.00</span></span>
+<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a><span class="in">mu_beta        -2.34      0.18    -2.34     -2.64     -2.05    2103.4      1.00</span></span>
+<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a><span class="in">sigma_alpha   368.2      11.1    367.4     349.9     386.8     1654.3      1.00</span></span>
+<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a><span class="in">sigma_beta      2.89      0.14     2.89      2.66      3.12    2234.5      1.00</span></span>
+<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a><span class="in">sigma_obs     208.1       2.9    208.1     203.5     212.8     2891.2      1.00</span></span>
+<span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
 <span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict FVC at week 20 -- posterior predictive (add observation noise)</span></span>
-<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>week_pred <span class="op">=</span> <span class="fl">20.</span></span>
-<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a>mu_pred   <span class="op">=</span> p0_alpha <span class="op">+</span> p0_beta <span class="op">*</span> week_pred</span>
-<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a>fvc_pred  <span class="op">=</span> dist.Normal(mu_pred, samples[<span class="st">"sigma_obs"</span>]).sample(jax.random.PRNGKey(<span class="dv">1</span>))</span>
-<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Patient 0 FVC at week 20:"</span>)</span>
-<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Mean: </span><span class="sc">{</span>jnp<span class="sc">.</span>mean(fvc_pred)<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
-<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  90% CI: [</span><span class="sc">{</span>jnp<span class="sc">.</span>quantile(fvc_pred, <span class="fl">0.05</span>)<span class="sc">:.1f}</span><span class="ss">, </span><span class="sc">{</span>jnp<span class="sc">.</span>quantile(fvc_pred, <span class="fl">0.95</span>)<span class="sc">:.1f}</span><span class="ss">]"</span>)</span>
-<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparing the two approaches</span></span>
-<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="pp">|</span> lme4 <span class="pp">|</span> numpyro <span class="pp">|</span></span>
-<span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
-<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Estimation <span class="pp">|</span> REML (restricted maximum likelihood) <span class="pp">|</span> MCMC (full posterior) <span class="pp">|</span></span>
-<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Output <span class="pp">|</span> Point estimates + SE <span class="pp">|</span> Full posterior distributions <span class="pp">|</span></span>
-<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Uncertainty <span class="pp">|</span> Approximate (Wald-type CI) <span class="pp">|</span> Exact posterior credible intervals <span class="pp">|</span></span>
-<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Computation <span class="pp">|</span> Fast (seconds) <span class="pp">|</span> Slower (minutes for 1000 samples) <span class="pp">|</span></span>
-<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Prediction <span class="pp">|</span> <span class="in">`predict()`</span> gives point estimates <span class="pp">|</span> Posterior predictive — full distribution <span class="pp">|</span></span>
-<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a>The main advantage of <span class="in">`numpyro`</span> shows up in prediction. For a new patient,</span>
-<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a><span class="in">`lme4`</span> gives a point prediction and an approximate interval. <span class="in">`numpyro`</span> gives a</span>
-<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a>posterior predictive distribution. Then we can look at any quantile or compute</span>
-<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a>probabilities such as whether FVC stays above a threshold.</span>
-<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a>For a simple random-effects model with a large data set, <span class="in">`lme4`</span> is much faster</span>
-<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a>and usually enough. <span class="in">`numpyro`</span> becomes more useful when the model is more</span>
-<span id="cb9-200"><a href="#cb9-200" aria-hidden="true" tabindex="-1"></a>complicated, or when the full predictive distribution is what we need.</span>
-<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/bayesian-causal.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/bayesian-causal.html).*</span>
+<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare population-level estimates to lme4</span></span>
+<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>samples <span class="op">=</span> mcmc.get_samples()</span>
+<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Numpyro posterior mean mu_alpha:"</span>, jnp.mean(samples[<span class="st">"mu_alpha"</span>]).item())</span>
+<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Numpyro posterior mean mu_beta: "</span>, jnp.mean(samples[<span class="st">"mu_beta"</span>]).item())</span>
+<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"lme4 fixed effects:"</span>)</span>
+<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"  Intercept:"</span>, <span class="fl">2678.3</span>)   <span class="co"># from R summary(reg1)</span></span>
+<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"  Weeks:    "</span>, <span class="op">-</span><span class="fl">2.34</span>)</span>
+<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a><span class="co"># Posterior predictive for a single patient</span></span>
+<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a>p0_alpha <span class="op">=</span> samples[<span class="st">"alpha"</span>][:, <span class="dv">0</span>]   <span class="co"># patient 0 intercept samples</span></span>
+<span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a>p0_beta  <span class="op">=</span> samples[<span class="st">"beta"</span>][:, <span class="dv">0</span>]    <span class="co"># patient 0 slope samples</span></span>
+<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict FVC at week 20 -- posterior predictive (add observation noise)</span></span>
+<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a>week_pred <span class="op">=</span> <span class="fl">20.</span></span>
+<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a>mu_pred   <span class="op">=</span> p0_alpha <span class="op">+</span> p0_beta <span class="op">*</span> week_pred</span>
+<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a>fvc_pred  <span class="op">=</span> dist.Normal(mu_pred, samples[<span class="st">"sigma_obs"</span>]).sample(jax.random.PRNGKey(<span class="dv">1</span>))</span>
+<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Patient 0 FVC at week 20:"</span>)</span>
+<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  Mean: </span><span class="sc">{</span>jnp<span class="sc">.</span>mean(fvc_pred)<span class="sc">:.1f}</span><span class="ss">"</span>)</span>
+<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  90% CI: [</span><span class="sc">{</span>jnp<span class="sc">.</span>quantile(fvc_pred, <span class="fl">0.05</span>)<span class="sc">:.1f}</span><span class="ss">, </span><span class="sc">{</span>jnp<span class="sc">.</span>quantile(fvc_pred, <span class="fl">0.95</span>)<span class="sc">:.1f}</span><span class="ss">]"</span>)</span>
+<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparing the two approaches</span></span>
+<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="pp">|</span> lme4 <span class="pp">|</span> numpyro <span class="pp">|</span></span>
+<span id="cb9-200"><a href="#cb9-200" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Estimation <span class="pp">|</span> REML (restricted maximum likelihood) <span class="pp">|</span> MCMC (full posterior) <span class="pp">|</span></span>
+<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Output <span class="pp">|</span> Point estimates + SE <span class="pp">|</span> Full posterior distributions <span class="pp">|</span></span>
+<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Uncertainty <span class="pp">|</span> Approximate (Wald-type CI) <span class="pp">|</span> Exact posterior credible intervals <span class="pp">|</span></span>
+<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Computation <span class="pp">|</span> Fast (seconds) <span class="pp">|</span> Slower (minutes for 1000 samples) <span class="pp">|</span></span>
+<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Prediction <span class="pp">|</span> <span class="in">`predict()`</span> gives point estimates <span class="pp">|</span> Posterior predictive — full distribution <span class="pp">|</span></span>
+<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-207"><a href="#cb9-207" aria-hidden="true" tabindex="-1"></a>The main advantage of <span class="in">`numpyro`</span> shows up in prediction. For a new patient,</span>
+<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a><span class="in">`lme4`</span> gives a point prediction and an approximate interval. <span class="in">`numpyro`</span> gives a</span>
+<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a>posterior predictive distribution. Then we can look at any quantile or compute</span>
+<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a>probabilities such as whether FVC stays above a threshold.</span>
+<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a>For a simple random-effects model with a large data set, <span class="in">`lme4`</span> is much faster</span>
+<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a>and usually enough. <span class="in">`numpyro`</span> becomes more useful when the model is more</span>
+<span id="cb9-214"><a href="#cb9-214" aria-hidden="true" tabindex="-1"></a>complicated, or when the full predictive distribution is what we need.</span>
+<span id="cb9-215"><a href="#cb9-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-217"><a href="#cb9-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-218"><a href="#cb9-218" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/bayesian-causal.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/bayesian-causal.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

@@ -74,7 +74,7 @@ Cardinality matching involves finding the largest sample that satisfies user-sup
 
 ## Example
 
-Here is an example with Lalonde data, we are interested in the effect of treatment on "re78" (1978 real earnings).
+Here is an example with Lalonde data, we are interested in the effect of treatment on "re78" (1978 real earnings). There are 614 observations, 185 treated and 429 control, with covariates age, education, race, marital status, degree status, and earnings in 1974 and 1975. The first `matchit` call uses `method = NULL`, which fits the propensity score but performs no matching — a way of getting the pre-match balance table.
 
 
 ```{r}
@@ -92,6 +92,13 @@ m.out0 <- matchit(treat ~ age + educ + race + married +
                   distance = "glm")
 summary(m.out0)
 ```
+The imbalance is severe. Standardized mean differences are $-0.72$ for 1974
+earnings, 1.76 for the black indicator, $-1.88$ for white, $-0.83$ for married
+and $-0.31$ for age, and the propensity score itself differs by 1.79 standard
+deviations. The treated average \$2,096 in 1974 earnings against \$5,619 for
+controls, and 84% are black against 20%. These are not two samples that differ
+at the margin.
+
 Or use "cobalt" to see the balance:
 
 ```{r}
@@ -102,7 +109,15 @@ bal.tab(treat ~ age + educ + race + married + nodegree + re74 + re75,
         data = lalonde, estimand = "ATT", thresholds = c(m = .05))
 ```
 
-First do a PS match.
+`bal.tab` says the same thing against a stricter 0.05 threshold: all nine
+covariate contrasts fail, with `re74` the worst at $-0.7211$.
+
+First do a PS match. The chunks below run several distance measures in turn —
+the logit of a logistic propensity score, a GAM score with smooth terms in age
+and education, CBPS targeting the ATC with replacement, Mahalanobis distance on
+the raw covariates, and full matching on a probit score. Each prints its own
+balance table; what changes across them is the `distance` row and how much of the
+covariate imbalance survives.
 
 
 ```{r}
@@ -182,9 +197,14 @@ plot(m.out5, type = "jitter", interactive = FALSE)
 plot(summary(m.out5))
 ```
 
+Note that `m.out4$distance` prints `NULL`: Mahalanobis matching estimates no
+propensity score at all, so there is no distance column and no `distance` row in
+its balance table. That is the point of the method — it works on the covariate
+space directly rather than collapsing it to a scalar.
+
 ## Estimation
 
-After we get a matched data that we think is good enough, we can estimate the treatment effect.
+After we get a matched data that we think is good enough, we can estimate the treatment effect. We use `m.out5`, the full match on a probit score.
 
 ```{r}
 
@@ -211,6 +231,10 @@ avg_comparisons(fit,
                 newdata = subset(m.data, treat == 1))
 
 ```
+
+The ATT is \$1,977 with a subclass-clustered standard error of \$704,
+$p = 0.005$, and a 95% interval of $[596, 3357]$. Training raised 1978 earnings
+for those who took it.
 
 Note we allow interaction of treatment and covariates, but we do not need to demean the covariates here, since we are relying on "marginaleffects" and its "avg_comparisons" function to compute the average treatment effect.  The "newdata" argument is used to specify the effect, in this case ATT.  Note the weights are generated this way:  since it's ATT, all treated units are weighted by 1, and control units are weighted by $p/(1-p)$, where $p$ is proportion of treated units in the subclass.  Anyway, for full matching, we get the comparison of potential outcomes for the treated, with weights, and clustered standard errors on subclasses, because that the level the comparison is conducted.
 

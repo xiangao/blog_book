@@ -10,7 +10,16 @@ In this simulation exercise, we use Causal Forest (Now is implemented in General
 
 ## Linear effect
 
-Suppose we have a panel of firms over time, treatment assignment is random.  We split the data into training and test.  Then we generate 10 random variables, the first two are highly correlated.  Then we collapse V2 into firm means, and use that as the unit effect.  That is, we have a DGP as:
+Suppose we have a panel of firms over time, treatment assignment is random.  We split the data into training and test.  Then we generate 10 random variables, the first two are highly correlated.  Then we collapse V2 into firm means, and use that as the unit effect.
+
+Concretely: $n = 400$ firms over $t = 10$ periods, 4,000 observations, with
+$p = 10$ standard normal covariates of which $V1$ and $V2$ are correlated at
+0.9025. Treatment is $W \sim \text{Bernoulli}(0.5)$, assigned independently of
+everything, and a further coin flip splits the sample roughly in half into
+training and test sets (about 2,014 rows for training). The unit effect
+$\alpha_i$ is the firm mean of $V2$.
+
+That is, we have a DGP as:
 
 $$y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it} $$ {#eq-causal-forest-panel-1}
 
@@ -168,7 +177,16 @@ ggplot(data.test, aes(x=V1, y=pred)) + geom_point() + geom_abline(intercept = 1,
 
 ```
 
+The forest's doubly-robust ATE comes out at 0.9356 with a standard error of
+0.0823, and 0.9317 with 0.0816 for the second variant. The true ATE is
+$E[1 + V1] = 1$, so both are within one standard error of it — the forest costs
+a little precision against the correctly specified linear models but is not
+biased.
+
 This graph is the predicted value of CATE on the test data, vs. the value of $V1$.
+The points should sit on the 45-degree line, and the error bars in the second
+panel show how much of the scatter is estimation noise rather than a failure to
+track the true $1 + V1$.
 
 Now we graph the predicted CATE against the true CATE.  The other nice feature of Causal Forest is that it returns variance for CATE for each observation.  We also graph the error bar here.
 
@@ -281,6 +299,12 @@ What a linear specification cannot do is see the kink at $V1 = 0$ — and that i
 what the forest is for.
 
 Now we use Causal Forest.  The first graph is the predicted CATE against $V1$; the second graph is the predicted CATE against true CATE.  The third one adds in error bars.
+
+The forest's ATE is 0.3732 (SE 0.0533) and 0.3722 (SE 0.0529), against the true
+$0.3989$ — within half a standard error, and no better than the linear model's
+$W$ coefficient at recovering the average. The gain is in the shape: the fitted
+CATE should flatten to zero for $V1 < 0$ and rise linearly above it, which is the
+kink the linear interaction smooths straight through.
 
 ```{r}
 #| label: chunk5
@@ -432,6 +456,11 @@ approximate the true ATE, $E[\log(V1^2)] = \psi(1/2) + \log 2 = -1.2704$. So a
 linear model gets the average right and the heterogeneity completely wrong.
 
 Now we run Causal Forest.  Again, first graph is predicted CATE against $V1$, the second one is the predicted CATE against true CATE, the third one adds error bars.
+
+The forest's ATE is $-1.2049$ (SE 0.0813) and $-1.2024$ (SE 0.0798) for the two
+variants, against the true $-1.2704$. Like the linear models, it gets the average
+about right. The difference is in the plots: the forest's fitted CATE traces the
+U-shape of $\log(V1^2)$, which no linear interaction can represent.
 
 
 ```{r}

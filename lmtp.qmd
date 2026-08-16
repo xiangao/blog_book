@@ -151,6 +151,12 @@ mean(simulated_data1$Yd) - mean(simulated_data2$Yd)
 Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is from $N(0.25 L_1 + 0.4 A_1,\ 0.5)$ -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability 0.5, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.1 L_1)$.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (`simulated_data1`) and the second sets it to 0 in every period (`simulated_data2`); the reported difference $E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]$ is the effect of the always-treat versus never-treat static regimes.
 
 
+The always-treat regime gives $E[Y^d] = 2.029$, always-never gives 0.129, and
+their difference is 1.900 — and that 1.9 decomposes exactly into the three
+routes the DGP contains: 1 from $A_2$ direct, 0.5 from $A_1$ direct, and 0.4
+through the $A_1 \to L_2 \to Y$ path, since $L_2$ shifts by 0.4 and enters $Y$
+with coefficient 1.
+
 In this case, we can just do a linear regression to get the effect of A2 on Y, knowing the exact DAG.
 
 ```{r}
@@ -164,6 +170,12 @@ In this case, we can just do a linear regression to get the effect of A2 on Y, k
 m1 <- glm(Y ~ L_2 + A_1   + A_2, data = simulated_data1)
 summary(m1)
 ```
+
+Knowing the DAG, the regression recovers every structural coefficient: $L_2$ at
+0.9998, $A_1$ at 0.4940 and $A_2$ at 1.0000, against true values of 1, 0.5 and 1.
+Note this identifies the *direct* effect of $A_1$ only; its path through $L_2$ is
+blocked by conditioning on $L_2$, which is why the total of 1.9 above cannot be
+read off this table.
 
 Now consider a different MTP: set half of the time to 0 and leave the other half unchanged.
 $$
@@ -205,6 +217,14 @@ summary(m1)
 m1_d <- predict(m1, mutate(simulated_data1, A_1 = d(A_1)))
 mean(m1_d)
 ```
+
+The recursion makes the blocked path visible. The first regression, on the full
+history, again gives $A_1 = 0.4945$ — the direct effect. The second, after
+substituting the shifted $A_2$ and regressing on $L_1$ and $A_1$ only, gives
+$A_1 = 0.8760$, which is close to the total $0.5 + 0.4 = 0.9$: dropping $L_2$
+from the conditioning set lets $A_1$'s indirect path back in. The final average
+is 0.652, the expected outcome under the stochastic half-off regime, sitting
+between the always-treat 2.029 and never-treat 0.129 as it should.
 
 Note this recursive process is based on Diaz, et al. (2023) "Nonparametric Causal Effects Based on Longitudinal Modified Treatment Policies".
 

@@ -725,8 +725,10 @@ factor(year)2009  0.02753    0.05099   0.540
 factor(year)2010 -0.03429    0.04885  -0.702</code></pre>
 </div>
 </div>
-<p>In this example, fixed effect model, CRE1 (pooled OLS with the Mundlak device) and CRE2 (random effects with the Mundlak device) all give the same coefficient on poverty.</p>
-<p>As we know, RE model assumes <span class="math inline">\(v_i\)</span> is uncorrelated with <span class="math inline">\(X_{it}\)</span>, while CRE and FE allow for correlation between <span class="math inline">\(v_i\)</span> and <span class="math inline">\(X_{it}\)</span>.</p>
+<p>The data are <code>castle</code>: 550 state-years, 50 states over 11 years, balanced. The outcome is log homicide rate, the regressors are the poverty rate and log police employment.</p>
+<p>In this example, fixed effect model, CRE1 (pooled OLS with the Mundlak device) and CRE2 (random effects with the Mundlak device) all give the same coefficient on poverty: <span class="math inline">\(-0.027068\)</span> in the two-way fixed-effect model, <span class="math inline">\(-0.027068\)</span> in pooled OLS with the means, and <span class="math inline">\(-0.02707\)</span> in the mixed model. Log police is 0.066033 in all three. The group-mean coefficients, 0.125283 for poverty and 1.318037 for police, are what absorb the between-state variation.</p>
+<p>The plain random-effects model is the one that does not belong. Without the group means it gives a poverty coefficient of <span class="math inline">\(-0.0007991\)</span> — essentially zero, against <span class="math inline">\(-0.027\)</span> from every other specification, and with the opposite substantive reading. That is what happens when <span class="math inline">\(v_i\)</span> is correlated with the regressors and the model assumes it is not. As we know, RE model assumes <span class="math inline">\(v_i\)</span> is uncorrelated with <span class="math inline">\(X_{it}\)</span>, while CRE and FE allow for correlation between <span class="math inline">\(v_i\)</span> and <span class="math inline">\(X_{it}\)</span>.</p>
+<p>One detail on standard errors. The three point estimates agree, but pooled OLS reports 0.030004 on poverty while the fixed-effect model reports 0.013306 and the mixed model 0.01331. Pooled OLS is ignoring the within-state correlation; cluster it on state and the discrepancy closes. Point-estimate equivalence does not carry over to inference for free.</p>
 </section></section><section id="nonlinear-model" class="level2" data-number="10.2"><h2 data-number="10.2" class="anchored" data-anchor-id="nonlinear-model">
 <span class="header-section-number">10.2</span> nonlinear model</h2>
 <p>What I did not realize before is that this is only valid for the linear case. In the linear model the algebra above is an identity: adding the group means reparameterizes the regression so that the coefficient on <span class="math inline">\(x_{it}\)</span> <em>is</em> the within estimator, and no distributional assumption is involved. In a nonlinear model — logit, probit, Poisson — there is no such identity. Substituting a projection for <span class="math inline">\(v_i\)</span> becomes a genuine modelling assumption about <span class="math inline">\(D(v_i \mid X_i)\)</span>, and the likelihood you end up maximizing is not the one you started from.</p>
@@ -873,6 +875,7 @@ Type: response</code></pre>
 <p>First, on what <code>avg_slopes</code> is averaging. For a <code>merMod</code> object <code>marginaleffects</code> predicts with <code>re.form = NULL</code> by default, which <em>includes</em> the estimated random effects rather than setting them to zero; the package warns that its standard errors nevertheless reflect only the uncertainty in the fixed-effect parameters. If you want the AME for a “typical” (<span class="math inline">\(v_i = 0\)</span>) unit you have to ask for it with <code>re.form = NA</code>, and neither of those is the <em>population-averaged</em> AME, which requires integrating the marginal effect over the estimated distribution of <span class="math inline">\(v_i\)</span>. In a nonlinear model like probit those three quantities genuinely differ, because <span class="math inline">\(\Phi(\cdot)\)</span> is nonlinear in <span class="math inline">\(v_i\)</span>.</p>
 <p>Second, and more to the point here: on this data set the random-effects probit is a <strong>boundary (singular) fit</strong>. <code>lme4</code> reports an estimated state-level standard deviation of about <span class="math inline">\(5\times10^{-9}\)</span> — numerically zero — and <code><a href="https://rdrr.io/pkg/lme4/man/isSingular.html">isSingular()</a></code> returns <code>TRUE</code>. With no variance left in the random effect, this model <em>is</em> the pooled probit: its coefficients agree with the pooled fit to about <span class="math inline">\(10^{-4}\)</span> (poverty <span class="math inline">\(-0.17848\)</span> either way). So the third specification is not really a third specification on this data, and the distinction between conditional and population-averaged effects has nothing to apply to. It is kept here because the comparison is the one you would want to run in general — but do not read the agreement between models two and three as evidence about random effects; check <code><a href="https://rdrr.io/pkg/nlme/man/VarCorr.html">VarCorr()</a></code> before drawing that conclusion.</p>
 <p>Ultimately we are interested in the partial effect, therefore we can compare across models. In this case, we should prefer average marginal effect by CRE pooled probit.</p>
+<p>The three sets of average marginal effects bear that out. Pooled probit with the Mundlak device gives <span class="math inline">\(-0.06477\)</span> on poverty, the mixed-model version <span class="math inline">\(-0.06406\)</span>, and the singular random-effects fit <span class="math inline">\(-0.06477\)</span> again — all within 0.0008 of each other, all with standard errors around 0.034, and all marginally insignificant (<span class="math inline">\(p \approx 0.052\)</span>). The agreement is unsurprising given the singularity noted above, and the reason to prefer the pooled version is robustness to serial dependence rather than any difference in the numbers here.</p>
 </section></section><section id="references" class="level2" data-number="10.3"><h2 data-number="10.3" class="anchored" data-anchor-id="references">
 <span class="header-section-number">10.3</span> References</h2>
 <ul>
@@ -1439,109 +1442,131 @@ Type: response</code></pre>
 <span id="cb15-91"><a href="#cb15-91" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(cre_model2)</span>
 <span id="cb15-92"><a href="#cb15-92" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb15-93"><a href="#cb15-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a>In this example, fixed effect model, CRE1 (pooled OLS with the Mundlak device) and CRE2 (random effects with the Mundlak device) all give the same coefficient on poverty.</span>
-<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-96"><a href="#cb15-96" aria-hidden="true" tabindex="-1"></a>As we know, RE model assumes $v_i$ is uncorrelated with $X_{it}$, while CRE and FE allow for correlation between $v_i$ and $X_{it}$.</span>
+<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a>The data are <span class="in">`castle`</span>: 550 state-years, 50 states over 11 years, balanced. The</span>
+<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a>outcome is log homicide rate, the regressors are the poverty rate and log police</span>
+<span id="cb15-96"><a href="#cb15-96" aria-hidden="true" tabindex="-1"></a>employment.</span>
 <span id="cb15-97"><a href="#cb15-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-98"><a href="#cb15-98" aria-hidden="true" tabindex="-1"></a><span class="fu">## nonlinear model</span></span>
+<span id="cb15-98"><a href="#cb15-98" aria-hidden="true" tabindex="-1"></a>In this example, fixed effect model, CRE1 (pooled OLS with the Mundlak device) and CRE2 (random effects with the Mundlak device) all give the same coefficient on poverty: $-0.027068$ in the two-way fixed-effect model, $-0.027068$ in pooled OLS with the means, and $-0.02707$ in the mixed model. Log police is 0.066033 in all three. The group-mean coefficients, 0.125283 for poverty and 1.318037 for police, are what absorb the between-state variation.</span>
 <span id="cb15-99"><a href="#cb15-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-100"><a href="#cb15-100" aria-hidden="true" tabindex="-1"></a>What I did not realize before is that this is only valid for the linear case.  In the linear model the</span>
-<span id="cb15-101"><a href="#cb15-101" aria-hidden="true" tabindex="-1"></a>algebra above is an identity: adding the group means reparameterizes the regression so that the</span>
-<span id="cb15-102"><a href="#cb15-102" aria-hidden="true" tabindex="-1"></a>coefficient on $x_{it}$ *is* the within estimator, and no distributional assumption is involved.  In a</span>
-<span id="cb15-103"><a href="#cb15-103" aria-hidden="true" tabindex="-1"></a>nonlinear model --- logit, probit, Poisson --- there is no such identity.  Substituting a projection</span>
-<span id="cb15-104"><a href="#cb15-104" aria-hidden="true" tabindex="-1"></a>for $v_i$ becomes a genuine modelling assumption about $D(v_i \mid X_i)$, and the likelihood you end up</span>
-<span id="cb15-105"><a href="#cb15-105" aria-hidden="true" tabindex="-1"></a>maximizing is not the one you started from.</span>
-<span id="cb15-106"><a href="#cb15-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-107"><a href="#cb15-107" aria-hidden="true" tabindex="-1"></a><span class="fu">### Binary outcome</span></span>
-<span id="cb15-108"><a href="#cb15-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-109"><a href="#cb15-109" aria-hidden="true" tabindex="-1"></a>For binary outcomes, the model is:</span>
-<span id="cb15-110"><a href="#cb15-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-111"><a href="#cb15-111" aria-hidden="true" tabindex="-1"></a>$$\Pr(y_{it}=1 \mid X_{it}, v_i) = \Phi(\alpha + X_{it} \beta + v_i) $$ {#eq-more-cre-2}</span>
-<span id="cb15-112"><a href="#cb15-112" aria-hidden="true" tabindex="-1"></a>I used to think it's the best to use conditional logit.  However, it needs "conditional independence" (serial independence could be a better name) to be consistent.  That is, we have to assume the series of $y_{it}$ is conditionally independent of each other given $X_{it}$ and $v_i$.  This is a strong assumption.  If we think we have serial correlation in the error term, then this would not hold.  The other disadvantage of conditional logit (also called fixed effect logit) is that $v_i$'s are not estimated, it is just a nuisance parameter.  Any partial effects cannot be calculated, because any partial effects are functions of $v_i$'s.</span>
+<span id="cb15-100"><a href="#cb15-100" aria-hidden="true" tabindex="-1"></a>The plain random-effects model is the one that does not belong. Without the</span>
+<span id="cb15-101"><a href="#cb15-101" aria-hidden="true" tabindex="-1"></a>group means it gives a poverty coefficient of $-0.0007991$ — essentially zero,</span>
+<span id="cb15-102"><a href="#cb15-102" aria-hidden="true" tabindex="-1"></a>against $-0.027$ from every other specification, and with the opposite</span>
+<span id="cb15-103"><a href="#cb15-103" aria-hidden="true" tabindex="-1"></a>substantive reading. That is what happens when $v_i$ is correlated with the</span>
+<span id="cb15-104"><a href="#cb15-104" aria-hidden="true" tabindex="-1"></a>regressors and the model assumes it is not. As we know, RE model assumes $v_i$ is uncorrelated with $X_{it}$, while CRE and FE allow for correlation between $v_i$ and $X_{it}$.</span>
+<span id="cb15-105"><a href="#cb15-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-106"><a href="#cb15-106" aria-hidden="true" tabindex="-1"></a>One detail on standard errors. The three point estimates agree, but pooled OLS</span>
+<span id="cb15-107"><a href="#cb15-107" aria-hidden="true" tabindex="-1"></a>reports 0.030004 on poverty while the fixed-effect model reports 0.013306 and</span>
+<span id="cb15-108"><a href="#cb15-108" aria-hidden="true" tabindex="-1"></a>the mixed model 0.01331. Pooled OLS is ignoring the within-state correlation;</span>
+<span id="cb15-109"><a href="#cb15-109" aria-hidden="true" tabindex="-1"></a>cluster it on state and the discrepancy closes. Point-estimate equivalence does</span>
+<span id="cb15-110"><a href="#cb15-110" aria-hidden="true" tabindex="-1"></a>not carry over to inference for free.</span>
+<span id="cb15-111"><a href="#cb15-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-112"><a href="#cb15-112" aria-hidden="true" tabindex="-1"></a><span class="fu">## nonlinear model</span></span>
 <span id="cb15-113"><a href="#cb15-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-114"><a href="#cb15-114" aria-hidden="true" tabindex="-1"></a>Instead, Wooldridge suggests using CRE probit --- that is, the Mundlak device inside a probit.  Basically adding Mundlak device (group means of $X$'s) to the model, and then use pooled probit.  Note that we do not use RE probit or logit, since that would need conditional independence too.  Lin and Wooldridge (2019, sec. 5.2) put this plainly: "None of random effects probit, RE logit, RE Tobit, RE Poisson, and so on has robustness properties in the presence of serial correlation of the innovations."  Pooled methods with cluster-robust inference are robust to serial dependence of arbitrary form, which is the reason to prefer them here.</span>
-<span id="cb15-115"><a href="#cb15-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-116"><a href="#cb15-116" aria-hidden="true" tabindex="-1"></a>For nonlinear panel data with unobserved heterogeneity (meaning there is $v_i$ that we don't observe), we have a few assumptions.</span>
-<span id="cb15-117"><a href="#cb15-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-118"><a href="#cb15-118" aria-hidden="true" tabindex="-1"></a>First, strict exogeneity,</span>
-<span id="cb15-119"><a href="#cb15-119" aria-hidden="true" tabindex="-1"></a>$$ D(y_{it} | X_{i1}, ..., X_{iT}, v_i) = D(y_{it} | X_{it}, v_i) $$ {#eq-more-cre-3}</span>
-<span id="cb15-120"><a href="#cb15-120" aria-hidden="true" tabindex="-1"></a>This means that the distribution of $y_{it}$ only depends on $X_{it}$, given $v_i$.</span>
-<span id="cb15-121"><a href="#cb15-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-122"><a href="#cb15-122" aria-hidden="true" tabindex="-1"></a>Second, conditional independence,</span>
-<span id="cb15-123"><a href="#cb15-123" aria-hidden="true" tabindex="-1"></a>$$ D(y_{i1}, y_{i2}, ..., y_{iT} | X_i, v_i) = \prod_{t=1}^T D(y_{it} | X_i, v_i) $$ {#eq-more-cre-4}</span>
+<span id="cb15-114"><a href="#cb15-114" aria-hidden="true" tabindex="-1"></a>What I did not realize before is that this is only valid for the linear case.  In the linear model the</span>
+<span id="cb15-115"><a href="#cb15-115" aria-hidden="true" tabindex="-1"></a>algebra above is an identity: adding the group means reparameterizes the regression so that the</span>
+<span id="cb15-116"><a href="#cb15-116" aria-hidden="true" tabindex="-1"></a>coefficient on $x_{it}$ *is* the within estimator, and no distributional assumption is involved.  In a</span>
+<span id="cb15-117"><a href="#cb15-117" aria-hidden="true" tabindex="-1"></a>nonlinear model --- logit, probit, Poisson --- there is no such identity.  Substituting a projection</span>
+<span id="cb15-118"><a href="#cb15-118" aria-hidden="true" tabindex="-1"></a>for $v_i$ becomes a genuine modelling assumption about $D(v_i \mid X_i)$, and the likelihood you end up</span>
+<span id="cb15-119"><a href="#cb15-119" aria-hidden="true" tabindex="-1"></a>maximizing is not the one you started from.</span>
+<span id="cb15-120"><a href="#cb15-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-121"><a href="#cb15-121" aria-hidden="true" tabindex="-1"></a><span class="fu">### Binary outcome</span></span>
+<span id="cb15-122"><a href="#cb15-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-123"><a href="#cb15-123" aria-hidden="true" tabindex="-1"></a>For binary outcomes, the model is:</span>
 <span id="cb15-124"><a href="#cb15-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-125"><a href="#cb15-125" aria-hidden="true" tabindex="-1"></a>This means that the distribution of joint distribution of $y_{it}$'s can be modeled by each $y_{it}$ independently, given $X_i$ and $v_i$.  We need this in most nonlinear cases, but not in linear case.</span>
-<span id="cb15-126"><a href="#cb15-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-127"><a href="#cb15-127" aria-hidden="true" tabindex="-1"></a>Then we need to specify $D(v_i) | X_i$.  The random effect assumption is saying $$ D(v_i | X_i) = D(v_i) $$ {#eq-more-cre-5}, that is, $v_i$ is independent of $X_i$.  This is a strong assumption.  We should try to avoid this assumption.</span>
-<span id="cb15-128"><a href="#cb15-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-129"><a href="#cb15-129" aria-hidden="true" tabindex="-1"></a>Now, most nonlinear models make the second assumption, in the panel setting, when we have $v_i$.  That includes RE model, conditional logit.  However, that does not include pooled probit/logit, or CRE with pooled logit/probit.  That is why Wooldridge recommend using CRE with pooled probit.</span>
-<span id="cb15-130"><a href="#cb15-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-125"><a href="#cb15-125" aria-hidden="true" tabindex="-1"></a>$$\Pr(y_{it}=1 \mid X_{it}, v_i) = \Phi(\alpha + X_{it} \beta + v_i) $$ {#eq-more-cre-2}</span>
+<span id="cb15-126"><a href="#cb15-126" aria-hidden="true" tabindex="-1"></a>I used to think it's the best to use conditional logit.  However, it needs "conditional independence" (serial independence could be a better name) to be consistent.  That is, we have to assume the series of $y_{it}$ is conditionally independent of each other given $X_{it}$ and $v_i$.  This is a strong assumption.  If we think we have serial correlation in the error term, then this would not hold.  The other disadvantage of conditional logit (also called fixed effect logit) is that $v_i$'s are not estimated, it is just a nuisance parameter.  Any partial effects cannot be calculated, because any partial effects are functions of $v_i$'s.</span>
+<span id="cb15-127"><a href="#cb15-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-128"><a href="#cb15-128" aria-hidden="true" tabindex="-1"></a>Instead, Wooldridge suggests using CRE probit --- that is, the Mundlak device inside a probit.  Basically adding Mundlak device (group means of $X$'s) to the model, and then use pooled probit.  Note that we do not use RE probit or logit, since that would need conditional independence too.  Lin and Wooldridge (2019, sec. 5.2) put this plainly: "None of random effects probit, RE logit, RE Tobit, RE Poisson, and so on has robustness properties in the presence of serial correlation of the innovations."  Pooled methods with cluster-robust inference are robust to serial dependence of arbitrary form, which is the reason to prefer them here.</span>
+<span id="cb15-129"><a href="#cb15-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-130"><a href="#cb15-130" aria-hidden="true" tabindex="-1"></a>For nonlinear panel data with unobserved heterogeneity (meaning there is $v_i$ that we don't observe), we have a few assumptions.</span>
 <span id="cb15-131"><a href="#cb15-131" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-132"><a href="#cb15-132" aria-hidden="true" tabindex="-1"></a><span class="fu">### Example 2</span></span>
-<span id="cb15-133"><a href="#cb15-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-136"><a href="#cb15-136" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb15-137"><a href="#cb15-137" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fix2</span></span>
-<span id="cb15-138"><a href="#cb15-138" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb15-139"><a href="#cb15-139" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb15-140"><a href="#cb15-140" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb15-141"><a href="#cb15-141" aria-hidden="true" tabindex="-1"></a><span class="co"># generate a binary outcome, high_homocide</span></span>
+<span id="cb15-132"><a href="#cb15-132" aria-hidden="true" tabindex="-1"></a>First, strict exogeneity,</span>
+<span id="cb15-133"><a href="#cb15-133" aria-hidden="true" tabindex="-1"></a>$$ D(y_{it} | X_{i1}, ..., X_{iT}, v_i) = D(y_{it} | X_{it}, v_i) $$ {#eq-more-cre-3}</span>
+<span id="cb15-134"><a href="#cb15-134" aria-hidden="true" tabindex="-1"></a>This means that the distribution of $y_{it}$ only depends on $X_{it}$, given $v_i$.</span>
+<span id="cb15-135"><a href="#cb15-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-136"><a href="#cb15-136" aria-hidden="true" tabindex="-1"></a>Second, conditional independence,</span>
+<span id="cb15-137"><a href="#cb15-137" aria-hidden="true" tabindex="-1"></a>$$ D(y_{i1}, y_{i2}, ..., y_{iT} | X_i, v_i) = \prod_{t=1}^T D(y_{it} | X_i, v_i) $$ {#eq-more-cre-4}</span>
+<span id="cb15-138"><a href="#cb15-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-139"><a href="#cb15-139" aria-hidden="true" tabindex="-1"></a>This means that the distribution of joint distribution of $y_{it}$'s can be modeled by each $y_{it}$ independently, given $X_i$ and $v_i$.  We need this in most nonlinear cases, but not in linear case.</span>
+<span id="cb15-140"><a href="#cb15-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-141"><a href="#cb15-141" aria-hidden="true" tabindex="-1"></a>Then we need to specify $D(v_i) | X_i$.  The random effect assumption is saying $$ D(v_i | X_i) = D(v_i) $$ {#eq-more-cre-5}, that is, $v_i$ is independent of $X_i$.  This is a strong assumption.  We should try to avoid this assumption.</span>
 <span id="cb15-142"><a href="#cb15-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-143"><a href="#cb15-143" aria-hidden="true" tabindex="-1"></a>castle2 <span class="ot">&lt;-</span> castle2 <span class="sc">|&gt;</span></span>
-<span id="cb15-144"><a href="#cb15-144" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">high_homicide =</span> <span class="fu">ifelse</span>(l_homicide <span class="sc">&gt;</span> <span class="fu">mean</span>(l_homicide, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">1</span>, <span class="dv">0</span>))</span>
+<span id="cb15-143"><a href="#cb15-143" aria-hidden="true" tabindex="-1"></a>Now, most nonlinear models make the second assumption, in the panel setting, when we have $v_i$.  That includes RE model, conditional logit.  However, that does not include pooled probit/logit, or CRE with pooled logit/probit.  That is why Wooldridge recommend using CRE with pooled probit.</span>
+<span id="cb15-144"><a href="#cb15-144" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-145"><a href="#cb15-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-146"><a href="#cb15-146" aria-hidden="true" tabindex="-1"></a><span class="co"># CRE pooled probit</span></span>
-<span id="cb15-147"><a href="#cb15-147" aria-hidden="true" tabindex="-1"></a>cre_probit <span class="ot">&lt;-</span> <span class="fu">glm</span>(high_homicide <span class="sc">~</span> poverty <span class="sc">+</span> poverty_mean <span class="sc">+</span> l_police <span class="sc">+</span> l_police_mean <span class="sc">+</span> <span class="fu">factor</span>(year), <span class="at">data =</span> castle2, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="st">"probit"</span>))</span>
-<span id="cb15-148"><a href="#cb15-148" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute Average Marginal Effects (AMEs)</span></span>
-<span id="cb15-149"><a href="#cb15-149" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
-<span id="cb15-150"><a href="#cb15-150" aria-hidden="true" tabindex="-1"></a>ame_cre_probit <span class="ot">&lt;-</span> <span class="fu">avg_slopes</span>(cre_probit)</span>
-<span id="cb15-151"><a href="#cb15-151" aria-hidden="true" tabindex="-1"></a>ame_cre_probit</span>
-<span id="cb15-152"><a href="#cb15-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-153"><a href="#cb15-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-154"><a href="#cb15-154" aria-hidden="true" tabindex="-1"></a><span class="co"># linear model</span></span>
-<span id="cb15-155"><a href="#cb15-155" aria-hidden="true" tabindex="-1"></a>cre_lm <span class="ot">&lt;-</span> <span class="fu">lm</span>(high_homicide <span class="sc">~</span> poverty <span class="sc">+</span> poverty_mean <span class="sc">+</span> l_police <span class="sc">+</span> l_police_mean <span class="sc">+</span> <span class="fu">factor</span>(year), <span class="at">data =</span> castle2)</span>
-<span id="cb15-156"><a href="#cb15-156" aria-hidden="true" tabindex="-1"></a>ame_lm <span class="ot">&lt;-</span> <span class="fu">avg_slopes</span>(cre_lm)</span>
-<span id="cb15-157"><a href="#cb15-157" aria-hidden="true" tabindex="-1"></a>ame_lm</span>
-<span id="cb15-158"><a href="#cb15-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-159"><a href="#cb15-159" aria-hidden="true" tabindex="-1"></a><span class="co"># CRE RE probit</span></span>
-<span id="cb15-160"><a href="#cb15-160" aria-hidden="true" tabindex="-1"></a>cre_re_probit <span class="ot">&lt;-</span> <span class="fu">glmer</span>(high_homicide <span class="sc">~</span> poverty <span class="sc">+</span> poverty_mean <span class="sc">+</span> l_police <span class="sc">+</span> l_police_mean <span class="sc">+</span> <span class="fu">factor</span>(year) <span class="sc">+</span>  (<span class="dv">1</span> <span class="sc">|</span> state), <span class="at">data =</span> castle2, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="st">"probit"</span>))</span>
-<span id="cb15-161"><a href="#cb15-161" aria-hidden="true" tabindex="-1"></a>ame_cre_re_probit <span class="ot">&lt;-</span> <span class="fu">avg_slopes</span>(cre_re_probit)</span>
-<span id="cb15-162"><a href="#cb15-162" aria-hidden="true" tabindex="-1"></a>ame_cre_re_probit</span>
-<span id="cb15-163"><a href="#cb15-163" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb15-164"><a href="#cb15-164" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-165"><a href="#cb15-165" aria-hidden="true" tabindex="-1"></a>Two caveats about that third model, and the second one matters more than the first.</span>
+<span id="cb15-146"><a href="#cb15-146" aria-hidden="true" tabindex="-1"></a><span class="fu">### Example 2</span></span>
+<span id="cb15-147"><a href="#cb15-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-150"><a href="#cb15-150" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-151"><a href="#cb15-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fix2</span></span>
+<span id="cb15-152"><a href="#cb15-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb15-153"><a href="#cb15-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb15-154"><a href="#cb15-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb15-155"><a href="#cb15-155" aria-hidden="true" tabindex="-1"></a><span class="co"># generate a binary outcome, high_homocide</span></span>
+<span id="cb15-156"><a href="#cb15-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-157"><a href="#cb15-157" aria-hidden="true" tabindex="-1"></a>castle2 <span class="ot">&lt;-</span> castle2 <span class="sc">|&gt;</span></span>
+<span id="cb15-158"><a href="#cb15-158" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">high_homicide =</span> <span class="fu">ifelse</span>(l_homicide <span class="sc">&gt;</span> <span class="fu">mean</span>(l_homicide, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), <span class="dv">1</span>, <span class="dv">0</span>))</span>
+<span id="cb15-159"><a href="#cb15-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-160"><a href="#cb15-160" aria-hidden="true" tabindex="-1"></a><span class="co"># CRE pooled probit</span></span>
+<span id="cb15-161"><a href="#cb15-161" aria-hidden="true" tabindex="-1"></a>cre_probit <span class="ot">&lt;-</span> <span class="fu">glm</span>(high_homicide <span class="sc">~</span> poverty <span class="sc">+</span> poverty_mean <span class="sc">+</span> l_police <span class="sc">+</span> l_police_mean <span class="sc">+</span> <span class="fu">factor</span>(year), <span class="at">data =</span> castle2, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="st">"probit"</span>))</span>
+<span id="cb15-162"><a href="#cb15-162" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute Average Marginal Effects (AMEs)</span></span>
+<span id="cb15-163"><a href="#cb15-163" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
+<span id="cb15-164"><a href="#cb15-164" aria-hidden="true" tabindex="-1"></a>ame_cre_probit <span class="ot">&lt;-</span> <span class="fu">avg_slopes</span>(cre_probit)</span>
+<span id="cb15-165"><a href="#cb15-165" aria-hidden="true" tabindex="-1"></a>ame_cre_probit</span>
 <span id="cb15-166"><a href="#cb15-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-167"><a href="#cb15-167" aria-hidden="true" tabindex="-1"></a>First, on what <span class="in">`avg_slopes`</span> is averaging. For a <span class="in">`merMod`</span> object <span class="in">`marginaleffects`</span></span>
-<span id="cb15-168"><a href="#cb15-168" aria-hidden="true" tabindex="-1"></a>predicts with <span class="in">`re.form = NULL`</span> by default, which *includes* the estimated random</span>
-<span id="cb15-169"><a href="#cb15-169" aria-hidden="true" tabindex="-1"></a>effects rather than setting them to zero; the package warns that its standard</span>
-<span id="cb15-170"><a href="#cb15-170" aria-hidden="true" tabindex="-1"></a>errors nevertheless reflect only the uncertainty in the fixed-effect parameters.</span>
-<span id="cb15-171"><a href="#cb15-171" aria-hidden="true" tabindex="-1"></a>If you want the AME for a "typical" ($v_i = 0$) unit you have to ask for it with</span>
-<span id="cb15-172"><a href="#cb15-172" aria-hidden="true" tabindex="-1"></a><span class="in">`re.form = NA`</span>, and neither of those is the *population-averaged* AME, which</span>
-<span id="cb15-173"><a href="#cb15-173" aria-hidden="true" tabindex="-1"></a>requires integrating the marginal effect over the estimated distribution of</span>
-<span id="cb15-174"><a href="#cb15-174" aria-hidden="true" tabindex="-1"></a>$v_i$. In a nonlinear model like probit those three quantities genuinely differ,</span>
-<span id="cb15-175"><a href="#cb15-175" aria-hidden="true" tabindex="-1"></a>because $\Phi(\cdot)$ is nonlinear in $v_i$.</span>
-<span id="cb15-176"><a href="#cb15-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-177"><a href="#cb15-177" aria-hidden="true" tabindex="-1"></a>Second, and more to the point here: on this data set the random-effects probit is</span>
-<span id="cb15-178"><a href="#cb15-178" aria-hidden="true" tabindex="-1"></a>a **boundary (singular) fit**. <span class="in">`lme4`</span> reports an estimated state-level standard</span>
-<span id="cb15-179"><a href="#cb15-179" aria-hidden="true" tabindex="-1"></a>deviation of about $5\times10^{-9}$ --- numerically zero --- and <span class="in">`isSingular()`</span></span>
-<span id="cb15-180"><a href="#cb15-180" aria-hidden="true" tabindex="-1"></a>returns <span class="in">`TRUE`</span>. With no variance left in the random effect, this model *is* the</span>
-<span id="cb15-181"><a href="#cb15-181" aria-hidden="true" tabindex="-1"></a>pooled probit: its coefficients agree with the pooled fit to about $10^{-4}$</span>
-<span id="cb15-182"><a href="#cb15-182" aria-hidden="true" tabindex="-1"></a>(poverty $-0.17848$ either way). So the third specification is not really a third</span>
-<span id="cb15-183"><a href="#cb15-183" aria-hidden="true" tabindex="-1"></a>specification on this data, and the distinction between conditional and</span>
-<span id="cb15-184"><a href="#cb15-184" aria-hidden="true" tabindex="-1"></a>population-averaged effects has nothing to apply to. It is kept here because the</span>
-<span id="cb15-185"><a href="#cb15-185" aria-hidden="true" tabindex="-1"></a>comparison is the one you would want to run in general --- but do not read the</span>
-<span id="cb15-186"><a href="#cb15-186" aria-hidden="true" tabindex="-1"></a>agreement between models two and three as evidence about random effects; check</span>
-<span id="cb15-187"><a href="#cb15-187" aria-hidden="true" tabindex="-1"></a><span class="in">`VarCorr()`</span> before drawing that conclusion.</span>
-<span id="cb15-188"><a href="#cb15-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-189"><a href="#cb15-189" aria-hidden="true" tabindex="-1"></a>Ultimately we are interested in the partial effect, therefore we can compare across models.  In this case, we should prefer average marginal effect by CRE pooled probit.</span>
+<span id="cb15-167"><a href="#cb15-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-168"><a href="#cb15-168" aria-hidden="true" tabindex="-1"></a><span class="co"># linear model</span></span>
+<span id="cb15-169"><a href="#cb15-169" aria-hidden="true" tabindex="-1"></a>cre_lm <span class="ot">&lt;-</span> <span class="fu">lm</span>(high_homicide <span class="sc">~</span> poverty <span class="sc">+</span> poverty_mean <span class="sc">+</span> l_police <span class="sc">+</span> l_police_mean <span class="sc">+</span> <span class="fu">factor</span>(year), <span class="at">data =</span> castle2)</span>
+<span id="cb15-170"><a href="#cb15-170" aria-hidden="true" tabindex="-1"></a>ame_lm <span class="ot">&lt;-</span> <span class="fu">avg_slopes</span>(cre_lm)</span>
+<span id="cb15-171"><a href="#cb15-171" aria-hidden="true" tabindex="-1"></a>ame_lm</span>
+<span id="cb15-172"><a href="#cb15-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-173"><a href="#cb15-173" aria-hidden="true" tabindex="-1"></a><span class="co"># CRE RE probit</span></span>
+<span id="cb15-174"><a href="#cb15-174" aria-hidden="true" tabindex="-1"></a>cre_re_probit <span class="ot">&lt;-</span> <span class="fu">glmer</span>(high_homicide <span class="sc">~</span> poverty <span class="sc">+</span> poverty_mean <span class="sc">+</span> l_police <span class="sc">+</span> l_police_mean <span class="sc">+</span> <span class="fu">factor</span>(year) <span class="sc">+</span>  (<span class="dv">1</span> <span class="sc">|</span> state), <span class="at">data =</span> castle2, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link =</span> <span class="st">"probit"</span>))</span>
+<span id="cb15-175"><a href="#cb15-175" aria-hidden="true" tabindex="-1"></a>ame_cre_re_probit <span class="ot">&lt;-</span> <span class="fu">avg_slopes</span>(cre_re_probit)</span>
+<span id="cb15-176"><a href="#cb15-176" aria-hidden="true" tabindex="-1"></a>ame_cre_re_probit</span>
+<span id="cb15-177"><a href="#cb15-177" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-178"><a href="#cb15-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-179"><a href="#cb15-179" aria-hidden="true" tabindex="-1"></a>Two caveats about that third model, and the second one matters more than the first.</span>
+<span id="cb15-180"><a href="#cb15-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-181"><a href="#cb15-181" aria-hidden="true" tabindex="-1"></a>First, on what <span class="in">`avg_slopes`</span> is averaging. For a <span class="in">`merMod`</span> object <span class="in">`marginaleffects`</span></span>
+<span id="cb15-182"><a href="#cb15-182" aria-hidden="true" tabindex="-1"></a>predicts with <span class="in">`re.form = NULL`</span> by default, which *includes* the estimated random</span>
+<span id="cb15-183"><a href="#cb15-183" aria-hidden="true" tabindex="-1"></a>effects rather than setting them to zero; the package warns that its standard</span>
+<span id="cb15-184"><a href="#cb15-184" aria-hidden="true" tabindex="-1"></a>errors nevertheless reflect only the uncertainty in the fixed-effect parameters.</span>
+<span id="cb15-185"><a href="#cb15-185" aria-hidden="true" tabindex="-1"></a>If you want the AME for a "typical" ($v_i = 0$) unit you have to ask for it with</span>
+<span id="cb15-186"><a href="#cb15-186" aria-hidden="true" tabindex="-1"></a><span class="in">`re.form = NA`</span>, and neither of those is the *population-averaged* AME, which</span>
+<span id="cb15-187"><a href="#cb15-187" aria-hidden="true" tabindex="-1"></a>requires integrating the marginal effect over the estimated distribution of</span>
+<span id="cb15-188"><a href="#cb15-188" aria-hidden="true" tabindex="-1"></a>$v_i$. In a nonlinear model like probit those three quantities genuinely differ,</span>
+<span id="cb15-189"><a href="#cb15-189" aria-hidden="true" tabindex="-1"></a>because $\Phi(\cdot)$ is nonlinear in $v_i$.</span>
 <span id="cb15-190"><a href="#cb15-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-191"><a href="#cb15-191" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
-<span id="cb15-192"><a href="#cb15-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-193"><a href="#cb15-193" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Chamberlain, G. (1982). Multivariate regression models for panel data. *Journal of Econometrics* 18, 5--46.</span>
-<span id="cb15-194"><a href="#cb15-194" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lin, W., and J. M. Wooldridge (2019). Testing and correcting for endogeneity in nonlinear unobserved effects models. Ch. 2 in *Panel Data Econometrics: Theory*, ed. M. Tsionas, Elsevier, 21--43.</span>
-<span id="cb15-195"><a href="#cb15-195" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Mundlak, Y. (1978). On the pooling of time series and cross section data. *Econometrica* 46, 69--85.</span>
-<span id="cb15-196"><a href="#cb15-196" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Papke, L. E., and J. M. Wooldridge (2008). Panel data methods for fractional response variables with an application to test pass rates. *Journal of Econometrics* 145, 121--133.</span>
-<span id="cb15-197"><a href="#cb15-197" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Wooldridge, J. M. (2010). *Econometric Analysis of Cross Section and Panel Data*, 2nd ed. MIT Press.  Ch. 15 covers the nonlinear panel and CRE material.</span>
-<span id="cb15-198"><a href="#cb15-198" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Wooldridge, J. M. (2019). Correlated random effects models with unbalanced panels. *Journal of Econometrics* 211, 137--150.</span>
+<span id="cb15-191"><a href="#cb15-191" aria-hidden="true" tabindex="-1"></a>Second, and more to the point here: on this data set the random-effects probit is</span>
+<span id="cb15-192"><a href="#cb15-192" aria-hidden="true" tabindex="-1"></a>a **boundary (singular) fit**. <span class="in">`lme4`</span> reports an estimated state-level standard</span>
+<span id="cb15-193"><a href="#cb15-193" aria-hidden="true" tabindex="-1"></a>deviation of about $5\times10^{-9}$ --- numerically zero --- and <span class="in">`isSingular()`</span></span>
+<span id="cb15-194"><a href="#cb15-194" aria-hidden="true" tabindex="-1"></a>returns <span class="in">`TRUE`</span>. With no variance left in the random effect, this model *is* the</span>
+<span id="cb15-195"><a href="#cb15-195" aria-hidden="true" tabindex="-1"></a>pooled probit: its coefficients agree with the pooled fit to about $10^{-4}$</span>
+<span id="cb15-196"><a href="#cb15-196" aria-hidden="true" tabindex="-1"></a>(poverty $-0.17848$ either way). So the third specification is not really a third</span>
+<span id="cb15-197"><a href="#cb15-197" aria-hidden="true" tabindex="-1"></a>specification on this data, and the distinction between conditional and</span>
+<span id="cb15-198"><a href="#cb15-198" aria-hidden="true" tabindex="-1"></a>population-averaged effects has nothing to apply to. It is kept here because the</span>
+<span id="cb15-199"><a href="#cb15-199" aria-hidden="true" tabindex="-1"></a>comparison is the one you would want to run in general --- but do not read the</span>
+<span id="cb15-200"><a href="#cb15-200" aria-hidden="true" tabindex="-1"></a>agreement between models two and three as evidence about random effects; check</span>
+<span id="cb15-201"><a href="#cb15-201" aria-hidden="true" tabindex="-1"></a><span class="in">`VarCorr()`</span> before drawing that conclusion.</span>
+<span id="cb15-202"><a href="#cb15-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-203"><a href="#cb15-203" aria-hidden="true" tabindex="-1"></a>Ultimately we are interested in the partial effect, therefore we can compare across models.  In this case, we should prefer average marginal effect by CRE pooled probit.</span>
+<span id="cb15-204"><a href="#cb15-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-205"><a href="#cb15-205" aria-hidden="true" tabindex="-1"></a>The three sets of average marginal effects bear that out. Pooled probit with the</span>
+<span id="cb15-206"><a href="#cb15-206" aria-hidden="true" tabindex="-1"></a>Mundlak device gives $-0.06477$ on poverty, the mixed-model version $-0.06406$,</span>
+<span id="cb15-207"><a href="#cb15-207" aria-hidden="true" tabindex="-1"></a>and the singular random-effects fit $-0.06477$ again — all within 0.0008 of each</span>
+<span id="cb15-208"><a href="#cb15-208" aria-hidden="true" tabindex="-1"></a>other, all with standard errors around 0.034, and all marginally insignificant</span>
+<span id="cb15-209"><a href="#cb15-209" aria-hidden="true" tabindex="-1"></a>($p \approx 0.052$). The agreement is unsurprising given the singularity noted</span>
+<span id="cb15-210"><a href="#cb15-210" aria-hidden="true" tabindex="-1"></a>above, and the reason to prefer the pooled version is robustness to serial</span>
+<span id="cb15-211"><a href="#cb15-211" aria-hidden="true" tabindex="-1"></a>dependence rather than any difference in the numbers here.</span>
+<span id="cb15-212"><a href="#cb15-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-213"><a href="#cb15-213" aria-hidden="true" tabindex="-1"></a><span class="fu">## References</span></span>
+<span id="cb15-214"><a href="#cb15-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-215"><a href="#cb15-215" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Chamberlain, G. (1982). Multivariate regression models for panel data. *Journal of Econometrics* 18, 5--46.</span>
+<span id="cb15-216"><a href="#cb15-216" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Lin, W., and J. M. Wooldridge (2019). Testing and correcting for endogeneity in nonlinear unobserved effects models. Ch. 2 in *Panel Data Econometrics: Theory*, ed. M. Tsionas, Elsevier, 21--43.</span>
+<span id="cb15-217"><a href="#cb15-217" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Mundlak, Y. (1978). On the pooling of time series and cross section data. *Econometrica* 46, 69--85.</span>
+<span id="cb15-218"><a href="#cb15-218" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Papke, L. E., and J. M. Wooldridge (2008). Panel data methods for fractional response variables with an application to test pass rates. *Journal of Econometrics* 145, 121--133.</span>
+<span id="cb15-219"><a href="#cb15-219" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Wooldridge, J. M. (2010). *Econometric Analysis of Cross Section and Panel Data*, 2nd ed. MIT Press.  Ch. 15 covers the nonlinear panel and CRE material.</span>
+<span id="cb15-220"><a href="#cb15-220" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Wooldridge, J. M. (2019). Correlated random effects models with unbalanced panels. *Journal of Econometrics* 211, 137--150.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

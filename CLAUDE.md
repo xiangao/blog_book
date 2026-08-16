@@ -282,3 +282,84 @@ Diagnostics printed alongside: employment rates 0.671 men / 0.479 women, and mea
 **Caveats now in the text:** monotonicity is the load-bearing assumption and it is individual-level (being female never *raises* anyone's employment probability), stronger than the average pattern; the estimand becomes the effect among the **always-employed**, not the population; and the method needs both selection rates, so it cannot be run on `wage2015_subsample_inference.csv` at all — that file has only employed people, and one would need the unfiltered CPS. Real US FT/FY rates differ by roughly 10--15 points for ages 25--64, putting $q$ near 0.2, so doing this properly would likely yield an interval containing zero. Stated as a defensible finding rather than a failure.
 
 **Two label fixes after first render:** the summary row read "full population (truth)" while printing −0.0960 against $\tau=-0.10$ (Monte Carlo noise at ~1.7 SE) — relabelled "full population regression" with the prose noting it recovers the truth up to noise; and a prose list of the naive column had been written in reverse order relative to the table. Both corrected against the rendered output rather than assumed.
+
+## Simulation write-up pass (2026-08-15)
+
+Applied the same convention as `causal_econometrics_guide`: before every chunk,
+prose stating what it is for, what the variables are, and — for simulated data —
+the full DGP (sample size, every distribution, the treatment and outcome
+equations, the true parameter). After every chunk, prose stating what the output
+shows. Real-data chapters describe the sample in place of a DGP. Prose only; no
+DGP, seed or estimator was changed anywhere.
+
+**Coverage.** 47 of 50 chapters edited. Three deliberately untouched:
+`likert-scale-variance` (already fully compliant — DGP in prose, every number
+quoted, honest caveats), `same-data-different-estimators` (expository, no
+executed code, already has data and results tables with interpretation), and
+`index` (preface).
+
+**A live instance of the `collectcode`/cache trap — in an R chapter.** The trap
+documented above for Stata `collectcode` has an R analogue, and `lmtp.qmd` was
+suffering from it. `lmtp_cache/html/sim1_*` was dated **Jun 7** while the
+downstream `sim1a_*` was dated **May 27**: the DGP chunk had been edited to add
+a `0.5 * A_1` term to `Y` (with an explanatory comment) and re-run, but the
+regression chunk below it kept serving its older cached result computed against
+the *previous* `simulated_data1`. The published chapter therefore said `Y`
+depends on `A_1` with coefficient 0.5 and then printed that coefficient as
+$-0.006$. Fixed by `rm -rf lmtp_cache _freeze/lmtp` and re-rendering: `A_1` is
+now 0.494, and the recursive g-formula section's second regression 0.876
+(≈ the total $0.5 + 0.4$). **Lesson: this is not Stata-specific.** Any chapter
+where one cached chunk builds an object a later cached chunk consumes can drift
+this way; the fix is always to clear the whole chapter cache, not one entry.
+
+**Reproducibility problems found (flagged in the text, not silently patched):**
+- `policytree.qmd` sets **no seed**. Its `policy_tree` splits change completely
+  between renders — one run split on `X2`/`X8`/`X5`, the next on `X8`/`X10`.
+  Prose was written to describe the structure without quoting volatile split
+  values, and the missing seed is noted for the reader. The deeper point added:
+  the true optimal rule is the *diagonal* $X_1 + X_2 < 0$, which a depth-2
+  axis-aligned tree cannot represent at all, so its splits carry little
+  information about which variables matter.
+- `frengression.qmd` has `cache: false` on the torch training chunks, and
+  torch's RNG is not fixed by R's `set.seed()`. The standalone frengression ATE
+  moved 0.1644 → 0.1517 between renders. Prose now points at the cached
+  comparison table for the quotable number.
+
+**`conjoint-analysis.qmd` cannot be re-rendered here** — it fails on
+`library(radiant)`, which is not installable on current R. This is pre-existing
+(it fails identically without the new prose; verified by stashing the edit). Its
+`_book/` HTML is therefore older than its source. The prose added was written
+against the existing frozen output, so it is correct; it just will not appear in
+the published page until someone renders with `radiant` available.
+
+**Corrections to existing prose:**
+- `sensitivity-analysis`: the IV section claimed "a confounder as strong as
+  `black` or `smsa` is not strong enough to explain away the treatment effect."
+  Its own output says the opposite — the unadjusted AR interval is
+  $[0.025, 0.285]$, and under either benchmark the bounds become $[-0.021,
+  0.402]$ and $[-0.019, 0.396]$, **both containing zero**. Re-ran the package
+  independently to confirm before editing. Corroborating: RV = 0.00667 against
+  13.9% for the OLS example in the same chapter, and `smsa`'s instrument-side
+  partial $R^2$ of 0.00639 sits right at that threshold. Rewritten as a
+  fragility result.
+- `treatment-matching`: hedged that manual AIPW "is close to `teffects aipw`'s
+  ATE (small differences are expected)". They are identical — $-239.0294$ both,
+  and $-238.7679$ both for IPWRA.
+
+**Analyses added that the chapters set up but never performed:**
+- `ols-ate`: walked through the `hettreatreg` output as the numerical statement
+  of Słoczyński's theorem — $P(d=1) = 0.011$, OLS weights 0.983/0.017 against
+  the ATE's own 0.011/0.989, and the printed identity closing at 793.6 while
+  the ATE is $-6751$ (opposite sign).
+- `comparing-margins`: backed the covariance out of the reported standard
+  errors — corr $\approx 0.99$, and ignoring it would turn $p = 0.001$ into
+  $p = 0.46$.
+- `marginal-effects-fe`: reconciled three conflicting AMEs from one coefficient
+  (0.0488 / 0.0850 / 0.2239) by dividing each by $\beta$; implied baselines
+  1.00 / 1.74 / 4.59 match $E[\lambda] = 4.71$ and $e^{X\beta}$ without
+  intercept $= 1.65$.
+- `extended-twfe`: added a seven-estimator comparison table; Sun-Abraham,
+  Callaway-Sant'Anna and ETWFE agree to three digits at 1.33.
+- `partial-interference`: the Monte Carlo shows configuration $(0,0)$ with an
+  empirical SD of 8.760 against a mean reported SE of 0.448 — a positivity
+  failure, since no-treated-neighbours is rare in clusters of five.

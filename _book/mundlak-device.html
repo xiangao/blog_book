@@ -687,7 +687,7 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>All three models return the same coefficients and standard errors on age and union.</p>
+<p>All three models return the same coefficients and standard errors on age and union. On the 19,229 person-years of <code>nlswork</code> with non-missing union and age, every one of them gives <code>age</code> = .0153507 with a clustered standard error of .00069 and <code>union</code> = .1055274 with .00986 — agreeing to the last printed digit, with only the confidence bounds differing in the seventh decimal. The <span class="math inline">\(N\)</span> unit dummies of <code>xtreg, fe</code> have been replaced by two group means, and nothing was lost.</p>
 <p>Wooldridge (2021) extends this to the two-way case. For the TWFE, <span id="eq-mundlak-device-5"><span class="math display">\[ y_{it} = X_{it} \beta + c_i + f_t + u_{it}  \tag{8.5}\]</span></span> it’s equivalent to estimate</p>
 <p><span id="eq-mundlak-device-6"><span class="math display">\[ y_{it} = X_{it} \beta + X_{i \cdot} \lambda + X_{\cdot t} \theta + u_{it}  \tag{8.6}\]</span></span></p>
 <p>where <span class="math inline">\(X_{i \cdot}\)</span> is the unit-specific average over time and <span class="math inline">\(X_{\cdot t}\)</span> is the time-specific average over units. By FWL, the two models are equivalent (see Wooldridge 2021 for the proof). Wooldridge calls this the two-way Mundlak (TWM) model.</p>
@@ -722,6 +722,7 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
+<p>And indeed <code>age</code> stays at .0153507 and <code>union</code> at .1055274, unchanged to seven digits by the addition of <code>i.race</code>, while race itself is estimated: Black women earn 17.9% less (<span class="math inline">\(-.1790995\)</span>, SE .0144). A fixed-effect model could report the first two numbers but not the third.</p>
 </section><section id="an-important-qualification-twm-needs-a-balanced-panel" class="level2" data-number="8.3"><h2 data-number="8.3" class="anchored" data-anchor-id="an-important-qualification-twm-needs-a-balanced-panel">
 <span class="header-section-number">8.3</span> An important qualification: TWM needs a balanced panel</h2>
 <p>The two-way equivalence above holds for a <strong>balanced</strong> panel. It is worth stating this explicitly, because the one-way result does <em>not</em> need balance and the contrast is easy to miss.</p>
@@ -788,7 +789,8 @@ TWM (unit + time means)   age = 0.0117968
 TWM + unit means of dummies   = 0.0276646</code></pre>
 </div>
 </div>
-<p>What restores the equivalence is including the <strong>unit means of the time dummies</strong>. They have a clear meaning: the unit mean of the dummy for period <span class="math inline">\(t\)</span> is <span class="math inline">\(s_{it}/T_i\)</span>, where <span class="math inline">\(s_{it}\)</span> indicates whether unit <span class="math inline">\(i\)</span> is observed in period <span class="math inline">\(t\)</span>. So adding them amounts to conditioning on <em>which</em> periods each unit is observed in — the panel’s selection pattern. This is the conditioning set in Wooldridge’s work on correlated random effects with unbalanced panels.</p>
+<p>The numbers make the point. TWFE gives <code>age</code> = 0.0276645; two-way Mundlak with unit and time means gives 0.0117968 — 43% of it, a factor of 2.35 apart. These are not two estimates of the same thing that happen to disagree; on an unbalanced panel they are different estimators.</p>
+<p>What restores the equivalence is including the <strong>unit means of the time dummies</strong>. Adding them brings TWM to 0.0276646 against TWFE’s 0.0276645 — agreement to six decimal places, on the same unbalanced data that produced the factor-of-two gap. They have a clear meaning: the unit mean of the dummy for period <span class="math inline">\(t\)</span> is <span class="math inline">\(s_{it}/T_i\)</span>, where <span class="math inline">\(s_{it}\)</span> indicates whether unit <span class="math inline">\(i\)</span> is observed in period <span class="math inline">\(t\)</span>. So adding them amounts to conditioning on <em>which</em> periods each unit is observed in — the panel’s selection pattern. This is the conditioning set in Wooldridge’s work on correlated random effects with unbalanced panels.</p>
 <p>Two practical notes. In a balanced panel these extra terms have zero variance — every unit is observed in every period, so each mean is <span class="math inline">\(1/T\)</span> for everybody — which is exactly why they never come up in the balanced case. And the number of observations per unit, <span class="math inline">\(T_i\)</span>, is <em>not</em> a substitute for them: it does not restore exactness, and it is collinear with them once they are included.</p>
 <p>Everything in this section is about the <em>point estimate</em>. Standard errors from TWM are not the TWFE standard errors, and should not be read as such.</p>
 <p>It is worth pausing on the fact that this chapter now demonstrates both results on the <em>same</em> data. The <code>xtreg</code> example near the top shows one-way Mundlak matching one-way FE on <code>nlswork</code>, and the chunk just above shows two-way Mundlak failing on <code>nlswork</code>. Same dataset, opposite verdicts, because the two claims do not have the same requirements. The one-way result needs nothing: <span class="math inline">\(\sum_t (x_{it} - \bar x_i) = 0\)</span> holds within each unit whatever periods that unit contributes, so <span class="math inline">\(T_i\)</span> may vary freely. The two-way result needs the unit and time factors to be orthogonal <em>to each other</em>, which is a statement about the relationship between two dimensions, and that is what imbalance destroys. Nothing one-way can be affected, because there is no second dimension for the first to fail to be orthogonal to.</p>
@@ -883,6 +885,7 @@ g from a Latin square (orthogonal):
    B: means over i, dummies included   =  0.996471   gap  0.000000</code></pre>
 </div>
 </div>
+<p>With <code>g</code> assigned at random, the three-way fixed-effect estimate is 0.994424. Construction B reproduces it exactly, gap 0.000000; construction A gives 1.007648, a gap of 0.013224. Replace the random assignment with a Latin square, which makes the three factors mutually orthogonal, and all three agree at 0.996471 with both gaps at 0.000000.</p>
 <p>So <strong>A is not incorrect but conditional</strong>: it is exact when the factors are mutually orthogonal, and inexact otherwise. A full factorial design gives orthogonality, but so does a Latin square, which fills only a fraction of the possible cells — what matters is the balance property, that each level of one factor appears equally often with each level of the others, not the number of cells. Deleting a single row from either design is enough to lose exactness, and the size of the gap tracks how far from orthogonal the design is.</p>
 <p>This is the general statement of the balanced-panel condition from the previous section. A balanced two-way panel <em>is</em> an orthogonal design: every unit appears in every period. Unbalance it, and the unit and time factors stop being orthogonal, which is why the two-way equivalence fails there.</p>
 <p>The practical reading is that orthogonality is a property of <strong>designed</strong> data — factorial experiments, Latin squares, crop trials, where somebody chose the assignment. It requires each level of one factor to appear equally often with each level of the others, which is not something that happens by accident in data you did not design. A third factor tends to make matters worse rather than better, because it is frequently determined in part by the first two. In an audit panel I looked at recently, for instance, the third fixed effect was the running count of audits within a factory, which is mechanically a function of factory and calendar time; that design cannot be orthogonal even in principle. For observational work, B is the construction to use.</p>
@@ -908,6 +911,11 @@ g from a Latin square (orthogonal):
 <p>In the TWM, we allow effects change from <span class="math inline">\(t=q\)</span> to <span class="math inline">\(t=T\)</span>, by interacting <span class="math inline">\(w_{it}\)</span> and <span class="math inline">\(f_t\)</span>, which is an dummy for time <span class="math inline">\(t\)</span>. Very flexible, yet easy to do, given everything is linear.</p>
 <p>Even more, if we have another variable, <span class="math inline">\(x_i\)</span>, say gender, which is time-invariant, we can allow the effect to be different across gender, across time!</p>
 <p>Now I use Wooldridge’s code to run on a simulated data set.</p>
+<p>The simulation has 100 units observed over 2012–2015, 400 observations, with common treatment timing. Each unit draws time-invariant <span class="math inline">\(w_1, w_2 \sim N(0,1)\)</span>. Units with <code>id &gt; 50</code> are treated (<span class="math inline">\(d = 1\)</span>, so 50 treated and 50 control), the post period is 2014–2015, and <span class="math inline">\(w_{it} = d_i \cdot \text{post}_t\)</span>. The covariate is <span class="math inline">\(x_1 = N(0,1) + w_1 + 2w_2\)</span>, correlated with the unit effects by construction, and the untreated outcome is <span class="math inline">\(y_1 = 1 + 2x_1 + 3w_1 + u\)</span> with <span class="math inline">\(u \sim N(0,1)\)</span>. The observed outcome adds a treatment effect that grows over time,</p>
+<p><span id="eq-mundlak-device-15"><span class="math display">\[
+\text{logy} = y_1 + 2.5\,d_i f_{2014} + 3.5\,d_i f_{2015}.
+\tag{8.15}\]</span></span></p>
+<p>So the true effect is 2.5 in the first post year and 3.5 in the second, and because the panel is balanced the overall ATT is their average, exactly 3.</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="kw">obs</span> 100</span>
@@ -1991,6 +1999,9 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
+<p>That is a long chunk, so here is what to take from it. Every specification that targets the overall ATT returns <strong>3.206857</strong> — the two-way fixed-effect regression, pooled OLS with unit and time means, random effects, and the <code>did</code>-style variants all agree to seven digits, differing only in the standard error’s fourth decimal (0.4310 to 0.4326). Against a true ATT of 3, that is about half a standard error high. The equivalences claimed throughout this chapter hold numerically, not just in the algebra.</p>
+<p>Allowing the effect to vary by year recovers the two components separately: 2.496168 for 2014 and 3.349012 for 2015, against true values of 2.5 and 3.5. Their average, 2.92, is what the single-number ATT is summarising, and reporting only 3.21 would hide that the effect grows by about a third between the two post years.</p>
+<p>The imputation approach at the end fits the model on untreated observations only and reads the treatment effects off the residuals. Its estimates of <code>c.d#c.t</code> and <code>c.d#c.t#c.x1</code> match the full-sample regression, and the pre-treatment interaction <code>c.d#c.t</code> is 0.0668 with <span class="math inline">\(p = 0.822\)</span> — no detectable differential trend before treatment, which is what the design needs.</p>
 
 
 <!-- -->
@@ -2520,7 +2531,7 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_wage age union mean_age mean_union, re cluster(idcode)</span></span>
 <span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>All three models return the same coefficients and standard errors on age and union.</span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>All three models return the same coefficients and standard errors on age and union. On the 19,229 person-years of <span class="in">`nlswork`</span> with non-missing union and age, every one of them gives <span class="in">`age`</span> = .0153507 with a clustered standard error of .00069 and <span class="in">`union`</span> = .1055274 with .00986 — agreeing to the last printed digit, with only the confidence bounds differing in the seventh decimal. The $N$ unit dummies of <span class="in">`xtreg, fe`</span> have been replaced by two group means, and nothing was lost.</span>
 <span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>Wooldridge (2021) extends this to the two-way case. For the TWFE,</span>
 <span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-5}</span>
@@ -2546,413 +2557,468 @@ c.d#c.t#c.x1 |   .3170481   .1851419     1.71   0.090    -.0503137    .6844098
 <span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a><span class="fu">## An important qualification: TWM needs a balanced panel</span></span>
-<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>The two-way equivalence above holds for a **balanced** panel.  It is worth stating this</span>
-<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>explicitly, because the one-way result does *not* need balance and the contrast is easy to</span>
-<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a>miss.</span>
-<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>The one-way version --- regressing $y_{it}$ on $X_{it}$ and $X_{i \cdot}$ --- is exact</span>
-<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a>whatever the panel looks like, for the reason given below: $\sum_t (x_{it} - \bar x_i) = 0$</span>
-<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>holds within each unit by construction, no matter how many periods that unit contributes.</span>
-<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a>The two-way version needs something stronger.  Subtracting both margins and adding back the</span>
-<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>grand mean, $x_{it} - \bar x_{i \cdot} - \bar x_{\cdot t} + \bar x$, is the projection onto</span>
-<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>*both* sets of dummies only when the unit and time factors are **orthogonal** --- that is,</span>
-<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a>when every unit appears in every period.  In a balanced panel that holds automatically.  In</span>
-<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a>an unbalanced panel it fails, and TWM is then simply a different estimator from TWFE.</span>
-<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a>The difference is large enough to matter in applied work.  Using <span class="in">`nlswork`</span>, which is unbalanced (persons contribute between 1</span>
-<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a>and 12 observations), the coefficient on <span class="in">`age`</span> differs by more than a factor of two:</span>
-<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: twm_unbalanced</span></span>
-<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a><span class="in">* preserve/restore so this illustration leaves the data as later chunks expect</span></span>
-<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
-<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork, clear</span></span>
-<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a><span class="in">keep if !missing(ln_wage, age, union)</span></span>
-<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a><span class="in">xtset idcode year</span></span>
-<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a><span class="in">bysort idcode: egen m_age   = mean(age)</span></span>
-<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a><span class="in">bysort idcode: egen m_union = mean(union)</span></span>
-<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a><span class="in">egen t_age   = mean(age),   by(year)</span></span>
-<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a><span class="in">egen t_union = mean(union), by(year)</span></span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a>And indeed <span class="in">`age`</span> stays at .0153507 and <span class="in">`union`</span> at .1055274, unchanged to seven</span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a>digits by the addition of <span class="in">`i.race`</span>, while race itself is estimated: Black women</span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a>earn 17.9% less ($-.1790995$, SE .0144). A fixed-effect model could report the</span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>first two numbers but not the third.</span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a><span class="fu">## An important qualification: TWM needs a balanced panel</span></span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a>The two-way equivalence above holds for a **balanced** panel.  It is worth stating this</span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>explicitly, because the one-way result does *not* need balance and the contrast is easy to</span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>miss.</span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>The one-way version --- regressing $y_{it}$ on $X_{it}$ and $X_{i \cdot}$ --- is exact</span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>whatever the panel looks like, for the reason given below: $\sum_t (x_{it} - \bar x_i) = 0$</span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a>holds within each unit by construction, no matter how many periods that unit contributes.</span>
+<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a>The two-way version needs something stronger.  Subtracting both margins and adding back the</span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a>grand mean, $x_{it} - \bar x_{i \cdot} - \bar x_{\cdot t} + \bar x$, is the projection onto</span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a>*both* sets of dummies only when the unit and time factors are **orthogonal** --- that is,</span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a>when every unit appears in every period.  In a balanced panel that holds automatically.  In</span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a>an unbalanced panel it fails, and TWM is then simply a different estimator from TWFE.</span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a>The difference is large enough to matter in applied work.  Using <span class="in">`nlswork`</span>, which is unbalanced (persons contribute between 1</span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>and 12 observations), the coefficient on <span class="in">`age`</span> differs by more than a factor of two:</span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: twm_unbalanced</span></span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-128"><a href="#cb13-128" aria-hidden="true" tabindex="-1"></a><span class="in">* preserve/restore so this illustration leaves the data as later chunks expect</span></span>
+<span id="cb13-129"><a href="#cb13-129" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork, clear</span></span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a><span class="in">keep if !missing(ln_wage, age, union)</span></span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a><span class="in">xtset idcode year</span></span>
 <span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a><span class="in">* unit means of the year dummies -- the terms the unbalanced case needs</span></span>
-<span id="cb13-135"><a href="#cb13-135" aria-hidden="true" tabindex="-1"></a><span class="in">levelsof year, local(yrs)</span></span>
-<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a><span class="in">foreach y of local yrs {</span></span>
-<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a><span class="in">    bysort idcode: egen my_`y' = mean(year==`y')</span></span>
-<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
-<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a><span class="in">quietly xtreg ln_wage age union i.year, fe</span></span>
-<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_twfe = _b[age]</span></span>
-<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a><span class="in">quietly regress ln_wage age union m_age m_union t_age t_union</span></span>
-<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_twm = _b[age]</span></span>
-<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a><span class="in">quietly regress ln_wage age union m_age m_union i.year my_*</span></span>
-<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_fix = _b[age]</span></span>
-<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-147"><a href="#cb13-147" aria-hidden="true" tabindex="-1"></a><span class="in">di "TWFE                      age = " %9.7f b_twfe</span></span>
-<span id="cb13-148"><a href="#cb13-148" aria-hidden="true" tabindex="-1"></a><span class="in">di "TWM (unit + time means)   age = " %9.7f b_twm</span></span>
-<span id="cb13-149"><a href="#cb13-149" aria-hidden="true" tabindex="-1"></a><span class="in">di "TWM + unit means of dummies   = " %9.7f b_fix</span></span>
-<span id="cb13-150"><a href="#cb13-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-151"><a href="#cb13-151" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
-<span id="cb13-152"><a href="#cb13-152" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb13-153"><a href="#cb13-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-154"><a href="#cb13-154" aria-hidden="true" tabindex="-1"></a>What restores the equivalence is including the **unit means of the time dummies**.  They have a</span>
-<span id="cb13-155"><a href="#cb13-155" aria-hidden="true" tabindex="-1"></a>clear meaning: the unit mean of the dummy for period $t$ is $s_{it}/T_i$, where $s_{it}$</span>
-<span id="cb13-156"><a href="#cb13-156" aria-hidden="true" tabindex="-1"></a>indicates whether unit $i$ is observed in period $t$.  So adding them amounts to conditioning on</span>
-<span id="cb13-157"><a href="#cb13-157" aria-hidden="true" tabindex="-1"></a>*which* periods each unit is observed in --- the panel's selection pattern.  This is the</span>
-<span id="cb13-158"><a href="#cb13-158" aria-hidden="true" tabindex="-1"></a>conditioning set in Wooldridge's work on correlated random effects with unbalanced panels.</span>
-<span id="cb13-159"><a href="#cb13-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-160"><a href="#cb13-160" aria-hidden="true" tabindex="-1"></a>Two practical notes.  In a balanced panel these extra terms have zero variance --- every unit</span>
-<span id="cb13-161"><a href="#cb13-161" aria-hidden="true" tabindex="-1"></a>is observed in every period, so each mean is $1/T$ for everybody --- which is exactly why they</span>
-<span id="cb13-162"><a href="#cb13-162" aria-hidden="true" tabindex="-1"></a>never come up in the balanced case.  And the number of observations per unit, $T_i$, is *not* a</span>
-<span id="cb13-163"><a href="#cb13-163" aria-hidden="true" tabindex="-1"></a>substitute for them: it does not restore exactness, and it is collinear with them once they are</span>
-<span id="cb13-164"><a href="#cb13-164" aria-hidden="true" tabindex="-1"></a>included.</span>
-<span id="cb13-165"><a href="#cb13-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-166"><a href="#cb13-166" aria-hidden="true" tabindex="-1"></a>Everything in this section is about the *point estimate*.  Standard errors from TWM are not the</span>
-<span id="cb13-167"><a href="#cb13-167" aria-hidden="true" tabindex="-1"></a>TWFE standard errors, and should not be read as such.</span>
-<span id="cb13-168"><a href="#cb13-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-169"><a href="#cb13-169" aria-hidden="true" tabindex="-1"></a>It is worth pausing on the fact that this chapter now demonstrates both results on the *same*</span>
-<span id="cb13-170"><a href="#cb13-170" aria-hidden="true" tabindex="-1"></a>data.  The <span class="in">`xtreg`</span> example near the top shows one-way Mundlak matching one-way FE on <span class="in">`nlswork`</span>, and</span>
-<span id="cb13-171"><a href="#cb13-171" aria-hidden="true" tabindex="-1"></a>the chunk just above shows two-way Mundlak failing on <span class="in">`nlswork`</span>.  Same dataset, opposite verdicts,</span>
-<span id="cb13-172"><a href="#cb13-172" aria-hidden="true" tabindex="-1"></a>because the two claims do not have the same requirements.  The one-way result needs nothing:</span>
-<span id="cb13-173"><a href="#cb13-173" aria-hidden="true" tabindex="-1"></a>$\sum_t (x_{it} - \bar x_i) = 0$ holds within each unit whatever periods that unit contributes, so</span>
-<span id="cb13-174"><a href="#cb13-174" aria-hidden="true" tabindex="-1"></a>$T_i$ may vary freely.  The two-way result needs the unit and time factors to be orthogonal *to each</span>
-<span id="cb13-175"><a href="#cb13-175" aria-hidden="true" tabindex="-1"></a>other*, which is a statement about the relationship between two dimensions, and that is what</span>
-<span id="cb13-176"><a href="#cb13-176" aria-hidden="true" tabindex="-1"></a>imbalance destroys.  Nothing one-way can be affected, because there is no second dimension for the</span>
-<span id="cb13-177"><a href="#cb13-177" aria-hidden="true" tabindex="-1"></a>first to fail to be orthogonal to.</span>
-<span id="cb13-178"><a href="#cb13-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-179"><a href="#cb13-179" aria-hidden="true" tabindex="-1"></a>**Which regressors need means, then?**  Those that vary within unit.  This is why <span class="in">`i.race`</span> above</span>
-<span id="cb13-180"><a href="#cb13-180" aria-hidden="true" tabindex="-1"></a>takes no mean: <span class="in">`race`</span> is constant within a person, so its within-person mean *is* <span class="in">`race`</span> --- in</span>
-<span id="cb13-181"><a href="#cb13-181" aria-hidden="true" tabindex="-1"></a><span class="in">`nlswork`</span> the two agree to the last digit --- and adding it would be perfectly collinear.  A year</span>
-<span id="cb13-182"><a href="#cb13-182" aria-hidden="true" tabindex="-1"></a>dummy is the opposite case: it does vary within a person (in <span class="in">`nlswork`</span> the within-person standard</span>
-<span id="cb13-183"><a href="#cb13-183" aria-hidden="true" tabindex="-1"></a>deviation of the 1971 dummy is about 0.71), so its unit mean is not the dummy but the fraction of</span>
-<span id="cb13-184"><a href="#cb13-184" aria-hidden="true" tabindex="-1"></a>that person's observations falling in that year.  That fraction is new information, and in an</span>
-<span id="cb13-185"><a href="#cb13-185" aria-hidden="true" tabindex="-1"></a>unbalanced panel it is exactly the information the equivalence needs.</span>
-<span id="cb13-186"><a href="#cb13-186" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-187"><a href="#cb13-187" aria-hidden="true" tabindex="-1"></a><span class="fu">## More than two fixed effects: one set of means, not one per dimension</span></span>
-<span id="cb13-188"><a href="#cb13-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-189"><a href="#cb13-189" aria-hidden="true" tabindex="-1"></a>The natural guess, having seen TWM, is that three fixed effects call for three sets of means ---</span>
-<span id="cb13-190"><a href="#cb13-190" aria-hidden="true" tabindex="-1"></a>$X_{i \cdot}$, $X_{\cdot t}$, and the averages over the third factor.  That guess is wrong in general,</span>
-<span id="cb13-191"><a href="#cb13-191" aria-hidden="true" tabindex="-1"></a>and the reason is worth spelling out because it also explains the balanced-panel condition above.</span>
-<span id="cb13-192"><a href="#cb13-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-193"><a href="#cb13-193" aria-hidden="true" tabindex="-1"></a>The Mundlak device deals with **one** unobserved effect at a time.  It replaces $c_i$ by its projection</span>
-<span id="cb13-194"><a href="#cb13-194" aria-hidden="true" tabindex="-1"></a>on the within-$i$ means of the other regressors.  So the number of sets of means you need is the number</span>
-<span id="cb13-195"><a href="#cb13-195" aria-hidden="true" tabindex="-1"></a>of dimensions you are *eliminating*, not the number of dimensions you have.  With three fixed effects the</span>
-<span id="cb13-196"><a href="#cb13-196" aria-hidden="true" tabindex="-1"></a>robust recipe is:</span>
-<span id="cb13-197"><a href="#cb13-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-198"><a href="#cb13-198" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>pick the dimension you cannot estimate --- typically the one with many levels and few observations</span>
-<span id="cb13-199"><a href="#cb13-199" aria-hidden="true" tabindex="-1"></a>  each --- and replace it with means;</span>
-<span id="cb13-200"><a href="#cb13-200" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**keep the other dimensions as dummies**, since they have few levels and many observations each;</span>
-<span id="cb13-201"><a href="#cb13-201" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>take the means over the chosen dimension of *everything else in the model*, the retained dummies</span>
-<span id="cb13-202"><a href="#cb13-202" aria-hidden="true" tabindex="-1"></a>  included.</span>
-<span id="cb13-203"><a href="#cb13-203" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-204"><a href="#cb13-204" aria-hidden="true" tabindex="-1"></a>That last clause is what does the work, and it is the same clause that fixes the unbalanced two-way case</span>
-<span id="cb13-205"><a href="#cb13-205" aria-hidden="true" tabindex="-1"></a>above.  The test for whether a given regressor needs a mean is the one stated there: does it vary</span>
-<span id="cb13-206"><a href="#cb13-206" aria-hidden="true" tabindex="-1"></a>within the dimension you are eliminating?  Time and group dummies do, so their means carry</span>
-<span id="cb13-207"><a href="#cb13-207" aria-hidden="true" tabindex="-1"></a>information; a regressor already constant within unit does not, so its mean is itself.  Call this construction **B**, and call the three-sets-of-means guess **A**.</span>
-<span id="cb13-208"><a href="#cb13-208" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-211"><a href="#cb13-211" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb13-212"><a href="#cb13-212" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: twm_three_way</span></span>
-<span id="cb13-213"><a href="#cb13-213" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb13-214"><a href="#cb13-214" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a><span class="in">bysort idcode: egen m_age   = mean(age)</span></span>
+<span id="cb13-135"><a href="#cb13-135" aria-hidden="true" tabindex="-1"></a><span class="in">bysort idcode: egen m_union = mean(union)</span></span>
+<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a><span class="in">egen t_age   = mean(age),   by(year)</span></span>
+<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a><span class="in">egen t_union = mean(union), by(year)</span></span>
+<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a><span class="in">* unit means of the year dummies -- the terms the unbalanced case needs</span></span>
+<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a><span class="in">levelsof year, local(yrs)</span></span>
+<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a><span class="in">foreach y of local yrs {</span></span>
+<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a><span class="in">    bysort idcode: egen my_`y' = mean(year==`y')</span></span>
+<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
+<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a><span class="in">quietly xtreg ln_wage age union i.year, fe</span></span>
+<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_twfe = _b[age]</span></span>
+<span id="cb13-147"><a href="#cb13-147" aria-hidden="true" tabindex="-1"></a><span class="in">quietly regress ln_wage age union m_age m_union t_age t_union</span></span>
+<span id="cb13-148"><a href="#cb13-148" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_twm = _b[age]</span></span>
+<span id="cb13-149"><a href="#cb13-149" aria-hidden="true" tabindex="-1"></a><span class="in">quietly regress ln_wage age union m_age m_union i.year my_*</span></span>
+<span id="cb13-150"><a href="#cb13-150" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_fix = _b[age]</span></span>
+<span id="cb13-151"><a href="#cb13-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-152"><a href="#cb13-152" aria-hidden="true" tabindex="-1"></a><span class="in">di "TWFE                      age = " %9.7f b_twfe</span></span>
+<span id="cb13-153"><a href="#cb13-153" aria-hidden="true" tabindex="-1"></a><span class="in">di "TWM (unit + time means)   age = " %9.7f b_twm</span></span>
+<span id="cb13-154"><a href="#cb13-154" aria-hidden="true" tabindex="-1"></a><span class="in">di "TWM + unit means of dummies   = " %9.7f b_fix</span></span>
+<span id="cb13-155"><a href="#cb13-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-156"><a href="#cb13-156" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
+<span id="cb13-157"><a href="#cb13-157" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-158"><a href="#cb13-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-159"><a href="#cb13-159" aria-hidden="true" tabindex="-1"></a>The numbers make the point. TWFE gives <span class="in">`age`</span> = 0.0276645; two-way Mundlak with</span>
+<span id="cb13-160"><a href="#cb13-160" aria-hidden="true" tabindex="-1"></a>unit and time means gives 0.0117968 — 43% of it, a factor of 2.35 apart. These</span>
+<span id="cb13-161"><a href="#cb13-161" aria-hidden="true" tabindex="-1"></a>are not two estimates of the same thing that happen to disagree; on an</span>
+<span id="cb13-162"><a href="#cb13-162" aria-hidden="true" tabindex="-1"></a>unbalanced panel they are different estimators.</span>
+<span id="cb13-163"><a href="#cb13-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-164"><a href="#cb13-164" aria-hidden="true" tabindex="-1"></a>What restores the equivalence is including the **unit means of the time dummies**.  Adding them</span>
+<span id="cb13-165"><a href="#cb13-165" aria-hidden="true" tabindex="-1"></a>brings TWM to 0.0276646 against TWFE's 0.0276645 — agreement to six decimal</span>
+<span id="cb13-166"><a href="#cb13-166" aria-hidden="true" tabindex="-1"></a>places, on the same unbalanced data that produced the factor-of-two gap.  They have a</span>
+<span id="cb13-167"><a href="#cb13-167" aria-hidden="true" tabindex="-1"></a>clear meaning: the unit mean of the dummy for period $t$ is $s_{it}/T_i$, where $s_{it}$</span>
+<span id="cb13-168"><a href="#cb13-168" aria-hidden="true" tabindex="-1"></a>indicates whether unit $i$ is observed in period $t$.  So adding them amounts to conditioning on</span>
+<span id="cb13-169"><a href="#cb13-169" aria-hidden="true" tabindex="-1"></a>*which* periods each unit is observed in --- the panel's selection pattern.  This is the</span>
+<span id="cb13-170"><a href="#cb13-170" aria-hidden="true" tabindex="-1"></a>conditioning set in Wooldridge's work on correlated random effects with unbalanced panels.</span>
+<span id="cb13-171"><a href="#cb13-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-172"><a href="#cb13-172" aria-hidden="true" tabindex="-1"></a>Two practical notes.  In a balanced panel these extra terms have zero variance --- every unit</span>
+<span id="cb13-173"><a href="#cb13-173" aria-hidden="true" tabindex="-1"></a>is observed in every period, so each mean is $1/T$ for everybody --- which is exactly why they</span>
+<span id="cb13-174"><a href="#cb13-174" aria-hidden="true" tabindex="-1"></a>never come up in the balanced case.  And the number of observations per unit, $T_i$, is *not* a</span>
+<span id="cb13-175"><a href="#cb13-175" aria-hidden="true" tabindex="-1"></a>substitute for them: it does not restore exactness, and it is collinear with them once they are</span>
+<span id="cb13-176"><a href="#cb13-176" aria-hidden="true" tabindex="-1"></a>included.</span>
+<span id="cb13-177"><a href="#cb13-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-178"><a href="#cb13-178" aria-hidden="true" tabindex="-1"></a>Everything in this section is about the *point estimate*.  Standard errors from TWM are not the</span>
+<span id="cb13-179"><a href="#cb13-179" aria-hidden="true" tabindex="-1"></a>TWFE standard errors, and should not be read as such.</span>
+<span id="cb13-180"><a href="#cb13-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-181"><a href="#cb13-181" aria-hidden="true" tabindex="-1"></a>It is worth pausing on the fact that this chapter now demonstrates both results on the *same*</span>
+<span id="cb13-182"><a href="#cb13-182" aria-hidden="true" tabindex="-1"></a>data.  The <span class="in">`xtreg`</span> example near the top shows one-way Mundlak matching one-way FE on <span class="in">`nlswork`</span>, and</span>
+<span id="cb13-183"><a href="#cb13-183" aria-hidden="true" tabindex="-1"></a>the chunk just above shows two-way Mundlak failing on <span class="in">`nlswork`</span>.  Same dataset, opposite verdicts,</span>
+<span id="cb13-184"><a href="#cb13-184" aria-hidden="true" tabindex="-1"></a>because the two claims do not have the same requirements.  The one-way result needs nothing:</span>
+<span id="cb13-185"><a href="#cb13-185" aria-hidden="true" tabindex="-1"></a>$\sum_t (x_{it} - \bar x_i) = 0$ holds within each unit whatever periods that unit contributes, so</span>
+<span id="cb13-186"><a href="#cb13-186" aria-hidden="true" tabindex="-1"></a>$T_i$ may vary freely.  The two-way result needs the unit and time factors to be orthogonal *to each</span>
+<span id="cb13-187"><a href="#cb13-187" aria-hidden="true" tabindex="-1"></a>other*, which is a statement about the relationship between two dimensions, and that is what</span>
+<span id="cb13-188"><a href="#cb13-188" aria-hidden="true" tabindex="-1"></a>imbalance destroys.  Nothing one-way can be affected, because there is no second dimension for the</span>
+<span id="cb13-189"><a href="#cb13-189" aria-hidden="true" tabindex="-1"></a>first to fail to be orthogonal to.</span>
+<span id="cb13-190"><a href="#cb13-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-191"><a href="#cb13-191" aria-hidden="true" tabindex="-1"></a>**Which regressors need means, then?**  Those that vary within unit.  This is why <span class="in">`i.race`</span> above</span>
+<span id="cb13-192"><a href="#cb13-192" aria-hidden="true" tabindex="-1"></a>takes no mean: <span class="in">`race`</span> is constant within a person, so its within-person mean *is* <span class="in">`race`</span> --- in</span>
+<span id="cb13-193"><a href="#cb13-193" aria-hidden="true" tabindex="-1"></a><span class="in">`nlswork`</span> the two agree to the last digit --- and adding it would be perfectly collinear.  A year</span>
+<span id="cb13-194"><a href="#cb13-194" aria-hidden="true" tabindex="-1"></a>dummy is the opposite case: it does vary within a person (in <span class="in">`nlswork`</span> the within-person standard</span>
+<span id="cb13-195"><a href="#cb13-195" aria-hidden="true" tabindex="-1"></a>deviation of the 1971 dummy is about 0.71), so its unit mean is not the dummy but the fraction of</span>
+<span id="cb13-196"><a href="#cb13-196" aria-hidden="true" tabindex="-1"></a>that person's observations falling in that year.  That fraction is new information, and in an</span>
+<span id="cb13-197"><a href="#cb13-197" aria-hidden="true" tabindex="-1"></a>unbalanced panel it is exactly the information the equivalence needs.</span>
+<span id="cb13-198"><a href="#cb13-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-199"><a href="#cb13-199" aria-hidden="true" tabindex="-1"></a><span class="fu">## More than two fixed effects: one set of means, not one per dimension</span></span>
+<span id="cb13-200"><a href="#cb13-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-201"><a href="#cb13-201" aria-hidden="true" tabindex="-1"></a>The natural guess, having seen TWM, is that three fixed effects call for three sets of means ---</span>
+<span id="cb13-202"><a href="#cb13-202" aria-hidden="true" tabindex="-1"></a>$X_{i \cdot}$, $X_{\cdot t}$, and the averages over the third factor.  That guess is wrong in general,</span>
+<span id="cb13-203"><a href="#cb13-203" aria-hidden="true" tabindex="-1"></a>and the reason is worth spelling out because it also explains the balanced-panel condition above.</span>
+<span id="cb13-204"><a href="#cb13-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-205"><a href="#cb13-205" aria-hidden="true" tabindex="-1"></a>The Mundlak device deals with **one** unobserved effect at a time.  It replaces $c_i$ by its projection</span>
+<span id="cb13-206"><a href="#cb13-206" aria-hidden="true" tabindex="-1"></a>on the within-$i$ means of the other regressors.  So the number of sets of means you need is the number</span>
+<span id="cb13-207"><a href="#cb13-207" aria-hidden="true" tabindex="-1"></a>of dimensions you are *eliminating*, not the number of dimensions you have.  With three fixed effects the</span>
+<span id="cb13-208"><a href="#cb13-208" aria-hidden="true" tabindex="-1"></a>robust recipe is:</span>
+<span id="cb13-209"><a href="#cb13-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-210"><a href="#cb13-210" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>pick the dimension you cannot estimate --- typically the one with many levels and few observations</span>
+<span id="cb13-211"><a href="#cb13-211" aria-hidden="true" tabindex="-1"></a>  each --- and replace it with means;</span>
+<span id="cb13-212"><a href="#cb13-212" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**keep the other dimensions as dummies**, since they have few levels and many observations each;</span>
+<span id="cb13-213"><a href="#cb13-213" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>take the means over the chosen dimension of *everything else in the model*, the retained dummies</span>
+<span id="cb13-214"><a href="#cb13-214" aria-hidden="true" tabindex="-1"></a>  included.</span>
 <span id="cb13-215"><a href="#cb13-215" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-216"><a href="#cb13-216" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
-<span id="cb13-217"><a href="#cb13-217" aria-hidden="true" tabindex="-1"></a><span class="in">capture program drop twm3</span></span>
-<span id="cb13-218"><a href="#cb13-218" aria-hidden="true" tabindex="-1"></a><span class="in">program define twm3</span></span>
-<span id="cb13-219"><a href="#cb13-219" aria-hidden="true" tabindex="-1"></a><span class="in">    args label</span></span>
-<span id="cb13-220"><a href="#cb13-220" aria-hidden="true" tabindex="-1"></a><span class="in">    quietly {</span></span>
-<span id="cb13-221"><a href="#cb13-221" aria-hidden="true" tabindex="-1"></a><span class="in">        capture drop x_i x_t x_g mt_* mg_* x y ft hg</span></span>
-<span id="cb13-222"><a href="#cb13-222" aria-hidden="true" tabindex="-1"></a><span class="in">        sort t</span></span>
-<span id="cb13-223"><a href="#cb13-223" aria-hidden="true" tabindex="-1"></a><span class="in">        by t: gen double ft = rnormal() if _n==1</span></span>
-<span id="cb13-224"><a href="#cb13-224" aria-hidden="true" tabindex="-1"></a><span class="in">        by t: replace ft = ft[1]</span></span>
-<span id="cb13-225"><a href="#cb13-225" aria-hidden="true" tabindex="-1"></a><span class="in">        sort g</span></span>
-<span id="cb13-226"><a href="#cb13-226" aria-hidden="true" tabindex="-1"></a><span class="in">        by g: gen double hg = rnormal() if _n==1</span></span>
-<span id="cb13-227"><a href="#cb13-227" aria-hidden="true" tabindex="-1"></a><span class="in">        by g: replace hg = hg[1]</span></span>
-<span id="cb13-228"><a href="#cb13-228" aria-hidden="true" tabindex="-1"></a><span class="in">        gen double x = 0.6*ci + 0.5*ft + 0.4*hg + rnormal()</span></span>
-<span id="cb13-229"><a href="#cb13-229" aria-hidden="true" tabindex="-1"></a><span class="in">        gen double y = 1*x + ci + ft + hg + rnormal()</span></span>
-<span id="cb13-230"><a href="#cb13-230" aria-hidden="true" tabindex="-1"></a><span class="in">        bysort i: egen double x_i = mean(x)</span></span>
-<span id="cb13-231"><a href="#cb13-231" aria-hidden="true" tabindex="-1"></a><span class="in">        bysort t: egen double x_t = mean(x)</span></span>
-<span id="cb13-232"><a href="#cb13-232" aria-hidden="true" tabindex="-1"></a><span class="in">        bysort g: egen double x_g = mean(x)</span></span>
-<span id="cb13-233"><a href="#cb13-233" aria-hidden="true" tabindex="-1"></a><span class="in">        levelsof t, local(ts)</span></span>
-<span id="cb13-234"><a href="#cb13-234" aria-hidden="true" tabindex="-1"></a><span class="in">        foreach k of local ts {</span></span>
-<span id="cb13-235"><a href="#cb13-235" aria-hidden="true" tabindex="-1"></a><span class="in">            bysort i: egen double mt_`k' = mean(t==`k')</span></span>
-<span id="cb13-236"><a href="#cb13-236" aria-hidden="true" tabindex="-1"></a><span class="in">        }</span></span>
-<span id="cb13-237"><a href="#cb13-237" aria-hidden="true" tabindex="-1"></a><span class="in">        levelsof g, local(gs)</span></span>
-<span id="cb13-238"><a href="#cb13-238" aria-hidden="true" tabindex="-1"></a><span class="in">        foreach k of local gs {</span></span>
-<span id="cb13-239"><a href="#cb13-239" aria-hidden="true" tabindex="-1"></a><span class="in">            bysort i: egen double mg_`k' = mean(g==`k')</span></span>
-<span id="cb13-240"><a href="#cb13-240" aria-hidden="true" tabindex="-1"></a><span class="in">        }</span></span>
-<span id="cb13-241"><a href="#cb13-241" aria-hidden="true" tabindex="-1"></a><span class="in">        areg y x i.t i.g, absorb(i)</span></span>
-<span id="cb13-242"><a href="#cb13-242" aria-hidden="true" tabindex="-1"></a><span class="in">        scalar b_fe = _b[x]</span></span>
-<span id="cb13-243"><a href="#cb13-243" aria-hidden="true" tabindex="-1"></a><span class="in">        regress y x x_i x_t x_g</span></span>
-<span id="cb13-244"><a href="#cb13-244" aria-hidden="true" tabindex="-1"></a><span class="in">        scalar b_A = _b[x]</span></span>
-<span id="cb13-245"><a href="#cb13-245" aria-hidden="true" tabindex="-1"></a><span class="in">        regress y x x_i i.t i.g mt_* mg_*</span></span>
-<span id="cb13-246"><a href="#cb13-246" aria-hidden="true" tabindex="-1"></a><span class="in">        scalar b_B = _b[x]</span></span>
-<span id="cb13-247"><a href="#cb13-247" aria-hidden="true" tabindex="-1"></a><span class="in">    }</span></span>
-<span id="cb13-248"><a href="#cb13-248" aria-hidden="true" tabindex="-1"></a><span class="in">    di "`label'"</span></span>
-<span id="cb13-249"><a href="#cb13-249" aria-hidden="true" tabindex="-1"></a><span class="in">    di "   three-way FE                       = " %9.6f b_fe</span></span>
-<span id="cb13-250"><a href="#cb13-250" aria-hidden="true" tabindex="-1"></a><span class="in">    di "   A: one set of means per dimension   = " %9.6f b_A  "   gap " %9.6f (b_A-b_fe)</span></span>
-<span id="cb13-251"><a href="#cb13-251" aria-hidden="true" tabindex="-1"></a><span class="in">    di "   B: means over i, dummies included   = " %9.6f b_B  "   gap " %9.6f (b_B-b_fe)</span></span>
-<span id="cb13-252"><a href="#cb13-252" aria-hidden="true" tabindex="-1"></a><span class="in">end</span></span>
-<span id="cb13-253"><a href="#cb13-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-254"><a href="#cb13-254" aria-hidden="true" tabindex="-1"></a><span class="in">clear</span></span>
-<span id="cb13-255"><a href="#cb13-255" aria-hidden="true" tabindex="-1"></a><span class="in">set seed 20260731</span></span>
-<span id="cb13-256"><a href="#cb13-256" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 300</span></span>
-<span id="cb13-257"><a href="#cb13-257" aria-hidden="true" tabindex="-1"></a><span class="in">gen i = _n</span></span>
-<span id="cb13-258"><a href="#cb13-258" aria-hidden="true" tabindex="-1"></a><span class="in">gen double ci = rnormal()</span></span>
-<span id="cb13-259"><a href="#cb13-259" aria-hidden="true" tabindex="-1"></a><span class="in">expand 10</span></span>
-<span id="cb13-260"><a href="#cb13-260" aria-hidden="true" tabindex="-1"></a><span class="in">bysort i: gen t = _n</span></span>
-<span id="cb13-261"><a href="#cb13-261" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-262"><a href="#cb13-262" aria-hidden="true" tabindex="-1"></a><span class="in">* third factor assigned at random: the three factors are not orthogonal</span></span>
-<span id="cb13-263"><a href="#cb13-263" aria-hidden="true" tabindex="-1"></a><span class="in">gen g = 1 + int(runiform()*5)</span></span>
-<span id="cb13-264"><a href="#cb13-264" aria-hidden="true" tabindex="-1"></a><span class="in">twm3 "g assigned at random (NOT orthogonal):"</span></span>
+<span id="cb13-216"><a href="#cb13-216" aria-hidden="true" tabindex="-1"></a>That last clause is what does the work, and it is the same clause that fixes the unbalanced two-way case</span>
+<span id="cb13-217"><a href="#cb13-217" aria-hidden="true" tabindex="-1"></a>above.  The test for whether a given regressor needs a mean is the one stated there: does it vary</span>
+<span id="cb13-218"><a href="#cb13-218" aria-hidden="true" tabindex="-1"></a>within the dimension you are eliminating?  Time and group dummies do, so their means carry</span>
+<span id="cb13-219"><a href="#cb13-219" aria-hidden="true" tabindex="-1"></a>information; a regressor already constant within unit does not, so its mean is itself.  Call this construction **B**, and call the three-sets-of-means guess **A**.</span>
+<span id="cb13-220"><a href="#cb13-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-223"><a href="#cb13-223" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb13-224"><a href="#cb13-224" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: twm_three_way</span></span>
+<span id="cb13-225"><a href="#cb13-225" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb13-226"><a href="#cb13-226" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb13-227"><a href="#cb13-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-228"><a href="#cb13-228" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
+<span id="cb13-229"><a href="#cb13-229" aria-hidden="true" tabindex="-1"></a><span class="in">capture program drop twm3</span></span>
+<span id="cb13-230"><a href="#cb13-230" aria-hidden="true" tabindex="-1"></a><span class="in">program define twm3</span></span>
+<span id="cb13-231"><a href="#cb13-231" aria-hidden="true" tabindex="-1"></a><span class="in">    args label</span></span>
+<span id="cb13-232"><a href="#cb13-232" aria-hidden="true" tabindex="-1"></a><span class="in">    quietly {</span></span>
+<span id="cb13-233"><a href="#cb13-233" aria-hidden="true" tabindex="-1"></a><span class="in">        capture drop x_i x_t x_g mt_* mg_* x y ft hg</span></span>
+<span id="cb13-234"><a href="#cb13-234" aria-hidden="true" tabindex="-1"></a><span class="in">        sort t</span></span>
+<span id="cb13-235"><a href="#cb13-235" aria-hidden="true" tabindex="-1"></a><span class="in">        by t: gen double ft = rnormal() if _n==1</span></span>
+<span id="cb13-236"><a href="#cb13-236" aria-hidden="true" tabindex="-1"></a><span class="in">        by t: replace ft = ft[1]</span></span>
+<span id="cb13-237"><a href="#cb13-237" aria-hidden="true" tabindex="-1"></a><span class="in">        sort g</span></span>
+<span id="cb13-238"><a href="#cb13-238" aria-hidden="true" tabindex="-1"></a><span class="in">        by g: gen double hg = rnormal() if _n==1</span></span>
+<span id="cb13-239"><a href="#cb13-239" aria-hidden="true" tabindex="-1"></a><span class="in">        by g: replace hg = hg[1]</span></span>
+<span id="cb13-240"><a href="#cb13-240" aria-hidden="true" tabindex="-1"></a><span class="in">        gen double x = 0.6*ci + 0.5*ft + 0.4*hg + rnormal()</span></span>
+<span id="cb13-241"><a href="#cb13-241" aria-hidden="true" tabindex="-1"></a><span class="in">        gen double y = 1*x + ci + ft + hg + rnormal()</span></span>
+<span id="cb13-242"><a href="#cb13-242" aria-hidden="true" tabindex="-1"></a><span class="in">        bysort i: egen double x_i = mean(x)</span></span>
+<span id="cb13-243"><a href="#cb13-243" aria-hidden="true" tabindex="-1"></a><span class="in">        bysort t: egen double x_t = mean(x)</span></span>
+<span id="cb13-244"><a href="#cb13-244" aria-hidden="true" tabindex="-1"></a><span class="in">        bysort g: egen double x_g = mean(x)</span></span>
+<span id="cb13-245"><a href="#cb13-245" aria-hidden="true" tabindex="-1"></a><span class="in">        levelsof t, local(ts)</span></span>
+<span id="cb13-246"><a href="#cb13-246" aria-hidden="true" tabindex="-1"></a><span class="in">        foreach k of local ts {</span></span>
+<span id="cb13-247"><a href="#cb13-247" aria-hidden="true" tabindex="-1"></a><span class="in">            bysort i: egen double mt_`k' = mean(t==`k')</span></span>
+<span id="cb13-248"><a href="#cb13-248" aria-hidden="true" tabindex="-1"></a><span class="in">        }</span></span>
+<span id="cb13-249"><a href="#cb13-249" aria-hidden="true" tabindex="-1"></a><span class="in">        levelsof g, local(gs)</span></span>
+<span id="cb13-250"><a href="#cb13-250" aria-hidden="true" tabindex="-1"></a><span class="in">        foreach k of local gs {</span></span>
+<span id="cb13-251"><a href="#cb13-251" aria-hidden="true" tabindex="-1"></a><span class="in">            bysort i: egen double mg_`k' = mean(g==`k')</span></span>
+<span id="cb13-252"><a href="#cb13-252" aria-hidden="true" tabindex="-1"></a><span class="in">        }</span></span>
+<span id="cb13-253"><a href="#cb13-253" aria-hidden="true" tabindex="-1"></a><span class="in">        areg y x i.t i.g, absorb(i)</span></span>
+<span id="cb13-254"><a href="#cb13-254" aria-hidden="true" tabindex="-1"></a><span class="in">        scalar b_fe = _b[x]</span></span>
+<span id="cb13-255"><a href="#cb13-255" aria-hidden="true" tabindex="-1"></a><span class="in">        regress y x x_i x_t x_g</span></span>
+<span id="cb13-256"><a href="#cb13-256" aria-hidden="true" tabindex="-1"></a><span class="in">        scalar b_A = _b[x]</span></span>
+<span id="cb13-257"><a href="#cb13-257" aria-hidden="true" tabindex="-1"></a><span class="in">        regress y x x_i i.t i.g mt_* mg_*</span></span>
+<span id="cb13-258"><a href="#cb13-258" aria-hidden="true" tabindex="-1"></a><span class="in">        scalar b_B = _b[x]</span></span>
+<span id="cb13-259"><a href="#cb13-259" aria-hidden="true" tabindex="-1"></a><span class="in">    }</span></span>
+<span id="cb13-260"><a href="#cb13-260" aria-hidden="true" tabindex="-1"></a><span class="in">    di "`label'"</span></span>
+<span id="cb13-261"><a href="#cb13-261" aria-hidden="true" tabindex="-1"></a><span class="in">    di "   three-way FE                       = " %9.6f b_fe</span></span>
+<span id="cb13-262"><a href="#cb13-262" aria-hidden="true" tabindex="-1"></a><span class="in">    di "   A: one set of means per dimension   = " %9.6f b_A  "   gap " %9.6f (b_A-b_fe)</span></span>
+<span id="cb13-263"><a href="#cb13-263" aria-hidden="true" tabindex="-1"></a><span class="in">    di "   B: means over i, dummies included   = " %9.6f b_B  "   gap " %9.6f (b_B-b_fe)</span></span>
+<span id="cb13-264"><a href="#cb13-264" aria-hidden="true" tabindex="-1"></a><span class="in">end</span></span>
 <span id="cb13-265"><a href="#cb13-265" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-266"><a href="#cb13-266" aria-hidden="true" tabindex="-1"></a><span class="in">* Latin square: every unit sees every g equally, and so does every period</span></span>
-<span id="cb13-267"><a href="#cb13-267" aria-hidden="true" tabindex="-1"></a><span class="in">replace g = mod(i+t,5)+1</span></span>
-<span id="cb13-268"><a href="#cb13-268" aria-hidden="true" tabindex="-1"></a><span class="in">twm3 "g from a Latin square (orthogonal):"</span></span>
-<span id="cb13-269"><a href="#cb13-269" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-270"><a href="#cb13-270" aria-hidden="true" tabindex="-1"></a><span class="in">capture program drop twm3</span></span>
-<span id="cb13-271"><a href="#cb13-271" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
-<span id="cb13-272"><a href="#cb13-272" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-266"><a href="#cb13-266" aria-hidden="true" tabindex="-1"></a><span class="in">clear</span></span>
+<span id="cb13-267"><a href="#cb13-267" aria-hidden="true" tabindex="-1"></a><span class="in">set seed 20260731</span></span>
+<span id="cb13-268"><a href="#cb13-268" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 300</span></span>
+<span id="cb13-269"><a href="#cb13-269" aria-hidden="true" tabindex="-1"></a><span class="in">gen i = _n</span></span>
+<span id="cb13-270"><a href="#cb13-270" aria-hidden="true" tabindex="-1"></a><span class="in">gen double ci = rnormal()</span></span>
+<span id="cb13-271"><a href="#cb13-271" aria-hidden="true" tabindex="-1"></a><span class="in">expand 10</span></span>
+<span id="cb13-272"><a href="#cb13-272" aria-hidden="true" tabindex="-1"></a><span class="in">bysort i: gen t = _n</span></span>
 <span id="cb13-273"><a href="#cb13-273" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-274"><a href="#cb13-274" aria-hidden="true" tabindex="-1"></a>So **A is not incorrect but conditional**: it is exact when the factors are mutually orthogonal, and</span>
-<span id="cb13-275"><a href="#cb13-275" aria-hidden="true" tabindex="-1"></a>inexact otherwise.  A full factorial design gives orthogonality, but so does a Latin square, which</span>
-<span id="cb13-276"><a href="#cb13-276" aria-hidden="true" tabindex="-1"></a>fills only a fraction of the possible cells --- what matters is the balance property, that each level of</span>
-<span id="cb13-277"><a href="#cb13-277" aria-hidden="true" tabindex="-1"></a>one factor appears equally often with each level of the others, not the number of cells.  Deleting a</span>
-<span id="cb13-278"><a href="#cb13-278" aria-hidden="true" tabindex="-1"></a>single row from either design is enough to lose exactness, and the size of the gap tracks how far from</span>
-<span id="cb13-279"><a href="#cb13-279" aria-hidden="true" tabindex="-1"></a>orthogonal the design is.</span>
-<span id="cb13-280"><a href="#cb13-280" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-281"><a href="#cb13-281" aria-hidden="true" tabindex="-1"></a>This is the general statement of the balanced-panel condition from the previous section.  A balanced</span>
-<span id="cb13-282"><a href="#cb13-282" aria-hidden="true" tabindex="-1"></a>two-way panel *is* an orthogonal design: every unit appears in every period.  Unbalance it, and the unit</span>
-<span id="cb13-283"><a href="#cb13-283" aria-hidden="true" tabindex="-1"></a>and time factors stop being orthogonal, which is why the two-way equivalence fails there.</span>
-<span id="cb13-284"><a href="#cb13-284" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-285"><a href="#cb13-285" aria-hidden="true" tabindex="-1"></a>The practical reading is that orthogonality is a property of **designed** data --- factorial experiments,</span>
-<span id="cb13-286"><a href="#cb13-286" aria-hidden="true" tabindex="-1"></a>Latin squares, crop trials, where somebody chose the assignment.  It requires each level of one factor to</span>
-<span id="cb13-287"><a href="#cb13-287" aria-hidden="true" tabindex="-1"></a>appear equally often with each level of the others, which is not something that happens by accident in</span>
-<span id="cb13-288"><a href="#cb13-288" aria-hidden="true" tabindex="-1"></a>data you did not design.  A third factor tends to make matters worse rather than better, because it is</span>
-<span id="cb13-289"><a href="#cb13-289" aria-hidden="true" tabindex="-1"></a>frequently determined in part by the first two.  In an audit panel I looked at recently, for instance, the third fixed effect was the</span>
-<span id="cb13-290"><a href="#cb13-290" aria-hidden="true" tabindex="-1"></a>running count of audits within a factory, which is mechanically a function of factory and calendar time;</span>
-<span id="cb13-291"><a href="#cb13-291" aria-hidden="true" tabindex="-1"></a>that design cannot be orthogonal even in principle.  For observational work, B is the construction to</span>
-<span id="cb13-292"><a href="#cb13-292" aria-hidden="true" tabindex="-1"></a>use.</span>
-<span id="cb13-293"><a href="#cb13-293" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-294"><a href="#cb13-294" aria-hidden="true" tabindex="-1"></a><span class="fu">## Applications of TWM to DID in common treatment timing</span></span>
-<span id="cb13-295"><a href="#cb13-295" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-296"><a href="#cb13-296" aria-hidden="true" tabindex="-1"></a>There is an extension: if $x_{it}$ can be written as an interaction between a time-invariant and a unit-invariant variable,</span>
-<span id="cb13-297"><a href="#cb13-297" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-298"><a href="#cb13-298" aria-hidden="true" tabindex="-1"></a>$$ x_{itj} = z_{ij} * m_{tj} $$ {#eq-mundlak-device-7}</span>
-<span id="cb13-299"><a href="#cb13-299" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-300"><a href="#cb13-300" aria-hidden="true" tabindex="-1"></a>Then</span>
-<span id="cb13-301"><a href="#cb13-301" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-302"><a href="#cb13-302" aria-hidden="true" tabindex="-1"></a>$$ \bar x_{i \cdot j} = z_{ij} \bar m_j $$ {#eq-mundlak-device-8}</span>
-<span id="cb13-303"><a href="#cb13-303" aria-hidden="true" tabindex="-1"></a>$$ \bar x_{\cdot t j} = \bar z_{j}  m_{tj} $$ {#eq-mundlak-device-9}</span>
-<span id="cb13-304"><a href="#cb13-304" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-305"><a href="#cb13-305" aria-hidden="true" tabindex="-1"></a>The two averages are just constants times $z_{ij}$ and $m_{tj}$ respectively. So by Mundlak we can include $z_{ij}$ and $m_{tj}$ as controls instead.</span>
-<span id="cb13-306"><a href="#cb13-306" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-307"><a href="#cb13-307" aria-hidden="true" tabindex="-1"></a>Wooldridge (2021) shows that TWM extends to staggered timing as well, provided we allow flexible interactions of treatment cohorts and periods. The simulation below covers the common-timing case. The code follows Wooldridge's do files.</span>
-<span id="cb13-308"><a href="#cb13-308" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-309"><a href="#cb13-309" aria-hidden="true" tabindex="-1"></a>In the common-timing setting all treated units are treated at the same period. The identifying assumptions are parallel trends and no anticipation.</span>
-<span id="cb13-310"><a href="#cb13-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-274"><a href="#cb13-274" aria-hidden="true" tabindex="-1"></a><span class="in">* third factor assigned at random: the three factors are not orthogonal</span></span>
+<span id="cb13-275"><a href="#cb13-275" aria-hidden="true" tabindex="-1"></a><span class="in">gen g = 1 + int(runiform()*5)</span></span>
+<span id="cb13-276"><a href="#cb13-276" aria-hidden="true" tabindex="-1"></a><span class="in">twm3 "g assigned at random (NOT orthogonal):"</span></span>
+<span id="cb13-277"><a href="#cb13-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-278"><a href="#cb13-278" aria-hidden="true" tabindex="-1"></a><span class="in">* Latin square: every unit sees every g equally, and so does every period</span></span>
+<span id="cb13-279"><a href="#cb13-279" aria-hidden="true" tabindex="-1"></a><span class="in">replace g = mod(i+t,5)+1</span></span>
+<span id="cb13-280"><a href="#cb13-280" aria-hidden="true" tabindex="-1"></a><span class="in">twm3 "g from a Latin square (orthogonal):"</span></span>
+<span id="cb13-281"><a href="#cb13-281" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-282"><a href="#cb13-282" aria-hidden="true" tabindex="-1"></a><span class="in">capture program drop twm3</span></span>
+<span id="cb13-283"><a href="#cb13-283" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
+<span id="cb13-284"><a href="#cb13-284" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-285"><a href="#cb13-285" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-286"><a href="#cb13-286" aria-hidden="true" tabindex="-1"></a>With <span class="in">`g`</span> assigned at random, the three-way fixed-effect estimate is 0.994424.</span>
+<span id="cb13-287"><a href="#cb13-287" aria-hidden="true" tabindex="-1"></a>Construction B reproduces it exactly, gap 0.000000; construction A gives</span>
+<span id="cb13-288"><a href="#cb13-288" aria-hidden="true" tabindex="-1"></a>1.007648, a gap of 0.013224. Replace the random assignment with a Latin square,</span>
+<span id="cb13-289"><a href="#cb13-289" aria-hidden="true" tabindex="-1"></a>which makes the three factors mutually orthogonal, and all three agree at</span>
+<span id="cb13-290"><a href="#cb13-290" aria-hidden="true" tabindex="-1"></a>0.996471 with both gaps at 0.000000.</span>
+<span id="cb13-291"><a href="#cb13-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-292"><a href="#cb13-292" aria-hidden="true" tabindex="-1"></a>So **A is not incorrect but conditional**: it is exact when the factors are mutually orthogonal, and</span>
+<span id="cb13-293"><a href="#cb13-293" aria-hidden="true" tabindex="-1"></a>inexact otherwise.  A full factorial design gives orthogonality, but so does a Latin square, which</span>
+<span id="cb13-294"><a href="#cb13-294" aria-hidden="true" tabindex="-1"></a>fills only a fraction of the possible cells --- what matters is the balance property, that each level of</span>
+<span id="cb13-295"><a href="#cb13-295" aria-hidden="true" tabindex="-1"></a>one factor appears equally often with each level of the others, not the number of cells.  Deleting a</span>
+<span id="cb13-296"><a href="#cb13-296" aria-hidden="true" tabindex="-1"></a>single row from either design is enough to lose exactness, and the size of the gap tracks how far from</span>
+<span id="cb13-297"><a href="#cb13-297" aria-hidden="true" tabindex="-1"></a>orthogonal the design is.</span>
+<span id="cb13-298"><a href="#cb13-298" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-299"><a href="#cb13-299" aria-hidden="true" tabindex="-1"></a>This is the general statement of the balanced-panel condition from the previous section.  A balanced</span>
+<span id="cb13-300"><a href="#cb13-300" aria-hidden="true" tabindex="-1"></a>two-way panel *is* an orthogonal design: every unit appears in every period.  Unbalance it, and the unit</span>
+<span id="cb13-301"><a href="#cb13-301" aria-hidden="true" tabindex="-1"></a>and time factors stop being orthogonal, which is why the two-way equivalence fails there.</span>
+<span id="cb13-302"><a href="#cb13-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-303"><a href="#cb13-303" aria-hidden="true" tabindex="-1"></a>The practical reading is that orthogonality is a property of **designed** data --- factorial experiments,</span>
+<span id="cb13-304"><a href="#cb13-304" aria-hidden="true" tabindex="-1"></a>Latin squares, crop trials, where somebody chose the assignment.  It requires each level of one factor to</span>
+<span id="cb13-305"><a href="#cb13-305" aria-hidden="true" tabindex="-1"></a>appear equally often with each level of the others, which is not something that happens by accident in</span>
+<span id="cb13-306"><a href="#cb13-306" aria-hidden="true" tabindex="-1"></a>data you did not design.  A third factor tends to make matters worse rather than better, because it is</span>
+<span id="cb13-307"><a href="#cb13-307" aria-hidden="true" tabindex="-1"></a>frequently determined in part by the first two.  In an audit panel I looked at recently, for instance, the third fixed effect was the</span>
+<span id="cb13-308"><a href="#cb13-308" aria-hidden="true" tabindex="-1"></a>running count of audits within a factory, which is mechanically a function of factory and calendar time;</span>
+<span id="cb13-309"><a href="#cb13-309" aria-hidden="true" tabindex="-1"></a>that design cannot be orthogonal even in principle.  For observational work, B is the construction to</span>
+<span id="cb13-310"><a href="#cb13-310" aria-hidden="true" tabindex="-1"></a>use.</span>
 <span id="cb13-311"><a href="#cb13-311" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-312"><a href="#cb13-312" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = w_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-10}</span>
+<span id="cb13-312"><a href="#cb13-312" aria-hidden="true" tabindex="-1"></a><span class="fu">## Applications of TWM to DID in common treatment timing</span></span>
 <span id="cb13-313"><a href="#cb13-313" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-314"><a href="#cb13-314" aria-hidden="true" tabindex="-1"></a>where $w_{it}$ is the treatment indicator, with $T$ periods and treatment happens at $t=q$.</span>
+<span id="cb13-314"><a href="#cb13-314" aria-hidden="true" tabindex="-1"></a>There is an extension: if $x_{it}$ can be written as an interaction between a time-invariant and a unit-invariant variable,</span>
 <span id="cb13-315"><a href="#cb13-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-316"><a href="#cb13-316" aria-hidden="true" tabindex="-1"></a>$$ w_{it} = d_i \cdot p_t $$ {#eq-mundlak-device-11}</span>
+<span id="cb13-316"><a href="#cb13-316" aria-hidden="true" tabindex="-1"></a>$$ x_{itj} = z_{ij} * m_{tj} $$ {#eq-mundlak-device-7}</span>
 <span id="cb13-317"><a href="#cb13-317" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-318"><a href="#cb13-318" aria-hidden="true" tabindex="-1"></a>where $d_i$ is the treatment group dummy, and $p_t$ is the post treatment dummy.</span>
+<span id="cb13-318"><a href="#cb13-318" aria-hidden="true" tabindex="-1"></a>Then</span>
 <span id="cb13-319"><a href="#cb13-319" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-320"><a href="#cb13-320" aria-hidden="true" tabindex="-1"></a>$$ \bar w_{i \cdot} = d_i \cdot \bar p $$ {#eq-mundlak-device-12}</span>
-<span id="cb13-321"><a href="#cb13-321" aria-hidden="true" tabindex="-1"></a>$$ \bar w_{ \cdot t} = \bar d \cdot  p_t $$ {#eq-mundlak-device-13}</span>
+<span id="cb13-320"><a href="#cb13-320" aria-hidden="true" tabindex="-1"></a>$$ \bar x_{i \cdot j} = z_{ij} \bar m_j $$ {#eq-mundlak-device-8}</span>
+<span id="cb13-321"><a href="#cb13-321" aria-hidden="true" tabindex="-1"></a>$$ \bar x_{\cdot t j} = \bar z_{j}  m_{tj} $$ {#eq-mundlak-device-9}</span>
 <span id="cb13-322"><a href="#cb13-322" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-323"><a href="#cb13-323" aria-hidden="true" tabindex="-1"></a>Therefore, we just need to include $d_i$ and $p_t$ as controls in the regression to be the same estimator as TWFE, by the spirit of Mundlak.</span>
+<span id="cb13-323"><a href="#cb13-323" aria-hidden="true" tabindex="-1"></a>The two averages are just constants times $z_{ij}$ and $m_{tj}$ respectively. So by Mundlak we can include $z_{ij}$ and $m_{tj}$ as controls instead.</span>
 <span id="cb13-324"><a href="#cb13-324" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-325"><a href="#cb13-325" aria-hidden="true" tabindex="-1"></a>That is, instead of doing TWFE, we can do TWM by regressing $y$ on $w$, $d_i$ and $p_t$.</span>
+<span id="cb13-325"><a href="#cb13-325" aria-hidden="true" tabindex="-1"></a>Wooldridge (2021) shows that TWM extends to staggered timing as well, provided we allow flexible interactions of treatment cohorts and periods. The simulation below covers the common-timing case. The code follows Wooldridge's do files.</span>
 <span id="cb13-326"><a href="#cb13-326" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-327"><a href="#cb13-327" aria-hidden="true" tabindex="-1"></a>Moreover, in a TWM, we can include any time-invariant or unit-invariant controls, or both and have no effect on $\beta$.</span>
+<span id="cb13-327"><a href="#cb13-327" aria-hidden="true" tabindex="-1"></a>In the common-timing setting all treated units are treated at the same period. The identifying assumptions are parallel trends and no anticipation.</span>
 <span id="cb13-328"><a href="#cb13-328" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-329"><a href="#cb13-329" aria-hidden="true" tabindex="-1"></a>We can also allow the effect to change across time post treatment by doing</span>
-<span id="cb13-330"><a href="#cb13-330" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-331"><a href="#cb13-331" aria-hidden="true" tabindex="-1"></a>$$y_{it} = \alpha + \beta_q (w_{it} \cdot f_q) + \dots + \beta_T (w_{it} \cdot f_T) + \eta d_i + \theta_q f_q + \dots + \theta_T f_T + e_{it} $$ {#eq-mundlak-device-14}</span>
-<span id="cb13-332"><a href="#cb13-332" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-333"><a href="#cb13-333" aria-hidden="true" tabindex="-1"></a>In the TWM, we allow effects change from $t=q$ to $t=T$, by interacting $w_{it}$ and $f_t$, which is an dummy for time $t$.  Very flexible, yet easy to do, given everything is linear.</span>
-<span id="cb13-334"><a href="#cb13-334" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-335"><a href="#cb13-335" aria-hidden="true" tabindex="-1"></a>Even more, if we have another variable, $x_i$, say gender, which is time-invariant, we can allow the effect to be different across gender, across time!</span>
-<span id="cb13-336"><a href="#cb13-336" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-337"><a href="#cb13-337" aria-hidden="true" tabindex="-1"></a>Now I use Wooldridge's code to run on a simulated data set.</span>
-<span id="cb13-340"><a href="#cb13-340" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb13-341"><a href="#cb13-341" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
-<span id="cb13-342"><a href="#cb13-342" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb13-343"><a href="#cb13-343" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb13-329"><a href="#cb13-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-330"><a href="#cb13-330" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = w_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-10}</span>
+<span id="cb13-331"><a href="#cb13-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-332"><a href="#cb13-332" aria-hidden="true" tabindex="-1"></a>where $w_{it}$ is the treatment indicator, with $T$ periods and treatment happens at $t=q$.</span>
+<span id="cb13-333"><a href="#cb13-333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-334"><a href="#cb13-334" aria-hidden="true" tabindex="-1"></a>$$ w_{it} = d_i \cdot p_t $$ {#eq-mundlak-device-11}</span>
+<span id="cb13-335"><a href="#cb13-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-336"><a href="#cb13-336" aria-hidden="true" tabindex="-1"></a>where $d_i$ is the treatment group dummy, and $p_t$ is the post treatment dummy.</span>
+<span id="cb13-337"><a href="#cb13-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-338"><a href="#cb13-338" aria-hidden="true" tabindex="-1"></a>$$ \bar w_{i \cdot} = d_i \cdot \bar p $$ {#eq-mundlak-device-12}</span>
+<span id="cb13-339"><a href="#cb13-339" aria-hidden="true" tabindex="-1"></a>$$ \bar w_{ \cdot t} = \bar d \cdot  p_t $$ {#eq-mundlak-device-13}</span>
+<span id="cb13-340"><a href="#cb13-340" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-341"><a href="#cb13-341" aria-hidden="true" tabindex="-1"></a>Therefore, we just need to include $d_i$ and $p_t$ as controls in the regression to be the same estimator as TWFE, by the spirit of Mundlak.</span>
+<span id="cb13-342"><a href="#cb13-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-343"><a href="#cb13-343" aria-hidden="true" tabindex="-1"></a>That is, instead of doing TWFE, we can do TWM by regressing $y$ on $w$, $d_i$ and $p_t$.</span>
 <span id="cb13-344"><a href="#cb13-344" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-345"><a href="#cb13-345" aria-hidden="true" tabindex="-1"></a><span class="in">clear</span></span>
-<span id="cb13-346"><a href="#cb13-346" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 100</span></span>
-<span id="cb13-347"><a href="#cb13-347" aria-hidden="true" tabindex="-1"></a><span class="in">set seed 1234567</span></span>
-<span id="cb13-348"><a href="#cb13-348" aria-hidden="true" tabindex="-1"></a><span class="in">gen id = _n</span></span>
-<span id="cb13-349"><a href="#cb13-349" aria-hidden="true" tabindex="-1"></a><span class="in">gen w1 = rnormal()</span></span>
-<span id="cb13-350"><a href="#cb13-350" aria-hidden="true" tabindex="-1"></a><span class="in">gen w2 = rnormal()</span></span>
-<span id="cb13-351"><a href="#cb13-351" aria-hidden="true" tabindex="-1"></a><span class="in">expand 4</span></span>
-<span id="cb13-352"><a href="#cb13-352" aria-hidden="true" tabindex="-1"></a><span class="in">bysort id: gen year=2011+_n</span></span>
-<span id="cb13-353"><a href="#cb13-353" aria-hidden="true" tabindex="-1"></a><span class="in">gen post=(year&gt;2013)</span></span>
-<span id="cb13-354"><a href="#cb13-354" aria-hidden="true" tabindex="-1"></a><span class="in">gen d=(id&gt;50)</span></span>
-<span id="cb13-355"><a href="#cb13-355" aria-hidden="true" tabindex="-1"></a><span class="in">gen w=d*post</span></span>
-<span id="cb13-356"><a href="#cb13-356" aria-hidden="true" tabindex="-1"></a><span class="in">gen x1 = rnormal() + w1 + 2*w2</span></span>
-<span id="cb13-357"><a href="#cb13-357" aria-hidden="true" tabindex="-1"></a><span class="in">gen u = rnormal()</span></span>
-<span id="cb13-358"><a href="#cb13-358" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-359"><a href="#cb13-359" aria-hidden="true" tabindex="-1"></a><span class="in">gen f2014=(year==2014)</span></span>
-<span id="cb13-360"><a href="#cb13-360" aria-hidden="true" tabindex="-1"></a><span class="in">gen f2015=(year==2015)</span></span>
-<span id="cb13-361"><a href="#cb13-361" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-362"><a href="#cb13-362" aria-hidden="true" tabindex="-1"></a><span class="in">gen y1 = 1 +2*x1 + 3*w1  + u</span></span>
-<span id="cb13-363"><a href="#cb13-363" aria-hidden="true" tabindex="-1"></a><span class="in">* let's allow each year's treatment effect being different.  ATT for post period would be roughly 3, because of balanced panel.</span></span>
-<span id="cb13-364"><a href="#cb13-364" aria-hidden="true" tabindex="-1"></a><span class="in">gen logy = y1 + 2.5*d*f2014 + 3.5*d*f2015</span></span>
+<span id="cb13-345"><a href="#cb13-345" aria-hidden="true" tabindex="-1"></a>Moreover, in a TWM, we can include any time-invariant or unit-invariant controls, or both and have no effect on $\beta$.</span>
+<span id="cb13-346"><a href="#cb13-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-347"><a href="#cb13-347" aria-hidden="true" tabindex="-1"></a>We can also allow the effect to change across time post treatment by doing</span>
+<span id="cb13-348"><a href="#cb13-348" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-349"><a href="#cb13-349" aria-hidden="true" tabindex="-1"></a>$$y_{it} = \alpha + \beta_q (w_{it} \cdot f_q) + \dots + \beta_T (w_{it} \cdot f_T) + \eta d_i + \theta_q f_q + \dots + \theta_T f_T + e_{it} $$ {#eq-mundlak-device-14}</span>
+<span id="cb13-350"><a href="#cb13-350" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-351"><a href="#cb13-351" aria-hidden="true" tabindex="-1"></a>In the TWM, we allow effects change from $t=q$ to $t=T$, by interacting $w_{it}$ and $f_t$, which is an dummy for time $t$.  Very flexible, yet easy to do, given everything is linear.</span>
+<span id="cb13-352"><a href="#cb13-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-353"><a href="#cb13-353" aria-hidden="true" tabindex="-1"></a>Even more, if we have another variable, $x_i$, say gender, which is time-invariant, we can allow the effect to be different across gender, across time!</span>
+<span id="cb13-354"><a href="#cb13-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-355"><a href="#cb13-355" aria-hidden="true" tabindex="-1"></a>Now I use Wooldridge's code to run on a simulated data set.</span>
+<span id="cb13-356"><a href="#cb13-356" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-357"><a href="#cb13-357" aria-hidden="true" tabindex="-1"></a>The simulation has 100 units observed over 2012–2015, 400 observations, with</span>
+<span id="cb13-358"><a href="#cb13-358" aria-hidden="true" tabindex="-1"></a>common treatment timing. Each unit draws time-invariant $w_1, w_2 \sim N(0,1)$.</span>
+<span id="cb13-359"><a href="#cb13-359" aria-hidden="true" tabindex="-1"></a>Units with <span class="in">`id &gt; 50`</span> are treated ($d = 1$, so 50 treated and 50 control), the</span>
+<span id="cb13-360"><a href="#cb13-360" aria-hidden="true" tabindex="-1"></a>post period is 2014–2015, and $w_{it} = d_i \cdot \text{post}_t$. The covariate</span>
+<span id="cb13-361"><a href="#cb13-361" aria-hidden="true" tabindex="-1"></a>is $x_1 = N(0,1) + w_1 + 2w_2$, correlated with the unit effects by</span>
+<span id="cb13-362"><a href="#cb13-362" aria-hidden="true" tabindex="-1"></a>construction, and the untreated outcome is</span>
+<span id="cb13-363"><a href="#cb13-363" aria-hidden="true" tabindex="-1"></a>$y_1 = 1 + 2x_1 + 3w_1 + u$ with $u \sim N(0,1)$. The observed outcome adds a</span>
+<span id="cb13-364"><a href="#cb13-364" aria-hidden="true" tabindex="-1"></a>treatment effect that grows over time,</span>
 <span id="cb13-365"><a href="#cb13-365" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-366"><a href="#cb13-366" aria-hidden="true" tabindex="-1"></a><span class="in">xtset id year</span></span>
-<span id="cb13-367"><a href="#cb13-367" aria-hidden="true" tabindex="-1"></a><span class="in">tab year w</span></span>
-<span id="cb13-368"><a href="#cb13-368" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-366"><a href="#cb13-366" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb13-367"><a href="#cb13-367" aria-hidden="true" tabindex="-1"></a>\text{logy} = y_1 + 2.5\,d_i f_{2014} + 3.5\,d_i f_{2015}.</span>
+<span id="cb13-368"><a href="#cb13-368" aria-hidden="true" tabindex="-1"></a>$$ {#eq-mundlak-device-15}</span>
 <span id="cb13-369"><a href="#cb13-369" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-370"><a href="#cb13-370" aria-hidden="true" tabindex="-1"></a>We have 100 units over four years (2012--2015). Half are treated starting in 2014 ($w = d \times \text{post}$). The treatment effect is 2.5 in 2014 and 3.5 in 2015, so the overall post-period ATT should be about 3 in this balanced panel.</span>
-<span id="cb13-371"><a href="#cb13-371" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-372"><a href="#cb13-372" aria-hidden="true" tabindex="-1"></a>The code below is from Wooldridge. The main difficulty is specifying the correct interaction terms for each estimand.</span>
-<span id="cb13-373"><a href="#cb13-373" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-376"><a href="#cb13-376" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb13-377"><a href="#cb13-377" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata4</span></span>
-<span id="cb13-378"><a href="#cb13-378" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb13-379"><a href="#cb13-379" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-380"><a href="#cb13-380" aria-hidden="true" tabindex="-1"></a><span class="in">* CACHE WARNING: this chunk depends on the data built by the earlier</span></span>
-<span id="cb13-381"><a href="#cb13-381" aria-hidden="true" tabindex="-1"></a><span class="in">* `collectcode: true` chunks.  If those are served from the knitr cache while</span></span>
-<span id="cb13-382"><a href="#cb13-382" aria-hidden="true" tabindex="-1"></a><span class="in">* this one re-executes, their code never enters Statamarkdown's accumulated</span></span>
-<span id="cb13-383"><a href="#cb13-383" aria-hidden="true" tabindex="-1"></a><span class="in">* buffer, every command below fails on missing data, and the chunk silently</span></span>
-<span id="cb13-384"><a href="#cb13-384" aria-hidden="true" tabindex="-1"></a><span class="in">* renders with NO output.  If that happens, delete the whole</span></span>
-<span id="cb13-385"><a href="#cb13-385" aria-hidden="true" tabindex="-1"></a><span class="in">* `mundlak-device_cache/` directory (not just this chunk's entry) and</span></span>
-<span id="cb13-386"><a href="#cb13-386" aria-hidden="true" tabindex="-1"></a><span class="in">* `_freeze/mundlak-device/`, then re-render so all chunks run in order.</span></span>
-<span id="cb13-387"><a href="#cb13-387" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-388"><a href="#cb13-388" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-389"><a href="#cb13-389" aria-hidden="true" tabindex="-1"></a><span class="in">* Basic DID regression. Only need the post-treatment dummy but including</span></span>
-<span id="cb13-390"><a href="#cb13-390" aria-hidden="true" tabindex="-1"></a><span class="in">* all time dummies is harmless (and necessary for heterogeneous trends).</span></span>
-<span id="cb13-391"><a href="#cb13-391" aria-hidden="true" tabindex="-1"></a><span class="in">* Standard errors change a little because of different degrees-of-freedom.</span></span>
+<span id="cb13-370"><a href="#cb13-370" aria-hidden="true" tabindex="-1"></a>So the true effect is 2.5 in the first post year and 3.5 in the second, and</span>
+<span id="cb13-371"><a href="#cb13-371" aria-hidden="true" tabindex="-1"></a>because the panel is balanced the overall ATT is their average, exactly 3.</span>
+<span id="cb13-374"><a href="#cb13-374" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb13-375"><a href="#cb13-375" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
+<span id="cb13-376"><a href="#cb13-376" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb13-377"><a href="#cb13-377" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb13-378"><a href="#cb13-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-379"><a href="#cb13-379" aria-hidden="true" tabindex="-1"></a><span class="in">clear</span></span>
+<span id="cb13-380"><a href="#cb13-380" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 100</span></span>
+<span id="cb13-381"><a href="#cb13-381" aria-hidden="true" tabindex="-1"></a><span class="in">set seed 1234567</span></span>
+<span id="cb13-382"><a href="#cb13-382" aria-hidden="true" tabindex="-1"></a><span class="in">gen id = _n</span></span>
+<span id="cb13-383"><a href="#cb13-383" aria-hidden="true" tabindex="-1"></a><span class="in">gen w1 = rnormal()</span></span>
+<span id="cb13-384"><a href="#cb13-384" aria-hidden="true" tabindex="-1"></a><span class="in">gen w2 = rnormal()</span></span>
+<span id="cb13-385"><a href="#cb13-385" aria-hidden="true" tabindex="-1"></a><span class="in">expand 4</span></span>
+<span id="cb13-386"><a href="#cb13-386" aria-hidden="true" tabindex="-1"></a><span class="in">bysort id: gen year=2011+_n</span></span>
+<span id="cb13-387"><a href="#cb13-387" aria-hidden="true" tabindex="-1"></a><span class="in">gen post=(year&gt;2013)</span></span>
+<span id="cb13-388"><a href="#cb13-388" aria-hidden="true" tabindex="-1"></a><span class="in">gen d=(id&gt;50)</span></span>
+<span id="cb13-389"><a href="#cb13-389" aria-hidden="true" tabindex="-1"></a><span class="in">gen w=d*post</span></span>
+<span id="cb13-390"><a href="#cb13-390" aria-hidden="true" tabindex="-1"></a><span class="in">gen x1 = rnormal() + w1 + 2*w2</span></span>
+<span id="cb13-391"><a href="#cb13-391" aria-hidden="true" tabindex="-1"></a><span class="in">gen u = rnormal()</span></span>
 <span id="cb13-392"><a href="#cb13-392" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-393"><a href="#cb13-393" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.d#c.post d post, vce(cluster id)</span></span>
-<span id="cb13-394"><a href="#cb13-394" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy w d post, vce(cluster id)</span></span>
-<span id="cb13-395"><a href="#cb13-395" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy w d f2014 f2015, vce(cluster id)</span></span>
-<span id="cb13-396"><a href="#cb13-396" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy w d i.year, vce(cluster id)</span></span>
-<span id="cb13-397"><a href="#cb13-397" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-398"><a href="#cb13-398" aria-hidden="true" tabindex="-1"></a><span class="in">* Using fixed effects is equivalent:</span></span>
+<span id="cb13-393"><a href="#cb13-393" aria-hidden="true" tabindex="-1"></a><span class="in">gen f2014=(year==2014)</span></span>
+<span id="cb13-394"><a href="#cb13-394" aria-hidden="true" tabindex="-1"></a><span class="in">gen f2015=(year==2015)</span></span>
+<span id="cb13-395"><a href="#cb13-395" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-396"><a href="#cb13-396" aria-hidden="true" tabindex="-1"></a><span class="in">gen y1 = 1 +2*x1 + 3*w1  + u</span></span>
+<span id="cb13-397"><a href="#cb13-397" aria-hidden="true" tabindex="-1"></a><span class="in">* let's allow each year's treatment effect being different.  ATT for post period would be roughly 3, because of balanced panel.</span></span>
+<span id="cb13-398"><a href="#cb13-398" aria-hidden="true" tabindex="-1"></a><span class="in">gen logy = y1 + 2.5*d*f2014 + 3.5*d*f2015</span></span>
 <span id="cb13-399"><a href="#cb13-399" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-400"><a href="#cb13-400" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy w i.year, fe vce(cluster id)</span></span>
-<span id="cb13-401"><a href="#cb13-401" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy w post, fe vce(cluster id)</span></span>
-<span id="cb13-402"><a href="#cb13-402" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-403"><a href="#cb13-403" aria-hidden="true" tabindex="-1"></a><span class="in">* So is RE with d included:</span></span>
-<span id="cb13-404"><a href="#cb13-404" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy w d post, re vce(cluster id)</span></span>
+<span id="cb13-400"><a href="#cb13-400" aria-hidden="true" tabindex="-1"></a><span class="in">xtset id year</span></span>
+<span id="cb13-401"><a href="#cb13-401" aria-hidden="true" tabindex="-1"></a><span class="in">tab year w</span></span>
+<span id="cb13-402"><a href="#cb13-402" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-403"><a href="#cb13-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-404"><a href="#cb13-404" aria-hidden="true" tabindex="-1"></a>We have 100 units over four years (2012--2015). Half are treated starting in 2014 ($w = d \times \text{post}$). The treatment effect is 2.5 in 2014 and 3.5 in 2015, so the overall post-period ATT should be about 3 in this balanced panel.</span>
 <span id="cb13-405"><a href="#cb13-405" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-406"><a href="#cb13-406" aria-hidden="true" tabindex="-1"></a><span class="in">* Allow a separate effect in each of the treated time periods:</span></span>
-<span id="cb13-407"><a href="#cb13-407" aria-hidden="true" tabindex="-1"></a><span class="in">* It is the ATT for each treated period:</span></span>
-<span id="cb13-408"><a href="#cb13-408" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-409"><a href="#cb13-409" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 i.year, fe vce(cluster id)</span></span>
-<span id="cb13-410"><a href="#cb13-410" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.d#c.f2014 c.d#c.f2015 i.year, fe vce(cluster id)</span></span>
-<span id="cb13-411"><a href="#cb13-411" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-412"><a href="#cb13-412" aria-hidden="true" tabindex="-1"></a><span class="in">* POLS version:</span></span>
+<span id="cb13-406"><a href="#cb13-406" aria-hidden="true" tabindex="-1"></a>The code below is from Wooldridge. The main difficulty is specifying the correct interaction terms for each estimand.</span>
+<span id="cb13-407"><a href="#cb13-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-410"><a href="#cb13-410" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb13-411"><a href="#cb13-411" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata4</span></span>
+<span id="cb13-412"><a href="#cb13-412" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
 <span id="cb13-413"><a href="#cb13-413" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-414"><a href="#cb13-414" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, vce(cluster id)</span></span>
-<span id="cb13-415"><a href="#cb13-415" aria-hidden="true" tabindex="-1"></a><span class="in">lincom (c.w#c.f2014 + c.w#c.f2015)/2</span></span>
-<span id="cb13-416"><a href="#cb13-416" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-417"><a href="#cb13-417" aria-hidden="true" tabindex="-1"></a><span class="in">* RE still gives same estimates:</span></span>
-<span id="cb13-418"><a href="#cb13-418" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-419"><a href="#cb13-419" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, re vce(cluster id)</span></span>
-<span id="cb13-420"><a href="#cb13-420" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-421"><a href="#cb13-421" aria-hidden="true" tabindex="-1"></a><span class="in">* Putting in time-constant controls in the levels and even interacted with d</span></span>
-<span id="cb13-422"><a href="#cb13-422" aria-hidden="true" tabindex="-1"></a><span class="in">* does not change the estimates. It does boost the R-squared and</span></span>
-<span id="cb13-423"><a href="#cb13-423" aria-hidden="true" tabindex="-1"></a><span class="in">* slightly changes the standard errors:</span></span>
-<span id="cb13-424"><a href="#cb13-424" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-425"><a href="#cb13-425" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015 x1 c.d#c.x1, vce(cluster id)</span></span>
-<span id="cb13-426"><a href="#cb13-426" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 d i.year x1 c.d#c.x1, vce(cluster id)</span></span>
-<span id="cb13-427"><a href="#cb13-427" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-428"><a href="#cb13-428" aria-hidden="true" tabindex="-1"></a><span class="in">* Now add covariate interacted with everything:</span></span>
-<span id="cb13-429"><a href="#cb13-429" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-430"><a href="#cb13-430" aria-hidden="true" tabindex="-1"></a><span class="in">sum x1 if d</span></span>
-<span id="cb13-431"><a href="#cb13-431" aria-hidden="true" tabindex="-1"></a><span class="in">gen x1_dm_1 = x1 - r(mean)</span></span>
-<span id="cb13-432"><a href="#cb13-432" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-433"><a href="#cb13-433" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1,  fe vce(cluster id)</span></span>
-<span id="cb13-434"><a href="#cb13-434" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-435"><a href="#cb13-435" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)</span></span>
+<span id="cb13-414"><a href="#cb13-414" aria-hidden="true" tabindex="-1"></a><span class="in">* CACHE WARNING: this chunk depends on the data built by the earlier</span></span>
+<span id="cb13-415"><a href="#cb13-415" aria-hidden="true" tabindex="-1"></a><span class="in">* `collectcode: true` chunks.  If those are served from the knitr cache while</span></span>
+<span id="cb13-416"><a href="#cb13-416" aria-hidden="true" tabindex="-1"></a><span class="in">* this one re-executes, their code never enters Statamarkdown's accumulated</span></span>
+<span id="cb13-417"><a href="#cb13-417" aria-hidden="true" tabindex="-1"></a><span class="in">* buffer, every command below fails on missing data, and the chunk silently</span></span>
+<span id="cb13-418"><a href="#cb13-418" aria-hidden="true" tabindex="-1"></a><span class="in">* renders with NO output.  If that happens, delete the whole</span></span>
+<span id="cb13-419"><a href="#cb13-419" aria-hidden="true" tabindex="-1"></a><span class="in">* `mundlak-device_cache/` directory (not just this chunk's entry) and</span></span>
+<span id="cb13-420"><a href="#cb13-420" aria-hidden="true" tabindex="-1"></a><span class="in">* `_freeze/mundlak-device/`, then re-render so all chunks run in order.</span></span>
+<span id="cb13-421"><a href="#cb13-421" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-422"><a href="#cb13-422" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-423"><a href="#cb13-423" aria-hidden="true" tabindex="-1"></a><span class="in">* Basic DID regression. Only need the post-treatment dummy but including</span></span>
+<span id="cb13-424"><a href="#cb13-424" aria-hidden="true" tabindex="-1"></a><span class="in">* all time dummies is harmless (and necessary for heterogeneous trends).</span></span>
+<span id="cb13-425"><a href="#cb13-425" aria-hidden="true" tabindex="-1"></a><span class="in">* Standard errors change a little because of different degrees-of-freedom.</span></span>
+<span id="cb13-426"><a href="#cb13-426" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-427"><a href="#cb13-427" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.d#c.post d post, vce(cluster id)</span></span>
+<span id="cb13-428"><a href="#cb13-428" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy w d post, vce(cluster id)</span></span>
+<span id="cb13-429"><a href="#cb13-429" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy w d f2014 f2015, vce(cluster id)</span></span>
+<span id="cb13-430"><a href="#cb13-430" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy w d i.year, vce(cluster id)</span></span>
+<span id="cb13-431"><a href="#cb13-431" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-432"><a href="#cb13-432" aria-hidden="true" tabindex="-1"></a><span class="in">* Using fixed effects is equivalent:</span></span>
+<span id="cb13-433"><a href="#cb13-433" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-434"><a href="#cb13-434" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy w i.year, fe vce(cluster id)</span></span>
+<span id="cb13-435"><a href="#cb13-435" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy w post, fe vce(cluster id)</span></span>
 <span id="cb13-436"><a href="#cb13-436" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-437"><a href="#cb13-437" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1, vce(cluster id)</span></span>
-<span id="cb13-438"><a href="#cb13-438" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-439"><a href="#cb13-439" aria-hidden="true" tabindex="-1"></a><span class="in">* Now use margins to account for the sampling error in the mean of x1. It is</span></span>
-<span id="cb13-440"><a href="#cb13-440" aria-hidden="true" tabindex="-1"></a><span class="in">* important to have w defined as the time-varying treatment variable.</span></span>
-<span id="cb13-441"><a href="#cb13-441" aria-hidden="true" tabindex="-1"></a><span class="in">* In practice, it seems to have little effect:</span></span>
+<span id="cb13-437"><a href="#cb13-437" aria-hidden="true" tabindex="-1"></a><span class="in">* So is RE with d included:</span></span>
+<span id="cb13-438"><a href="#cb13-438" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy w d post, re vce(cluster id)</span></span>
+<span id="cb13-439"><a href="#cb13-439" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-440"><a href="#cb13-440" aria-hidden="true" tabindex="-1"></a><span class="in">* Allow a separate effect in each of the treated time periods:</span></span>
+<span id="cb13-441"><a href="#cb13-441" aria-hidden="true" tabindex="-1"></a><span class="in">* It is the ATT for each treated period:</span></span>
 <span id="cb13-442"><a href="#cb13-442" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-443"><a href="#cb13-443" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1 c.w#c.f2015#c.x1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)</span></span>
-<span id="cb13-444"><a href="#cb13-444" aria-hidden="true" tabindex="-1"></a><span class="in">margins, dydx(w) at(f2014 = 1 f2015 = 0) subpop(if d == 1) vce(uncond)</span></span>
-<span id="cb13-445"><a href="#cb13-445" aria-hidden="true" tabindex="-1"></a><span class="in">margins, dydx(w) at(f2014 = 0 f2015 = 1) subpop(if d == 1) vce(uncond)</span></span>
-<span id="cb13-446"><a href="#cb13-446" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-447"><a href="#cb13-447" aria-hidden="true" tabindex="-1"></a><span class="in">* Apply Callaway &amp; Sant'Anna (2021):</span></span>
-<span id="cb13-448"><a href="#cb13-448" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-449"><a href="#cb13-449" aria-hidden="true" tabindex="-1"></a><span class="in">gen first_treat = 0</span></span>
-<span id="cb13-450"><a href="#cb13-450" aria-hidden="true" tabindex="-1"></a><span class="in">replace first_treat = 2014 if d</span></span>
-<span id="cb13-451"><a href="#cb13-451" aria-hidden="true" tabindex="-1"></a><span class="in">csdid logy x1, ivar(id) time(year) gvar(first_treat)</span></span>
+<span id="cb13-443"><a href="#cb13-443" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 i.year, fe vce(cluster id)</span></span>
+<span id="cb13-444"><a href="#cb13-444" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.d#c.f2014 c.d#c.f2015 i.year, fe vce(cluster id)</span></span>
+<span id="cb13-445"><a href="#cb13-445" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-446"><a href="#cb13-446" aria-hidden="true" tabindex="-1"></a><span class="in">* POLS version:</span></span>
+<span id="cb13-447"><a href="#cb13-447" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-448"><a href="#cb13-448" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, vce(cluster id)</span></span>
+<span id="cb13-449"><a href="#cb13-449" aria-hidden="true" tabindex="-1"></a><span class="in">lincom (c.w#c.f2014 + c.w#c.f2015)/2</span></span>
+<span id="cb13-450"><a href="#cb13-450" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-451"><a href="#cb13-451" aria-hidden="true" tabindex="-1"></a><span class="in">* RE still gives same estimates:</span></span>
 <span id="cb13-452"><a href="#cb13-452" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-453"><a href="#cb13-453" aria-hidden="true" tabindex="-1"></a><span class="in">* Show imputation is equivalent to POLS/ETWFE:</span></span>
+<span id="cb13-453"><a href="#cb13-453" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, re vce(cluster id)</span></span>
 <span id="cb13-454"><a href="#cb13-454" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-455"><a href="#cb13-455" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1 if w == 0</span></span>
-<span id="cb13-456"><a href="#cb13-456" aria-hidden="true" tabindex="-1"></a><span class="in">predict tetilda, resid</span></span>
-<span id="cb13-457"><a href="#cb13-457" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2014)</span></span>
-<span id="cb13-458"><a href="#cb13-458" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2015)</span></span>
-<span id="cb13-459"><a href="#cb13-459" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-460"><a href="#cb13-460" aria-hidden="true" tabindex="-1"></a><span class="in">* Regression produces same ATT estimates, but use the full pooled regression for</span></span>
-<span id="cb13-461"><a href="#cb13-461" aria-hidden="true" tabindex="-1"></a><span class="in">* valid standard errors:</span></span>
-<span id="cb13-462"><a href="#cb13-462" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-463"><a href="#cb13-463" aria-hidden="true" tabindex="-1"></a><span class="in">reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons</span></span>
-<span id="cb13-464"><a href="#cb13-464" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-465"><a href="#cb13-465" aria-hidden="true" tabindex="-1"></a><span class="in">* Now test parallel trends. First, unconditionally.</span></span>
+<span id="cb13-455"><a href="#cb13-455" aria-hidden="true" tabindex="-1"></a><span class="in">* Putting in time-constant controls in the levels and even interacted with d</span></span>
+<span id="cb13-456"><a href="#cb13-456" aria-hidden="true" tabindex="-1"></a><span class="in">* does not change the estimates. It does boost the R-squared and</span></span>
+<span id="cb13-457"><a href="#cb13-457" aria-hidden="true" tabindex="-1"></a><span class="in">* slightly changes the standard errors:</span></span>
+<span id="cb13-458"><a href="#cb13-458" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-459"><a href="#cb13-459" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015 x1 c.d#c.x1, vce(cluster id)</span></span>
+<span id="cb13-460"><a href="#cb13-460" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 d i.year x1 c.d#c.x1, vce(cluster id)</span></span>
+<span id="cb13-461"><a href="#cb13-461" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-462"><a href="#cb13-462" aria-hidden="true" tabindex="-1"></a><span class="in">* Now add covariate interacted with everything:</span></span>
+<span id="cb13-463"><a href="#cb13-463" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-464"><a href="#cb13-464" aria-hidden="true" tabindex="-1"></a><span class="in">sum x1 if d</span></span>
+<span id="cb13-465"><a href="#cb13-465" aria-hidden="true" tabindex="-1"></a><span class="in">gen x1_dm_1 = x1 - r(mean)</span></span>
 <span id="cb13-466"><a href="#cb13-466" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-467"><a href="#cb13-467" aria-hidden="true" tabindex="-1"></a><span class="in">xtdidreg (logy) (w), group(id) time(year)</span></span>
-<span id="cb13-468"><a href="#cb13-468" aria-hidden="true" tabindex="-1"></a><span class="in">* estat trendplots</span></span>
-<span id="cb13-469"><a href="#cb13-469" aria-hidden="true" tabindex="-1"></a><span class="in">estat ptrends</span></span>
+<span id="cb13-467"><a href="#cb13-467" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1,  fe vce(cluster id)</span></span>
+<span id="cb13-468"><a href="#cb13-468" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-469"><a href="#cb13-469" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)</span></span>
 <span id="cb13-470"><a href="#cb13-470" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-471"><a href="#cb13-471" aria-hidden="true" tabindex="-1"></a><span class="in">* With two control periods, same as the following:</span></span>
-<span id="cb13-472"><a href="#cb13-472" aria-hidden="true" tabindex="-1"></a><span class="in">* Note: since the pre-period only spans 2012-2013, D.logy is non-missing</span></span>
-<span id="cb13-473"><a href="#cb13-473" aria-hidden="true" tabindex="-1"></a><span class="in">* only for year==2013, so this is a single cross-section of first</span></span>
-<span id="cb13-474"><a href="#cb13-474" aria-hidden="true" tabindex="-1"></a><span class="in">* differences (2013 vs 2012), not a multi-period trend test — it's a</span></span>
-<span id="cb13-475"><a href="#cb13-475" aria-hidden="true" tabindex="-1"></a><span class="in">* valid two-period parallel-trends check, but should not be read as</span></span>
-<span id="cb13-476"><a href="#cb13-476" aria-hidden="true" tabindex="-1"></a><span class="in">* testing trends across more than two pre-periods.</span></span>
-<span id="cb13-477"><a href="#cb13-477" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-478"><a href="#cb13-478" aria-hidden="true" tabindex="-1"></a><span class="in">sort id year</span></span>
-<span id="cb13-479"><a href="#cb13-479" aria-hidden="true" tabindex="-1"></a><span class="in">reg D.logy d if year &lt;= 2013, vce(robust)</span></span>
+<span id="cb13-471"><a href="#cb13-471" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1, vce(cluster id)</span></span>
+<span id="cb13-472"><a href="#cb13-472" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-473"><a href="#cb13-473" aria-hidden="true" tabindex="-1"></a><span class="in">* Now use margins to account for the sampling error in the mean of x1. It is</span></span>
+<span id="cb13-474"><a href="#cb13-474" aria-hidden="true" tabindex="-1"></a><span class="in">* important to have w defined as the time-varying treatment variable.</span></span>
+<span id="cb13-475"><a href="#cb13-475" aria-hidden="true" tabindex="-1"></a><span class="in">* In practice, it seems to have little effect:</span></span>
+<span id="cb13-476"><a href="#cb13-476" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-477"><a href="#cb13-477" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1 c.w#c.f2015#c.x1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)</span></span>
+<span id="cb13-478"><a href="#cb13-478" aria-hidden="true" tabindex="-1"></a><span class="in">margins, dydx(w) at(f2014 = 1 f2015 = 0) subpop(if d == 1) vce(uncond)</span></span>
+<span id="cb13-479"><a href="#cb13-479" aria-hidden="true" tabindex="-1"></a><span class="in">margins, dydx(w) at(f2014 = 0 f2015 = 1) subpop(if d == 1) vce(uncond)</span></span>
 <span id="cb13-480"><a href="#cb13-480" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-481"><a href="#cb13-481" aria-hidden="true" tabindex="-1"></a><span class="in">* Test/correct for common trends in a general equation:</span></span>
+<span id="cb13-481"><a href="#cb13-481" aria-hidden="true" tabindex="-1"></a><span class="in">* Apply Callaway &amp; Sant'Anna (2021):</span></span>
 <span id="cb13-482"><a href="#cb13-482" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-483"><a href="#cb13-483" aria-hidden="true" tabindex="-1"></a><span class="in">gen t = year - 2011</span></span>
-<span id="cb13-484"><a href="#cb13-484" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-485"><a href="#cb13-485" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 c.d#c.t,  fe vce(cluster id)</span></span>
+<span id="cb13-483"><a href="#cb13-483" aria-hidden="true" tabindex="-1"></a><span class="in">gen first_treat = 0</span></span>
+<span id="cb13-484"><a href="#cb13-484" aria-hidden="true" tabindex="-1"></a><span class="in">replace first_treat = 2014 if d</span></span>
+<span id="cb13-485"><a href="#cb13-485" aria-hidden="true" tabindex="-1"></a><span class="in">csdid logy x1, ivar(id) time(year) gvar(first_treat)</span></span>
 <span id="cb13-486"><a href="#cb13-486" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-487"><a href="#cb13-487" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t, vce(cluster id)</span></span>
+<span id="cb13-487"><a href="#cb13-487" aria-hidden="true" tabindex="-1"></a><span class="in">* Show imputation is equivalent to POLS/ETWFE:</span></span>
 <span id="cb13-488"><a href="#cb13-488" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-489"><a href="#cb13-489" aria-hidden="true" tabindex="-1"></a><span class="in">* Allow the trend to also vary with x1:</span></span>
-<span id="cb13-490"><a href="#cb13-490" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-491"><a href="#cb13-491" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, vce(cluster id)</span></span>
-<span id="cb13-492"><a href="#cb13-492" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
+<span id="cb13-489"><a href="#cb13-489" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1 if w == 0</span></span>
+<span id="cb13-490"><a href="#cb13-490" aria-hidden="true" tabindex="-1"></a><span class="in">predict tetilda, resid</span></span>
+<span id="cb13-491"><a href="#cb13-491" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2014)</span></span>
+<span id="cb13-492"><a href="#cb13-492" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2015)</span></span>
 <span id="cb13-493"><a href="#cb13-493" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-494"><a href="#cb13-494" aria-hidden="true" tabindex="-1"></a><span class="in">* Imputation. Note that the estimates on c.d#c.t and c.d#c.t#c.x1</span></span>
-<span id="cb13-495"><a href="#cb13-495" aria-hidden="true" tabindex="-1"></a><span class="in">* are the same as full regression with all data, as is the joint</span></span>
-<span id="cb13-496"><a href="#cb13-496" aria-hidden="true" tabindex="-1"></a><span class="in">* F statistic:</span></span>
-<span id="cb13-497"><a href="#cb13-497" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-498"><a href="#cb13-498" aria-hidden="true" tabindex="-1"></a><span class="in">drop tetilda</span></span>
-<span id="cb13-499"><a href="#cb13-499" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-500"><a href="#cb13-500" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 if w == 0, vce(cluster id)</span></span>
-<span id="cb13-501"><a href="#cb13-501" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
-<span id="cb13-502"><a href="#cb13-502" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-503"><a href="#cb13-503" aria-hidden="true" tabindex="-1"></a><span class="in">predict tetilda, resid</span></span>
-<span id="cb13-504"><a href="#cb13-504" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2014)</span></span>
-<span id="cb13-505"><a href="#cb13-505" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2015)</span></span>
-<span id="cb13-506"><a href="#cb13-506" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-507"><a href="#cb13-507" aria-hidden="true" tabindex="-1"></a><span class="in">* Again, can use regression to obtain the estimates but not the standard errors:</span></span>
-<span id="cb13-508"><a href="#cb13-508" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-509"><a href="#cb13-509" aria-hidden="true" tabindex="-1"></a><span class="in">reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons</span></span>
-<span id="cb13-510"><a href="#cb13-510" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-494"><a href="#cb13-494" aria-hidden="true" tabindex="-1"></a><span class="in">* Regression produces same ATT estimates, but use the full pooled regression for</span></span>
+<span id="cb13-495"><a href="#cb13-495" aria-hidden="true" tabindex="-1"></a><span class="in">* valid standard errors:</span></span>
+<span id="cb13-496"><a href="#cb13-496" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-497"><a href="#cb13-497" aria-hidden="true" tabindex="-1"></a><span class="in">reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons</span></span>
+<span id="cb13-498"><a href="#cb13-498" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-499"><a href="#cb13-499" aria-hidden="true" tabindex="-1"></a><span class="in">* Now test parallel trends. First, unconditionally.</span></span>
+<span id="cb13-500"><a href="#cb13-500" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-501"><a href="#cb13-501" aria-hidden="true" tabindex="-1"></a><span class="in">xtdidreg (logy) (w), group(id) time(year)</span></span>
+<span id="cb13-502"><a href="#cb13-502" aria-hidden="true" tabindex="-1"></a><span class="in">* estat trendplots</span></span>
+<span id="cb13-503"><a href="#cb13-503" aria-hidden="true" tabindex="-1"></a><span class="in">estat ptrends</span></span>
+<span id="cb13-504"><a href="#cb13-504" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-505"><a href="#cb13-505" aria-hidden="true" tabindex="-1"></a><span class="in">* With two control periods, same as the following:</span></span>
+<span id="cb13-506"><a href="#cb13-506" aria-hidden="true" tabindex="-1"></a><span class="in">* Note: since the pre-period only spans 2012-2013, D.logy is non-missing</span></span>
+<span id="cb13-507"><a href="#cb13-507" aria-hidden="true" tabindex="-1"></a><span class="in">* only for year==2013, so this is a single cross-section of first</span></span>
+<span id="cb13-508"><a href="#cb13-508" aria-hidden="true" tabindex="-1"></a><span class="in">* differences (2013 vs 2012), not a multi-period trend test — it's a</span></span>
+<span id="cb13-509"><a href="#cb13-509" aria-hidden="true" tabindex="-1"></a><span class="in">* valid two-period parallel-trends check, but should not be read as</span></span>
+<span id="cb13-510"><a href="#cb13-510" aria-hidden="true" tabindex="-1"></a><span class="in">* testing trends across more than two pre-periods.</span></span>
 <span id="cb13-511"><a href="#cb13-511" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-512"><a href="#cb13-512" aria-hidden="true" tabindex="-1"></a><span class="in">sort id year</span></span>
+<span id="cb13-513"><a href="#cb13-513" aria-hidden="true" tabindex="-1"></a><span class="in">reg D.logy d if year &lt;= 2013, vce(robust)</span></span>
+<span id="cb13-514"><a href="#cb13-514" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-515"><a href="#cb13-515" aria-hidden="true" tabindex="-1"></a><span class="in">* Test/correct for common trends in a general equation:</span></span>
+<span id="cb13-516"><a href="#cb13-516" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-517"><a href="#cb13-517" aria-hidden="true" tabindex="-1"></a><span class="in">gen t = year - 2011</span></span>
+<span id="cb13-518"><a href="#cb13-518" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-519"><a href="#cb13-519" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 c.d#c.t,  fe vce(cluster id)</span></span>
+<span id="cb13-520"><a href="#cb13-520" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-521"><a href="#cb13-521" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t, vce(cluster id)</span></span>
+<span id="cb13-522"><a href="#cb13-522" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-523"><a href="#cb13-523" aria-hidden="true" tabindex="-1"></a><span class="in">* Allow the trend to also vary with x1:</span></span>
+<span id="cb13-524"><a href="#cb13-524" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-525"><a href="#cb13-525" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, vce(cluster id)</span></span>
+<span id="cb13-526"><a href="#cb13-526" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
+<span id="cb13-527"><a href="#cb13-527" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-528"><a href="#cb13-528" aria-hidden="true" tabindex="-1"></a><span class="in">* Imputation. Note that the estimates on c.d#c.t and c.d#c.t#c.x1</span></span>
+<span id="cb13-529"><a href="#cb13-529" aria-hidden="true" tabindex="-1"></a><span class="in">* are the same as full regression with all data, as is the joint</span></span>
+<span id="cb13-530"><a href="#cb13-530" aria-hidden="true" tabindex="-1"></a><span class="in">* F statistic:</span></span>
+<span id="cb13-531"><a href="#cb13-531" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-532"><a href="#cb13-532" aria-hidden="true" tabindex="-1"></a><span class="in">drop tetilda</span></span>
+<span id="cb13-533"><a href="#cb13-533" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-534"><a href="#cb13-534" aria-hidden="true" tabindex="-1"></a><span class="in">reg logy i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 if w == 0, vce(cluster id)</span></span>
+<span id="cb13-535"><a href="#cb13-535" aria-hidden="true" tabindex="-1"></a><span class="in">test c.d#c.t c.d#c.t#c.x1</span></span>
+<span id="cb13-536"><a href="#cb13-536" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-537"><a href="#cb13-537" aria-hidden="true" tabindex="-1"></a><span class="in">predict tetilda, resid</span></span>
+<span id="cb13-538"><a href="#cb13-538" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2014)</span></span>
+<span id="cb13-539"><a href="#cb13-539" aria-hidden="true" tabindex="-1"></a><span class="in">sum tetilda if (d &amp; f2015)</span></span>
+<span id="cb13-540"><a href="#cb13-540" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-541"><a href="#cb13-541" aria-hidden="true" tabindex="-1"></a><span class="in">* Again, can use regression to obtain the estimates but not the standard errors:</span></span>
+<span id="cb13-542"><a href="#cb13-542" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-543"><a href="#cb13-543" aria-hidden="true" tabindex="-1"></a><span class="in">reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons</span></span>
+<span id="cb13-544"><a href="#cb13-544" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-545"><a href="#cb13-545" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-546"><a href="#cb13-546" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-547"><a href="#cb13-547" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-548"><a href="#cb13-548" aria-hidden="true" tabindex="-1"></a>That is a long chunk, so here is what to take from it. Every specification that</span>
+<span id="cb13-549"><a href="#cb13-549" aria-hidden="true" tabindex="-1"></a>targets the overall ATT returns **3.206857** — the two-way fixed-effect</span>
+<span id="cb13-550"><a href="#cb13-550" aria-hidden="true" tabindex="-1"></a>regression, pooled OLS with unit and time means, random effects, and the</span>
+<span id="cb13-551"><a href="#cb13-551" aria-hidden="true" tabindex="-1"></a><span class="in">`did`</span>-style variants all agree to seven digits, differing only in the standard</span>
+<span id="cb13-552"><a href="#cb13-552" aria-hidden="true" tabindex="-1"></a>error's fourth decimal (0.4310 to 0.4326). Against a true ATT of 3, that is</span>
+<span id="cb13-553"><a href="#cb13-553" aria-hidden="true" tabindex="-1"></a>about half a standard error high. The equivalences claimed throughout this</span>
+<span id="cb13-554"><a href="#cb13-554" aria-hidden="true" tabindex="-1"></a>chapter hold numerically, not just in the algebra.</span>
+<span id="cb13-555"><a href="#cb13-555" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-556"><a href="#cb13-556" aria-hidden="true" tabindex="-1"></a>Allowing the effect to vary by year recovers the two components separately:</span>
+<span id="cb13-557"><a href="#cb13-557" aria-hidden="true" tabindex="-1"></a>2.496168 for 2014 and 3.349012 for 2015, against true values of 2.5 and 3.5.</span>
+<span id="cb13-558"><a href="#cb13-558" aria-hidden="true" tabindex="-1"></a>Their average, 2.92, is what the single-number ATT is summarising, and reporting</span>
+<span id="cb13-559"><a href="#cb13-559" aria-hidden="true" tabindex="-1"></a>only 3.21 would hide that the effect grows by about a third between the two post</span>
+<span id="cb13-560"><a href="#cb13-560" aria-hidden="true" tabindex="-1"></a>years.</span>
+<span id="cb13-561"><a href="#cb13-561" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-562"><a href="#cb13-562" aria-hidden="true" tabindex="-1"></a>The imputation approach at the end fits the model on untreated observations only</span>
+<span id="cb13-563"><a href="#cb13-563" aria-hidden="true" tabindex="-1"></a>and reads the treatment effects off the residuals. Its estimates of</span>
+<span id="cb13-564"><a href="#cb13-564" aria-hidden="true" tabindex="-1"></a><span class="in">`c.d#c.t`</span> and <span class="in">`c.d#c.t#c.x1`</span> match the full-sample regression, and the</span>
+<span id="cb13-565"><a href="#cb13-565" aria-hidden="true" tabindex="-1"></a>pre-treatment interaction <span class="in">`c.d#c.t`</span> is 0.0668 with $p = 0.822$ — no detectable</span>
+<span id="cb13-566"><a href="#cb13-566" aria-hidden="true" tabindex="-1"></a>differential trend before treatment, which is what the design needs.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

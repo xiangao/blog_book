@@ -324,6 +324,15 @@ Y <- b_uy * U + b_ay * A + rnorm(n) # Y is a function of U and A
 data <- data.frame(W = W, Z = Z, A = A, Y = Y)
 ```
 
+The simulation sets $n = 5000$ and every coefficient to 0.5. The hidden
+confounder is $U \sim N(0,1)$; the two proxies are $W = 0.5U + \varepsilon_W$
+and $Z = 0.5U + \varepsilon_Z$; treatment is $A = 0.5U + 0.5Z + \varepsilon_A$;
+and the outcome is $Y = 0.5U + 0.5A + \varepsilon_Y$, all errors standard
+normal. The true effect of $A$ on $Y$ is therefore 0.5.
+
+Note the roles: $Z$ affects $A$ but not $Y$ directly, $W$ is affected by $U$ but
+affects nothing, and neither is a valid control for $U$ on its own.
+
 If we run regression of $Y$ on $A$, $Z$, $W$,
 
 ```{r}
@@ -341,7 +350,13 @@ summary(m1)
 
 ```
 
-We don't get the true effect of $A$ on $Y$.
+We don't get the true effect of $A$ on $Y$: the coefficient on $A$ is 0.660
+against a true 0.5, a bias of 32%. Conditioning on both proxies does not remove
+the confounding, because neither $W$ nor $Z$ *is* $U$ — each is a noisy
+reflection of it, and controlling for a noisy proxy leaves residual confounding.
+The proxies do carry signal (both are significant, at 0.085 and 0.133), which is
+what makes this failure mode deceptive: the regression looks like it is
+adjusting for the confounder.
 
 If we do the 2sls using $W$ and $Z$, then we get the true effect.
 
@@ -368,6 +383,15 @@ summary(m2)   # point estimate OK under the linear model; SEs need bootstrap
 
 
 ```
+
+The two-stage estimate is 0.489, against the true 0.5 and the naive 0.660. Using
+the two proxies in the right way — one to build a predicted $E[W \mid A, Z]$ and
+that prediction as the control — recovers the effect, where using both directly
+as regressors did not.
+
+The reported standard error of 0.043 should be ignored, for the reason flagged
+in the code comment: $S$ is a generated regressor, so the second-stage standard
+errors are wrong as written and need a bootstrap over both stages.
 
 ---
 

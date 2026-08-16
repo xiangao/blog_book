@@ -117,7 +117,12 @@ library(Rfrengression)
 
 ### Example: Binary Treatment DGP
 
-Use a DGP with binary treatment, binary outcome, and four confounders:
+Use a DGP with binary treatment, binary outcome, and four confounders. We draw
+$n = 2000$ observations with $w_1, w_2 \sim \text{Bernoulli}(0.5)$,
+$w_3 \sim U(0,4)$ and $w_4 \sim U(0,5)$; treatment is
+$A \sim \text{Bernoulli}(\Lambda(-0.4 + 0.2w_2 + 0.15w_3 + 0.2w_4 + 0.15w_2w_4))$;
+and both potential outcomes are Bernoulli with the same logit index shifted by
+the treatment. Since both are simulated, the realized ATE is known:
 
 ```{r}
 #| label: dgp
@@ -179,6 +184,13 @@ y0 <- predict(model, matrix(0, ncol = 1), type = "mean", nsample = 2000)
 cat("Frengression ATE:", round(y1 - y0, 4), "\n")
 cat("True ATE:", round(true_ate, 4), "\n")
 ```
+
+The realized ATE is 0.1935 and frengression lands a few hundredths below it.
+
+Note that the training chunks here carry `cache: false` and torch's random
+number generator is not fixed by R's `set.seed()`, so this particular figure
+moves by a percentage point or two between renders. The cached comparison table
+below is the number to quote.
 
 ## Frengression as DGP
 
@@ -426,6 +438,12 @@ results$Covers <- ifelse(is.na(results$CI_lower), NA,
 kable(results, digits = 4,
       caption = "ATE Estimation: Frengression vs Semiparametric Methods")
 ```
+
+On this single dataset the ranking is what one would expect. TMLE gives 0.1916,
+npcausal 0.1911 and DoubleML 0.1872, all within 0.007 of the true 0.1935;
+frengression gives 0.1650, a bias of $-0.0285$, roughly four times larger. Its
+bootstrap standard error is also the widest, 0.0318 against 0.021–0.023. All
+four intervals cover the truth.
 
 The semiparametric estimators target the ATE directly. Frengression learns the joint distribution and then computes the ATE as one functional of that distribution. So I would not expect it to be the most precise ATE estimator in this table.
 
@@ -722,6 +740,24 @@ ggplot(ate_long_lal_trim, aes(x = Method, y = ATE, fill = Method)) +
   theme_minimal() +
   theme(legend.position = "none")
 ```
+
+The numbers are stark. On the hand-written DGP (true ATE 0.0662), frengression
+has a bias of 0.0013 and 100% coverage, DoubleML 0.0066 and 100%, while npcausal
+is off by 0.1532 with 40% coverage and TMLE by 0.2207 with 10%. On the
+LaLonde-generated data (true ATE 0.2846), frengression has a bias of $-0.0465$
+with 90% coverage, while npcausal is off by $-0.2918$ with **0%** coverage and
+TMLE by 0.0372 with 30%.
+
+Read the coverage column rather than the bias column. A method whose interval
+covers the truth in 0 or 1 of 10 replications is not merely imprecise; its
+reported standard error is wrong. TMLE's mean SE on the simulated benchmark is
+0.0187 against an actual sampling SD of 0.2401 — understating the uncertainty by
+more than a factor of ten.
+
+One caveat before drawing conclusions: $B = 10$ replications is a very small
+Monte Carlo, so these coverage rates carry a standard error of about 0.15
+themselves. The qualitative ordering is clear; the individual percentages are
+not precise.
 
 The semiparametric methods show more bias on the LaLonde-generated data than on the hand-written simulation. That is the point of this exercise. The synthetic data has a more realistic propensity surface and prior-earnings distribution, so it is harder than the usual clean simulation.
 

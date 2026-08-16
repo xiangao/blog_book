@@ -35,7 +35,7 @@ RE requires $v_i$ and $X_{it}$ to be uncorrelated — an assumption most economi
 
 ## Example
 
-Stata 18 added a `cre` option to `xtreg`. The following uses `nlswork`.
+Stata 18 added a `cre` option to `xtreg`. The following uses `nlswork`, 28,101 person-years from the National Longitudinal Survey of Young Women with complete data on the model's variables. We regress log wage on `tenure` and `age`, which vary within a person, plus `race`, which does not — the covariate a fixed-effect model has to drop.
 
 ```{r}
 #| label: setup
@@ -64,6 +64,16 @@ webuse nlswork
 xtreg ln_wage tenure age i.race, cre vce(cluster idcode)
 ```
 
+CRE gives `tenure` = .0211313 and `age` = .0121949, and estimates race as well:
+Black women earn 13.1% less ($-.1312068$, SE .0118), while the "Other" category
+is marginal ($.1059$, $p = 0.074$). The coefficients on the group means are
+.0376991 for mean tenure and $-.0011984$ for mean age.
+
+Stata prints the Mundlak test at the foot of the table: $\chi^2(2) = 331.51$,
+$p < 0.0001$. The group means are jointly far from zero, so plain random
+effects is rejected — $v_i$ and the regressors are correlated, as the reported
+$\text{corr} = 0.5474$ between the two blocks says directly.
+
 To compare with a fixed effect model:
 
 ```{stata}
@@ -76,7 +86,12 @@ webuse nlswork
 xtreg ln_wage tenure age i.race, fe vce(cluster idcode)
 ```
 
-The coefficients on `tenure` and `age` are identical. CRE additionally estimates the effect of `race`.
+The coefficients on `tenure` and `age` are identical: .0211313 and .0121949 in
+both, with standard errors agreeing to the seventh decimal (.0012112 against
+.0012113). Race is reported as `0 (omitted)` here, being collinear with the unit
+effects — the one thing FE cannot do and CRE can. This is the Mundlak result in
+practice: CRE gives you the fixed-effect estimates *and* the time-invariant
+coefficients from a single random-effects fit.
 
 We can replicate this manually by including the group means in a RE model:
 
@@ -97,7 +112,16 @@ egen tenure_mean = mean(tenure) if !missing(ln_wage, tenure, age, race), by(idco
 xtreg ln_wage tenure tenure_mean age age_mean i.race, vce(cluster idcode)
 ```
 
-This is what Stata's `cre` option does internally.
+This is what Stata's `cre` option does internally. Every number matches the
+first table: `tenure` .0211313, `age` .0121949, Black $-.1312068$, Other
+.1059379, constant 1.2159, and the same variance components ($\sigma_u$ .3333,
+$\sigma_e$ .2981, $\rho$ .5557). The `cre` option is a convenience, not a
+different estimator.
+
+The one detail worth care is in the code above: the group means must be computed
+on the estimation sample. Both `tenure` and `age` have missing values in
+`nlswork`, so averaging over all of a woman's rows rather than only her complete
+ones would give different means and break the equivalence.
 
 
 

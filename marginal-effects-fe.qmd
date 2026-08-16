@@ -8,6 +8,11 @@ date: "2019-01-25"
 
 Stata's `margins` command computes predicted means and marginal effects, but care is needed when fixed effects are present. In a linear model the issue is benign: demeaning and dummy-variable approaches return the same coefficients and the same marginal effects.
 
+We check that on the `auto` data, treating the 5-category repair record `rep78`
+as the panel identifier and regressing `price` on `mpg` interacted with `trunk`
+— once with `xtreg, fe` (within-demeaning) and once with `reg` plus `i.rep78`
+dummies.
+
 
 ```{r}
 #| label: stata-chunk
@@ -25,9 +30,22 @@ margins , dydx(mpg)
 
 ```
 
+The two agree exactly. Both give $-98.12003$ on `mpg`, 295.0544 on `trunk` and
+$-12.23318$ on the interaction, and both average marginal effects are
+$-268.4981$ with a standard error of 74.12513. The only difference is that
+`xtreg` reports a $z$ statistic and `reg` a $t$, so the confidence intervals
+differ in the fourth digit. Nothing here needs care.
+
 ## Marginal effects in a non-linear model
 
-In a nonlinear model the two approaches diverge:
+In a nonlinear model the two approaches diverge. We now need a genuine panel and
+a count outcome, so we simulate one: 250 observations, 50 units observed over 5
+periods. Within each unit, $\text{mpg} \sim N(20, 4^2)$ and
+$\text{trunk} \sim N(15, 3^2)$ vary period to period, while the unit effect
+$\alpha_i \sim N(0,1)$ is drawn once and held fixed. The conditional mean is
+$\lambda_{it} = \exp(0.5 + 0.05\,\text{mpg}_{it} - 0.03\,\text{trunk}_{it} + \alpha_i)$
+and $\text{accidents}_{it} \sim \text{Poisson}(\lambda_{it})$. The true
+coefficients are 0.05 and $-0.03$.
 
 ```{r}
 #| label: stata-chunk2
@@ -64,7 +82,23 @@ model with dummies, just like a linear model (OLS with dummies is the
 same as fixed effect OLS). Poisson model and OLS are unique in this
 sense that there is no "incidental parameter" problem.
 
-The `margins` calls return different marginal effects even though the models are the same. In the conditional fixed-effect Poisson the fixed effects are conditioned out — they are not estimated. `margins, predict(nu0)` sets them to zero, which is arbitrary. The Poisson with dummies estimates them, so `margins` uses actual estimates. The second is more defensible, but for the conditional model the safest route is to report the original coefficients and avoid `margins` for marginal effects entirely.
+Both recover the truth: 0.0488 against a true 0.05 for `mpg`, and $-0.0316$
+against $-0.03$ for `trunk`. Note the sample sizes differ, 245 against 250 —
+`xtpoisson, fe` drops the one group whose outcome is zero in every period,
+because such a group contributes nothing to the conditional likelihood. It
+changes neither coefficient here.
+
+The `margins` calls return different marginal effects even though the models are the same, and the spread is not small:
+
+| call | AME of `mpg` | std. err. |
+|---|---|---|
+| `margins, dydx(mpg)` after `xtpoisson, fe` | 0.0488 | 0.0091 |
+| `margins, dydx(mpg) predict(nu0)` | 0.0850 | 0.0341 |
+| `margins, dydx(mpg)` after `poisson ... i.id` | 0.2239 | 0.0421 |
+
+Three answers from one coefficient, the largest 4.6 times the smallest. In the conditional fixed-effect Poisson the fixed effects are conditioned out — they are not estimated. The first row is not really a marginal effect at all: with no $\alpha_i$ to exponentiate against, it returns the coefficient itself. `margins, predict(nu0)` sets the fixed effect to zero, which is arbitrary, and note that the conditional model has no intercept either — it was swept out with the $\alpha_i$. So `nu0` exponentiates $X\beta$ alone, giving a baseline count no unit in the data actually has. The Poisson with dummies estimates the fixed effects, so `margins` uses actual estimates and gets the largest value.
+
+The arithmetic is easy to follow, since for a Poisson $\partial\lambda/\partial x = \beta\lambda$ and therefore every one of these AMEs is $\beta$ times an average $\lambda$. Divide each row by 0.0488 and the implied baselines are 1.00, 1.74 and 4.59. The last matches $E[\lambda] = e^{1.05}E[e^{\alpha}] = 4.71$ from the DGP; the middle matches $e^{X\beta}$ evaluated without intercept or fixed effect, 1.65. The three rows differ only in what they assume about $\alpha_i$, and none of them is a modelling subtlety — it is a choice of baseline. The third is the defensible one, but for the conditional model the safest route is to report the original coefficients and avoid `margins` for marginal effects entirely.
 
 The conditional logit is worse. The fixed effects are not estimated, and unlike Poisson there is an incidental-parameter problem, so logit with dummies is inconsistent unless the panel is deep (roughly 20+ observations per unit). With conditional logit the predicted probability depends on the unestimated $\alpha_i$; `margins` after `clogit` or `xtlogit, fe` offers options like `pu0` (set all fixed effects to zero), but none is defensible.
 
@@ -102,7 +136,7 @@ marginsplot
 
 
 
-This fits a conditional logit of union status on age, south, and their interaction. `margins` with `predict(xb)` returns predicted log-odds for different age-by-south combinations — but not predicted probabilities, since those require $\alpha_i$.
+This fits a conditional logit of union status on age, south, and their interaction, on 12,035 person-years from the `union` panel. The age coefficient is 0.0097 with a standard error of 0.0050, and the south indicator is $-1.382$ with a standard error of 0.277. `margins` with `predict(xb)` then returns predicted log-odds at six ages crossed with south — twelve combinations — but not predicted probabilities, since those require $\alpha_i$.
 
 Read the vertical axis of that plot as a *relative* scale.  Because $\alpha_i$ is
 not estimated, `xb` is each individual's log-odds measured from an unidentified

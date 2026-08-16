@@ -597,6 +597,7 @@ window.Quarto = {
 </section><section id="simulation-with-a-known-treatment-effect" class="level2" data-number="32.3"><h2 data-number="32.3" class="anchored" data-anchor-id="simulation-with-a-known-treatment-effect">
 <span class="header-section-number">32.3</span> Simulation with a known treatment effect</h2>
 <p>The simulated data is from <a href="https://migariane.github.io/TMLE.nb.html" class="uri">https://migariane.github.io/TMLE.nb.html</a></p>
+<p>We draw <span class="math inline">\(n = 1000\)</span> observations with four covariates: <span class="math inline">\(w_1 \sim \text{Bernoulli}(0.5)\)</span>, <span class="math inline">\(w_2 \sim \text{Bernoulli}(0.65)\)</span>, <span class="math inline">\(w_3 \sim U(0,4)\)</span> and <span class="math inline">\(w_4 \sim U(0,5)\)</span>. Treatment is <span class="math inline">\(A \sim \text{Bernoulli}(\Lambda(-0.4 + 0.2w_2 + 0.15w_3 + 0.2w_4 + 0.15w_2w_4))\)</span>, and both potential outcomes are Bernoulli with the same logit index shifted by the treatment, <span class="math inline">\(Y(d) \sim \text{Bernoulli}(\Lambda(-1 + d - 0.1w_1 + 0.3w_2 + 0.25w_3 + 0.2w_4 + 0.15w_2w_4))\)</span>. Both nuisance functions are nonlinear in the covariates, which is what makes flexible estimation worthwhile. Since both potential outcomes are simulated, the realized-sample effect is known: 0.203.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">npcausal</span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">boot</span><span class="op">)</span></span>
@@ -651,7 +652,7 @@ window.Quarto = {
 <pre><code>[1] 0.2050486</code></pre>
 </div>
 </div>
-<p>It’s not too far from the truth in this case.</p>
+<p>The plug-in estimate is 0.2050 against the realized 0.203. It’s not too far from the truth in this case — but it comes with no standard error, and the regularisation bias of the SuperLearner passes straight into the average with nothing to correct it.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">Q</span><span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span><span class="op">(</span>QAW<span class="op">=</span><span class="va">SL.outcome.obs</span>, Q0W<span class="op">=</span><span class="va">SL.outcome.0</span>,Q1W<span class="op">=</span><span class="va">SL.outcome.1</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
@@ -708,6 +709,7 @@ window.Quarto = {
 3 E{Y(1)-Y(0)} 0.2141133 0.03004191 0.1552311 0.2729955    0</code></pre>
 </div>
 </div>
+<p>The manual AIPW gives 0.2123 with a 95% interval of <span class="math inline">\([0.1511, 0.2735]\)</span>, and <code>npcausal</code> with <code>nsplits=1</code> gives 0.2141 with a standard error of 0.0300 and an interval of <span class="math inline">\([0.1552, 0.2730]\)</span>. It also reports the two arm means separately, <span class="math inline">\(E[Y(0)] = 0.5720\)</span> and <span class="math inline">\(E[Y(1)] = 0.7861\)</span>.</p>
 <p>The results from “npcausal” are almost the same as the manual results. Two clarifications. First, the manual estimator above <em>is</em> bias-corrected in the relevant sense: AIPW is exactly the one-step correction of the plug-in estimator using the efficient influence function. What we did <em>not</em> do is <strong>cross-fitting</strong> (sample splitting), which is a separate device. Second, that matters for inference: because the manual example fits the SuperLearner nuisances on the <em>full</em> sample and then uses <code>sd(IF)/sqrt(n)</code>, the resulting confidence interval is only valid under empirical-process (Donsker) conditions that flexible ML learners typically violate. With cross-fitting, the influence-function variance is valid without those conditions. “npcausal” does the cross-fitting for you when you set <code>nsplits &gt; 1</code> (here <code>nsplits = 1</code> turns it off, for comparison with the manual full-sample version).</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">aipw2</span><span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/npcausal/man/ate.html">ate</a></span><span class="op">(</span>y<span class="op">=</span><span class="va">Y</span>, a<span class="op">=</span><span class="va">A</span>, x<span class="op">=</span><span class="va">W</span>, nsplits<span class="op">=</span><span class="fl">10</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -801,6 +803,7 @@ window.Quarto = {
 3 E{Y(1)-Y(0)} 0.2162336 0.03300309 0.1515475 0.2809197    0</code></pre>
 </div>
 </div>
+<p>With <code>nsplits=10</code> the cross-fitted estimate is essentially unchanged. That is the reassuring case: cross-fitting is insurance against overfitting bias, and when the nuisance models are not badly overfitted it costs nothing.</p>
 </section><section id="tmle" class="level3" data-number="32.3.3"><h3 data-number="32.3.3" class="anchored" data-anchor-id="tmle">
 <span class="header-section-number">32.3.3</span> TMLE</h3>
 <p>We can use TMLE for ATE.</p>
@@ -835,6 +838,7 @@ $bs.CI.onesided.upper
 [1]  NA Inf</code></pre>
 </div>
 </div>
+<p>TMLE gives 0.2118 with a 95% interval of <span class="math inline">\([0.1492, 0.2744]\)</span> — within 0.003 of both AIPW versions, as it should be, since all three solve the same efficient influence-function equation and differ only in how.</p>
 </section><section id="doubleml" class="level3" data-number="32.3.4"><h3 data-number="32.3.4" class="anchored" data-anchor-id="doubleml">
 <span class="header-section-number">32.3.4</span> DoubleML</h3>
 <p>The R package DoubleML implements the double/debiased machine learning framework of Chernozhukov et al.&nbsp;(2018). It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.</p>
@@ -923,7 +927,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </section></section><section id="eager-trial-simulation-aipw-package" class="level2" data-number="32.4"><h2 data-number="32.4" class="anchored" data-anchor-id="eager-trial-simulation-aipw-package">
 <span class="header-section-number">32.4</span> EAGeR trial simulation (AIPW package)</h2>
 <p>This simulation is based on a package “AIPW”, which has a simulation data “eager_sim_rct”. <span class="math inline">\(A\)</span> denotes the binary treatment assignment, <span class="math inline">\(Y\)</span> is the binary outcome, and <span class="math inline">\(W_g\)</span> represents the covariate that affects the treatment assignment, which in our case was deemed to be the eligibility stratum indicator, sampled with replacement from the EAGeR Trial. Similarly, <span class="math inline">\(W_Q\)</span> is a set of baseline prognostic covariates, which were also sampled with replacement from the EAGeR Trial, and includes the number of prior pregnancy losses, age, number of months of trying to conceive prior to randomization, body mass index (weight (kg)/height (m)2), and mean arterial blood pressure (denoted W1…5 , respectively).</p>
-<p>Data and the true risk difference:</p>
+<p>Data and the true risk difference. Unlike the simulation above, this is a resampled trial: 1,228 observations with a binary treatment and outcome, and the package records the risk difference used to generate it, so we again have a target to check against.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/yqzhong7/AIPW">AIPW</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span><span class="op">(</span><span class="st">"eager_sim_rct"</span><span class="op">)</span></span>
@@ -974,6 +978,7 @@ $ meanAP            &lt;dbl&gt; 73.33333, 79.00000, 79.33333, 63.83333, 97.44444
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">Q</span><span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span><span class="op">(</span>QAW<span class="op">=</span><span class="va">SL.outcome.obs</span>, Q0W<span class="op">=</span><span class="va">SL.outcome.0</span>,Q1W<span class="op">=</span><span class="va">SL.outcome.1</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
+<p>The plug-in gives 0.1325 against the recorded true risk difference of 0.1186 — about 0.014 high.</p>
 </section><section id="aipw-with-machine-learning-1" class="level3" data-number="32.4.2"><h3 data-number="32.4.2" class="anchored" data-anchor-id="aipw-with-machine-learning-1">
 <span class="header-section-number">32.4.2</span> AIPW with machine learning</h3>
 <div class="cell">
@@ -1703,424 +1708,454 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 <span id="cb42-50"><a href="#cb42-50" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb42-51"><a href="#cb42-51" aria-hidden="true" tabindex="-1"></a>The simulated data is from <span class="ot">&lt;https://migariane.github.io/TMLE.nb.html&gt;</span></span>
 <span id="cb42-52"><a href="#cb42-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-55"><a href="#cb42-55" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-56"><a href="#cb42-56" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk1</span></span>
-<span id="cb42-57"><a href="#cb42-57" aria-hidden="true" tabindex="-1"></a><span class="co">#| results: 'hide'</span></span>
-<span id="cb42-58"><a href="#cb42-58" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-59"><a href="#cb42-59" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-60"><a href="#cb42-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-61"><a href="#cb42-61" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-62"><a href="#cb42-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-63"><a href="#cb42-63" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
-<span id="cb42-64"><a href="#cb42-64" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(boot)</span>
-<span id="cb42-65"><a href="#cb42-65" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(MASS)</span>
-<span id="cb42-66"><a href="#cb42-66" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SuperLearner)</span>
-<span id="cb42-67"><a href="#cb42-67" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tmle)</span>
-<span id="cb42-68"><a href="#cb42-68" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb42-69"><a href="#cb42-69" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ranger)</span>
-<span id="cb42-70"><a href="#cb42-70" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-71"><a href="#cb42-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-74"><a href="#cb42-74" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-75"><a href="#cb42-75" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk2</span></span>
-<span id="cb42-76"><a href="#cb42-76" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-77"><a href="#cb42-77" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-78"><a href="#cb42-78" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-79"><a href="#cb42-79" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-80"><a href="#cb42-80" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-81"><a href="#cb42-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-82"><a href="#cb42-82" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb42-83"><a href="#cb42-83" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">1000</span></span>
-<span id="cb42-84"><a href="#cb42-84" aria-hidden="true" tabindex="-1"></a>w1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span><span class="fl">0.5</span>)</span>
-<span id="cb42-85"><a href="#cb42-85" aria-hidden="true" tabindex="-1"></a>w2 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span><span class="fl">0.65</span>)</span>
-<span id="cb42-86"><a href="#cb42-86" aria-hidden="true" tabindex="-1"></a>w3 <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">runif</span>(n, <span class="at">min=</span><span class="dv">0</span>, <span class="at">max=</span><span class="dv">4</span>), <span class="at">digits=</span><span class="dv">3</span>)</span>
-<span id="cb42-87"><a href="#cb42-87" aria-hidden="true" tabindex="-1"></a>w4 <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">runif</span>(n, <span class="at">min=</span><span class="dv">0</span>, <span class="at">max=</span><span class="dv">5</span>), <span class="at">digits=</span><span class="dv">3</span>)</span>
-<span id="cb42-88"><a href="#cb42-88" aria-hidden="true" tabindex="-1"></a>A  <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span> <span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.4</span> <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w2 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w3 <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w4 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w2<span class="sc">*</span>w4))</span>
-<span id="cb42-89"><a href="#cb42-89" aria-hidden="true" tabindex="-1"></a>Y<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span> <span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span> <span class="sc">-</span><span class="fl">0.1</span><span class="sc">*</span>w1 <span class="sc">+</span> <span class="fl">0.3</span><span class="sc">*</span>w2 <span class="sc">+</span> <span class="fl">0.25</span><span class="sc">*</span>w3 <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w4 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w2<span class="sc">*</span>w4))</span>
-<span id="cb42-90"><a href="#cb42-90" aria-hidden="true" tabindex="-1"></a>Y<span class="fl">.0</span> <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span> <span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="dv">0</span> <span class="sc">-</span><span class="fl">0.1</span><span class="sc">*</span>w1 <span class="sc">+</span> <span class="fl">0.3</span><span class="sc">*</span>w2 <span class="sc">+</span> <span class="fl">0.25</span><span class="sc">*</span>w3 <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w4 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w2<span class="sc">*</span>w4))</span>
-<span id="cb42-91"><a href="#cb42-91" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> Y<span class="fl">.1</span><span class="sc">*</span>A <span class="sc">+</span> Y<span class="fl">.0</span><span class="sc">*</span>(<span class="dv">1</span> <span class="sc">-</span> A)</span>
-<span id="cb42-92"><a href="#cb42-92" aria-hidden="true" tabindex="-1"></a>W<span class="ot">&lt;-</span><span class="fu">data.frame</span>(<span class="fu">cbind</span>(w1,w2,w3,w4))</span>
-<span id="cb42-93"><a href="#cb42-93" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span>  <span class="fu">data.frame</span>(w1, w2, w3, w4, A, Y, Y<span class="fl">.1</span>, Y<span class="fl">.0</span>)</span>
-<span id="cb42-94"><a href="#cb42-94" aria-hidden="true" tabindex="-1"></a>True_Psi <span class="ot">&lt;-</span> <span class="fu">mean</span>(data<span class="sc">$</span>Y<span class="fl">.1</span><span class="sc">-</span>data<span class="sc">$</span>Y<span class="fl">.0</span>);</span>
-<span id="cb42-95"><a href="#cb42-95" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">" True_Psi:"</span>, True_Psi)</span>
-<span id="cb42-96"><a href="#cb42-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-97"><a href="#cb42-97" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-98"><a href="#cb42-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-99"><a href="#cb42-99" aria-hidden="true" tabindex="-1"></a>We first include a few learners. "npcausal" has a set of default learners.</span>
-<span id="cb42-100"><a href="#cb42-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-103"><a href="#cb42-103" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-104"><a href="#cb42-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk3</span></span>
-<span id="cb42-105"><a href="#cb42-105" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-106"><a href="#cb42-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-107"><a href="#cb42-107" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-108"><a href="#cb42-108" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-109"><a href="#cb42-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-110"><a href="#cb42-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-111"><a href="#cb42-111" aria-hidden="true" tabindex="-1"></a>SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.earth"</span>,<span class="st">"SL.gam"</span>,<span class="st">"SL.glm"</span>,<span class="st">"SL.glmnet"</span>,<span class="st">"SL.glm.interaction"</span>, <span class="st">"SL.mean"</span>,<span class="st">"SL.ranger"</span>, <span class="st">"SL.xgboost"</span>)</span>
-<span id="cb42-112"><a href="#cb42-112" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-113"><a href="#cb42-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-114"><a href="#cb42-114" aria-hidden="true" tabindex="-1"></a><span class="fu">### plug-in estimator from outcome regression</span></span>
-<span id="cb42-115"><a href="#cb42-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-118"><a href="#cb42-118" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-119"><a href="#cb42-119" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk4</span></span>
-<span id="cb42-120"><a href="#cb42-120" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-121"><a href="#cb42-121" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-122"><a href="#cb42-122" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-123"><a href="#cb42-123" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-124"><a href="#cb42-124" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-125"><a href="#cb42-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-126"><a href="#cb42-126" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>Y, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A),</span>
-<span id="cb42-127"><a href="#cb42-127" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
-<span id="cb42-128"><a href="#cb42-128" aria-hidden="true" tabindex="-1"></a>SL.outcome.obs<span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A))<span class="sc">$</span>pred</span>
-<span id="cb42-129"><a href="#cb42-129" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^1</span></span>
-<span id="cb42-130"><a href="#cb42-130" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.1</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">1</span>))<span class="sc">$</span>pred</span>
-<span id="cb42-131"><a href="#cb42-131" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^0</span></span>
-<span id="cb42-132"><a href="#cb42-132" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.0</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">0</span>))<span class="sc">$</span>pred</span>
-<span id="cb42-133"><a href="#cb42-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-134"><a href="#cb42-134" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-135"><a href="#cb42-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-136"><a href="#cb42-136" aria-hidden="true" tabindex="-1"></a>This is to do machine learning on the outcome equation; then get prediction on treated vs control, to get $\hat Y^1$ and $\hat Y^0$. The sample average of the difference is our plug-in estimator.</span>
-<span id="cb42-137"><a href="#cb42-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-140"><a href="#cb42-140" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-141"><a href="#cb42-141" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk5</span></span>
-<span id="cb42-142"><a href="#cb42-142" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-143"><a href="#cb42-143" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-144"><a href="#cb42-144" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-145"><a href="#cb42-145" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-146"><a href="#cb42-146" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-147"><a href="#cb42-147" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-148"><a href="#cb42-148" aria-hidden="true" tabindex="-1"></a>SL.plugin<span class="ot">&lt;-</span><span class="fu">mean</span>(SL.outcome<span class="fl">.1</span><span class="sc">-</span>SL.outcome<span class="fl">.0</span>)</span>
-<span id="cb42-149"><a href="#cb42-149" aria-hidden="true" tabindex="-1"></a>SL.plugin</span>
-<span id="cb42-150"><a href="#cb42-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-151"><a href="#cb42-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-152"><a href="#cb42-152" aria-hidden="true" tabindex="-1"></a>It's not too far from the truth in this case.</span>
-<span id="cb42-153"><a href="#cb42-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-156"><a href="#cb42-156" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-157"><a href="#cb42-157" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk5.1</span></span>
-<span id="cb42-158"><a href="#cb42-158" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-159"><a href="#cb42-159" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-160"><a href="#cb42-160" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-161"><a href="#cb42-161" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-162"><a href="#cb42-162" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-163"><a href="#cb42-163" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-164"><a href="#cb42-164" aria-hidden="true" tabindex="-1"></a>Q<span class="ot">=</span><span class="fu">data.frame</span>(<span class="at">QAW=</span>SL.outcome.obs, <span class="at">Q0W=</span>SL.outcome<span class="fl">.0</span>,<span class="at">Q1W=</span>SL.outcome<span class="fl">.1</span>)</span>
-<span id="cb42-165"><a href="#cb42-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-166"><a href="#cb42-166" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-167"><a href="#cb42-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-168"><a href="#cb42-168" aria-hidden="true" tabindex="-1"></a><span class="fu">### AIPW with machine learning</span></span>
-<span id="cb42-169"><a href="#cb42-169" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-170"><a href="#cb42-170" aria-hidden="true" tabindex="-1"></a>We can use "npcausal" to do AIPW, or we can manually calculate it.</span>
-<span id="cb42-171"><a href="#cb42-171" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-172"><a href="#cb42-172" aria-hidden="true" tabindex="-1"></a>First we get propensity score. Then, based on both $\hat \mu$ and $\hat \pi$, we can get the AIPW estimator.</span>
-<span id="cb42-173"><a href="#cb42-173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-176"><a href="#cb42-176" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-177"><a href="#cb42-177" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk6</span></span>
-<span id="cb42-178"><a href="#cb42-178" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-179"><a href="#cb42-179" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-180"><a href="#cb42-180" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-181"><a href="#cb42-181" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-182"><a href="#cb42-182" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-183"><a href="#cb42-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-184"><a href="#cb42-184" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb42-185"><a href="#cb42-185" aria-hidden="true" tabindex="-1"></a>SL.g<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>A, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4),</span>
-<span id="cb42-186"><a href="#cb42-186" aria-hidden="true" tabindex="-1"></a>                    <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
-<span id="cb42-187"><a href="#cb42-187" aria-hidden="true" tabindex="-1"></a>g1W <span class="ot">&lt;-</span> SL.g<span class="sc">$</span>SL.predict</span>
-<span id="cb42-188"><a href="#cb42-188" aria-hidden="true" tabindex="-1"></a>g0W<span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">-</span> g1W</span>
-<span id="cb42-189"><a href="#cb42-189" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.1</span><span class="ot">&lt;-</span>((data<span class="sc">$</span>A<span class="sc">/</span>g1W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q1W)<span class="sc">+</span>Q<span class="sc">$</span>Q1W)</span>
-<span id="cb42-190"><a href="#cb42-190" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.0</span><span class="ot">&lt;-</span>(((<span class="dv">1</span><span class="sc">-</span>data<span class="sc">$</span>A)<span class="sc">/</span>g0W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q0W)<span class="sc">+</span>Q<span class="sc">$</span>Q0W)</span>
-<span id="cb42-191"><a href="#cb42-191" aria-hidden="true" tabindex="-1"></a>IF<span class="ot">&lt;-</span>IF<span class="fl">.1</span><span class="sc">-</span>IF<span class="fl">.0</span></span>
-<span id="cb42-192"><a href="#cb42-192" aria-hidden="true" tabindex="-1"></a>aipw<span class="fl">.1</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.1</span>);aipw<span class="fl">.0</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.0</span>)</span>
-<span id="cb42-193"><a href="#cb42-193" aria-hidden="true" tabindex="-1"></a>aipw.manual<span class="ot">&lt;-</span>aipw<span class="fl">.1</span><span class="sc">-</span>aipw<span class="fl">.0</span></span>
-<span id="cb42-194"><a href="#cb42-194" aria-hidden="true" tabindex="-1"></a>ci.lb<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">-</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
-<span id="cb42-195"><a href="#cb42-195" aria-hidden="true" tabindex="-1"></a>ci.ub<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">+</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
-<span id="cb42-196"><a href="#cb42-196" aria-hidden="true" tabindex="-1"></a>res.manual.aipw<span class="ot">&lt;-</span><span class="fu">c</span>(aipw.manual,ci.lb, ci.ub)</span>
-<span id="cb42-197"><a href="#cb42-197" aria-hidden="true" tabindex="-1"></a>res.manual.aipw</span>
-<span id="cb42-198"><a href="#cb42-198" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-199"><a href="#cb42-199" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-200"><a href="#cb42-200" aria-hidden="true" tabindex="-1"></a>Now we use "npcausal".</span>
-<span id="cb42-201"><a href="#cb42-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-204"><a href="#cb42-204" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-205"><a href="#cb42-205" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk7</span></span>
-<span id="cb42-206"><a href="#cb42-206" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-207"><a href="#cb42-207" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-208"><a href="#cb42-208" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-209"><a href="#cb42-209" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-210"><a href="#cb42-210" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-211"><a href="#cb42-211" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-212"><a href="#cb42-212" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
-<span id="cb42-213"><a href="#cb42-213" aria-hidden="true" tabindex="-1"></a>aipw<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">1</span>, <span class="at">sl.lib=</span>SL.library)</span>
-<span id="cb42-214"><a href="#cb42-214" aria-hidden="true" tabindex="-1"></a>aipw<span class="sc">$</span>res</span>
-<span id="cb42-215"><a href="#cb42-215" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-216"><a href="#cb42-216" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-217"><a href="#cb42-217" aria-hidden="true" tabindex="-1"></a>The results from "npcausal" are almost the same as the manual results. Two clarifications. First, the manual estimator above *is* bias-corrected in the relevant sense: AIPW is exactly the one-step correction of the plug-in estimator using the efficient influence function. What we did *not* do is **cross-fitting** (sample splitting), which is a separate device. Second, that matters for inference: because the manual example fits the SuperLearner nuisances on the *full* sample and then uses <span class="in">`sd(IF)/sqrt(n)`</span>, the resulting confidence interval is only valid under empirical-process (Donsker) conditions that flexible ML learners typically violate. With cross-fitting, the influence-function variance is valid without those conditions. "npcausal" does the cross-fitting for you when you set <span class="in">`nsplits &gt; 1`</span> (here <span class="in">`nsplits = 1`</span> turns it off, for comparison with the manual full-sample version).</span>
-<span id="cb42-218"><a href="#cb42-218" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-221"><a href="#cb42-221" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-222"><a href="#cb42-222" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk8</span></span>
-<span id="cb42-223"><a href="#cb42-223" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-224"><a href="#cb42-224" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-225"><a href="#cb42-225" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-226"><a href="#cb42-226" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-227"><a href="#cb42-227" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-228"><a href="#cb42-228" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-229"><a href="#cb42-229" aria-hidden="true" tabindex="-1"></a>aipw2<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">10</span>)</span>
-<span id="cb42-230"><a href="#cb42-230" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-231"><a href="#cb42-231" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-232"><a href="#cb42-232" aria-hidden="true" tabindex="-1"></a><span class="fu">### TMLE</span></span>
-<span id="cb42-233"><a href="#cb42-233" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-234"><a href="#cb42-234" aria-hidden="true" tabindex="-1"></a>We can use TMLE for ATE.</span>
-<span id="cb42-235"><a href="#cb42-235" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-238"><a href="#cb42-238" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-239"><a href="#cb42-239" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk9</span></span>
-<span id="cb42-240"><a href="#cb42-240" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-241"><a href="#cb42-241" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-242"><a href="#cb42-242" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-243"><a href="#cb42-243" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-244"><a href="#cb42-244" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-245"><a href="#cb42-245" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-246"><a href="#cb42-246" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tmle)</span>
-<span id="cb42-247"><a href="#cb42-247" aria-hidden="true" tabindex="-1"></a>TMLE<span class="ot">&lt;-</span> <span class="fu">tmle</span>(<span class="at">Y=</span>data<span class="sc">$</span>Y,<span class="at">A=</span>data<span class="sc">$</span>A,<span class="at">W=</span>W, <span class="at">family=</span><span class="st">"binomial"</span>, <span class="at">Q.SL.library=</span>SL.library, <span class="at">g.SL.library=</span>SL.library)</span>
-<span id="cb42-248"><a href="#cb42-248" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-249"><a href="#cb42-249" aria-hidden="true" tabindex="-1"></a>TMLE<span class="sc">$</span>estimates<span class="sc">$</span>ATE</span>
-<span id="cb42-250"><a href="#cb42-250" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-53"><a href="#cb42-53" aria-hidden="true" tabindex="-1"></a>We draw $n = 1000$ observations with four covariates:</span>
+<span id="cb42-54"><a href="#cb42-54" aria-hidden="true" tabindex="-1"></a>$w_1 \sim \text{Bernoulli}(0.5)$, $w_2 \sim \text{Bernoulli}(0.65)$,</span>
+<span id="cb42-55"><a href="#cb42-55" aria-hidden="true" tabindex="-1"></a>$w_3 \sim U(0,4)$ and $w_4 \sim U(0,5)$. Treatment is</span>
+<span id="cb42-56"><a href="#cb42-56" aria-hidden="true" tabindex="-1"></a>$A \sim \text{Bernoulli}(\Lambda(-0.4 + 0.2w_2 + 0.15w_3 + 0.2w_4 + 0.15w_2w_4))$,</span>
+<span id="cb42-57"><a href="#cb42-57" aria-hidden="true" tabindex="-1"></a>and both potential outcomes are Bernoulli with the same logit index shifted by</span>
+<span id="cb42-58"><a href="#cb42-58" aria-hidden="true" tabindex="-1"></a>the treatment,</span>
+<span id="cb42-59"><a href="#cb42-59" aria-hidden="true" tabindex="-1"></a>$Y(d) \sim \text{Bernoulli}(\Lambda(-1 + d - 0.1w_1 + 0.3w_2 + 0.25w_3 + 0.2w_4 + 0.15w_2w_4))$.</span>
+<span id="cb42-60"><a href="#cb42-60" aria-hidden="true" tabindex="-1"></a>Both nuisance functions are nonlinear in the covariates, which is what makes</span>
+<span id="cb42-61"><a href="#cb42-61" aria-hidden="true" tabindex="-1"></a>flexible estimation worthwhile. Since both potential outcomes are simulated, the</span>
+<span id="cb42-62"><a href="#cb42-62" aria-hidden="true" tabindex="-1"></a>realized-sample effect is known: 0.203.</span>
+<span id="cb42-63"><a href="#cb42-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-66"><a href="#cb42-66" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-67"><a href="#cb42-67" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk1</span></span>
+<span id="cb42-68"><a href="#cb42-68" aria-hidden="true" tabindex="-1"></a><span class="co">#| results: 'hide'</span></span>
+<span id="cb42-69"><a href="#cb42-69" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-70"><a href="#cb42-70" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-71"><a href="#cb42-71" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-72"><a href="#cb42-72" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-73"><a href="#cb42-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-74"><a href="#cb42-74" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
+<span id="cb42-75"><a href="#cb42-75" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(boot)</span>
+<span id="cb42-76"><a href="#cb42-76" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(MASS)</span>
+<span id="cb42-77"><a href="#cb42-77" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SuperLearner)</span>
+<span id="cb42-78"><a href="#cb42-78" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tmle)</span>
+<span id="cb42-79"><a href="#cb42-79" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb42-80"><a href="#cb42-80" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ranger)</span>
+<span id="cb42-81"><a href="#cb42-81" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-82"><a href="#cb42-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-85"><a href="#cb42-85" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-86"><a href="#cb42-86" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk2</span></span>
+<span id="cb42-87"><a href="#cb42-87" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-88"><a href="#cb42-88" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-89"><a href="#cb42-89" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-90"><a href="#cb42-90" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-91"><a href="#cb42-91" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-92"><a href="#cb42-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-93"><a href="#cb42-93" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb42-94"><a href="#cb42-94" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">1000</span></span>
+<span id="cb42-95"><a href="#cb42-95" aria-hidden="true" tabindex="-1"></a>w1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span><span class="fl">0.5</span>)</span>
+<span id="cb42-96"><a href="#cb42-96" aria-hidden="true" tabindex="-1"></a>w2 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span><span class="fl">0.65</span>)</span>
+<span id="cb42-97"><a href="#cb42-97" aria-hidden="true" tabindex="-1"></a>w3 <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">runif</span>(n, <span class="at">min=</span><span class="dv">0</span>, <span class="at">max=</span><span class="dv">4</span>), <span class="at">digits=</span><span class="dv">3</span>)</span>
+<span id="cb42-98"><a href="#cb42-98" aria-hidden="true" tabindex="-1"></a>w4 <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="fu">runif</span>(n, <span class="at">min=</span><span class="dv">0</span>, <span class="at">max=</span><span class="dv">5</span>), <span class="at">digits=</span><span class="dv">3</span>)</span>
+<span id="cb42-99"><a href="#cb42-99" aria-hidden="true" tabindex="-1"></a>A  <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span> <span class="fu">plogis</span>(<span class="sc">-</span><span class="fl">0.4</span> <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w2 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w3 <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w4 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w2<span class="sc">*</span>w4))</span>
+<span id="cb42-100"><a href="#cb42-100" aria-hidden="true" tabindex="-1"></a>Y<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span> <span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span> <span class="sc">-</span><span class="fl">0.1</span><span class="sc">*</span>w1 <span class="sc">+</span> <span class="fl">0.3</span><span class="sc">*</span>w2 <span class="sc">+</span> <span class="fl">0.25</span><span class="sc">*</span>w3 <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w4 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w2<span class="sc">*</span>w4))</span>
+<span id="cb42-101"><a href="#cb42-101" aria-hidden="true" tabindex="-1"></a>Y<span class="fl">.0</span> <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size=</span><span class="dv">1</span>, <span class="at">prob=</span> <span class="fu">plogis</span>(<span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="dv">0</span> <span class="sc">-</span><span class="fl">0.1</span><span class="sc">*</span>w1 <span class="sc">+</span> <span class="fl">0.3</span><span class="sc">*</span>w2 <span class="sc">+</span> <span class="fl">0.25</span><span class="sc">*</span>w3 <span class="sc">+</span> <span class="fl">0.2</span><span class="sc">*</span>w4 <span class="sc">+</span> <span class="fl">0.15</span><span class="sc">*</span>w2<span class="sc">*</span>w4))</span>
+<span id="cb42-102"><a href="#cb42-102" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> Y<span class="fl">.1</span><span class="sc">*</span>A <span class="sc">+</span> Y<span class="fl">.0</span><span class="sc">*</span>(<span class="dv">1</span> <span class="sc">-</span> A)</span>
+<span id="cb42-103"><a href="#cb42-103" aria-hidden="true" tabindex="-1"></a>W<span class="ot">&lt;-</span><span class="fu">data.frame</span>(<span class="fu">cbind</span>(w1,w2,w3,w4))</span>
+<span id="cb42-104"><a href="#cb42-104" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span>  <span class="fu">data.frame</span>(w1, w2, w3, w4, A, Y, Y<span class="fl">.1</span>, Y<span class="fl">.0</span>)</span>
+<span id="cb42-105"><a href="#cb42-105" aria-hidden="true" tabindex="-1"></a>True_Psi <span class="ot">&lt;-</span> <span class="fu">mean</span>(data<span class="sc">$</span>Y<span class="fl">.1</span><span class="sc">-</span>data<span class="sc">$</span>Y<span class="fl">.0</span>);</span>
+<span id="cb42-106"><a href="#cb42-106" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">" True_Psi:"</span>, True_Psi)</span>
+<span id="cb42-107"><a href="#cb42-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-108"><a href="#cb42-108" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-109"><a href="#cb42-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-110"><a href="#cb42-110" aria-hidden="true" tabindex="-1"></a>We first include a few learners. "npcausal" has a set of default learners.</span>
+<span id="cb42-111"><a href="#cb42-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-114"><a href="#cb42-114" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-115"><a href="#cb42-115" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk3</span></span>
+<span id="cb42-116"><a href="#cb42-116" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-117"><a href="#cb42-117" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-118"><a href="#cb42-118" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-119"><a href="#cb42-119" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-120"><a href="#cb42-120" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-121"><a href="#cb42-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-122"><a href="#cb42-122" aria-hidden="true" tabindex="-1"></a>SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.earth"</span>,<span class="st">"SL.gam"</span>,<span class="st">"SL.glm"</span>,<span class="st">"SL.glmnet"</span>,<span class="st">"SL.glm.interaction"</span>, <span class="st">"SL.mean"</span>,<span class="st">"SL.ranger"</span>, <span class="st">"SL.xgboost"</span>)</span>
+<span id="cb42-123"><a href="#cb42-123" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-124"><a href="#cb42-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-125"><a href="#cb42-125" aria-hidden="true" tabindex="-1"></a><span class="fu">### plug-in estimator from outcome regression</span></span>
+<span id="cb42-126"><a href="#cb42-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-129"><a href="#cb42-129" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-130"><a href="#cb42-130" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk4</span></span>
+<span id="cb42-131"><a href="#cb42-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-132"><a href="#cb42-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-133"><a href="#cb42-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-134"><a href="#cb42-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-135"><a href="#cb42-135" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-136"><a href="#cb42-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-137"><a href="#cb42-137" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>Y, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A),</span>
+<span id="cb42-138"><a href="#cb42-138" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
+<span id="cb42-139"><a href="#cb42-139" aria-hidden="true" tabindex="-1"></a>SL.outcome.obs<span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A))<span class="sc">$</span>pred</span>
+<span id="cb42-140"><a href="#cb42-140" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^1</span></span>
+<span id="cb42-141"><a href="#cb42-141" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.1</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">1</span>))<span class="sc">$</span>pred</span>
+<span id="cb42-142"><a href="#cb42-142" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^0</span></span>
+<span id="cb42-143"><a href="#cb42-143" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.0</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4,A) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">0</span>))<span class="sc">$</span>pred</span>
+<span id="cb42-144"><a href="#cb42-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-145"><a href="#cb42-145" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-146"><a href="#cb42-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-147"><a href="#cb42-147" aria-hidden="true" tabindex="-1"></a>This is to do machine learning on the outcome equation; then get prediction on treated vs control, to get $\hat Y^1$ and $\hat Y^0$. The sample average of the difference is our plug-in estimator.</span>
+<span id="cb42-148"><a href="#cb42-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-151"><a href="#cb42-151" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-152"><a href="#cb42-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk5</span></span>
+<span id="cb42-153"><a href="#cb42-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-154"><a href="#cb42-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-155"><a href="#cb42-155" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-156"><a href="#cb42-156" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-157"><a href="#cb42-157" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-158"><a href="#cb42-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-159"><a href="#cb42-159" aria-hidden="true" tabindex="-1"></a>SL.plugin<span class="ot">&lt;-</span><span class="fu">mean</span>(SL.outcome<span class="fl">.1</span><span class="sc">-</span>SL.outcome<span class="fl">.0</span>)</span>
+<span id="cb42-160"><a href="#cb42-160" aria-hidden="true" tabindex="-1"></a>SL.plugin</span>
+<span id="cb42-161"><a href="#cb42-161" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-162"><a href="#cb42-162" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-163"><a href="#cb42-163" aria-hidden="true" tabindex="-1"></a>The plug-in estimate is 0.2050 against the realized 0.203. It's not too far from the truth in this case — but it comes with no standard error, and the regularisation bias of the SuperLearner passes straight into the average with nothing to correct it.</span>
+<span id="cb42-164"><a href="#cb42-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-167"><a href="#cb42-167" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-168"><a href="#cb42-168" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk5.1</span></span>
+<span id="cb42-169"><a href="#cb42-169" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-170"><a href="#cb42-170" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-171"><a href="#cb42-171" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-172"><a href="#cb42-172" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-173"><a href="#cb42-173" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-174"><a href="#cb42-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-175"><a href="#cb42-175" aria-hidden="true" tabindex="-1"></a>Q<span class="ot">=</span><span class="fu">data.frame</span>(<span class="at">QAW=</span>SL.outcome.obs, <span class="at">Q0W=</span>SL.outcome<span class="fl">.0</span>,<span class="at">Q1W=</span>SL.outcome<span class="fl">.1</span>)</span>
+<span id="cb42-176"><a href="#cb42-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-177"><a href="#cb42-177" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-178"><a href="#cb42-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-179"><a href="#cb42-179" aria-hidden="true" tabindex="-1"></a><span class="fu">### AIPW with machine learning</span></span>
+<span id="cb42-180"><a href="#cb42-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-181"><a href="#cb42-181" aria-hidden="true" tabindex="-1"></a>We can use "npcausal" to do AIPW, or we can manually calculate it.</span>
+<span id="cb42-182"><a href="#cb42-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-183"><a href="#cb42-183" aria-hidden="true" tabindex="-1"></a>First we get propensity score. Then, based on both $\hat \mu$ and $\hat \pi$, we can get the AIPW estimator.</span>
+<span id="cb42-184"><a href="#cb42-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-187"><a href="#cb42-187" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-188"><a href="#cb42-188" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk6</span></span>
+<span id="cb42-189"><a href="#cb42-189" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-190"><a href="#cb42-190" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-191"><a href="#cb42-191" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-192"><a href="#cb42-192" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-193"><a href="#cb42-193" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-194"><a href="#cb42-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-195"><a href="#cb42-195" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb42-196"><a href="#cb42-196" aria-hidden="true" tabindex="-1"></a>SL.g<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>A, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(w1,w2,w3,w4),</span>
+<span id="cb42-197"><a href="#cb42-197" aria-hidden="true" tabindex="-1"></a>                    <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
+<span id="cb42-198"><a href="#cb42-198" aria-hidden="true" tabindex="-1"></a>g1W <span class="ot">&lt;-</span> SL.g<span class="sc">$</span>SL.predict</span>
+<span id="cb42-199"><a href="#cb42-199" aria-hidden="true" tabindex="-1"></a>g0W<span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">-</span> g1W</span>
+<span id="cb42-200"><a href="#cb42-200" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.1</span><span class="ot">&lt;-</span>((data<span class="sc">$</span>A<span class="sc">/</span>g1W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q1W)<span class="sc">+</span>Q<span class="sc">$</span>Q1W)</span>
+<span id="cb42-201"><a href="#cb42-201" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.0</span><span class="ot">&lt;-</span>(((<span class="dv">1</span><span class="sc">-</span>data<span class="sc">$</span>A)<span class="sc">/</span>g0W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q0W)<span class="sc">+</span>Q<span class="sc">$</span>Q0W)</span>
+<span id="cb42-202"><a href="#cb42-202" aria-hidden="true" tabindex="-1"></a>IF<span class="ot">&lt;-</span>IF<span class="fl">.1</span><span class="sc">-</span>IF<span class="fl">.0</span></span>
+<span id="cb42-203"><a href="#cb42-203" aria-hidden="true" tabindex="-1"></a>aipw<span class="fl">.1</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.1</span>);aipw<span class="fl">.0</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.0</span>)</span>
+<span id="cb42-204"><a href="#cb42-204" aria-hidden="true" tabindex="-1"></a>aipw.manual<span class="ot">&lt;-</span>aipw<span class="fl">.1</span><span class="sc">-</span>aipw<span class="fl">.0</span></span>
+<span id="cb42-205"><a href="#cb42-205" aria-hidden="true" tabindex="-1"></a>ci.lb<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">-</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
+<span id="cb42-206"><a href="#cb42-206" aria-hidden="true" tabindex="-1"></a>ci.ub<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">+</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
+<span id="cb42-207"><a href="#cb42-207" aria-hidden="true" tabindex="-1"></a>res.manual.aipw<span class="ot">&lt;-</span><span class="fu">c</span>(aipw.manual,ci.lb, ci.ub)</span>
+<span id="cb42-208"><a href="#cb42-208" aria-hidden="true" tabindex="-1"></a>res.manual.aipw</span>
+<span id="cb42-209"><a href="#cb42-209" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-210"><a href="#cb42-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-211"><a href="#cb42-211" aria-hidden="true" tabindex="-1"></a>Now we use "npcausal".</span>
+<span id="cb42-212"><a href="#cb42-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-215"><a href="#cb42-215" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-216"><a href="#cb42-216" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk7</span></span>
+<span id="cb42-217"><a href="#cb42-217" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-218"><a href="#cb42-218" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-219"><a href="#cb42-219" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-220"><a href="#cb42-220" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-221"><a href="#cb42-221" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-222"><a href="#cb42-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-223"><a href="#cb42-223" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
+<span id="cb42-224"><a href="#cb42-224" aria-hidden="true" tabindex="-1"></a>aipw<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">1</span>, <span class="at">sl.lib=</span>SL.library)</span>
+<span id="cb42-225"><a href="#cb42-225" aria-hidden="true" tabindex="-1"></a>aipw<span class="sc">$</span>res</span>
+<span id="cb42-226"><a href="#cb42-226" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-227"><a href="#cb42-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-228"><a href="#cb42-228" aria-hidden="true" tabindex="-1"></a>The manual AIPW gives 0.2123 with a 95% interval of $<span class="co">[</span><span class="ot">0.1511, 0.2735</span><span class="co">]</span>$, and</span>
+<span id="cb42-229"><a href="#cb42-229" aria-hidden="true" tabindex="-1"></a><span class="in">`npcausal`</span> with <span class="in">`nsplits=1`</span> gives 0.2141 with a standard error of 0.0300 and an</span>
+<span id="cb42-230"><a href="#cb42-230" aria-hidden="true" tabindex="-1"></a>interval of $<span class="co">[</span><span class="ot">0.1552, 0.2730</span><span class="co">]</span>$. It also reports the two arm means separately,</span>
+<span id="cb42-231"><a href="#cb42-231" aria-hidden="true" tabindex="-1"></a>$E<span class="co">[</span><span class="ot">Y(0)</span><span class="co">]</span> = 0.5720$ and $E<span class="co">[</span><span class="ot">Y(1)</span><span class="co">]</span> = 0.7861$.</span>
+<span id="cb42-232"><a href="#cb42-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-233"><a href="#cb42-233" aria-hidden="true" tabindex="-1"></a>The results from "npcausal" are almost the same as the manual results. Two clarifications. First, the manual estimator above *is* bias-corrected in the relevant sense: AIPW is exactly the one-step correction of the plug-in estimator using the efficient influence function. What we did *not* do is **cross-fitting** (sample splitting), which is a separate device. Second, that matters for inference: because the manual example fits the SuperLearner nuisances on the *full* sample and then uses <span class="in">`sd(IF)/sqrt(n)`</span>, the resulting confidence interval is only valid under empirical-process (Donsker) conditions that flexible ML learners typically violate. With cross-fitting, the influence-function variance is valid without those conditions. "npcausal" does the cross-fitting for you when you set <span class="in">`nsplits &gt; 1`</span> (here <span class="in">`nsplits = 1`</span> turns it off, for comparison with the manual full-sample version).</span>
+<span id="cb42-234"><a href="#cb42-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-237"><a href="#cb42-237" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-238"><a href="#cb42-238" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk8</span></span>
+<span id="cb42-239"><a href="#cb42-239" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-240"><a href="#cb42-240" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-241"><a href="#cb42-241" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-242"><a href="#cb42-242" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-243"><a href="#cb42-243" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-244"><a href="#cb42-244" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-245"><a href="#cb42-245" aria-hidden="true" tabindex="-1"></a>aipw2<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>Y, <span class="at">a=</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">10</span>)</span>
+<span id="cb42-246"><a href="#cb42-246" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-247"><a href="#cb42-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-248"><a href="#cb42-248" aria-hidden="true" tabindex="-1"></a>With <span class="in">`nsplits=10`</span> the cross-fitted estimate is essentially unchanged. That is</span>
+<span id="cb42-249"><a href="#cb42-249" aria-hidden="true" tabindex="-1"></a>the reassuring case: cross-fitting is insurance against overfitting bias, and</span>
+<span id="cb42-250"><a href="#cb42-250" aria-hidden="true" tabindex="-1"></a>when the nuisance models are not badly overfitted it costs nothing.</span>
 <span id="cb42-251"><a href="#cb42-251" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-252"><a href="#cb42-252" aria-hidden="true" tabindex="-1"></a><span class="fu">### DoubleML</span></span>
+<span id="cb42-252"><a href="#cb42-252" aria-hidden="true" tabindex="-1"></a><span class="fu">### TMLE</span></span>
 <span id="cb42-253"><a href="#cb42-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-254"><a href="#cb42-254" aria-hidden="true" tabindex="-1"></a>The R package DoubleML implements the double/debiased machine learning framework of Chernozhukov et al. (2018). It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.</span>
+<span id="cb42-254"><a href="#cb42-254" aria-hidden="true" tabindex="-1"></a>We can use TMLE for ATE.</span>
 <span id="cb42-255"><a href="#cb42-255" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-256"><a href="#cb42-256" aria-hidden="true" tabindex="-1"></a>They consider a partially linear model:</span>
-<span id="cb42-257"><a href="#cb42-257" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-258"><a href="#cb42-258" aria-hidden="true" tabindex="-1"></a>$$ y_i = \theta d_i + g_0(x_i) + \eta_i $$ {#eq-npcausal-tools-4}</span>
-<span id="cb42-259"><a href="#cb42-259" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-260"><a href="#cb42-260" aria-hidden="true" tabindex="-1"></a>$$ d_i = m_0(x_i) + v_i $$ {#eq-npcausal-tools-5}</span>
-<span id="cb42-261"><a href="#cb42-261" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-262"><a href="#cb42-262" aria-hidden="true" tabindex="-1"></a>This model is quite general, except it does not allow interaction of $d$ and $x$; therefore no heterogeneous treatment effect across $x$. But "DoubleML" implements more than partially linear model, it actually allows for heterogeneous treatment effects, in models such as interactive regression model.</span>
-<span id="cb42-263"><a href="#cb42-263" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-264"><a href="#cb42-264" aria-hidden="true" tabindex="-1"></a>The basic idea of doubleML is to use any machine learning algorithm to estimate outcome equation ($l_0(X) = E(Y | X)$) and treatment equation ($m_0(X) = E(D | X)$). Then get the residuals, namely $\hat W=Y-\hat l_0(X)$ and $\hat V = D - \hat m_0(X)$.</span>
+<span id="cb42-258"><a href="#cb42-258" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-259"><a href="#cb42-259" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk9</span></span>
+<span id="cb42-260"><a href="#cb42-260" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-261"><a href="#cb42-261" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-262"><a href="#cb42-262" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-263"><a href="#cb42-263" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-264"><a href="#cb42-264" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
 <span id="cb42-265"><a href="#cb42-265" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-266"><a href="#cb42-266" aria-hidden="true" tabindex="-1"></a>Then regress $\hat W$ on $\hat V$. Based on FWL theorem, you get $\hat \theta$.</span>
-<span id="cb42-267"><a href="#cb42-267" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-268"><a href="#cb42-268" aria-hidden="true" tabindex="-1"></a>An important component here is to specify a Neyman-orthogonal score function. In the case of PLR, it can be the product of the two residuals:</span>
-<span id="cb42-269"><a href="#cb42-269" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-270"><a href="#cb42-270" aria-hidden="true" tabindex="-1"></a>$$\psi (W; \theta, \eta) = (Y-D\theta -g(X))(D-m(X)) $$ {#eq-npcausal-tools-6}</span>
+<span id="cb42-266"><a href="#cb42-266" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tmle)</span>
+<span id="cb42-267"><a href="#cb42-267" aria-hidden="true" tabindex="-1"></a>TMLE<span class="ot">&lt;-</span> <span class="fu">tmle</span>(<span class="at">Y=</span>data<span class="sc">$</span>Y,<span class="at">A=</span>data<span class="sc">$</span>A,<span class="at">W=</span>W, <span class="at">family=</span><span class="st">"binomial"</span>, <span class="at">Q.SL.library=</span>SL.library, <span class="at">g.SL.library=</span>SL.library)</span>
+<span id="cb42-268"><a href="#cb42-268" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-269"><a href="#cb42-269" aria-hidden="true" tabindex="-1"></a>TMLE<span class="sc">$</span>estimates<span class="sc">$</span>ATE</span>
+<span id="cb42-270"><a href="#cb42-270" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb42-271"><a href="#cb42-271" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-272"><a href="#cb42-272" aria-hidden="true" tabindex="-1"></a>The estimators $\hat \theta$ is to solve the equation that the sample mean of this score function being 0.</span>
-<span id="cb42-273"><a href="#cb42-273" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-274"><a href="#cb42-274" aria-hidden="true" tabindex="-1"></a>And the variance of this score function is used as the variance of the doubleML estimator's variance.</span>
+<span id="cb42-272"><a href="#cb42-272" aria-hidden="true" tabindex="-1"></a>TMLE gives 0.2118 with a 95% interval of $<span class="co">[</span><span class="ot">0.1492, 0.2744</span><span class="co">]</span>$ — within 0.003 of</span>
+<span id="cb42-273"><a href="#cb42-273" aria-hidden="true" tabindex="-1"></a>both AIPW versions, as it should be, since all three solve the same efficient</span>
+<span id="cb42-274"><a href="#cb42-274" aria-hidden="true" tabindex="-1"></a>influence-function equation and differ only in how.</span>
 <span id="cb42-275"><a href="#cb42-275" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-278"><a href="#cb42-278" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-279"><a href="#cb42-279" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk10</span></span>
-<span id="cb42-280"><a href="#cb42-280" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-281"><a href="#cb42-281" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-282"><a href="#cb42-282" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-283"><a href="#cb42-283" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-284"><a href="#cb42-284" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-276"><a href="#cb42-276" aria-hidden="true" tabindex="-1"></a><span class="fu">### DoubleML</span></span>
+<span id="cb42-277"><a href="#cb42-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-278"><a href="#cb42-278" aria-hidden="true" tabindex="-1"></a>The R package DoubleML implements the double/debiased machine learning framework of Chernozhukov et al. (2018). It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.</span>
+<span id="cb42-279"><a href="#cb42-279" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-280"><a href="#cb42-280" aria-hidden="true" tabindex="-1"></a>They consider a partially linear model:</span>
+<span id="cb42-281"><a href="#cb42-281" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-282"><a href="#cb42-282" aria-hidden="true" tabindex="-1"></a>$$ y_i = \theta d_i + g_0(x_i) + \eta_i $$ {#eq-npcausal-tools-4}</span>
+<span id="cb42-283"><a href="#cb42-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-284"><a href="#cb42-284" aria-hidden="true" tabindex="-1"></a>$$ d_i = m_0(x_i) + v_i $$ {#eq-npcausal-tools-5}</span>
 <span id="cb42-285"><a href="#cb42-285" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-286"><a href="#cb42-286" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DoubleML)</span>
-<span id="cb42-287"><a href="#cb42-287" aria-hidden="true" tabindex="-1"></a>dml_data <span class="ot">=</span> DoubleMLData<span class="sc">$</span><span class="fu">new</span>(data,</span>
-<span id="cb42-288"><a href="#cb42-288" aria-hidden="true" tabindex="-1"></a>                             <span class="at">y_col =</span> <span class="st">"Y"</span>,</span>
-<span id="cb42-289"><a href="#cb42-289" aria-hidden="true" tabindex="-1"></a>                             <span class="at">d_cols =</span> <span class="st">"A"</span>,</span>
-<span id="cb42-290"><a href="#cb42-290" aria-hidden="true" tabindex="-1"></a>                             <span class="at">x_cols =</span> <span class="fu">c</span>(<span class="st">"w1"</span>,<span class="st">"w2"</span>,<span class="st">"w3"</span>,<span class="st">"w4"</span>))</span>
-<span id="cb42-291"><a href="#cb42-291" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dml_data)</span>
-<span id="cb42-292"><a href="#cb42-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-293"><a href="#cb42-293" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-294"><a href="#cb42-294" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-297"><a href="#cb42-297" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-298"><a href="#cb42-298" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk11</span></span>
-<span id="cb42-299"><a href="#cb42-299" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-300"><a href="#cb42-300" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-301"><a href="#cb42-301" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-302"><a href="#cb42-302" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-303"><a href="#cb42-303" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-304"><a href="#cb42-304" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-305"><a href="#cb42-305" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3)</span>
-<span id="cb42-306"><a href="#cb42-306" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3learners)</span>
-<span id="cb42-307"><a href="#cb42-307" aria-hidden="true" tabindex="-1"></a><span class="co"># suppress messages from mlr3 package during fitting</span></span>
-<span id="cb42-308"><a href="#cb42-308" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
+<span id="cb42-286"><a href="#cb42-286" aria-hidden="true" tabindex="-1"></a>This model is quite general, except it does not allow interaction of $d$ and $x$; therefore no heterogeneous treatment effect across $x$. But "DoubleML" implements more than partially linear model, it actually allows for heterogeneous treatment effects, in models such as interactive regression model.</span>
+<span id="cb42-287"><a href="#cb42-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-288"><a href="#cb42-288" aria-hidden="true" tabindex="-1"></a>The basic idea of doubleML is to use any machine learning algorithm to estimate outcome equation ($l_0(X) = E(Y | X)$) and treatment equation ($m_0(X) = E(D | X)$). Then get the residuals, namely $\hat W=Y-\hat l_0(X)$ and $\hat V = D - \hat m_0(X)$.</span>
+<span id="cb42-289"><a href="#cb42-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-290"><a href="#cb42-290" aria-hidden="true" tabindex="-1"></a>Then regress $\hat W$ on $\hat V$. Based on FWL theorem, you get $\hat \theta$.</span>
+<span id="cb42-291"><a href="#cb42-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-292"><a href="#cb42-292" aria-hidden="true" tabindex="-1"></a>An important component here is to specify a Neyman-orthogonal score function. In the case of PLR, it can be the product of the two residuals:</span>
+<span id="cb42-293"><a href="#cb42-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-294"><a href="#cb42-294" aria-hidden="true" tabindex="-1"></a>$$\psi (W; \theta, \eta) = (Y-D\theta -g(X))(D-m(X)) $$ {#eq-npcausal-tools-6}</span>
+<span id="cb42-295"><a href="#cb42-295" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-296"><a href="#cb42-296" aria-hidden="true" tabindex="-1"></a>The estimators $\hat \theta$ is to solve the equation that the sample mean of this score function being 0.</span>
+<span id="cb42-297"><a href="#cb42-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-298"><a href="#cb42-298" aria-hidden="true" tabindex="-1"></a>And the variance of this score function is used as the variance of the doubleML estimator's variance.</span>
+<span id="cb42-299"><a href="#cb42-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-302"><a href="#cb42-302" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-303"><a href="#cb42-303" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk10</span></span>
+<span id="cb42-304"><a href="#cb42-304" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-305"><a href="#cb42-305" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-306"><a href="#cb42-306" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-307"><a href="#cb42-307" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-308"><a href="#cb42-308" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
 <span id="cb42-309"><a href="#cb42-309" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-310"><a href="#cb42-310" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.ranger"</span>, <span class="at">num.trees=</span><span class="dv">500</span>,  <span class="at">max.depth=</span><span class="dv">5</span>, <span class="at">min.node.size=</span><span class="dv">2</span>)</span>
-<span id="cb42-311"><a href="#cb42-311" aria-hidden="true" tabindex="-1"></a>ml_g <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-312"><a href="#cb42-312" aria-hidden="true" tabindex="-1"></a>ml_m <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-313"><a href="#cb42-313" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-314"><a href="#cb42-314" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.glmnet"</span>)</span>
-<span id="cb42-315"><a href="#cb42-315" aria-hidden="true" tabindex="-1"></a>ml_g_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-316"><a href="#cb42-316" aria-hidden="true" tabindex="-1"></a>ml_m_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-317"><a href="#cb42-317" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-318"><a href="#cb42-318" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3141</span>)</span>
-<span id="cb42-319"><a href="#cb42-319" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_g=</span>ml_g, <span class="at">ml_m=</span>ml_m)</span>
-<span id="cb42-320"><a href="#cb42-320" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
-<span id="cb42-321"><a href="#cb42-321" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(obj_dml_plr)</span>
-<span id="cb42-322"><a href="#cb42-322" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-323"><a href="#cb42-323" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-324"><a href="#cb42-324" aria-hidden="true" tabindex="-1"></a>Note: this example (and the EAGeR example below) both have a **binary** treatment <span class="in">`A`</span> and outcome <span class="in">`Y`</span>, but <span class="in">`DoubleMLPLR`</span> assumes a partially linear model with a single constant effect <span class="in">`theta`</span> and continuous-style regression learners (<span class="in">`ml_g`</span>, <span class="in">`ml_m`</span>) for both nuisance functions. The more appropriate DoubleML estimator for a binary treatment/outcome is the Interactive Regression Model, <span class="in">`DoubleMLIRM`</span>, which uses classification learners for the propensity score and allows heterogeneous treatment effects. <span class="in">`DoubleMLPLR`</span> will still run and often gives a reasonable ATE-like summary, but <span class="in">`DoubleMLIRM`</span> is the estimator actually designed for this setting.</span>
-<span id="cb42-325"><a href="#cb42-325" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-326"><a href="#cb42-326" aria-hidden="true" tabindex="-1"></a><span class="fu">## EAGeR trial simulation (AIPW package)</span></span>
-<span id="cb42-327"><a href="#cb42-327" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-328"><a href="#cb42-328" aria-hidden="true" tabindex="-1"></a>This simulation is based on a package "AIPW", which has a simulation data "eager_sim_rct". $A$ denotes the binary treatment assignment, $Y$ is the binary outcome, and $W_g$ represents the covariate that affects the treatment assignment, which in our case was deemed to be the eligibility stratum indicator, sampled with replacement from the EAGeR Trial. Similarly, $W_Q$ is a set of baseline prognostic covariates, which were also sampled with replacement from the EAGeR Trial, and includes the number of prior pregnancy losses, age, number of months of trying to conceive prior to randomization, body mass index (weight (kg)/height (m)2), and mean arterial blood pressure (denoted W1...5 , respectively).</span>
-<span id="cb42-329"><a href="#cb42-329" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-330"><a href="#cb42-330" aria-hidden="true" tabindex="-1"></a>Data and the true risk difference:</span>
-<span id="cb42-331"><a href="#cb42-331" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-334"><a href="#cb42-334" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-335"><a href="#cb42-335" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk12</span></span>
-<span id="cb42-336"><a href="#cb42-336" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-337"><a href="#cb42-337" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-338"><a href="#cb42-338" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-339"><a href="#cb42-339" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-340"><a href="#cb42-340" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-310"><a href="#cb42-310" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DoubleML)</span>
+<span id="cb42-311"><a href="#cb42-311" aria-hidden="true" tabindex="-1"></a>dml_data <span class="ot">=</span> DoubleMLData<span class="sc">$</span><span class="fu">new</span>(data,</span>
+<span id="cb42-312"><a href="#cb42-312" aria-hidden="true" tabindex="-1"></a>                             <span class="at">y_col =</span> <span class="st">"Y"</span>,</span>
+<span id="cb42-313"><a href="#cb42-313" aria-hidden="true" tabindex="-1"></a>                             <span class="at">d_cols =</span> <span class="st">"A"</span>,</span>
+<span id="cb42-314"><a href="#cb42-314" aria-hidden="true" tabindex="-1"></a>                             <span class="at">x_cols =</span> <span class="fu">c</span>(<span class="st">"w1"</span>,<span class="st">"w2"</span>,<span class="st">"w3"</span>,<span class="st">"w4"</span>))</span>
+<span id="cb42-315"><a href="#cb42-315" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dml_data)</span>
+<span id="cb42-316"><a href="#cb42-316" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-317"><a href="#cb42-317" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-318"><a href="#cb42-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-321"><a href="#cb42-321" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-322"><a href="#cb42-322" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk11</span></span>
+<span id="cb42-323"><a href="#cb42-323" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-324"><a href="#cb42-324" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-325"><a href="#cb42-325" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-326"><a href="#cb42-326" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-327"><a href="#cb42-327" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-328"><a href="#cb42-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-329"><a href="#cb42-329" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3)</span>
+<span id="cb42-330"><a href="#cb42-330" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3learners)</span>
+<span id="cb42-331"><a href="#cb42-331" aria-hidden="true" tabindex="-1"></a><span class="co"># suppress messages from mlr3 package during fitting</span></span>
+<span id="cb42-332"><a href="#cb42-332" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
+<span id="cb42-333"><a href="#cb42-333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-334"><a href="#cb42-334" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.ranger"</span>, <span class="at">num.trees=</span><span class="dv">500</span>,  <span class="at">max.depth=</span><span class="dv">5</span>, <span class="at">min.node.size=</span><span class="dv">2</span>)</span>
+<span id="cb42-335"><a href="#cb42-335" aria-hidden="true" tabindex="-1"></a>ml_g <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb42-336"><a href="#cb42-336" aria-hidden="true" tabindex="-1"></a>ml_m <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb42-337"><a href="#cb42-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-338"><a href="#cb42-338" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.glmnet"</span>)</span>
+<span id="cb42-339"><a href="#cb42-339" aria-hidden="true" tabindex="-1"></a>ml_g_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb42-340"><a href="#cb42-340" aria-hidden="true" tabindex="-1"></a>ml_m_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
 <span id="cb42-341"><a href="#cb42-341" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-342"><a href="#cb42-342" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AIPW)</span>
-<span id="cb42-343"><a href="#cb42-343" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"eager_sim_rct"</span>)</span>
-<span id="cb42-344"><a href="#cb42-344" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(eager_sim_rct)</span>
-<span id="cb42-345"><a href="#cb42-345" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-346"><a href="#cb42-346" aria-hidden="true" tabindex="-1"></a><span class="fu">attributes</span>(eager_sim_rct)<span class="sc">$</span>true_rd</span>
+<span id="cb42-342"><a href="#cb42-342" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3141</span>)</span>
+<span id="cb42-343"><a href="#cb42-343" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_g=</span>ml_g, <span class="at">ml_m=</span>ml_m)</span>
+<span id="cb42-344"><a href="#cb42-344" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
+<span id="cb42-345"><a href="#cb42-345" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(obj_dml_plr)</span>
+<span id="cb42-346"><a href="#cb42-346" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb42-347"><a href="#cb42-347" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-348"><a href="#cb42-348" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> eager_sim_rct <span class="sc">%&gt;%</span></span>
-<span id="cb42-349"><a href="#cb42-349" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">Y=</span>sim_Y, <span class="at">A=</span>sim_Tx) <span class="sc">%&gt;%</span></span>
-<span id="cb42-350"><a href="#cb42-350" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>()</span>
+<span id="cb42-348"><a href="#cb42-348" aria-hidden="true" tabindex="-1"></a>Note: this example (and the EAGeR example below) both have a **binary** treatment <span class="in">`A`</span> and outcome <span class="in">`Y`</span>, but <span class="in">`DoubleMLPLR`</span> assumes a partially linear model with a single constant effect <span class="in">`theta`</span> and continuous-style regression learners (<span class="in">`ml_g`</span>, <span class="in">`ml_m`</span>) for both nuisance functions. The more appropriate DoubleML estimator for a binary treatment/outcome is the Interactive Regression Model, <span class="in">`DoubleMLIRM`</span>, which uses classification learners for the propensity score and allows heterogeneous treatment effects. <span class="in">`DoubleMLPLR`</span> will still run and often gives a reasonable ATE-like summary, but <span class="in">`DoubleMLIRM`</span> is the estimator actually designed for this setting.</span>
+<span id="cb42-349"><a href="#cb42-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-350"><a href="#cb42-350" aria-hidden="true" tabindex="-1"></a><span class="fu">## EAGeR trial simulation (AIPW package)</span></span>
 <span id="cb42-351"><a href="#cb42-351" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-352"><a href="#cb42-352" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb42-353"><a href="#cb42-353" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>Y,<span class="sc">-</span>A)</span>
-<span id="cb42-354"><a href="#cb42-354" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-355"><a href="#cb42-355" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-356"><a href="#cb42-356" aria-hidden="true" tabindex="-1"></a><span class="fu">### plug-in estimator from outcome regression</span></span>
-<span id="cb42-357"><a href="#cb42-357" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-360"><a href="#cb42-360" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-361"><a href="#cb42-361" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk13</span></span>
-<span id="cb42-362"><a href="#cb42-362" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-363"><a href="#cb42-363" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-364"><a href="#cb42-364" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-365"><a href="#cb42-365" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-366"><a href="#cb42-366" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-367"><a href="#cb42-367" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-368"><a href="#cb42-368" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>Y, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y),</span>
-<span id="cb42-369"><a href="#cb42-369" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
-<span id="cb42-370"><a href="#cb42-370" aria-hidden="true" tabindex="-1"></a>SL.outcome.obs<span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y))<span class="sc">$</span>pred</span>
-<span id="cb42-371"><a href="#cb42-371" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^1</span></span>
-<span id="cb42-372"><a href="#cb42-372" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.1</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">1</span>))<span class="sc">$</span>pred</span>
-<span id="cb42-373"><a href="#cb42-373" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^0</span></span>
-<span id="cb42-374"><a href="#cb42-374" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.0</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">0</span>))<span class="sc">$</span>pred</span>
-<span id="cb42-375"><a href="#cb42-375" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-376"><a href="#cb42-376" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-377"><a href="#cb42-377" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-378"><a href="#cb42-378" aria-hidden="true" tabindex="-1"></a>This is to do machine learning on the outcome equation; then get prediction on treated vs control, to get $\hat Y^1$ and $\hat Y^0$. The sample average of the difference is our plug-in estimator.</span>
-<span id="cb42-379"><a href="#cb42-379" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-382"><a href="#cb42-382" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-383"><a href="#cb42-383" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk14</span></span>
-<span id="cb42-384"><a href="#cb42-384" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-385"><a href="#cb42-385" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-386"><a href="#cb42-386" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-387"><a href="#cb42-387" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-388"><a href="#cb42-388" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-389"><a href="#cb42-389" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-390"><a href="#cb42-390" aria-hidden="true" tabindex="-1"></a>SL.plugin<span class="ot">&lt;-</span><span class="fu">mean</span>(SL.outcome<span class="fl">.1</span><span class="sc">-</span>SL.outcome<span class="fl">.0</span>)</span>
-<span id="cb42-391"><a href="#cb42-391" aria-hidden="true" tabindex="-1"></a>SL.plugin</span>
-<span id="cb42-392"><a href="#cb42-392" aria-hidden="true" tabindex="-1"></a>Q<span class="ot">=</span><span class="fu">data.frame</span>(<span class="at">QAW=</span>SL.outcome.obs, <span class="at">Q0W=</span>SL.outcome<span class="fl">.0</span>,<span class="at">Q1W=</span>SL.outcome<span class="fl">.1</span>)</span>
-<span id="cb42-393"><a href="#cb42-393" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-394"><a href="#cb42-394" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-395"><a href="#cb42-395" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-396"><a href="#cb42-396" aria-hidden="true" tabindex="-1"></a><span class="fu">### AIPW with machine learning</span></span>
-<span id="cb42-397"><a href="#cb42-397" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-400"><a href="#cb42-400" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-401"><a href="#cb42-401" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk15</span></span>
-<span id="cb42-402"><a href="#cb42-402" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-403"><a href="#cb42-403" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-404"><a href="#cb42-404" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-405"><a href="#cb42-405" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-406"><a href="#cb42-406" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-407"><a href="#cb42-407" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-408"><a href="#cb42-408" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb42-409"><a href="#cb42-409" aria-hidden="true" tabindex="-1"></a>SL.g<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>A, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y, <span class="sc">-</span>A),</span>
-<span id="cb42-410"><a href="#cb42-410" aria-hidden="true" tabindex="-1"></a>                    <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
-<span id="cb42-411"><a href="#cb42-411" aria-hidden="true" tabindex="-1"></a>g1W <span class="ot">&lt;-</span> SL.g<span class="sc">$</span>SL.predict</span>
-<span id="cb42-412"><a href="#cb42-412" aria-hidden="true" tabindex="-1"></a>g0W<span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">-</span> g1W</span>
-<span id="cb42-413"><a href="#cb42-413" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.1</span><span class="ot">&lt;-</span>((data<span class="sc">$</span>A<span class="sc">/</span>g1W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q1W)<span class="sc">+</span>Q<span class="sc">$</span>Q1W)</span>
-<span id="cb42-414"><a href="#cb42-414" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.0</span><span class="ot">&lt;-</span>(((<span class="dv">1</span><span class="sc">-</span>data<span class="sc">$</span>A)<span class="sc">/</span>g0W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q0W)<span class="sc">+</span>Q<span class="sc">$</span>Q0W)</span>
-<span id="cb42-415"><a href="#cb42-415" aria-hidden="true" tabindex="-1"></a>IF<span class="ot">&lt;-</span>IF<span class="fl">.1</span><span class="sc">-</span>IF<span class="fl">.0</span></span>
-<span id="cb42-416"><a href="#cb42-416" aria-hidden="true" tabindex="-1"></a>aipw<span class="fl">.1</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.1</span>);aipw<span class="fl">.0</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.0</span>)</span>
-<span id="cb42-417"><a href="#cb42-417" aria-hidden="true" tabindex="-1"></a>aipw.manual<span class="ot">&lt;-</span>aipw<span class="fl">.1</span><span class="sc">-</span>aipw<span class="fl">.0</span></span>
-<span id="cb42-418"><a href="#cb42-418" aria-hidden="true" tabindex="-1"></a>ci.lb<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">-</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
-<span id="cb42-419"><a href="#cb42-419" aria-hidden="true" tabindex="-1"></a>ci.ub<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">+</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
-<span id="cb42-420"><a href="#cb42-420" aria-hidden="true" tabindex="-1"></a>res.manual.aipw<span class="ot">&lt;-</span><span class="fu">c</span>(aipw.manual,ci.lb, ci.ub)</span>
-<span id="cb42-421"><a href="#cb42-421" aria-hidden="true" tabindex="-1"></a>res.manual.aipw</span>
-<span id="cb42-422"><a href="#cb42-422" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-423"><a href="#cb42-423" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-424"><a href="#cb42-424" aria-hidden="true" tabindex="-1"></a>Now we use "npcausal".</span>
+<span id="cb42-352"><a href="#cb42-352" aria-hidden="true" tabindex="-1"></a>This simulation is based on a package "AIPW", which has a simulation data "eager_sim_rct". $A$ denotes the binary treatment assignment, $Y$ is the binary outcome, and $W_g$ represents the covariate that affects the treatment assignment, which in our case was deemed to be the eligibility stratum indicator, sampled with replacement from the EAGeR Trial. Similarly, $W_Q$ is a set of baseline prognostic covariates, which were also sampled with replacement from the EAGeR Trial, and includes the number of prior pregnancy losses, age, number of months of trying to conceive prior to randomization, body mass index (weight (kg)/height (m)2), and mean arterial blood pressure (denoted W1...5 , respectively).</span>
+<span id="cb42-353"><a href="#cb42-353" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-354"><a href="#cb42-354" aria-hidden="true" tabindex="-1"></a>Data and the true risk difference. Unlike the simulation above, this is a</span>
+<span id="cb42-355"><a href="#cb42-355" aria-hidden="true" tabindex="-1"></a>resampled trial: 1,228 observations with a binary treatment and outcome, and the</span>
+<span id="cb42-356"><a href="#cb42-356" aria-hidden="true" tabindex="-1"></a>package records the risk difference used to generate it, so we again have a</span>
+<span id="cb42-357"><a href="#cb42-357" aria-hidden="true" tabindex="-1"></a>target to check against.</span>
+<span id="cb42-358"><a href="#cb42-358" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-361"><a href="#cb42-361" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-362"><a href="#cb42-362" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk12</span></span>
+<span id="cb42-363"><a href="#cb42-363" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-364"><a href="#cb42-364" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-365"><a href="#cb42-365" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-366"><a href="#cb42-366" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-367"><a href="#cb42-367" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-368"><a href="#cb42-368" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-369"><a href="#cb42-369" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AIPW)</span>
+<span id="cb42-370"><a href="#cb42-370" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"eager_sim_rct"</span>)</span>
+<span id="cb42-371"><a href="#cb42-371" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(eager_sim_rct)</span>
+<span id="cb42-372"><a href="#cb42-372" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-373"><a href="#cb42-373" aria-hidden="true" tabindex="-1"></a><span class="fu">attributes</span>(eager_sim_rct)<span class="sc">$</span>true_rd</span>
+<span id="cb42-374"><a href="#cb42-374" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-375"><a href="#cb42-375" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> eager_sim_rct <span class="sc">%&gt;%</span></span>
+<span id="cb42-376"><a href="#cb42-376" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">Y=</span>sim_Y, <span class="at">A=</span>sim_Tx) <span class="sc">%&gt;%</span></span>
+<span id="cb42-377"><a href="#cb42-377" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>()</span>
+<span id="cb42-378"><a href="#cb42-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-379"><a href="#cb42-379" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb42-380"><a href="#cb42-380" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>Y,<span class="sc">-</span>A)</span>
+<span id="cb42-381"><a href="#cb42-381" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-382"><a href="#cb42-382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-383"><a href="#cb42-383" aria-hidden="true" tabindex="-1"></a><span class="fu">### plug-in estimator from outcome regression</span></span>
+<span id="cb42-384"><a href="#cb42-384" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-387"><a href="#cb42-387" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-388"><a href="#cb42-388" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk13</span></span>
+<span id="cb42-389"><a href="#cb42-389" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-390"><a href="#cb42-390" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-391"><a href="#cb42-391" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-392"><a href="#cb42-392" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-393"><a href="#cb42-393" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-394"><a href="#cb42-394" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-395"><a href="#cb42-395" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>Y, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y),</span>
+<span id="cb42-396"><a href="#cb42-396" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
+<span id="cb42-397"><a href="#cb42-397" aria-hidden="true" tabindex="-1"></a>SL.outcome.obs<span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y))<span class="sc">$</span>pred</span>
+<span id="cb42-398"><a href="#cb42-398" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^1</span></span>
+<span id="cb42-399"><a href="#cb42-399" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.1</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">1</span>))<span class="sc">$</span>pred</span>
+<span id="cb42-400"><a href="#cb42-400" aria-hidden="true" tabindex="-1"></a><span class="co"># predict the PO Y^0</span></span>
+<span id="cb42-401"><a href="#cb42-401" aria-hidden="true" tabindex="-1"></a>SL.outcome<span class="fl">.0</span><span class="ot">&lt;-</span> <span class="fu">predict</span>(SL.outcome, <span class="at">newdata=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y) <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">A=</span><span class="dv">0</span>))<span class="sc">$</span>pred</span>
+<span id="cb42-402"><a href="#cb42-402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-403"><a href="#cb42-403" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-404"><a href="#cb42-404" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-405"><a href="#cb42-405" aria-hidden="true" tabindex="-1"></a>This is to do machine learning on the outcome equation; then get prediction on treated vs control, to get $\hat Y^1$ and $\hat Y^0$. The sample average of the difference is our plug-in estimator.</span>
+<span id="cb42-406"><a href="#cb42-406" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-409"><a href="#cb42-409" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-410"><a href="#cb42-410" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk14</span></span>
+<span id="cb42-411"><a href="#cb42-411" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-412"><a href="#cb42-412" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-413"><a href="#cb42-413" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-414"><a href="#cb42-414" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-415"><a href="#cb42-415" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-416"><a href="#cb42-416" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-417"><a href="#cb42-417" aria-hidden="true" tabindex="-1"></a>SL.plugin<span class="ot">&lt;-</span><span class="fu">mean</span>(SL.outcome<span class="fl">.1</span><span class="sc">-</span>SL.outcome<span class="fl">.0</span>)</span>
+<span id="cb42-418"><a href="#cb42-418" aria-hidden="true" tabindex="-1"></a>SL.plugin</span>
+<span id="cb42-419"><a href="#cb42-419" aria-hidden="true" tabindex="-1"></a>Q<span class="ot">=</span><span class="fu">data.frame</span>(<span class="at">QAW=</span>SL.outcome.obs, <span class="at">Q0W=</span>SL.outcome<span class="fl">.0</span>,<span class="at">Q1W=</span>SL.outcome<span class="fl">.1</span>)</span>
+<span id="cb42-420"><a href="#cb42-420" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-421"><a href="#cb42-421" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-422"><a href="#cb42-422" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-423"><a href="#cb42-423" aria-hidden="true" tabindex="-1"></a>The plug-in gives 0.1325 against the recorded true risk difference of 0.1186 —</span>
+<span id="cb42-424"><a href="#cb42-424" aria-hidden="true" tabindex="-1"></a>about 0.014 high.</span>
 <span id="cb42-425"><a href="#cb42-425" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-428"><a href="#cb42-428" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-429"><a href="#cb42-429" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk16</span></span>
-<span id="cb42-430"><a href="#cb42-430" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-431"><a href="#cb42-431" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-432"><a href="#cb42-432" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-433"><a href="#cb42-433" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-434"><a href="#cb42-434" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-435"><a href="#cb42-435" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-436"><a href="#cb42-436" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
-<span id="cb42-437"><a href="#cb42-437" aria-hidden="true" tabindex="-1"></a>aipw<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>data<span class="sc">$</span>Y, <span class="at">a=</span>data<span class="sc">$</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">1</span>, <span class="at">sl.lib=</span>SL.library)</span>
-<span id="cb42-438"><a href="#cb42-438" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-439"><a href="#cb42-439" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-440"><a href="#cb42-440" aria-hidden="true" tabindex="-1"></a>The results from "npcausal" are almost the same as the manual results. Two clarifications. First, the manual estimator above *is* bias-corrected in the relevant sense: AIPW is exactly the one-step correction of the plug-in estimator using the efficient influence function. What we did *not* do is **cross-fitting** (sample splitting), which is a separate device. Second, that matters for inference: because the manual example fits the SuperLearner nuisances on the *full* sample and then uses <span class="in">`sd(IF)/sqrt(n)`</span>, the resulting confidence interval is only valid under empirical-process (Donsker) conditions that flexible ML learners typically violate. With cross-fitting, the influence-function variance is valid without those conditions. "npcausal" does the cross-fitting for you when you set <span class="in">`nsplits &gt; 1`</span> (here <span class="in">`nsplits = 1`</span> turns it off, for comparison with the manual full-sample version).</span>
-<span id="cb42-441"><a href="#cb42-441" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-444"><a href="#cb42-444" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-445"><a href="#cb42-445" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk17</span></span>
-<span id="cb42-446"><a href="#cb42-446" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-447"><a href="#cb42-447" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-448"><a href="#cb42-448" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-449"><a href="#cb42-449" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-450"><a href="#cb42-450" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-451"><a href="#cb42-451" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-452"><a href="#cb42-452" aria-hidden="true" tabindex="-1"></a>aipw2<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>data<span class="sc">$</span>Y, <span class="at">a=</span>data<span class="sc">$</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">10</span>)</span>
-<span id="cb42-453"><a href="#cb42-453" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-454"><a href="#cb42-454" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-455"><a href="#cb42-455" aria-hidden="true" tabindex="-1"></a><span class="fu">### DoubleML</span></span>
-<span id="cb42-456"><a href="#cb42-456" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-459"><a href="#cb42-459" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-460"><a href="#cb42-460" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk18</span></span>
-<span id="cb42-461"><a href="#cb42-461" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-462"><a href="#cb42-462" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-463"><a href="#cb42-463" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-464"><a href="#cb42-464" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-465"><a href="#cb42-465" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-466"><a href="#cb42-466" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-467"><a href="#cb42-467" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DoubleML)</span>
-<span id="cb42-468"><a href="#cb42-468" aria-hidden="true" tabindex="-1"></a>dml_data <span class="ot">=</span> DoubleMLData<span class="sc">$</span><span class="fu">new</span>(<span class="fu">as.data.frame</span>(data),</span>
-<span id="cb42-469"><a href="#cb42-469" aria-hidden="true" tabindex="-1"></a>                             <span class="at">y_col =</span> <span class="st">"Y"</span>,</span>
-<span id="cb42-470"><a href="#cb42-470" aria-hidden="true" tabindex="-1"></a>                             <span class="at">d_cols =</span> <span class="st">"A"</span>,</span>
-<span id="cb42-471"><a href="#cb42-471" aria-hidden="true" tabindex="-1"></a>                             <span class="at">x_cols =</span> <span class="fu">c</span>(<span class="st">"eligibility"</span> , <span class="st">"loss_num"</span>,<span class="st">"age"</span>, <span class="st">"time_try_pregnant"</span>,<span class="st">"BMI"</span>,<span class="st">"meanAP"</span>))</span>
-<span id="cb42-472"><a href="#cb42-472" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dml_data)</span>
-<span id="cb42-473"><a href="#cb42-473" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-474"><a href="#cb42-474" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-475"><a href="#cb42-475" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-478"><a href="#cb42-478" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb42-479"><a href="#cb42-479" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk19</span></span>
-<span id="cb42-480"><a href="#cb42-480" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb42-481"><a href="#cb42-481" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb42-482"><a href="#cb42-482" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb42-483"><a href="#cb42-483" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb42-484"><a href="#cb42-484" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb42-485"><a href="#cb42-485" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-486"><a href="#cb42-486" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3)</span>
-<span id="cb42-487"><a href="#cb42-487" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3learners)</span>
-<span id="cb42-488"><a href="#cb42-488" aria-hidden="true" tabindex="-1"></a><span class="co"># suppress messages from mlr3 package during fitting</span></span>
-<span id="cb42-489"><a href="#cb42-489" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
-<span id="cb42-490"><a href="#cb42-490" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-491"><a href="#cb42-491" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.ranger"</span>, <span class="at">num.trees=</span><span class="dv">500</span>,  <span class="at">max.depth=</span><span class="dv">5</span>, <span class="at">min.node.size=</span><span class="dv">2</span>)</span>
-<span id="cb42-492"><a href="#cb42-492" aria-hidden="true" tabindex="-1"></a>ml_g <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-493"><a href="#cb42-493" aria-hidden="true" tabindex="-1"></a>ml_m <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-494"><a href="#cb42-494" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-495"><a href="#cb42-495" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.glmnet"</span>)</span>
-<span id="cb42-496"><a href="#cb42-496" aria-hidden="true" tabindex="-1"></a>ml_g_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-497"><a href="#cb42-497" aria-hidden="true" tabindex="-1"></a>ml_m_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb42-498"><a href="#cb42-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-499"><a href="#cb42-499" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3141</span>)</span>
-<span id="cb42-500"><a href="#cb42-500" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_g=</span>ml_g, <span class="at">ml_m=</span>ml_m)</span>
-<span id="cb42-501"><a href="#cb42-501" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
-<span id="cb42-502"><a href="#cb42-502" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(obj_dml_plr)</span>
-<span id="cb42-503"><a href="#cb42-503" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb42-504"><a href="#cb42-504" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-505"><a href="#cb42-505" aria-hidden="true" tabindex="-1"></a>Note: as with the earlier PLR example, <span class="in">`A`</span> and <span class="in">`Y`</span> here are **binary** (this is the EAGeR trial data), so <span class="in">`DoubleMLIRM`</span> (which uses classification learners for the propensity score and allows heterogeneous effects) would be the more appropriate DoubleML estimator than <span class="in">`DoubleMLPLR`</span>'s partially linear, constant-effect model — see the note above.</span>
-<span id="cb42-506"><a href="#cb42-506" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-507"><a href="#cb42-507" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb42-508"><a href="#cb42-508" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb42-509"><a href="#cb42-509" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb42-510"><a href="#cb42-510" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/nonparametric.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/nonparametric.html).*</span>
+<span id="cb42-426"><a href="#cb42-426" aria-hidden="true" tabindex="-1"></a><span class="fu">### AIPW with machine learning</span></span>
+<span id="cb42-427"><a href="#cb42-427" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-430"><a href="#cb42-430" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-431"><a href="#cb42-431" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk15</span></span>
+<span id="cb42-432"><a href="#cb42-432" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-433"><a href="#cb42-433" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-434"><a href="#cb42-434" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-435"><a href="#cb42-435" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-436"><a href="#cb42-436" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-437"><a href="#cb42-437" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-438"><a href="#cb42-438" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb42-439"><a href="#cb42-439" aria-hidden="true" tabindex="-1"></a>SL.g<span class="ot">&lt;-</span> <span class="fu">SuperLearner</span>(<span class="at">Y=</span>data<span class="sc">$</span>A, <span class="at">X=</span>data <span class="sc">%&gt;%</span> <span class="fu">select</span>(<span class="sc">-</span>Y, <span class="sc">-</span>A),</span>
+<span id="cb42-440"><a href="#cb42-440" aria-hidden="true" tabindex="-1"></a>                    <span class="at">SL.library=</span>SL.library, <span class="at">family=</span><span class="st">"binomial"</span>)</span>
+<span id="cb42-441"><a href="#cb42-441" aria-hidden="true" tabindex="-1"></a>g1W <span class="ot">&lt;-</span> SL.g<span class="sc">$</span>SL.predict</span>
+<span id="cb42-442"><a href="#cb42-442" aria-hidden="true" tabindex="-1"></a>g0W<span class="ot">&lt;-</span> <span class="dv">1</span><span class="sc">-</span> g1W</span>
+<span id="cb42-443"><a href="#cb42-443" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.1</span><span class="ot">&lt;-</span>((data<span class="sc">$</span>A<span class="sc">/</span>g1W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q1W)<span class="sc">+</span>Q<span class="sc">$</span>Q1W)</span>
+<span id="cb42-444"><a href="#cb42-444" aria-hidden="true" tabindex="-1"></a>IF<span class="fl">.0</span><span class="ot">&lt;-</span>(((<span class="dv">1</span><span class="sc">-</span>data<span class="sc">$</span>A)<span class="sc">/</span>g0W)<span class="sc">*</span>(data<span class="sc">$</span>Y<span class="sc">-</span>Q<span class="sc">$</span>Q0W)<span class="sc">+</span>Q<span class="sc">$</span>Q0W)</span>
+<span id="cb42-445"><a href="#cb42-445" aria-hidden="true" tabindex="-1"></a>IF<span class="ot">&lt;-</span>IF<span class="fl">.1</span><span class="sc">-</span>IF<span class="fl">.0</span></span>
+<span id="cb42-446"><a href="#cb42-446" aria-hidden="true" tabindex="-1"></a>aipw<span class="fl">.1</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.1</span>);aipw<span class="fl">.0</span><span class="ot">&lt;-</span><span class="fu">mean</span>(IF<span class="fl">.0</span>)</span>
+<span id="cb42-447"><a href="#cb42-447" aria-hidden="true" tabindex="-1"></a>aipw.manual<span class="ot">&lt;-</span>aipw<span class="fl">.1</span><span class="sc">-</span>aipw<span class="fl">.0</span></span>
+<span id="cb42-448"><a href="#cb42-448" aria-hidden="true" tabindex="-1"></a>ci.lb<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">-</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
+<span id="cb42-449"><a href="#cb42-449" aria-hidden="true" tabindex="-1"></a>ci.ub<span class="ot">&lt;-</span><span class="fu">mean</span>(IF)<span class="sc">+</span><span class="fu">qnorm</span>(.<span class="dv">975</span>)<span class="sc">*</span><span class="fu">sd</span>(IF)<span class="sc">/</span><span class="fu">sqrt</span>(<span class="fu">length</span>(IF))</span>
+<span id="cb42-450"><a href="#cb42-450" aria-hidden="true" tabindex="-1"></a>res.manual.aipw<span class="ot">&lt;-</span><span class="fu">c</span>(aipw.manual,ci.lb, ci.ub)</span>
+<span id="cb42-451"><a href="#cb42-451" aria-hidden="true" tabindex="-1"></a>res.manual.aipw</span>
+<span id="cb42-452"><a href="#cb42-452" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-453"><a href="#cb42-453" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-454"><a href="#cb42-454" aria-hidden="true" tabindex="-1"></a>Now we use "npcausal".</span>
+<span id="cb42-455"><a href="#cb42-455" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-458"><a href="#cb42-458" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-459"><a href="#cb42-459" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk16</span></span>
+<span id="cb42-460"><a href="#cb42-460" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-461"><a href="#cb42-461" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-462"><a href="#cb42-462" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-463"><a href="#cb42-463" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-464"><a href="#cb42-464" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-465"><a href="#cb42-465" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-466"><a href="#cb42-466" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
+<span id="cb42-467"><a href="#cb42-467" aria-hidden="true" tabindex="-1"></a>aipw<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>data<span class="sc">$</span>Y, <span class="at">a=</span>data<span class="sc">$</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">1</span>, <span class="at">sl.lib=</span>SL.library)</span>
+<span id="cb42-468"><a href="#cb42-468" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-469"><a href="#cb42-469" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-470"><a href="#cb42-470" aria-hidden="true" tabindex="-1"></a>The results from "npcausal" are almost the same as the manual results. Two clarifications. First, the manual estimator above *is* bias-corrected in the relevant sense: AIPW is exactly the one-step correction of the plug-in estimator using the efficient influence function. What we did *not* do is **cross-fitting** (sample splitting), which is a separate device. Second, that matters for inference: because the manual example fits the SuperLearner nuisances on the *full* sample and then uses <span class="in">`sd(IF)/sqrt(n)`</span>, the resulting confidence interval is only valid under empirical-process (Donsker) conditions that flexible ML learners typically violate. With cross-fitting, the influence-function variance is valid without those conditions. "npcausal" does the cross-fitting for you when you set <span class="in">`nsplits &gt; 1`</span> (here <span class="in">`nsplits = 1`</span> turns it off, for comparison with the manual full-sample version).</span>
+<span id="cb42-471"><a href="#cb42-471" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-474"><a href="#cb42-474" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-475"><a href="#cb42-475" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk17</span></span>
+<span id="cb42-476"><a href="#cb42-476" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-477"><a href="#cb42-477" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-478"><a href="#cb42-478" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-479"><a href="#cb42-479" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-480"><a href="#cb42-480" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-481"><a href="#cb42-481" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-482"><a href="#cb42-482" aria-hidden="true" tabindex="-1"></a>aipw2<span class="ot">&lt;-</span> <span class="fu">ate</span>(<span class="at">y=</span>data<span class="sc">$</span>Y, <span class="at">a=</span>data<span class="sc">$</span>A, <span class="at">x=</span>W, <span class="at">nsplits=</span><span class="dv">10</span>)</span>
+<span id="cb42-483"><a href="#cb42-483" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-484"><a href="#cb42-484" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-485"><a href="#cb42-485" aria-hidden="true" tabindex="-1"></a><span class="fu">### DoubleML</span></span>
+<span id="cb42-486"><a href="#cb42-486" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-489"><a href="#cb42-489" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-490"><a href="#cb42-490" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk18</span></span>
+<span id="cb42-491"><a href="#cb42-491" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-492"><a href="#cb42-492" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-493"><a href="#cb42-493" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-494"><a href="#cb42-494" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-495"><a href="#cb42-495" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-496"><a href="#cb42-496" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-497"><a href="#cb42-497" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DoubleML)</span>
+<span id="cb42-498"><a href="#cb42-498" aria-hidden="true" tabindex="-1"></a>dml_data <span class="ot">=</span> DoubleMLData<span class="sc">$</span><span class="fu">new</span>(<span class="fu">as.data.frame</span>(data),</span>
+<span id="cb42-499"><a href="#cb42-499" aria-hidden="true" tabindex="-1"></a>                             <span class="at">y_col =</span> <span class="st">"Y"</span>,</span>
+<span id="cb42-500"><a href="#cb42-500" aria-hidden="true" tabindex="-1"></a>                             <span class="at">d_cols =</span> <span class="st">"A"</span>,</span>
+<span id="cb42-501"><a href="#cb42-501" aria-hidden="true" tabindex="-1"></a>                             <span class="at">x_cols =</span> <span class="fu">c</span>(<span class="st">"eligibility"</span> , <span class="st">"loss_num"</span>,<span class="st">"age"</span>, <span class="st">"time_try_pregnant"</span>,<span class="st">"BMI"</span>,<span class="st">"meanAP"</span>))</span>
+<span id="cb42-502"><a href="#cb42-502" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dml_data)</span>
+<span id="cb42-503"><a href="#cb42-503" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-504"><a href="#cb42-504" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-505"><a href="#cb42-505" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-508"><a href="#cb42-508" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb42-509"><a href="#cb42-509" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk19</span></span>
+<span id="cb42-510"><a href="#cb42-510" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb42-511"><a href="#cb42-511" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb42-512"><a href="#cb42-512" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb42-513"><a href="#cb42-513" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb42-514"><a href="#cb42-514" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb42-515"><a href="#cb42-515" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-516"><a href="#cb42-516" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3)</span>
+<span id="cb42-517"><a href="#cb42-517" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3learners)</span>
+<span id="cb42-518"><a href="#cb42-518" aria-hidden="true" tabindex="-1"></a><span class="co"># suppress messages from mlr3 package during fitting</span></span>
+<span id="cb42-519"><a href="#cb42-519" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
+<span id="cb42-520"><a href="#cb42-520" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-521"><a href="#cb42-521" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.ranger"</span>, <span class="at">num.trees=</span><span class="dv">500</span>,  <span class="at">max.depth=</span><span class="dv">5</span>, <span class="at">min.node.size=</span><span class="dv">2</span>)</span>
+<span id="cb42-522"><a href="#cb42-522" aria-hidden="true" tabindex="-1"></a>ml_g <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb42-523"><a href="#cb42-523" aria-hidden="true" tabindex="-1"></a>ml_m <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb42-524"><a href="#cb42-524" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-525"><a href="#cb42-525" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.glmnet"</span>)</span>
+<span id="cb42-526"><a href="#cb42-526" aria-hidden="true" tabindex="-1"></a>ml_g_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb42-527"><a href="#cb42-527" aria-hidden="true" tabindex="-1"></a>ml_m_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb42-528"><a href="#cb42-528" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-529"><a href="#cb42-529" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">3141</span>)</span>
+<span id="cb42-530"><a href="#cb42-530" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_g=</span>ml_g, <span class="at">ml_m=</span>ml_m)</span>
+<span id="cb42-531"><a href="#cb42-531" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
+<span id="cb42-532"><a href="#cb42-532" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(obj_dml_plr)</span>
+<span id="cb42-533"><a href="#cb42-533" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb42-534"><a href="#cb42-534" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-535"><a href="#cb42-535" aria-hidden="true" tabindex="-1"></a>Note: as with the earlier PLR example, <span class="in">`A`</span> and <span class="in">`Y`</span> here are **binary** (this is the EAGeR trial data), so <span class="in">`DoubleMLIRM`</span> (which uses classification learners for the propensity score and allows heterogeneous effects) would be the more appropriate DoubleML estimator than <span class="in">`DoubleMLPLR`</span>'s partially linear, constant-effect model — see the note above.</span>
+<span id="cb42-536"><a href="#cb42-536" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-537"><a href="#cb42-537" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb42-538"><a href="#cb42-538" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb42-539"><a href="#cb42-539" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb42-540"><a href="#cb42-540" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/nonparametric.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/nonparametric.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

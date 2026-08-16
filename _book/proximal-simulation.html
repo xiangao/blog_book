@@ -620,6 +620,8 @@ window.Quarto = {
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/rename.html">rename</a></span><span class="op">(</span>a <span class="op">=</span> <span class="va">a2</span>, y <span class="op">=</span> <span class="va">y2</span>,  x <span class="op">=</span> <span class="va">x1</span>, w <span class="op">=</span> <span class="va">y1</span>, z<span class="op">=</span><span class="va">a1</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
+<p>The simulation draws <span class="math inline">\(n = 100{,}000\)</span> two-period observations. There is an unobserved confounder <span class="math inline">\(u \sim N(0,1)\)</span> and two observed covariates <span class="math inline">\(x_1, x_2 \sim N(0,1)\)</span>. Treatment at time 1 is <span class="math inline">\(a_1 \sim \text{Bernoulli}(\Lambda(2u + 1.5x_1))\)</span> and at time 2 is <span class="math inline">\(a_2 \sim \text{Bernoulli}(\Lambda(u + a_1 + x_1))\)</span>. The outcomes are <span class="math inline">\(y_1 = 1.5u + 0.5x_1 + \varepsilon_1\)</span> and <span class="math inline">\(y_2 = y_1 + 2.5u + 2.5x_1 + 3a_2 + \varepsilon_2\)</span>.</p>
+<p>So the effect of interest is the 3 on <span class="math inline">\(a_2\)</span>. The construction then relabels <span class="math inline">\(a_1\)</span> as the negative control exposure <span class="math inline">\(z\)</span> and <span class="math inline">\(y_1\)</span> as the negative control outcome <span class="math inline">\(w\)</span> — note that <span class="math inline">\(y_1\)</span> does not depend on <span class="math inline">\(a_1\)</span>, which is exactly the assumption discussed at the end of this chapter.</p>
 <p>We can use the simple 2sls:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">lm1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">w</span> <span class="op">~</span> <span class="va">a</span> <span class="op">+</span> <span class="va">x</span> <span class="op">+</span> <span class="va">z</span>, data <span class="op">=</span> <span class="va">data_sim</span><span class="op">)</span></span>
@@ -649,6 +651,7 @@ Multiple R-squared:  0.6822,    Adjusted R-squared:  0.6822
 F-statistic: 7.155e+04 on 3 and 99996 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
+<p>The 2SLS coefficient on <span class="math inline">\(a\)</span> is 3.021 with a standard error of 0.035, against the true 3. The coefficient on the fitted proxy <code>what</code> is 2.666, which is the ratio of the confounder’s loading on the outcome to its loading on the proxy, not an effect of interest.</p>
 <p>Or we can use more sophisticated methods. Here I use the m-estimation code by Paul Zivich: https://github.com/pzivich/publications-code/blob/master/ProximalCI/proximal_sims_r.R. This code is to construct estimating equations, then use root finding to find the parameter estimates.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">pcl_m2</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">theta</span>, <span class="va">mydata</span>, <span class="va">out</span> <span class="op">=</span> <span class="st">"ef"</span><span class="op">)</span><span class="op">{</span></span>
@@ -729,7 +732,8 @@ F-statistic: 7.155e+04 on 3 and 99996 DF,  p-value: &lt; 2.2e-16</code></pre>
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co">#mpcl_mest(data_sim)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p>Both the 2sls and the m-estimation give us the same estimate of the causal effect of treatment on outcome, which is 3. The m estimator can be more general. 2sls is good for the linear case.</p>
+<p>The m-estimator gives 3.0211 with a standard error of 0.0198.</p>
+<p>Both the 2sls and the m-estimation give us the same estimate of the causal effect of treatment on outcome, which is 3 — identical to four decimal places, 3.021126 either way. The standard errors differ, 0.0198 against 0.0353, and the m-estimator’s is the one to use: it accounts for the estimation of the first stage, which the plug-in 2SLS standard error does not. The m estimator can be more general. 2sls is good for the linear case.</p>
 <p>However, the main issue is the assumption that there is no link from A1 to Y1.</p>
 <p>To think about it from a different angle: this is similar to DiD setting. Basically we need A1 to be 0. There is no effect in period 1. If we only have A1 as 0, then it makes sense to have no link from A1 to Y1 (no anticipation assumption).</p>
 <p><strong>This is a restrictive identifying assumption, not a technical footnote.</strong> Using <span class="math inline">\(A_{t-1}\)</span> as the negative control exposure and <span class="math inline">\(Y_{t-1}\)</span> as the negative control outcome only identifies the effect if two separate exclusions hold: <span class="math inline">\(A_1\)</span> must have no direct effect on <span class="math inline">\(Y_1\)</span>, so that <span class="math inline">\(Y_1\)</span> is a clean proxy for <span class="math inline">\(U\)</span> rather than a partly post-treatment quantity; and <span class="math inline">\(A_1\)</span> must have no direct effect on <span class="math inline">\(Y_2\)</span> except through <span class="math inline">\(U\)</span>, which is the exclusion restriction that makes <span class="math inline">\(A_1\)</span> admissible as a negative control exposure in the first place. If either link is actually present — for example, if treatment has an immediate effect in the same period it starts, which is the empirically common case — this proximal construction is misspecified and the estimate above should not be trusted. Before applying this approach, researchers should have a substantive reason to believe treatment effects only appear with a lag.</p>
@@ -1324,133 +1328,153 @@ F-statistic: 7.155e+04 on 3 and 99996 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb9-130"><a href="#cb9-130" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-131"><a href="#cb9-131" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb9-132"><a href="#cb9-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-133"><a href="#cb9-133" aria-hidden="true" tabindex="-1"></a>We can use the simple 2sls:</span>
-<span id="cb9-134"><a href="#cb9-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-135"><a href="#cb9-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-138"><a href="#cb9-138" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb9-139"><a href="#cb9-139" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim5</span></span>
-<span id="cb9-140"><a href="#cb9-140" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb9-141"><a href="#cb9-141" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb9-142"><a href="#cb9-142" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb9-143"><a href="#cb9-143" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb9-144"><a href="#cb9-144" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-133"><a href="#cb9-133" aria-hidden="true" tabindex="-1"></a>The simulation draws $n = 100{,}000$ two-period observations. There is an</span>
+<span id="cb9-134"><a href="#cb9-134" aria-hidden="true" tabindex="-1"></a>unobserved confounder $u \sim N(0,1)$ and two observed covariates</span>
+<span id="cb9-135"><a href="#cb9-135" aria-hidden="true" tabindex="-1"></a>$x_1, x_2 \sim N(0,1)$. Treatment at time 1 is</span>
+<span id="cb9-136"><a href="#cb9-136" aria-hidden="true" tabindex="-1"></a>$a_1 \sim \text{Bernoulli}(\Lambda(2u + 1.5x_1))$ and at time 2 is</span>
+<span id="cb9-137"><a href="#cb9-137" aria-hidden="true" tabindex="-1"></a>$a_2 \sim \text{Bernoulli}(\Lambda(u + a_1 + x_1))$. The outcomes are</span>
+<span id="cb9-138"><a href="#cb9-138" aria-hidden="true" tabindex="-1"></a>$y_1 = 1.5u + 0.5x_1 + \varepsilon_1$ and</span>
+<span id="cb9-139"><a href="#cb9-139" aria-hidden="true" tabindex="-1"></a>$y_2 = y_1 + 2.5u + 2.5x_1 + 3a_2 + \varepsilon_2$.</span>
+<span id="cb9-140"><a href="#cb9-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-141"><a href="#cb9-141" aria-hidden="true" tabindex="-1"></a>So the effect of interest is the 3 on $a_2$. The construction then relabels</span>
+<span id="cb9-142"><a href="#cb9-142" aria-hidden="true" tabindex="-1"></a>$a_1$ as the negative control exposure $z$ and $y_1$ as the negative control</span>
+<span id="cb9-143"><a href="#cb9-143" aria-hidden="true" tabindex="-1"></a>outcome $w$ — note that $y_1$ does not depend on $a_1$, which is exactly the</span>
+<span id="cb9-144"><a href="#cb9-144" aria-hidden="true" tabindex="-1"></a>assumption discussed at the end of this chapter.</span>
 <span id="cb9-145"><a href="#cb9-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-146"><a href="#cb9-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-147"><a href="#cb9-147" aria-hidden="true" tabindex="-1"></a>lm1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(w <span class="sc">~</span> a <span class="sc">+</span> x <span class="sc">+</span> z, <span class="at">data =</span> data_sim)</span>
-<span id="cb9-148"><a href="#cb9-148" aria-hidden="true" tabindex="-1"></a>data_sim<span class="sc">$</span>what <span class="ot">&lt;-</span> lm1<span class="sc">$</span>fitted.values</span>
-<span id="cb9-149"><a href="#cb9-149" aria-hidden="true" tabindex="-1"></a>lm2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> a <span class="sc">+</span> x <span class="sc">+</span>  what, <span class="at">data =</span> data_sim)</span>
-<span id="cb9-150"><a href="#cb9-150" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm2)</span>
-<span id="cb9-151"><a href="#cb9-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-152"><a href="#cb9-152" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-153"><a href="#cb9-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-154"><a href="#cb9-154" aria-hidden="true" tabindex="-1"></a>Or we can use more sophisticated methods.  Here I use the m-estimation code by Paul Zivich:  https://github.com/pzivich/publications-code/blob/master/ProximalCI/proximal_sims_r.R.  This code is to construct estimating equations, then use root finding to find the parameter estimates.</span>
-<span id="cb9-155"><a href="#cb9-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-156"><a href="#cb9-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim3</span></span>
-<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-146"><a href="#cb9-146" aria-hidden="true" tabindex="-1"></a>We can use the simple 2sls:</span>
+<span id="cb9-147"><a href="#cb9-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-148"><a href="#cb9-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-151"><a href="#cb9-151" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-152"><a href="#cb9-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim5</span></span>
+<span id="cb9-153"><a href="#cb9-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb9-154"><a href="#cb9-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb9-155"><a href="#cb9-155" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb9-156"><a href="#cb9-156" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb9-157"><a href="#cb9-157" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-158"><a href="#cb9-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a>lm1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(w <span class="sc">~</span> a <span class="sc">+</span> x <span class="sc">+</span> z, <span class="at">data =</span> data_sim)</span>
+<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a>data_sim<span class="sc">$</span>what <span class="ot">&lt;-</span> lm1<span class="sc">$</span>fitted.values</span>
+<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a>lm2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> a <span class="sc">+</span> x <span class="sc">+</span>  what, <span class="at">data =</span> data_sim)</span>
+<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(lm2)</span>
+<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a>pcl_m2 <span class="ot">&lt;-</span> <span class="cf">function</span>(theta, mydata, <span class="at">out =</span> <span class="st">"ef"</span>){</span>
-<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a>  <span class="co"># read in variables</span></span>
-<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> mydata<span class="sc">$</span>a</span>
-<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> mydata<span class="sc">$</span>x</span>
-<span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a>  w <span class="ot">&lt;-</span> mydata<span class="sc">$</span>w</span>
-<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">&lt;-</span> mydata<span class="sc">$</span>z</span>
-<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>  y <span class="ot">&lt;-</span> mydata<span class="sc">$</span>y</span>
-<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a>  <span class="co"># model for what</span></span>
-<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a>  what <span class="ot">&lt;-</span> theta[<span class="dv">1</span>] <span class="sc">+</span> theta[<span class="dv">2</span>] <span class="sc">*</span> a <span class="sc">+</span> theta[<span class="dv">3</span>] <span class="sc">*</span> x <span class="sc">+</span> theta[<span class="dv">4</span>] <span class="sc">*</span> z</span>
-<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a>  <span class="co"># matrix of covars in model for what</span></span>
-<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a>  wmat <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(mydata)), a, x, z), <span class="at">ncol =</span> <span class="dv">4</span>,</span>
-<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a>                    <span class="at">nrow =</span> <span class="fu">nrow</span>(mydata))</span>
-<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a>  <span class="co"># estimating function for what</span></span>
-<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a>  ef1 <span class="ot">&lt;-</span> (<span class="fu">t</span>(wmat)  <span class="sc">%*%</span> (w <span class="sc">-</span> what))            <span class="co"># gives px1 vector (summed over units)</span></span>
-<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a>  ef1_b <span class="ot">&lt;-</span> wmat <span class="sc">*</span> (w <span class="sc">-</span> what)                  <span class="co"># gives nxp matrix (rows are units)</span></span>
+<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a>The 2SLS coefficient on $a$ is 3.021 with a standard error of 0.035, against the</span>
+<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a>true 3. The coefficient on the fitted proxy <span class="in">`what`</span> is 2.666, which is the ratio</span>
+<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a>of the confounder's loading on the outcome to its loading on the proxy, not an</span>
+<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a>effect of interest.</span>
+<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>Or we can use more sophisticated methods.  Here I use the m-estimation code by Paul Zivich:  https://github.com/pzivich/publications-code/blob/master/ProximalCI/proximal_sims_r.R.  This code is to construct estimating equations, then use root finding to find the parameter estimates.</span>
+<span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim3</span></span>
+<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a>  <span class="co"># model for yhat</span></span>
-<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a>  yhat <span class="ot">&lt;-</span> theta[<span class="dv">5</span>] <span class="sc">+</span> theta[<span class="dv">6</span>]<span class="sc">*</span>a <span class="sc">+</span> theta[<span class="dv">7</span>]<span class="sc">*</span>x <span class="sc">+</span> theta[<span class="dv">8</span>] <span class="sc">*</span> what</span>
-<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a>  <span class="co"># matrix of covars in model for yhat</span></span>
-<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a>  ymat <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(mydata)), a, x, what), <span class="at">ncol =</span> <span class="dv">4</span>,</span>
-<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a>                    <span class="at">nrow =</span> <span class="fu">nrow</span>(mydata))</span>
-<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a>  <span class="co">#estimating function for yhat</span></span>
-<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a>  ef2 <span class="ot">&lt;-</span> <span class="fu">t</span>(ymat) <span class="sc">%*%</span> (y <span class="sc">-</span> yhat)               <span class="co"># px1 vector, summed over units</span></span>
-<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a>  ef2_b <span class="ot">&lt;-</span> (ymat) <span class="sc">*</span> (y <span class="sc">-</span> yhat)                <span class="co"># nxp matrix (rows are units)</span></span>
-<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="fu">c</span>(ef1, ef2)                            <span class="co"># p-dimensional vector</span></span>
-<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(out <span class="sc">==</span> <span class="st">"full"</span>) <span class="fu">return</span>(<span class="fu">cbind</span>(ef1_b, ef2_b)) <span class="cf">else</span> <span class="fu">return</span>(f) <span class="co"># full used in var calculation only</span></span>
-<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a>pcl_m2 <span class="ot">&lt;-</span> <span class="cf">function</span>(theta, mydata, <span class="at">out =</span> <span class="st">"ef"</span>){</span>
+<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a>  <span class="co"># read in variables</span></span>
+<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a>  a <span class="ot">&lt;-</span> mydata<span class="sc">$</span>a</span>
+<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a>  x <span class="ot">&lt;-</span> mydata<span class="sc">$</span>x</span>
+<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a>  w <span class="ot">&lt;-</span> mydata<span class="sc">$</span>w</span>
+<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a>  z <span class="ot">&lt;-</span> mydata<span class="sc">$</span>z</span>
+<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a>  y <span class="ot">&lt;-</span> mydata<span class="sc">$</span>y</span>
+<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a>  <span class="co"># model for what</span></span>
+<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a>  what <span class="ot">&lt;-</span> theta[<span class="dv">1</span>] <span class="sc">+</span> theta[<span class="dv">2</span>] <span class="sc">*</span> a <span class="sc">+</span> theta[<span class="dv">3</span>] <span class="sc">*</span> x <span class="sc">+</span> theta[<span class="dv">4</span>] <span class="sc">*</span> z</span>
+<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a>  <span class="co"># matrix of covars in model for what</span></span>
+<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a>  wmat <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(mydata)), a, x, z), <span class="at">ncol =</span> <span class="dv">4</span>,</span>
+<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a>                    <span class="at">nrow =</span> <span class="fu">nrow</span>(mydata))</span>
 <span id="cb9-200"><a href="#cb9-200" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a><span class="co"># call m-estimator for PCL</span></span>
-<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a>mpcl_mest <span class="ot">&lt;-</span> <span class="cf">function</span>(dat){</span>
-<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a>  theta_start <span class="ot">&lt;-</span> <span class="fu">rep</span>(.<span class="dv">05</span>, <span class="dv">8</span>)</span>
-<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a>  results <span class="ot">&lt;-</span> <span class="fu">mestimator</span>(pcl_m2, <span class="at">init =</span> theta_start, dat, <span class="at">mydata =</span> dat)</span>
-<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(results)</span>
-<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a>  <span class="co"># estimating function for what</span></span>
+<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a>  ef1 <span class="ot">&lt;-</span> (<span class="fu">t</span>(wmat)  <span class="sc">%*%</span> (w <span class="sc">-</span> what))            <span class="co"># gives px1 vector (summed over units)</span></span>
+<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a>  ef1_b <span class="ot">&lt;-</span> wmat <span class="sc">*</span> (w <span class="sc">-</span> what)                  <span class="co"># gives nxp matrix (rows are units)</span></span>
+<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a>  <span class="co"># model for yhat</span></span>
+<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a>  yhat <span class="ot">&lt;-</span> theta[<span class="dv">5</span>] <span class="sc">+</span> theta[<span class="dv">6</span>]<span class="sc">*</span>a <span class="sc">+</span> theta[<span class="dv">7</span>]<span class="sc">*</span>x <span class="sc">+</span> theta[<span class="dv">8</span>] <span class="sc">*</span> what</span>
 <span id="cb9-207"><a href="#cb9-207" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a><span class="do">##' M-estimation engine</span></span>
-<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a>mestimator <span class="ot">&lt;-</span> <span class="cf">function</span>(ef, init, dat, ...){</span>
-<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get estimated coefficients</span></span>
-<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a>  fit <span class="ot">&lt;-</span> <span class="fu">multiroot</span>(ef, <span class="at">start =</span> init, <span class="at">out =</span> <span class="st">"ef"</span>,</span>
-<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a>                   <span class="at">rtol =</span> <span class="fl">1e-9</span>, <span class="at">atol =</span> <span class="fl">1e-12</span>, <span class="at">ctol =</span> <span class="fl">1e-12</span>, ...  )</span>
-<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a>  betahat <span class="ot">&lt;-</span> fit<span class="sc">$</span>root</span>
-<span id="cb9-214"><a href="#cb9-214" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(dat)</span>
-<span id="cb9-215"><a href="#cb9-215" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a>  <span class="co"># bread</span></span>
-<span id="cb9-217"><a href="#cb9-217" aria-hidden="true" tabindex="-1"></a>  <span class="co"># derivative of estimating function at betahat</span></span>
-<span id="cb9-218"><a href="#cb9-218" aria-hidden="true" tabindex="-1"></a>  pd <span class="ot">&lt;-</span> <span class="fu">gradient</span>(ef, betahat, <span class="at">out =</span> <span class="st">"ef"</span>, ...)</span>
-<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a>  pd <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(pd)</span>
-<span id="cb9-220"><a href="#cb9-220" aria-hidden="true" tabindex="-1"></a>  bread <span class="ot">&lt;-</span> <span class="sc">-</span>pd<span class="sc">/</span>n</span>
-<span id="cb9-221"><a href="#cb9-221" aria-hidden="true" tabindex="-1"></a>  se_mod <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">abs</span>(<span class="fu">diag</span>(<span class="sc">-</span><span class="fu">solve</span>(pd))))</span>
-<span id="cb9-222"><a href="#cb9-222" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-223"><a href="#cb9-223" aria-hidden="true" tabindex="-1"></a>  <span class="co"># meat1</span></span>
-<span id="cb9-224"><a href="#cb9-224" aria-hidden="true" tabindex="-1"></a>  efhat <span class="ot">&lt;-</span> <span class="fu">ef</span>(betahat, <span class="at">out =</span> <span class="st">"full"</span>, ...)</span>
-<span id="cb9-225"><a href="#cb9-225" aria-hidden="true" tabindex="-1"></a>  meat <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
-<span id="cb9-226"><a href="#cb9-226" aria-hidden="true" tabindex="-1"></a>  meat1 <span class="ot">&lt;-</span> (<span class="fu">t</span>(efhat) <span class="sc">%*%</span> efhat)<span class="sc">/</span>n</span>
-<span id="cb9-227"><a href="#cb9-227" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-228"><a href="#cb9-228" aria-hidden="true" tabindex="-1"></a>  <span class="co"># sandwich</span></span>
-<span id="cb9-229"><a href="#cb9-229" aria-hidden="true" tabindex="-1"></a>  sandwich1 <span class="ot">&lt;-</span> (<span class="fu">solve</span>(bread) <span class="sc">%*%</span> meat1 <span class="sc">%*%</span> <span class="fu">t</span>(<span class="fu">solve</span>(bread)))<span class="sc">/</span>n</span>
-<span id="cb9-230"><a href="#cb9-230" aria-hidden="true" tabindex="-1"></a>  se_sandwich1 <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(sandwich1))</span>
-<span id="cb9-231"><a href="#cb9-231" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-232"><a href="#cb9-232" aria-hidden="true" tabindex="-1"></a>  results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(betahat, se_sandwich1, se_mod)</span>
-<span id="cb9-233"><a href="#cb9-233" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(results)</span>
-<span id="cb9-234"><a href="#cb9-234" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb9-235"><a href="#cb9-235" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-236"><a href="#cb9-236" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-237"><a href="#cb9-237" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-238"><a href="#cb9-238" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-241"><a href="#cb9-241" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb9-242"><a href="#cb9-242" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim6</span></span>
-<span id="cb9-243"><a href="#cb9-243" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb9-244"><a href="#cb9-244" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb9-245"><a href="#cb9-245" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb9-246"><a href="#cb9-246" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb9-247"><a href="#cb9-247" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb9-248"><a href="#cb9-248" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-249"><a href="#cb9-249" aria-hidden="true" tabindex="-1"></a>rmpcl <span class="ot">&lt;-</span> <span class="fu">unname</span>(<span class="fu">mpcl_mest</span>(data_sim)[<span class="dv">6</span>, <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>)])</span>
-<span id="cb9-250"><a href="#cb9-250" aria-hidden="true" tabindex="-1"></a>rmpcl</span>
-<span id="cb9-251"><a href="#cb9-251" aria-hidden="true" tabindex="-1"></a><span class="co">#mpcl_mest(data_sim)</span></span>
-<span id="cb9-252"><a href="#cb9-252" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a>  <span class="co"># matrix of covars in model for yhat</span></span>
+<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a>  ymat <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(mydata)), a, x, what), <span class="at">ncol =</span> <span class="dv">4</span>,</span>
+<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a>                    <span class="at">nrow =</span> <span class="fu">nrow</span>(mydata))</span>
+<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a>  <span class="co">#estimating function for yhat</span></span>
+<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a>  ef2 <span class="ot">&lt;-</span> <span class="fu">t</span>(ymat) <span class="sc">%*%</span> (y <span class="sc">-</span> yhat)               <span class="co"># px1 vector, summed over units</span></span>
+<span id="cb9-214"><a href="#cb9-214" aria-hidden="true" tabindex="-1"></a>  ef2_b <span class="ot">&lt;-</span> (ymat) <span class="sc">*</span> (y <span class="sc">-</span> yhat)                <span class="co"># nxp matrix (rows are units)</span></span>
+<span id="cb9-215"><a href="#cb9-215" aria-hidden="true" tabindex="-1"></a>  f <span class="ot">&lt;-</span> <span class="fu">c</span>(ef1, ef2)                            <span class="co"># p-dimensional vector</span></span>
+<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(out <span class="sc">==</span> <span class="st">"full"</span>) <span class="fu">return</span>(<span class="fu">cbind</span>(ef1_b, ef2_b)) <span class="cf">else</span> <span class="fu">return</span>(f) <span class="co"># full used in var calculation only</span></span>
+<span id="cb9-217"><a href="#cb9-217" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-218"><a href="#cb9-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a><span class="co"># call m-estimator for PCL</span></span>
+<span id="cb9-220"><a href="#cb9-220" aria-hidden="true" tabindex="-1"></a>mpcl_mest <span class="ot">&lt;-</span> <span class="cf">function</span>(dat){</span>
+<span id="cb9-221"><a href="#cb9-221" aria-hidden="true" tabindex="-1"></a>  theta_start <span class="ot">&lt;-</span> <span class="fu">rep</span>(.<span class="dv">05</span>, <span class="dv">8</span>)</span>
+<span id="cb9-222"><a href="#cb9-222" aria-hidden="true" tabindex="-1"></a>  results <span class="ot">&lt;-</span> <span class="fu">mestimator</span>(pcl_m2, <span class="at">init =</span> theta_start, dat, <span class="at">mydata =</span> dat)</span>
+<span id="cb9-223"><a href="#cb9-223" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(results)</span>
+<span id="cb9-224"><a href="#cb9-224" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-225"><a href="#cb9-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-226"><a href="#cb9-226" aria-hidden="true" tabindex="-1"></a><span class="do">##' M-estimation engine</span></span>
+<span id="cb9-227"><a href="#cb9-227" aria-hidden="true" tabindex="-1"></a>mestimator <span class="ot">&lt;-</span> <span class="cf">function</span>(ef, init, dat, ...){</span>
+<span id="cb9-228"><a href="#cb9-228" aria-hidden="true" tabindex="-1"></a>  <span class="co"># get estimated coefficients</span></span>
+<span id="cb9-229"><a href="#cb9-229" aria-hidden="true" tabindex="-1"></a>  fit <span class="ot">&lt;-</span> <span class="fu">multiroot</span>(ef, <span class="at">start =</span> init, <span class="at">out =</span> <span class="st">"ef"</span>,</span>
+<span id="cb9-230"><a href="#cb9-230" aria-hidden="true" tabindex="-1"></a>                   <span class="at">rtol =</span> <span class="fl">1e-9</span>, <span class="at">atol =</span> <span class="fl">1e-12</span>, <span class="at">ctol =</span> <span class="fl">1e-12</span>, ...  )</span>
+<span id="cb9-231"><a href="#cb9-231" aria-hidden="true" tabindex="-1"></a>  betahat <span class="ot">&lt;-</span> fit<span class="sc">$</span>root</span>
+<span id="cb9-232"><a href="#cb9-232" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(dat)</span>
+<span id="cb9-233"><a href="#cb9-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-234"><a href="#cb9-234" aria-hidden="true" tabindex="-1"></a>  <span class="co"># bread</span></span>
+<span id="cb9-235"><a href="#cb9-235" aria-hidden="true" tabindex="-1"></a>  <span class="co"># derivative of estimating function at betahat</span></span>
+<span id="cb9-236"><a href="#cb9-236" aria-hidden="true" tabindex="-1"></a>  pd <span class="ot">&lt;-</span> <span class="fu">gradient</span>(ef, betahat, <span class="at">out =</span> <span class="st">"ef"</span>, ...)</span>
+<span id="cb9-237"><a href="#cb9-237" aria-hidden="true" tabindex="-1"></a>  pd <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(pd)</span>
+<span id="cb9-238"><a href="#cb9-238" aria-hidden="true" tabindex="-1"></a>  bread <span class="ot">&lt;-</span> <span class="sc">-</span>pd<span class="sc">/</span>n</span>
+<span id="cb9-239"><a href="#cb9-239" aria-hidden="true" tabindex="-1"></a>  se_mod <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">abs</span>(<span class="fu">diag</span>(<span class="sc">-</span><span class="fu">solve</span>(pd))))</span>
+<span id="cb9-240"><a href="#cb9-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-241"><a href="#cb9-241" aria-hidden="true" tabindex="-1"></a>  <span class="co"># meat1</span></span>
+<span id="cb9-242"><a href="#cb9-242" aria-hidden="true" tabindex="-1"></a>  efhat <span class="ot">&lt;-</span> <span class="fu">ef</span>(betahat, <span class="at">out =</span> <span class="st">"full"</span>, ...)</span>
+<span id="cb9-243"><a href="#cb9-243" aria-hidden="true" tabindex="-1"></a>  meat <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb9-244"><a href="#cb9-244" aria-hidden="true" tabindex="-1"></a>  meat1 <span class="ot">&lt;-</span> (<span class="fu">t</span>(efhat) <span class="sc">%*%</span> efhat)<span class="sc">/</span>n</span>
+<span id="cb9-245"><a href="#cb9-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-246"><a href="#cb9-246" aria-hidden="true" tabindex="-1"></a>  <span class="co"># sandwich</span></span>
+<span id="cb9-247"><a href="#cb9-247" aria-hidden="true" tabindex="-1"></a>  sandwich1 <span class="ot">&lt;-</span> (<span class="fu">solve</span>(bread) <span class="sc">%*%</span> meat1 <span class="sc">%*%</span> <span class="fu">t</span>(<span class="fu">solve</span>(bread)))<span class="sc">/</span>n</span>
+<span id="cb9-248"><a href="#cb9-248" aria-hidden="true" tabindex="-1"></a>  se_sandwich1 <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="fu">diag</span>(sandwich1))</span>
+<span id="cb9-249"><a href="#cb9-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-250"><a href="#cb9-250" aria-hidden="true" tabindex="-1"></a>  results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(betahat, se_sandwich1, se_mod)</span>
+<span id="cb9-251"><a href="#cb9-251" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(results)</span>
+<span id="cb9-252"><a href="#cb9-252" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb9-253"><a href="#cb9-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-254"><a href="#cb9-254" aria-hidden="true" tabindex="-1"></a>Both the 2sls and the m-estimation give us the same estimate of the causal effect of treatment on outcome, which is 3.  The m estimator can be more general.  2sls is good for the linear case.</span>
+<span id="cb9-254"><a href="#cb9-254" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb9-255"><a href="#cb9-255" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-256"><a href="#cb9-256" aria-hidden="true" tabindex="-1"></a>However, the main issue is the assumption that there is no link from A1 to Y1.</span>
-<span id="cb9-257"><a href="#cb9-257" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-258"><a href="#cb9-258" aria-hidden="true" tabindex="-1"></a>To think about it from a different angle: this is similar to DiD setting.  Basically we need A1 to be 0.  There is no effect in period 1.  If we only have A1 as 0, then it makes sense to have no link from A1 to Y1 (no anticipation assumption).</span>
-<span id="cb9-259"><a href="#cb9-259" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-260"><a href="#cb9-260" aria-hidden="true" tabindex="-1"></a>**This is a restrictive identifying assumption, not a technical footnote.** Using $A_{t-1}$ as the negative control exposure and $Y_{t-1}$ as the negative control outcome only identifies the effect if two separate exclusions hold: $A_1$ must have no direct effect on $Y_1$, so that $Y_1$ is a clean proxy for $U$ rather than a partly post-treatment quantity; and $A_1$ must have no direct effect on $Y_2$ except through $U$, which is the exclusion restriction that makes $A_1$ admissible as a negative control exposure in the first place. If either link is actually present — for example, if treatment has an immediate effect in the same period it starts, which is the empirically common case — this proximal construction is misspecified and the estimate above should not be trusted. Before applying this approach, researchers should have a substantive reason to believe treatment effects only appear with a lag.</span>
-<span id="cb9-261"><a href="#cb9-261" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-262"><a href="#cb9-262" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb9-263"><a href="#cb9-263" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-264"><a href="#cb9-264" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb9-265"><a href="#cb9-265" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/graphs-identification-estimation.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/graphs-identification-estimation.html).*</span>
+<span id="cb9-256"><a href="#cb9-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-259"><a href="#cb9-259" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-260"><a href="#cb9-260" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: sim6</span></span>
+<span id="cb9-261"><a href="#cb9-261" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb9-262"><a href="#cb9-262" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb9-263"><a href="#cb9-263" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb9-264"><a href="#cb9-264" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb9-265"><a href="#cb9-265" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-266"><a href="#cb9-266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-267"><a href="#cb9-267" aria-hidden="true" tabindex="-1"></a>rmpcl <span class="ot">&lt;-</span> <span class="fu">unname</span>(<span class="fu">mpcl_mest</span>(data_sim)[<span class="dv">6</span>, <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>)])</span>
+<span id="cb9-268"><a href="#cb9-268" aria-hidden="true" tabindex="-1"></a>rmpcl</span>
+<span id="cb9-269"><a href="#cb9-269" aria-hidden="true" tabindex="-1"></a><span class="co">#mpcl_mest(data_sim)</span></span>
+<span id="cb9-270"><a href="#cb9-270" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-271"><a href="#cb9-271" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-272"><a href="#cb9-272" aria-hidden="true" tabindex="-1"></a>The m-estimator gives 3.0211 with a standard error of 0.0198.</span>
+<span id="cb9-273"><a href="#cb9-273" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-274"><a href="#cb9-274" aria-hidden="true" tabindex="-1"></a>Both the 2sls and the m-estimation give us the same estimate of the causal effect of treatment on outcome, which is 3 — identical to four decimal places, 3.021126 either way. The standard errors differ, 0.0198 against 0.0353, and the m-estimator's is the one to use: it accounts for the estimation of the first stage, which the plug-in 2SLS standard error does not.  The m estimator can be more general.  2sls is good for the linear case.</span>
+<span id="cb9-275"><a href="#cb9-275" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-276"><a href="#cb9-276" aria-hidden="true" tabindex="-1"></a>However, the main issue is the assumption that there is no link from A1 to Y1.</span>
+<span id="cb9-277"><a href="#cb9-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-278"><a href="#cb9-278" aria-hidden="true" tabindex="-1"></a>To think about it from a different angle: this is similar to DiD setting.  Basically we need A1 to be 0.  There is no effect in period 1.  If we only have A1 as 0, then it makes sense to have no link from A1 to Y1 (no anticipation assumption).</span>
+<span id="cb9-279"><a href="#cb9-279" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-280"><a href="#cb9-280" aria-hidden="true" tabindex="-1"></a>**This is a restrictive identifying assumption, not a technical footnote.** Using $A_{t-1}$ as the negative control exposure and $Y_{t-1}$ as the negative control outcome only identifies the effect if two separate exclusions hold: $A_1$ must have no direct effect on $Y_1$, so that $Y_1$ is a clean proxy for $U$ rather than a partly post-treatment quantity; and $A_1$ must have no direct effect on $Y_2$ except through $U$, which is the exclusion restriction that makes $A_1$ admissible as a negative control exposure in the first place. If either link is actually present — for example, if treatment has an immediate effect in the same period it starts, which is the empirically common case — this proximal construction is misspecified and the estimate above should not be trusted. Before applying this approach, researchers should have a substantive reason to believe treatment effects only appear with a lag.</span>
+<span id="cb9-281"><a href="#cb9-281" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-282"><a href="#cb9-282" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-283"><a href="#cb9-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-284"><a href="#cb9-284" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb9-285"><a href="#cb9-285" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/graphs-identification-estimation.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/graphs-identification-estimation.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

@@ -588,6 +588,7 @@ window.Quarto = {
 <p>SDiD sets another weight in addition to SC weights, which changes over time. The SC weights are trying to construct a control unit that is close to the treated unit; the SDiD weights are trying to put more weights on pre-treatment periods that are more similar to post-treatment periods.</p>
 </section><section id="example-from-synthdid" class="level2" data-number="22.4"><h2 data-number="22.4" class="anchored" data-anchor-id="example-from-synthdid">
 <span class="header-section-number">22.4</span> Example from synthdid</h2>
+<p>The data are the California Proposition 99 panel: annual per-capita cigarette sales in packs for 39 states from 1970 to 2000, with California the single treated unit, 38 donors, 19 pre-treatment years and 12 post-treatment years.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/synth-inference/synthdid">synthdid</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span><span class="op">(</span><span class="st">'california_prop99'</span><span class="op">)</span></span>
@@ -634,6 +635,8 @@ $dimensions
        1.000       38.000       16.388       12.000       19.000        2.783 </code></pre>
 </div>
 </div>
+<p>The estimate is <span class="math inline">\(-15.60\)</span> packs per capita, and the summary shows how it gets there. The unit weights are concentrated — Nevada 0.124, New Hampshire 0.105, Connecticut 0.078 — giving an effective 16.4 donors out of 38. The time weights are more concentrated still: 0.427 on 1988, 0.366 on 1986 and 0.206 on 1987, which is an effective 2.8 pre-periods out of 19. That is the “time-aware” part of synthetic DiD in numbers, and it is the mechanism behind the estimator’s advantage over plain DiD.</p>
+<p>Note also that <code>se</code> comes back <code>NA</code>. That is not a glitch: the default is a jackknife standard error, which deletes one treated unit at a time, and California is the only treated unit. The placebo method is the usable option here.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">tau.sc</span>   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/synthdid/man/sc_estimate.html">sc_estimate</a></span><span class="op">(</span><span class="va">setup</span><span class="op">$</span><span class="va">Y</span>, <span class="va">setup</span><span class="op">$</span><span class="va">N0</span>, <span class="va">setup</span><span class="op">$</span><span class="va">T0</span><span class="op">)</span></span>
 <span><span class="va">tau.did</span>  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/synthdid/man/did_estimate.html">did_estimate</a></span><span class="op">(</span><span class="va">setup</span><span class="op">$</span><span class="va">Y</span>, <span class="va">setup</span><span class="op">$</span><span class="va">N0</span>, <span class="va">setup</span><span class="op">$</span><span class="va">T0</span><span class="op">)</span></span>
@@ -645,6 +648,7 @@ $dimensions
              -27.34911              -19.61966              -15.60383 </code></pre>
 </div>
 </div>
+<p>Plain DiD gives <span class="math inline">\(-27.35\)</span>, synthetic control <span class="math inline">\(-19.62\)</span>, and synthetic DiD <span class="math inline">\(-15.60\)</span>. The spread across the three is nearly twelve packs per capita, on the same data with the same identification assumptions. DiD moves furthest because it weights all 38 donors and all 19 pre-periods equally: states unlike California, and years unlike the late 1980s, all count in full.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">plot</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/synthdid/man/synthdid_plot.html">synthdid_plot</a></span><span class="op">(</span><span class="va">estimates</span>, facet.vertical<span class="op">=</span><span class="cn">FALSE</span>,</span>
 <span>              control.name<span class="op">=</span><span class="st">'control'</span>, treated.name<span class="op">=</span><span class="st">'california'</span>,</span>
@@ -663,7 +667,7 @@ $dimensions
 </div>
 </div>
 </div>
-<p>Note: <span class="math inline">\(\lambda_t\)</span> is plotted at the bottom.</p>
+<p>Each panel shows California’s path against its weighted control, with the estimated effect as the post-1989 gap. Note: <span class="math inline">\(\lambda_t\)</span> is plotted at the bottom, so the pre-periods that actually enter each comparison are visible — for synthetic DiD they pile up on 1986–1988, while for DiD the weight is flat across all nineteen years.</p>
 </section><section id="summary" class="level2" data-number="22.5"><h2 data-number="22.5" class="anchored" data-anchor-id="summary">
 <span class="header-section-number">22.5</span> Summary</h2>
 <p>To me, “DDDiD” is saying DiD is too simple. Even if all the identification assumptions are correct for DiD, namely parallel trend and no anticipation, there are still better ways to do it, in the sense of putting weights on units and time periods, such as synthetic DiD.</p>
@@ -1170,74 +1174,101 @@ $dimensions
 <span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example from synthdid</span></span>
 <span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did13</span></span>
-<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(synthdid)</span>
-<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">'california_prop99'</span>)</span>
-<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>setup <span class="ot">=</span> <span class="fu">panel.matrices</span>(california_prop99)</span>
-<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>tau.hat <span class="ot">=</span> <span class="fu">synthdid_estimate</span>(setup<span class="sc">$</span>Y, setup<span class="sc">$</span>N0, setup<span class="sc">$</span>T0)</span>
-<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(tau.hat)</span>
-<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did15</span></span>
-<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>The data are the California Proposition 99 panel: annual per-capita cigarette</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>sales in packs for 39 states from 1970 to 2000, with California the single</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>treated unit, 38 donors, 19 pre-treatment years and 12 post-treatment years.</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did13</span></span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(synthdid)</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">'california_prop99'</span>)</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>setup <span class="ot">=</span> <span class="fu">panel.matrices</span>(california_prop99)</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>tau.hat <span class="ot">=</span> <span class="fu">synthdid_estimate</span>(setup<span class="sc">$</span>Y, setup<span class="sc">$</span>N0, setup<span class="sc">$</span>T0)</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(tau.hat)</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>The estimate is $-15.60$ packs per capita, and the summary shows how it gets</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>there. The unit weights are concentrated — Nevada 0.124, New Hampshire 0.105,</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>Connecticut 0.078 — giving an effective 16.4 donors out of 38. The time weights</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a>are more concentrated still: 0.427 on 1988, 0.366 on 1986 and 0.206 on 1987,</span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>which is an effective 2.8 pre-periods out of 19. That is the "time-aware" part of</span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a>synthetic DiD in numbers, and it is the mechanism behind the estimator's</span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a>advantage over plain DiD.</span>
 <span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a>tau.sc   <span class="ot">=</span> <span class="fu">sc_estimate</span>(setup<span class="sc">$</span>Y, setup<span class="sc">$</span>N0, setup<span class="sc">$</span>T0)</span>
-<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a>tau.did  <span class="ot">=</span> <span class="fu">did_estimate</span>(setup<span class="sc">$</span>Y, setup<span class="sc">$</span>N0, setup<span class="sc">$</span>T0)</span>
-<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>estimates <span class="ot">=</span> <span class="fu">list</span>(tau.did, tau.sc, tau.hat)</span>
-<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(estimates) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'Diff-in-Diff'</span>, <span class="st">'Synthetic Control'</span>, <span class="st">'Synthetic Diff-in-Diff'</span>)</span>
-<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">unlist</span>(estimates))</span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a>Note also that <span class="in">`se`</span> comes back <span class="in">`NA`</span>. That is not a glitch: the default is a</span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a>jackknife standard error, which deletes one treated unit at a time, and</span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>California is the only treated unit. The placebo method is the usable option</span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>here.</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did16</span></span>
-<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> <span class="fu">synthdid_plot</span>(estimates, <span class="at">facet.vertical=</span><span class="cn">FALSE</span>,</span>
-<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a>              <span class="at">control.name=</span><span class="st">'control'</span>, <span class="at">treated.name=</span><span class="st">'california'</span>,</span>
-<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>              <span class="at">lambda.comparable=</span><span class="cn">TRUE</span>, <span class="at">se.method =</span> <span class="st">'none'</span>,</span>
-<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.linetype =</span> <span class="dv">1</span>, <span class="at">line.width=</span>.<span class="dv">75</span>, <span class="at">effect.curvature=</span><span class="sc">-</span>.<span class="dv">4</span>,</span>
-<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.alpha=</span>.<span class="dv">7</span>, <span class="at">effect.alpha=</span>.<span class="dv">7</span>,</span>
-<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>              <span class="at">diagram.alpha=</span><span class="dv">1</span>, <span class="at">onset.alpha=</span>.<span class="dv">7</span>) <span class="sc">+</span></span>
-<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position=</span><span class="fu">c</span>(.<span class="dv">26</span>,.<span class="dv">07</span>), <span class="at">legend.direction=</span><span class="st">'horizontal'</span>,</span>
-<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.key=</span><span class="fu">element_blank</span>(), <span class="at">legend.background=</span><span class="fu">element_blank</span>(),</span>
-<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.background=</span><span class="fu">element_blank</span>(), <span class="at">strip.text.x =</span> <span class="fu">element_blank</span>())</span>
-<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>plot</span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did15</span></span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>tau.sc   <span class="ot">=</span> <span class="fu">sc_estimate</span>(setup<span class="sc">$</span>Y, setup<span class="sc">$</span>N0, setup<span class="sc">$</span>T0)</span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>tau.did  <span class="ot">=</span> <span class="fu">did_estimate</span>(setup<span class="sc">$</span>Y, setup<span class="sc">$</span>N0, setup<span class="sc">$</span>T0)</span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a>estimates <span class="ot">=</span> <span class="fu">list</span>(tau.did, tau.sc, tau.hat)</span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(estimates) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'Diff-in-Diff'</span>, <span class="st">'Synthetic Control'</span>, <span class="st">'Synthetic Diff-in-Diff'</span>)</span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">unlist</span>(estimates))</span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>Plain DiD gives $-27.35$, synthetic control $-19.62$, and synthetic DiD</span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>$-15.60$. The spread across the three is nearly twelve packs per capita, on the</span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>same data with the same identification assumptions. DiD moves furthest because it</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a>weights all 38 donors and all 19 pre-periods equally: states unlike California,</span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>and years unlike the late 1980s, all count in full.</span>
 <span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a>Note: $\lambda_t$ is plotted at the bottom.</span>
-<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
-<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a>To me, "DDDiD" is saying DiD is too simple.  Even if all the identification assumptions are correct for DiD, namely parallel trend and no anticipation, there are still better ways to do it, in the sense of putting weights on units and time periods, such as synthetic DiD.</span>
-<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/g-methods.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/g-methods.html).*</span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did16</span></span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> <span class="fu">synthdid_plot</span>(estimates, <span class="at">facet.vertical=</span><span class="cn">FALSE</span>,</span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a>              <span class="at">control.name=</span><span class="st">'control'</span>, <span class="at">treated.name=</span><span class="st">'california'</span>,</span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>              <span class="at">lambda.comparable=</span><span class="cn">TRUE</span>, <span class="at">se.method =</span> <span class="st">'none'</span>,</span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.linetype =</span> <span class="dv">1</span>, <span class="at">line.width=</span>.<span class="dv">75</span>, <span class="at">effect.curvature=</span><span class="sc">-</span>.<span class="dv">4</span>,</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.alpha=</span>.<span class="dv">7</span>, <span class="at">effect.alpha=</span>.<span class="dv">7</span>,</span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>              <span class="at">diagram.alpha=</span><span class="dv">1</span>, <span class="at">onset.alpha=</span>.<span class="dv">7</span>) <span class="sc">+</span></span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position=</span><span class="fu">c</span>(.<span class="dv">26</span>,.<span class="dv">07</span>), <span class="at">legend.direction=</span><span class="st">'horizontal'</span>,</span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.key=</span><span class="fu">element_blank</span>(), <span class="at">legend.background=</span><span class="fu">element_blank</span>(),</span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.background=</span><span class="fu">element_blank</span>(), <span class="at">strip.text.x =</span> <span class="fu">element_blank</span>())</span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>plot</span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a>Each panel shows California's path against its weighted control, with the</span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a>estimated effect as the post-1989 gap. Note: $\lambda_t$ is plotted at the</span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a>bottom, so the pre-periods that actually enter each comparison are visible —</span>
+<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a>for synthetic DiD they pile up on 1986–1988, while for DiD the weight is flat</span>
+<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a>across all nineteen years.</span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb6-131"><a href="#cb6-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a>To me, "DDDiD" is saying DiD is too simple.  Even if all the identification assumptions are correct for DiD, namely parallel trend and no anticipation, there are still better ways to do it, in the sense of putting weights on units and time periods, such as synthetic DiD.</span>
+<span id="cb6-133"><a href="#cb6-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-135"><a href="#cb6-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/g-methods.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/g-methods.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

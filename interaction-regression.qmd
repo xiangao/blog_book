@@ -61,7 +61,11 @@ First, it reduces collinearity. When $x_1$ and $x_2$ are positive, $x_1 x_2$ is 
 
 Second, it fixes the interpretation. In the uncentered model, $\beta_1$ is the effect of $x_1$ when $x_2 = 0$, and zero may be outside the support of $x_2$. After centering, $\beta_1$ is the effect of $x_1$ evaluated at the mean of $x_2$ — a quantity that is always interpretable. When a dummy interacts with a continuous variable, only the continuous variable should be centered.
 
-Stata's `margins` command computes the conditional predictions directly:
+Stata's `margins` command computes the conditional predictions directly. The
+data are the built-in `auto` file: 74 1978 model cars, with `price` in dollars,
+`mpg` in miles per gallon, and `foreign` marking the 22 imports. We centre `mpg`
+at its mean, regress price on `foreign` interacted with centred mpg, and then
+ask for predicted prices by origin across a range of mpg values.
 
 
 ```{r}
@@ -80,4 +84,23 @@ marginsplot
 
 ```
 
-The graph shows predicted price for foreign and domestic cars across the range of mpg.
+Mean mpg is 21.3, so the centred variable runs from $-9.3$ to $19.7$ and has
+mean zero to seven decimals. That is what makes the coefficients readable. The
+constant of \$5,588 is the predicted price of a domestic car at *average* fuel
+economy. In the uncentred model it would instead be the predicted price at
+`mpg = 0`, which is nine standard deviations below the smallest car in the data
+and has no meaning.
+
+The `foreign` coefficient is 1666.5 with a standard error of 717.2 and
+$p = 0.023$: at average mpg, imports cost about \$1,667 more than domestic
+cars. The slope on centred mpg is $-329.3$ with a standard error of 75.0, so
+among domestic cars each extra mile per gallon is worth about \$329 less in
+price --- efficient cars in 1978 were the cheap ones. The interaction is 78.9
+with a standard error of 112.5 and $p = 0.485$, so the mpg slope for imports
+($-329.3 + 78.9 = -250.4$) is not distinguishable from the domestic slope.
+
+The graph shows predicted price for foreign and domestic cars across the range
+of mpg. Both lines slope down, the import line sits above the domestic one, and
+because the interaction is small and insignificant the two are close to
+parallel. The visible gap between them is the \$1,667 main effect, not evidence
+of a differing slope.

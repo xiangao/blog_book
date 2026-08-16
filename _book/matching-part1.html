@@ -618,7 +618,7 @@ window.Quarto = {
 <p>Cardinality matching involves finding the largest sample that satisfies user-supplied balance constraints and constraints on the ratio of matched treated to matched control units. Profile matching involves identifying a target distribution (e.g., the full sample for the ATE or the treated units for the ATT) and finding the largest subset of the treated and control groups that satisfy user-supplied balance constraints with respect to that target.</p>
 </section></section><section id="example" class="level2" data-number="13.4"><h2 data-number="13.4" class="anchored" data-anchor-id="example">
 <span class="header-section-number">13.4</span> Example</h2>
-<p>Here is an example with Lalonde data, we are interested in the effect of treatment on “re78” (1978 real earnings).</p>
+<p>Here is an example with Lalonde data, we are interested in the effect of treatment on “re78” (1978 real earnings). There are 614 observations, 185 treated and 429 control, with covariates age, education, race, marital status, degree status, and earnings in 1974 and 1975. The first <code>matchit</code> call uses <code>method = NULL</code>, which fits the propensity score but performs no matching — a way of getting the pre-match balance table.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="st"><a href="https://kosukeimai.github.io/MatchIt/">"MatchIt"</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span><span class="op">(</span><span class="st">"lalonde"</span><span class="op">)</span></span>
@@ -678,6 +678,7 @@ Unmatched       0       0
 Discarded       0       0</code></pre>
 </div>
 </div>
+<p>The imbalance is severe. Standardized mean differences are <span class="math inline">\(-0.72\)</span> for 1974 earnings, 1.76 for the black indicator, <span class="math inline">\(-1.88\)</span> for white, <span class="math inline">\(-0.83\)</span> for married and <span class="math inline">\(-0.31\)</span> for age, and the propensity score itself differs by 1.79 standard deviations. The treated average $2,096 in 1974 earnings against $5,619 for controls, and 84% are black against 20%. These are not two samples that differ at the margin.</p>
 <p>Or use “cobalt” to see the balance:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="st"><a href="https://ngreifer.github.io/cobalt/">"cobalt"</a></span><span class="op">)</span></span>
@@ -710,7 +711,8 @@ Sample sizes
 All     429     185</code></pre>
 </div>
 </div>
-<p>First do a PS match.</p>
+<p><code>bal.tab</code> says the same thing against a stricter 0.05 threshold: all nine covariate contrasts fail, with <code>re74</code> the worst at <span class="math inline">\(-0.7211\)</span>.</p>
+<p>First do a PS match. The chunks below run several distance measures in turn — the logit of a logistic propensity score, a GAM score with smooth terms in age and education, CBPS targeting the ATC with replacement, Mahalanobis distance on the raw covariates, and full matching on a probit score. Each prints its own balance table; what changes across them is the <code>distance</code> row and how much of the covariate imbalance survives.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># Matching on logit of a PS estimated with logistic</span></span>
 <span><span class="co"># regression:</span></span>
@@ -1154,9 +1156,10 @@ Discarded        0.         0</code></pre>
 </div>
 </div>
 </div>
+<p>Note that <code>m.out4$distance</code> prints <code>NULL</code>: Mahalanobis matching estimates no propensity score at all, so there is no distance column and no <code>distance</code> row in its balance table. That is the point of the method — it works on the covariate space directly rather than collapsing it to a scalar.</p>
 </section><section id="estimation" class="level2" data-number="13.5"><h2 data-number="13.5" class="anchored" data-anchor-id="estimation">
 <span class="header-section-number">13.5</span> Estimation</h2>
-<p>After we get a matched data that we think is good enough, we can estimate the treatment effect.</p>
+<p>After we get a matched data that we think is good enough, we can estimate the treatment effect. We use <code>m.out5</code>, the full match on a probit score.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">m.data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://kosukeimai.github.io/MatchIt/reference/match_data.html">match_data</a></span><span class="op">(</span><span class="va">m.out5</span><span class="op">)</span></span>
 <span></span>
@@ -1201,6 +1204,7 @@ Type: response
 Comparison: 1 - 0</code></pre>
 </div>
 </div>
+<p>The ATT is $1,977 with a subclass-clustered standard error of $704, <span class="math inline">\(p = 0.005\)</span>, and a 95% interval of <span class="math inline">\([596, 3357]\)</span>. Training raised 1978 earnings for those who took it.</p>
 <p>Note we allow interaction of treatment and covariates, but we do not need to demean the covariates here, since we are relying on “marginaleffects” and its “avg_comparisons” function to compute the average treatment effect. The “newdata” argument is used to specify the effect, in this case ATT. Note the weights are generated this way: since it’s ATT, all treated units are weighted by 1, and control units are weighted by <span class="math inline">\(p/(1-p)\)</span>, where <span class="math inline">\(p\)</span> is proportion of treated units in the subclass. Anyway, for full matching, we get the comparison of potential outcomes for the treated, with weights, and clustered standard errors on subclasses, because that the level the comparison is conducted.</p>
 <hr>
 <!-- see-also-footer --><p><em>Systematic treatment: <a href="https://xiangao.github.io/causal_econometrics_guide/matching.html">R</a> · <a href="https://xiangao.github.io/causal_econometrics_julia/matching.html">Julia</a>.</em></p>
@@ -1745,7 +1749,7 @@ Comparison: 1 - 0</code></pre>
 <span id="cb33-74"><a href="#cb33-74" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-75"><a href="#cb33-75" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
 <span id="cb33-76"><a href="#cb33-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-77"><a href="#cb33-77" aria-hidden="true" tabindex="-1"></a>Here is an example with Lalonde data, we are interested in the effect of treatment on "re78" (1978 real earnings).</span>
+<span id="cb33-77"><a href="#cb33-77" aria-hidden="true" tabindex="-1"></a>Here is an example with Lalonde data, we are interested in the effect of treatment on "re78" (1978 real earnings). There are 614 observations, 185 treated and 429 control, with covariates age, education, race, marital status, degree status, and earnings in 1974 and 1975. The first <span class="in">`matchit`</span> call uses <span class="in">`method = NULL`</span>, which fits the propensity score but performs no matching — a way of getting the pre-match balance table.</span>
 <span id="cb33-78"><a href="#cb33-78" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-79"><a href="#cb33-79" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-82"><a href="#cb33-82" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
@@ -1763,123 +1767,147 @@ Comparison: 1 - 0</code></pre>
 <span id="cb33-94"><a href="#cb33-94" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"glm"</span>)</span>
 <span id="cb33-95"><a href="#cb33-95" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out0)</span>
 <span id="cb33-96"><a href="#cb33-96" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-97"><a href="#cb33-97" aria-hidden="true" tabindex="-1"></a>Or use "cobalt" to see the balance:</span>
-<span id="cb33-98"><a href="#cb33-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-101"><a href="#cb33-101" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-102"><a href="#cb33-102" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb33-97"><a href="#cb33-97" aria-hidden="true" tabindex="-1"></a>The imbalance is severe. Standardized mean differences are $-0.72$ for 1974</span>
+<span id="cb33-98"><a href="#cb33-98" aria-hidden="true" tabindex="-1"></a>earnings, 1.76 for the black indicator, $-1.88$ for white, $-0.83$ for married</span>
+<span id="cb33-99"><a href="#cb33-99" aria-hidden="true" tabindex="-1"></a>and $-0.31$ for age, and the propensity score itself differs by 1.79 standard</span>
+<span id="cb33-100"><a href="#cb33-100" aria-hidden="true" tabindex="-1"></a>deviations. The treated average \$2,096 in 1974 earnings against \$5,619 for</span>
+<span id="cb33-101"><a href="#cb33-101" aria-hidden="true" tabindex="-1"></a>controls, and 84% are black against 20%. These are not two samples that differ</span>
+<span id="cb33-102"><a href="#cb33-102" aria-hidden="true" tabindex="-1"></a>at the margin.</span>
 <span id="cb33-103"><a href="#cb33-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-104"><a href="#cb33-104" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"cobalt"</span>)</span>
-<span id="cb33-105"><a href="#cb33-105" aria-hidden="true" tabindex="-1"></a><span class="fu">bal.tab</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span> nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb33-106"><a href="#cb33-106" aria-hidden="true" tabindex="-1"></a>        <span class="at">data =</span> lalonde, <span class="at">estimand =</span> <span class="st">"ATT"</span>, <span class="at">thresholds =</span> <span class="fu">c</span>(<span class="at">m =</span> .<span class="dv">05</span>))</span>
-<span id="cb33-107"><a href="#cb33-107" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-108"><a href="#cb33-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-109"><a href="#cb33-109" aria-hidden="true" tabindex="-1"></a>First do a PS match.</span>
+<span id="cb33-104"><a href="#cb33-104" aria-hidden="true" tabindex="-1"></a>Or use "cobalt" to see the balance:</span>
+<span id="cb33-105"><a href="#cb33-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-108"><a href="#cb33-108" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-109"><a href="#cb33-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
 <span id="cb33-110"><a href="#cb33-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-111"><a href="#cb33-111" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-114"><a href="#cb33-114" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-115"><a href="#cb33-115" aria-hidden="true" tabindex="-1"></a><span class="co"># Matching on logit of a PS estimated with logistic</span></span>
-<span id="cb33-116"><a href="#cb33-116" aria-hidden="true" tabindex="-1"></a><span class="co"># regression:</span></span>
-<span id="cb33-117"><a href="#cb33-117" aria-hidden="true" tabindex="-1"></a>m.out1 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb33-118"><a href="#cb33-118" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb33-119"><a href="#cb33-119" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
-<span id="cb33-120"><a href="#cb33-120" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"glm"</span>,</span>
-<span id="cb33-121"><a href="#cb33-121" aria-hidden="true" tabindex="-1"></a>                  <span class="at">link =</span> <span class="st">"linear.logit"</span>)</span>
-<span id="cb33-122"><a href="#cb33-122" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out1)</span>
-<span id="cb33-123"><a href="#cb33-123" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out1, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb33-124"><a href="#cb33-124" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out1))</span>
-<span id="cb33-125"><a href="#cb33-125" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-111"><a href="#cb33-111" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"cobalt"</span>)</span>
+<span id="cb33-112"><a href="#cb33-112" aria-hidden="true" tabindex="-1"></a><span class="fu">bal.tab</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span> nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb33-113"><a href="#cb33-113" aria-hidden="true" tabindex="-1"></a>        <span class="at">data =</span> lalonde, <span class="at">estimand =</span> <span class="st">"ATT"</span>, <span class="at">thresholds =</span> <span class="fu">c</span>(<span class="at">m =</span> .<span class="dv">05</span>))</span>
+<span id="cb33-114"><a href="#cb33-114" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-115"><a href="#cb33-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-116"><a href="#cb33-116" aria-hidden="true" tabindex="-1"></a><span class="in">`bal.tab`</span> says the same thing against a stricter 0.05 threshold: all nine</span>
+<span id="cb33-117"><a href="#cb33-117" aria-hidden="true" tabindex="-1"></a>covariate contrasts fail, with <span class="in">`re74`</span> the worst at $-0.7211$.</span>
+<span id="cb33-118"><a href="#cb33-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-119"><a href="#cb33-119" aria-hidden="true" tabindex="-1"></a>First do a PS match. The chunks below run several distance measures in turn —</span>
+<span id="cb33-120"><a href="#cb33-120" aria-hidden="true" tabindex="-1"></a>the logit of a logistic propensity score, a GAM score with smooth terms in age</span>
+<span id="cb33-121"><a href="#cb33-121" aria-hidden="true" tabindex="-1"></a>and education, CBPS targeting the ATC with replacement, Mahalanobis distance on</span>
+<span id="cb33-122"><a href="#cb33-122" aria-hidden="true" tabindex="-1"></a>the raw covariates, and full matching on a probit score. Each prints its own</span>
+<span id="cb33-123"><a href="#cb33-123" aria-hidden="true" tabindex="-1"></a>balance table; what changes across them is the <span class="in">`distance`</span> row and how much of the</span>
+<span id="cb33-124"><a href="#cb33-124" aria-hidden="true" tabindex="-1"></a>covariate imbalance survives.</span>
+<span id="cb33-125"><a href="#cb33-125" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb33-126"><a href="#cb33-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-127"><a href="#cb33-127" aria-hidden="true" tabindex="-1"></a>We see there are still some imbalance on variables such as "raceblack".  We can use more flexible models for the PS.</span>
-<span id="cb33-128"><a href="#cb33-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-129"><a href="#cb33-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-132"><a href="#cb33-132" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-133"><a href="#cb33-133" aria-hidden="true" tabindex="-1"></a><span class="co"># GAM logistic PS with smoothing splines (s()):</span></span>
-<span id="cb33-134"><a href="#cb33-134" aria-hidden="true" tabindex="-1"></a>m.out2 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> <span class="fu">s</span>(age) <span class="sc">+</span> <span class="fu">s</span>(educ) <span class="sc">+</span></span>
-<span id="cb33-135"><a href="#cb33-135" aria-hidden="true" tabindex="-1"></a>                    race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb33-136"><a href="#cb33-136" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb33-137"><a href="#cb33-137" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
-<span id="cb33-138"><a href="#cb33-138" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"gam"</span>)</span>
-<span id="cb33-139"><a href="#cb33-139" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out2)</span>
-<span id="cb33-140"><a href="#cb33-140" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out2, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb33-141"><a href="#cb33-141" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out2))</span>
-<span id="cb33-142"><a href="#cb33-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-129"><a href="#cb33-129" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-130"><a href="#cb33-130" aria-hidden="true" tabindex="-1"></a><span class="co"># Matching on logit of a PS estimated with logistic</span></span>
+<span id="cb33-131"><a href="#cb33-131" aria-hidden="true" tabindex="-1"></a><span class="co"># regression:</span></span>
+<span id="cb33-132"><a href="#cb33-132" aria-hidden="true" tabindex="-1"></a>m.out1 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb33-133"><a href="#cb33-133" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb33-134"><a href="#cb33-134" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
+<span id="cb33-135"><a href="#cb33-135" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"glm"</span>,</span>
+<span id="cb33-136"><a href="#cb33-136" aria-hidden="true" tabindex="-1"></a>                  <span class="at">link =</span> <span class="st">"linear.logit"</span>)</span>
+<span id="cb33-137"><a href="#cb33-137" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out1)</span>
+<span id="cb33-138"><a href="#cb33-138" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out1, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb33-139"><a href="#cb33-139" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out1))</span>
+<span id="cb33-140"><a href="#cb33-140" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-141"><a href="#cb33-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-142"><a href="#cb33-142" aria-hidden="true" tabindex="-1"></a>We see there are still some imbalance on variables such as "raceblack".  We can use more flexible models for the PS.</span>
 <span id="cb33-143"><a href="#cb33-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-144"><a href="#cb33-144" aria-hidden="true" tabindex="-1"></a>Or use CBPS.</span>
-<span id="cb33-145"><a href="#cb33-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-148"><a href="#cb33-148" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-149"><a href="#cb33-149" aria-hidden="true" tabindex="-1"></a><span class="co"># CBPS for ATC matching w/replacement, using the just-</span></span>
-<span id="cb33-150"><a href="#cb33-150" aria-hidden="true" tabindex="-1"></a><span class="co"># identified version of CBPS (setting method = "exact"):</span></span>
-<span id="cb33-151"><a href="#cb33-151" aria-hidden="true" tabindex="-1"></a>m.out3 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb33-152"><a href="#cb33-152" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb33-153"><a href="#cb33-153" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
-<span id="cb33-154"><a href="#cb33-154" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"cbps"</span>,</span>
-<span id="cb33-155"><a href="#cb33-155" aria-hidden="true" tabindex="-1"></a>                  <span class="at">estimand =</span> <span class="st">"ATC"</span>,</span>
-<span id="cb33-156"><a href="#cb33-156" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance.options =</span> <span class="fu">list</span>(<span class="at">method =</span> <span class="st">"exact"</span>),</span>
-<span id="cb33-157"><a href="#cb33-157" aria-hidden="true" tabindex="-1"></a>                  <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb33-158"><a href="#cb33-158" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out3)</span>
-<span id="cb33-159"><a href="#cb33-159" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out3, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb33-160"><a href="#cb33-160" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out3))</span>
-<span id="cb33-161"><a href="#cb33-161" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-162"><a href="#cb33-162" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-165"><a href="#cb33-165" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-166"><a href="#cb33-166" aria-hidden="true" tabindex="-1"></a><span class="co"># Mahalanobis distance matching - no PS estimated</span></span>
-<span id="cb33-167"><a href="#cb33-167" aria-hidden="true" tabindex="-1"></a>m.out4 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb33-168"><a href="#cb33-168" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb33-169"><a href="#cb33-169" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
-<span id="cb33-170"><a href="#cb33-170" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"mahalanobis"</span>)</span>
-<span id="cb33-171"><a href="#cb33-171" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out4)</span>
-<span id="cb33-172"><a href="#cb33-172" aria-hidden="true" tabindex="-1"></a>m.out4<span class="sc">$</span>distance <span class="co">#NULL</span></span>
-<span id="cb33-173"><a href="#cb33-173" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out4,  <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb33-174"><a href="#cb33-174" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out4))</span>
-<span id="cb33-175"><a href="#cb33-175" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-176"><a href="#cb33-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-179"><a href="#cb33-179" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-180"><a href="#cb33-180" aria-hidden="true" tabindex="-1"></a><span class="co"># Full matching on a probit PS</span></span>
-<span id="cb33-181"><a href="#cb33-181" aria-hidden="true" tabindex="-1"></a>m.out5 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb33-182"><a href="#cb33-182" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
-<span id="cb33-183"><a href="#cb33-183" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
-<span id="cb33-184"><a href="#cb33-184" aria-hidden="true" tabindex="-1"></a>                  <span class="at">method =</span> <span class="st">"full"</span>,</span>
-<span id="cb33-185"><a href="#cb33-185" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"glm"</span>,</span>
-<span id="cb33-186"><a href="#cb33-186" aria-hidden="true" tabindex="-1"></a>                  <span class="at">link =</span> <span class="st">"probit"</span>)</span>
-<span id="cb33-187"><a href="#cb33-187" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-188"><a href="#cb33-188" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out5)</span>
-<span id="cb33-189"><a href="#cb33-189" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out5, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb33-190"><a href="#cb33-190" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out5))</span>
-<span id="cb33-191"><a href="#cb33-191" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-192"><a href="#cb33-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-193"><a href="#cb33-193" aria-hidden="true" tabindex="-1"></a><span class="fu">## Estimation</span></span>
-<span id="cb33-194"><a href="#cb33-194" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-195"><a href="#cb33-195" aria-hidden="true" tabindex="-1"></a>After we get a matched data that we think is good enough, we can estimate the treatment effect.</span>
-<span id="cb33-196"><a href="#cb33-196" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-199"><a href="#cb33-199" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-200"><a href="#cb33-200" aria-hidden="true" tabindex="-1"></a>m.data <span class="ot">&lt;-</span> <span class="fu">match_data</span>(m.out5)</span>
-<span id="cb33-201"><a href="#cb33-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-202"><a href="#cb33-202" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(m.data)</span>
-<span id="cb33-203"><a href="#cb33-203" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-204"><a href="#cb33-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-205"><a href="#cb33-205" aria-hidden="true" tabindex="-1"></a>What "match_data" does is to grab the matched data with a few additional variables such as "weights", "subclass", and "distance".  Then we can use it in a simple linear model with weights.</span>
-<span id="cb33-206"><a href="#cb33-206" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-209"><a href="#cb33-209" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb33-210"><a href="#cb33-210" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"marginaleffects"</span>)</span>
-<span id="cb33-211"><a href="#cb33-211" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-212"><a href="#cb33-212" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(re78 <span class="sc">~</span> treat <span class="sc">*</span> (age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
-<span id="cb33-213"><a href="#cb33-213" aria-hidden="true" tabindex="-1"></a>                            nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75),</span>
-<span id="cb33-214"><a href="#cb33-214" aria-hidden="true" tabindex="-1"></a>          <span class="at">data =</span> m.data,</span>
-<span id="cb33-215"><a href="#cb33-215" aria-hidden="true" tabindex="-1"></a>          <span class="at">weights =</span> weights)</span>
+<span id="cb33-144"><a href="#cb33-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-147"><a href="#cb33-147" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-148"><a href="#cb33-148" aria-hidden="true" tabindex="-1"></a><span class="co"># GAM logistic PS with smoothing splines (s()):</span></span>
+<span id="cb33-149"><a href="#cb33-149" aria-hidden="true" tabindex="-1"></a>m.out2 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> <span class="fu">s</span>(age) <span class="sc">+</span> <span class="fu">s</span>(educ) <span class="sc">+</span></span>
+<span id="cb33-150"><a href="#cb33-150" aria-hidden="true" tabindex="-1"></a>                    race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb33-151"><a href="#cb33-151" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb33-152"><a href="#cb33-152" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
+<span id="cb33-153"><a href="#cb33-153" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"gam"</span>)</span>
+<span id="cb33-154"><a href="#cb33-154" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out2)</span>
+<span id="cb33-155"><a href="#cb33-155" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out2, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb33-156"><a href="#cb33-156" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out2))</span>
+<span id="cb33-157"><a href="#cb33-157" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-158"><a href="#cb33-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-159"><a href="#cb33-159" aria-hidden="true" tabindex="-1"></a>Or use CBPS.</span>
+<span id="cb33-160"><a href="#cb33-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-163"><a href="#cb33-163" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-164"><a href="#cb33-164" aria-hidden="true" tabindex="-1"></a><span class="co"># CBPS for ATC matching w/replacement, using the just-</span></span>
+<span id="cb33-165"><a href="#cb33-165" aria-hidden="true" tabindex="-1"></a><span class="co"># identified version of CBPS (setting method = "exact"):</span></span>
+<span id="cb33-166"><a href="#cb33-166" aria-hidden="true" tabindex="-1"></a>m.out3 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb33-167"><a href="#cb33-167" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb33-168"><a href="#cb33-168" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
+<span id="cb33-169"><a href="#cb33-169" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"cbps"</span>,</span>
+<span id="cb33-170"><a href="#cb33-170" aria-hidden="true" tabindex="-1"></a>                  <span class="at">estimand =</span> <span class="st">"ATC"</span>,</span>
+<span id="cb33-171"><a href="#cb33-171" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance.options =</span> <span class="fu">list</span>(<span class="at">method =</span> <span class="st">"exact"</span>),</span>
+<span id="cb33-172"><a href="#cb33-172" aria-hidden="true" tabindex="-1"></a>                  <span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb33-173"><a href="#cb33-173" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out3)</span>
+<span id="cb33-174"><a href="#cb33-174" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out3, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb33-175"><a href="#cb33-175" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out3))</span>
+<span id="cb33-176"><a href="#cb33-176" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-177"><a href="#cb33-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-180"><a href="#cb33-180" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-181"><a href="#cb33-181" aria-hidden="true" tabindex="-1"></a><span class="co"># Mahalanobis distance matching - no PS estimated</span></span>
+<span id="cb33-182"><a href="#cb33-182" aria-hidden="true" tabindex="-1"></a>m.out4 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb33-183"><a href="#cb33-183" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb33-184"><a href="#cb33-184" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
+<span id="cb33-185"><a href="#cb33-185" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"mahalanobis"</span>)</span>
+<span id="cb33-186"><a href="#cb33-186" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out4)</span>
+<span id="cb33-187"><a href="#cb33-187" aria-hidden="true" tabindex="-1"></a>m.out4<span class="sc">$</span>distance <span class="co">#NULL</span></span>
+<span id="cb33-188"><a href="#cb33-188" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out4,  <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb33-189"><a href="#cb33-189" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out4))</span>
+<span id="cb33-190"><a href="#cb33-190" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-191"><a href="#cb33-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-194"><a href="#cb33-194" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-195"><a href="#cb33-195" aria-hidden="true" tabindex="-1"></a><span class="co"># Full matching on a probit PS</span></span>
+<span id="cb33-196"><a href="#cb33-196" aria-hidden="true" tabindex="-1"></a>m.out5 <span class="ot">&lt;-</span> <span class="fu">matchit</span>(treat <span class="sc">~</span> age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb33-197"><a href="#cb33-197" aria-hidden="true" tabindex="-1"></a>                    nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75,</span>
+<span id="cb33-198"><a href="#cb33-198" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> lalonde,</span>
+<span id="cb33-199"><a href="#cb33-199" aria-hidden="true" tabindex="-1"></a>                  <span class="at">method =</span> <span class="st">"full"</span>,</span>
+<span id="cb33-200"><a href="#cb33-200" aria-hidden="true" tabindex="-1"></a>                  <span class="at">distance =</span> <span class="st">"glm"</span>,</span>
+<span id="cb33-201"><a href="#cb33-201" aria-hidden="true" tabindex="-1"></a>                  <span class="at">link =</span> <span class="st">"probit"</span>)</span>
+<span id="cb33-202"><a href="#cb33-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-203"><a href="#cb33-203" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.out5)</span>
+<span id="cb33-204"><a href="#cb33-204" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(m.out5, <span class="at">type =</span> <span class="st">"jitter"</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb33-205"><a href="#cb33-205" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">summary</span>(m.out5))</span>
+<span id="cb33-206"><a href="#cb33-206" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-207"><a href="#cb33-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-208"><a href="#cb33-208" aria-hidden="true" tabindex="-1"></a>Note that <span class="in">`m.out4$distance`</span> prints <span class="in">`NULL`</span>: Mahalanobis matching estimates no</span>
+<span id="cb33-209"><a href="#cb33-209" aria-hidden="true" tabindex="-1"></a>propensity score at all, so there is no distance column and no <span class="in">`distance`</span> row in</span>
+<span id="cb33-210"><a href="#cb33-210" aria-hidden="true" tabindex="-1"></a>its balance table. That is the point of the method — it works on the covariate</span>
+<span id="cb33-211"><a href="#cb33-211" aria-hidden="true" tabindex="-1"></a>space directly rather than collapsing it to a scalar.</span>
+<span id="cb33-212"><a href="#cb33-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-213"><a href="#cb33-213" aria-hidden="true" tabindex="-1"></a><span class="fu">## Estimation</span></span>
+<span id="cb33-214"><a href="#cb33-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-215"><a href="#cb33-215" aria-hidden="true" tabindex="-1"></a>After we get a matched data that we think is good enough, we can estimate the treatment effect. We use <span class="in">`m.out5`</span>, the full match on a probit score.</span>
 <span id="cb33-216"><a href="#cb33-216" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-217"><a href="#cb33-217" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(fit,</span>
-<span id="cb33-218"><a href="#cb33-218" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"treat"</span>,</span>
-<span id="cb33-219"><a href="#cb33-219" aria-hidden="true" tabindex="-1"></a>                <span class="at">vcov =</span> <span class="sc">~</span>subclass,</span>
-<span id="cb33-220"><a href="#cb33-220" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(m.data, treat <span class="sc">==</span> <span class="dv">1</span>))</span>
+<span id="cb33-219"><a href="#cb33-219" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-220"><a href="#cb33-220" aria-hidden="true" tabindex="-1"></a>m.data <span class="ot">&lt;-</span> <span class="fu">match_data</span>(m.out5)</span>
 <span id="cb33-221"><a href="#cb33-221" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-222"><a href="#cb33-222" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb33-223"><a href="#cb33-223" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-224"><a href="#cb33-224" aria-hidden="true" tabindex="-1"></a>Note we allow interaction of treatment and covariates, but we do not need to demean the covariates here, since we are relying on "marginaleffects" and its "avg_comparisons" function to compute the average treatment effect.  The "newdata" argument is used to specify the effect, in this case ATT.  Note the weights are generated this way:  since it's ATT, all treated units are weighted by 1, and control units are weighted by $p/(1-p)$, where $p$ is proportion of treated units in the subclass.  Anyway, for full matching, we get the comparison of potential outcomes for the treated, with weights, and clustered standard errors on subclasses, because that the level the comparison is conducted.</span>
-<span id="cb33-225"><a href="#cb33-225" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-226"><a href="#cb33-226" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb33-227"><a href="#cb33-227" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb33-228"><a href="#cb33-228" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb33-229"><a href="#cb33-229" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/matching.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/matching.html).*</span>
+<span id="cb33-222"><a href="#cb33-222" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(m.data)</span>
+<span id="cb33-223"><a href="#cb33-223" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-224"><a href="#cb33-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-225"><a href="#cb33-225" aria-hidden="true" tabindex="-1"></a>What "match_data" does is to grab the matched data with a few additional variables such as "weights", "subclass", and "distance".  Then we can use it in a simple linear model with weights.</span>
+<span id="cb33-226"><a href="#cb33-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-229"><a href="#cb33-229" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb33-230"><a href="#cb33-230" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">"marginaleffects"</span>)</span>
+<span id="cb33-231"><a href="#cb33-231" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-232"><a href="#cb33-232" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">lm</span>(re78 <span class="sc">~</span> treat <span class="sc">*</span> (age <span class="sc">+</span> educ <span class="sc">+</span> race <span class="sc">+</span> married <span class="sc">+</span></span>
+<span id="cb33-233"><a href="#cb33-233" aria-hidden="true" tabindex="-1"></a>                            nodegree <span class="sc">+</span> re74 <span class="sc">+</span> re75),</span>
+<span id="cb33-234"><a href="#cb33-234" aria-hidden="true" tabindex="-1"></a>          <span class="at">data =</span> m.data,</span>
+<span id="cb33-235"><a href="#cb33-235" aria-hidden="true" tabindex="-1"></a>          <span class="at">weights =</span> weights)</span>
+<span id="cb33-236"><a href="#cb33-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-237"><a href="#cb33-237" aria-hidden="true" tabindex="-1"></a><span class="fu">avg_comparisons</span>(fit,</span>
+<span id="cb33-238"><a href="#cb33-238" aria-hidden="true" tabindex="-1"></a>                <span class="at">variables =</span> <span class="st">"treat"</span>,</span>
+<span id="cb33-239"><a href="#cb33-239" aria-hidden="true" tabindex="-1"></a>                <span class="at">vcov =</span> <span class="sc">~</span>subclass,</span>
+<span id="cb33-240"><a href="#cb33-240" aria-hidden="true" tabindex="-1"></a>                <span class="at">newdata =</span> <span class="fu">subset</span>(m.data, treat <span class="sc">==</span> <span class="dv">1</span>))</span>
+<span id="cb33-241"><a href="#cb33-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-242"><a href="#cb33-242" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb33-243"><a href="#cb33-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-244"><a href="#cb33-244" aria-hidden="true" tabindex="-1"></a>The ATT is \$1,977 with a subclass-clustered standard error of \$704,</span>
+<span id="cb33-245"><a href="#cb33-245" aria-hidden="true" tabindex="-1"></a>$p = 0.005$, and a 95% interval of $<span class="co">[</span><span class="ot">596, 3357</span><span class="co">]</span>$. Training raised 1978 earnings</span>
+<span id="cb33-246"><a href="#cb33-246" aria-hidden="true" tabindex="-1"></a>for those who took it.</span>
+<span id="cb33-247"><a href="#cb33-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-248"><a href="#cb33-248" aria-hidden="true" tabindex="-1"></a>Note we allow interaction of treatment and covariates, but we do not need to demean the covariates here, since we are relying on "marginaleffects" and its "avg_comparisons" function to compute the average treatment effect.  The "newdata" argument is used to specify the effect, in this case ATT.  Note the weights are generated this way:  since it's ATT, all treated units are weighted by 1, and control units are weighted by $p/(1-p)$, where $p$ is proportion of treated units in the subclass.  Anyway, for full matching, we get the comparison of potential outcomes for the treated, with weights, and clustered standard errors on subclasses, because that the level the comparison is conducted.</span>
+<span id="cb33-249"><a href="#cb33-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-250"><a href="#cb33-250" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb33-251"><a href="#cb33-251" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-252"><a href="#cb33-252" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb33-253"><a href="#cb33-253" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/matching.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/matching.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

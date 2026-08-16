@@ -635,6 +635,7 @@ window.Quarto = {
      10      10      10      10      10      10 </code></pre>
 </div>
 </div>
+<p>The <code>boston</code> data are 506 census tracts. The 10-nearest-neighbour weights give every tract exactly 10 neighbours, with distances running from 0.54 to 11.64 and a median of 1.58.</p>
 <p>Spatial models in sphet are fitted by the functions stslshac and gstslshet. “stslshac” is Spatial two stages least square with HAC standard errors. “gstslshet” is GM estimation of a Cliff-Ord type model with Heteroskedastic Innovations, which is the general model we discussed before, with spatially correlated errors.</p>
 <p>The theoretical model above is the Spatial Durbin Model (SDM), which includes <span class="math inline">\(WX\)</span> as regressors (with their own coefficient <span class="math inline">\(\gamma\)</span>), not just as instruments for <span class="math inline">\(Wy\)</span>. If we only pass <span class="math inline">\(X\)</span> (no <span class="math inline">\(WX\)</span>) in the formula below, <code>stslshac</code>’s <code>W2X</code> argument still uses spatial lags of <span class="math inline">\(X\)</span> internally, but only as <em>instruments</em> for the endogenous <span class="math inline">\(Wy\)</span> – <span class="math inline">\(\gamma\)</span> is never estimated, so the fitted model is actually the simpler Spatial Autoregressive (SAR) model (<span class="math inline">\(\gamma=0\)</span>), not SDM. To match the SDM specification, include <span class="math inline">\(WX\)</span> explicitly as regressors:</p>
 <div class="cell">
@@ -705,6 +706,7 @@ W_LSTAT      0.00895071  0.00427009  2.0961 0.0360698 *
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </div>
 </div>
+<p>The spatial lag coefficient <code>Wy</code> is 0.715 with a HAC standard error of 0.098, <span class="math inline">\(t = 7.3\)</span> — strong spatial dependence in house values, which is what motivates the whole exercise. Among the own-tract regressors, <span class="math inline">\(\log(\text{LSTAT})\)</span> enters at <span class="math inline">\(-0.217\)</span> and <span class="math inline">\(\text{RM}^2\)</span> at 0.0085.</p>
 <p>The function gstslshet is used to estimate the GS2SLS model. Unlike <code>stslshac</code>, <code>gstslshet</code>’s GMM machinery hits an exactly-singular matrix on this dataset once the <span class="math inline">\(WX\)</span> regressors are added (likely due to near-collinearity introduced by the additional lagged terms combined with its own internal instrument construction), so we keep the original (SAR, no <span class="math inline">\(WX\)</span>) specification here — this estimates the spatial-error model with <span class="math inline">\(\gamma=0\)</span>, not the full Durbin extension shown above for <code>stslshac</code>.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/sphet/man/gstslshet.html">gstslshet</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Log.html">log</a></span><span class="op">(</span><span class="va">CMEDV</span><span class="op">)</span> <span class="op">~</span> <span class="va">CRIM</span> <span class="op">+</span> <span class="va">ZN</span> <span class="op">+</span> <span class="va">INDUS</span> <span class="op">+</span> <span class="va">CHAS</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/AsIs.html">I</a></span><span class="op">(</span><span class="va">NOX</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/base/AsIs.html">I</a></span><span class="op">(</span><span class="va">RM</span><span class="op">^</span><span class="fl">2</span><span class="op">)</span></span>
@@ -744,6 +746,7 @@ rho          0.29587455  0.08614291  3.4347 0.0005932 ***
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </div>
 </div>
+<p>This specification separates the two channels the previous one merged. <span class="math inline">\(\rho\)</span>, the spatial lag on <span class="math inline">\(y\)</span>, is 0.296 with a standard error of 0.086, and <span class="math inline">\(\lambda\)</span>, the spatial correlation in the errors, is 0.424 with 0.045. Both are significant. Note <span class="math inline">\(\rho = 0.296\)</span> here against <code>Wy</code> <span class="math inline">\(= 0.715\)</span> above: once spatially correlated <em>errors</em> are allowed for, much of what the lag model attributed to neighbours’ outcomes is reassigned to correlated unobservables. That is the identification problem in spatial econometrics, visible in two numbers.</p>
 <p>In stata, you would use “spivregress” which replaced user-written “spivreg”. Stata has a set of commands for spatial econometrics. Check out stata’s “sp” manual.</p>
 
 
@@ -1312,56 +1315,74 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 <span id="cb10-104"><a href="#cb10-104" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(coldist)</span>
 <span id="cb10-105"><a href="#cb10-105" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb10-106"><a href="#cb10-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a>Spatial models in sphet are fitted by the functions stslshac and gstslshet. "stslshac" is Spatial two stages least square with HAC standard errors. "gstslshet" is GM estimation of a Cliff-Ord type model with Heteroskedastic Innovations, which is the general model we discussed before, with spatially correlated errors.</span>
-<span id="cb10-108"><a href="#cb10-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-109"><a href="#cb10-109" aria-hidden="true" tabindex="-1"></a>The theoretical model above is the Spatial Durbin Model (SDM), which includes</span>
-<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a>$WX$ as regressors (with their own coefficient $\gamma$), not just as</span>
-<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a>instruments for $Wy$. If we only pass $X$ (no $WX$) in the formula below,</span>
-<span id="cb10-112"><a href="#cb10-112" aria-hidden="true" tabindex="-1"></a><span class="in">`stslshac`</span>'s <span class="in">`W2X`</span> argument still uses spatial lags of $X$ internally, but</span>
-<span id="cb10-113"><a href="#cb10-113" aria-hidden="true" tabindex="-1"></a>only as *instruments* for the endogenous $Wy$ -- $\gamma$ is never estimated,</span>
-<span id="cb10-114"><a href="#cb10-114" aria-hidden="true" tabindex="-1"></a>so the fitted model is actually the simpler Spatial Autoregressive (SAR)</span>
-<span id="cb10-115"><a href="#cb10-115" aria-hidden="true" tabindex="-1"></a>model ($\gamma=0$), not SDM. To match the SDM specification, include $WX$</span>
-<span id="cb10-116"><a href="#cb10-116" aria-hidden="true" tabindex="-1"></a>explicitly as regressors:</span>
-<span id="cb10-117"><a href="#cb10-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-120"><a href="#cb10-120" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb10-121"><a href="#cb10-121" aria-hidden="true" tabindex="-1"></a>boston_x_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"CRIM"</span>,<span class="st">"ZN"</span>,<span class="st">"INDUS"</span>,<span class="st">"CHAS"</span>,<span class="st">"NOX"</span>,<span class="st">"RM"</span>,<span class="st">"AGE"</span>,<span class="st">"DIS"</span>,<span class="st">"RAD"</span>,<span class="st">"TAX"</span>,<span class="st">"PTRATIO"</span>,<span class="st">"B"</span>,<span class="st">"LSTAT"</span>)</span>
-<span id="cb10-122"><a href="#cb10-122" aria-hidden="true" tabindex="-1"></a>boston.c2 <span class="ot">&lt;-</span> boston.c</span>
-<span id="cb10-123"><a href="#cb10-123" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (v <span class="cf">in</span> boston_x_vars) {</span>
-<span id="cb10-124"><a href="#cb10-124" aria-hidden="true" tabindex="-1"></a>  xv <span class="ot">&lt;-</span> boston.c[[v]]</span>
-<span id="cb10-125"><a href="#cb10-125" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.factor</span>(xv)) xv <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(xv))</span>
-<span id="cb10-126"><a href="#cb10-126" aria-hidden="true" tabindex="-1"></a>  boston.c2[[<span class="fu">paste0</span>(<span class="st">"W_"</span>, v)]] <span class="ot">&lt;-</span> <span class="fu">lag.listw</span>(listw, xv)</span>
-<span id="cb10-127"><a href="#cb10-127" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb10-128"><a href="#cb10-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-129"><a href="#cb10-129" aria-hidden="true" tabindex="-1"></a>sdm_formula <span class="ot">&lt;-</span> <span class="fu">as.formula</span>(<span class="fu">paste</span>(</span>
-<span id="cb10-130"><a href="#cb10-130" aria-hidden="true" tabindex="-1"></a>  <span class="st">"log(CMEDV) ~ CRIM + ZN + INDUS + CHAS + I(NOX^2) + I(RM^2) + AGE + log(DIS) + log(RAD) + TAX + PTRATIO + B + log(LSTAT) +"</span>,</span>
-<span id="cb10-131"><a href="#cb10-131" aria-hidden="true" tabindex="-1"></a>  <span class="fu">paste0</span>(<span class="st">"W_"</span>, boston_x_vars, <span class="at">collapse =</span> <span class="st">" + "</span>)</span>
-<span id="cb10-132"><a href="#cb10-132" aria-hidden="true" tabindex="-1"></a>))</span>
-<span id="cb10-133"><a href="#cb10-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-134"><a href="#cb10-134" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">stslshac</span>(sdm_formula,</span>
-<span id="cb10-135"><a href="#cb10-135" aria-hidden="true" tabindex="-1"></a>                <span class="at">data =</span> boston.c2, listw,</span>
-<span id="cb10-136"><a href="#cb10-136" aria-hidden="true" tabindex="-1"></a>                <span class="at">distance =</span> coldist, <span class="at">type =</span> <span class="st">"Triangular"</span>, <span class="at">HAC =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb10-137"><a href="#cb10-137" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(res)</span>
-<span id="cb10-138"><a href="#cb10-138" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb10-139"><a href="#cb10-139" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-140"><a href="#cb10-140" aria-hidden="true" tabindex="-1"></a>The function gstslshet is used to estimate the GS2SLS model. Unlike <span class="in">`stslshac`</span>, <span class="in">`gstslshet`</span>'s GMM machinery hits an exactly-singular matrix on this dataset once the $WX$ regressors are added (likely due to near-collinearity introduced by the additional lagged terms combined with its own internal instrument construction), so we keep the original (SAR, no $WX$) specification here — this estimates the spatial-error model with $\gamma=0$, not the full Durbin extension shown above for <span class="in">`stslshac`</span>.</span>
-<span id="cb10-141"><a href="#cb10-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-144"><a href="#cb10-144" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb10-145"><a href="#cb10-145" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">gstslshet</span>(<span class="fu">log</span>(CMEDV) <span class="sc">~</span> CRIM <span class="sc">+</span> ZN <span class="sc">+</span> INDUS <span class="sc">+</span> CHAS <span class="sc">+</span> <span class="fu">I</span>(NOX<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">I</span>(RM<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb10-146"><a href="#cb10-146" aria-hidden="true" tabindex="-1"></a>                 <span class="sc">+</span> AGE <span class="sc">+</span> <span class="fu">log</span>(DIS) <span class="sc">+</span> <span class="fu">log</span>(RAD) <span class="sc">+</span> TAX <span class="sc">+</span> PTRATIO <span class="sc">+</span> B <span class="sc">+</span> <span class="fu">log</span>(LSTAT),</span>
-<span id="cb10-147"><a href="#cb10-147" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> boston.c, <span class="at">listw =</span> listw, <span class="at">initial.value =</span> <span class="fl">0.2</span>)</span>
-<span id="cb10-148"><a href="#cb10-148" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(res)</span>
-<span id="cb10-149"><a href="#cb10-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-150"><a href="#cb10-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb10-151"><a href="#cb10-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-152"><a href="#cb10-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-153"><a href="#cb10-153" aria-hidden="true" tabindex="-1"></a>In stata, you would use "spivregress" which replaced user-written "spivreg".  Stata has a set of commands for spatial econometrics.  Check out stata's "sp" manual.</span>
-<span id="cb10-154"><a href="#cb10-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-155"><a href="#cb10-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-156"><a href="#cb10-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-157"><a href="#cb10-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a>The <span class="in">`boston`</span> data are 506 census tracts. The 10-nearest-neighbour weights give</span>
+<span id="cb10-108"><a href="#cb10-108" aria-hidden="true" tabindex="-1"></a>every tract exactly 10 neighbours, with distances running from 0.54 to 11.64 and</span>
+<span id="cb10-109"><a href="#cb10-109" aria-hidden="true" tabindex="-1"></a>a median of 1.58.</span>
+<span id="cb10-110"><a href="#cb10-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-111"><a href="#cb10-111" aria-hidden="true" tabindex="-1"></a>Spatial models in sphet are fitted by the functions stslshac and gstslshet. "stslshac" is Spatial two stages least square with HAC standard errors. "gstslshet" is GM estimation of a Cliff-Ord type model with Heteroskedastic Innovations, which is the general model we discussed before, with spatially correlated errors.</span>
+<span id="cb10-112"><a href="#cb10-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-113"><a href="#cb10-113" aria-hidden="true" tabindex="-1"></a>The theoretical model above is the Spatial Durbin Model (SDM), which includes</span>
+<span id="cb10-114"><a href="#cb10-114" aria-hidden="true" tabindex="-1"></a>$WX$ as regressors (with their own coefficient $\gamma$), not just as</span>
+<span id="cb10-115"><a href="#cb10-115" aria-hidden="true" tabindex="-1"></a>instruments for $Wy$. If we only pass $X$ (no $WX$) in the formula below,</span>
+<span id="cb10-116"><a href="#cb10-116" aria-hidden="true" tabindex="-1"></a><span class="in">`stslshac`</span>'s <span class="in">`W2X`</span> argument still uses spatial lags of $X$ internally, but</span>
+<span id="cb10-117"><a href="#cb10-117" aria-hidden="true" tabindex="-1"></a>only as *instruments* for the endogenous $Wy$ -- $\gamma$ is never estimated,</span>
+<span id="cb10-118"><a href="#cb10-118" aria-hidden="true" tabindex="-1"></a>so the fitted model is actually the simpler Spatial Autoregressive (SAR)</span>
+<span id="cb10-119"><a href="#cb10-119" aria-hidden="true" tabindex="-1"></a>model ($\gamma=0$), not SDM. To match the SDM specification, include $WX$</span>
+<span id="cb10-120"><a href="#cb10-120" aria-hidden="true" tabindex="-1"></a>explicitly as regressors:</span>
+<span id="cb10-121"><a href="#cb10-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-124"><a href="#cb10-124" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb10-125"><a href="#cb10-125" aria-hidden="true" tabindex="-1"></a>boston_x_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"CRIM"</span>,<span class="st">"ZN"</span>,<span class="st">"INDUS"</span>,<span class="st">"CHAS"</span>,<span class="st">"NOX"</span>,<span class="st">"RM"</span>,<span class="st">"AGE"</span>,<span class="st">"DIS"</span>,<span class="st">"RAD"</span>,<span class="st">"TAX"</span>,<span class="st">"PTRATIO"</span>,<span class="st">"B"</span>,<span class="st">"LSTAT"</span>)</span>
+<span id="cb10-126"><a href="#cb10-126" aria-hidden="true" tabindex="-1"></a>boston.c2 <span class="ot">&lt;-</span> boston.c</span>
+<span id="cb10-127"><a href="#cb10-127" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (v <span class="cf">in</span> boston_x_vars) {</span>
+<span id="cb10-128"><a href="#cb10-128" aria-hidden="true" tabindex="-1"></a>  xv <span class="ot">&lt;-</span> boston.c[[v]]</span>
+<span id="cb10-129"><a href="#cb10-129" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.factor</span>(xv)) xv <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">as.character</span>(xv))</span>
+<span id="cb10-130"><a href="#cb10-130" aria-hidden="true" tabindex="-1"></a>  boston.c2[[<span class="fu">paste0</span>(<span class="st">"W_"</span>, v)]] <span class="ot">&lt;-</span> <span class="fu">lag.listw</span>(listw, xv)</span>
+<span id="cb10-131"><a href="#cb10-131" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-132"><a href="#cb10-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-133"><a href="#cb10-133" aria-hidden="true" tabindex="-1"></a>sdm_formula <span class="ot">&lt;-</span> <span class="fu">as.formula</span>(<span class="fu">paste</span>(</span>
+<span id="cb10-134"><a href="#cb10-134" aria-hidden="true" tabindex="-1"></a>  <span class="st">"log(CMEDV) ~ CRIM + ZN + INDUS + CHAS + I(NOX^2) + I(RM^2) + AGE + log(DIS) + log(RAD) + TAX + PTRATIO + B + log(LSTAT) +"</span>,</span>
+<span id="cb10-135"><a href="#cb10-135" aria-hidden="true" tabindex="-1"></a>  <span class="fu">paste0</span>(<span class="st">"W_"</span>, boston_x_vars, <span class="at">collapse =</span> <span class="st">" + "</span>)</span>
+<span id="cb10-136"><a href="#cb10-136" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb10-137"><a href="#cb10-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-138"><a href="#cb10-138" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">stslshac</span>(sdm_formula,</span>
+<span id="cb10-139"><a href="#cb10-139" aria-hidden="true" tabindex="-1"></a>                <span class="at">data =</span> boston.c2, listw,</span>
+<span id="cb10-140"><a href="#cb10-140" aria-hidden="true" tabindex="-1"></a>                <span class="at">distance =</span> coldist, <span class="at">type =</span> <span class="st">"Triangular"</span>, <span class="at">HAC =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-141"><a href="#cb10-141" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(res)</span>
+<span id="cb10-142"><a href="#cb10-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb10-143"><a href="#cb10-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-144"><a href="#cb10-144" aria-hidden="true" tabindex="-1"></a>The spatial lag coefficient <span class="in">`Wy`</span> is 0.715 with a HAC standard error of 0.098,</span>
+<span id="cb10-145"><a href="#cb10-145" aria-hidden="true" tabindex="-1"></a>$t = 7.3$ — strong spatial dependence in house values, which is what motivates</span>
+<span id="cb10-146"><a href="#cb10-146" aria-hidden="true" tabindex="-1"></a>the whole exercise. Among the own-tract regressors, $\log(\text{LSTAT})$ enters</span>
+<span id="cb10-147"><a href="#cb10-147" aria-hidden="true" tabindex="-1"></a>at $-0.217$ and $\text{RM}^2$ at 0.0085.</span>
+<span id="cb10-148"><a href="#cb10-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-149"><a href="#cb10-149" aria-hidden="true" tabindex="-1"></a>The function gstslshet is used to estimate the GS2SLS model. Unlike <span class="in">`stslshac`</span>, <span class="in">`gstslshet`</span>'s GMM machinery hits an exactly-singular matrix on this dataset once the $WX$ regressors are added (likely due to near-collinearity introduced by the additional lagged terms combined with its own internal instrument construction), so we keep the original (SAR, no $WX$) specification here — this estimates the spatial-error model with $\gamma=0$, not the full Durbin extension shown above for <span class="in">`stslshac`</span>.</span>
+<span id="cb10-150"><a href="#cb10-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-153"><a href="#cb10-153" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb10-154"><a href="#cb10-154" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">gstslshet</span>(<span class="fu">log</span>(CMEDV) <span class="sc">~</span> CRIM <span class="sc">+</span> ZN <span class="sc">+</span> INDUS <span class="sc">+</span> CHAS <span class="sc">+</span> <span class="fu">I</span>(NOX<span class="sc">^</span><span class="dv">2</span>) <span class="sc">+</span> <span class="fu">I</span>(RM<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb10-155"><a href="#cb10-155" aria-hidden="true" tabindex="-1"></a>                 <span class="sc">+</span> AGE <span class="sc">+</span> <span class="fu">log</span>(DIS) <span class="sc">+</span> <span class="fu">log</span>(RAD) <span class="sc">+</span> TAX <span class="sc">+</span> PTRATIO <span class="sc">+</span> B <span class="sc">+</span> <span class="fu">log</span>(LSTAT),</span>
+<span id="cb10-156"><a href="#cb10-156" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> boston.c, <span class="at">listw =</span> listw, <span class="at">initial.value =</span> <span class="fl">0.2</span>)</span>
+<span id="cb10-157"><a href="#cb10-157" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(res)</span>
 <span id="cb10-158"><a href="#cb10-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-159"><a href="#cb10-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-159"><a href="#cb10-159" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb10-160"><a href="#cb10-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-161"><a href="#cb10-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-162"><a href="#cb10-162" aria-hidden="true" tabindex="-1"></a>This specification separates the two channels the previous one merged.</span>
+<span id="cb10-163"><a href="#cb10-163" aria-hidden="true" tabindex="-1"></a>$\rho$, the spatial lag on $y$, is 0.296 with a standard error of 0.086, and</span>
+<span id="cb10-164"><a href="#cb10-164" aria-hidden="true" tabindex="-1"></a>$\lambda$, the spatial correlation in the errors, is 0.424 with 0.045. Both are</span>
+<span id="cb10-165"><a href="#cb10-165" aria-hidden="true" tabindex="-1"></a>significant. Note $\rho = 0.296$ here against <span class="in">`Wy`</span> $= 0.715$ above: once</span>
+<span id="cb10-166"><a href="#cb10-166" aria-hidden="true" tabindex="-1"></a>spatially correlated *errors* are allowed for, much of what the lag model</span>
+<span id="cb10-167"><a href="#cb10-167" aria-hidden="true" tabindex="-1"></a>attributed to neighbours' outcomes is reassigned to correlated unobservables.</span>
+<span id="cb10-168"><a href="#cb10-168" aria-hidden="true" tabindex="-1"></a>That is the identification problem in spatial econometrics, visible in two</span>
+<span id="cb10-169"><a href="#cb10-169" aria-hidden="true" tabindex="-1"></a>numbers.</span>
+<span id="cb10-170"><a href="#cb10-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-171"><a href="#cb10-171" aria-hidden="true" tabindex="-1"></a>In stata, you would use "spivregress" which replaced user-written "spivreg".  Stata has a set of commands for spatial econometrics.  Check out stata's "sp" manual.</span>
+<span id="cb10-172"><a href="#cb10-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-173"><a href="#cb10-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-174"><a href="#cb10-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-175"><a href="#cb10-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-176"><a href="#cb10-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-177"><a href="#cb10-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-178"><a href="#cb10-178" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

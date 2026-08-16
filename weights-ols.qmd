@@ -97,6 +97,13 @@ All of these still rely on linearity within each arm. When that fails, matching 
 
 We make the regression weights $\omega_i$ concrete and compare them to IPW weights $1/\hat d(X_i)$ (treated) and $1/(1-\hat d(X_i))$ (control).
 
+We draw $n = 500$ observations with a single covariate $X \sim N(0,1)$,
+treatment $D \sim \text{Bernoulli}(\Lambda(0.5X))$ — so 238 units are treated —
+and outcome $Y = 1 + 2D + 1.5X + \varepsilon$ with $\varepsilon \sim N(0,1)$.
+The effect is constant at 2, so there is no heterogeneity for the weights to
+mis-average; the point of this first example is only to show that the weights
+reproduce the coefficient.
+
 ```{r}
 #| label: fwl-weights-example
 #| cache: true
@@ -130,7 +137,11 @@ tau_lm  <- coef(lm(Y ~ D + X, data = dat))["D"]
 data.frame(tau_reg_from_weights = tau_reg, tau_from_lm_coef = tau_lm)
 ```
 
-The two are numerically identical (up to floating point), confirming $\hat\tau_{reg} = \sum \omega_i Y_i$. Plotting `omega_reg` against `ipw` for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.
+Both give 2.084644, identical to seven digits, confirming
+$\hat\tau_{reg} = \sum \omega_i Y_i$. (Both sit a little above the true 2;
+with $n=500$ and a constant effect that is sampling noise, not weighting.)
+
+Plotting `omega_reg` against `ipw` for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.
 
 ```{r}
 #| label: fwl-weights-plot
@@ -147,11 +158,16 @@ plot(ipw[dat$D == 0], omega_reg[dat$D == 0],
 par(mfrow = c(1, 1))
 ```
 
+Both panels slope upward and neither is a straight line through the origin: the
+two schemes rank units the same way but do not scale together, which is the
+whole content of $\hat\tau_{reg} \neq \hat\tau_{ATE}$.
+
 Note also what this example does *not* show. Here $\hat d(X_i)$ stays inside
-$[0.06, 0.99]$, so every weight keeps its expected sign and the negative-weight
+$[0.062, 0.994]$, so every weight keeps its expected sign and the negative-weight
 problem discussed above never materializes. That is a property of this particular
-design, not a reassurance. Strengthen the linear index and the linear probability
-model starts predicting outside the unit interval:
+design, not a reassurance. We now strengthen the selection from
+$\Lambda(0.5X)$ to $\Lambda(3X)$, holding everything else fixed, and the linear
+probability model starts predicting outside the unit interval:
 
 ```{r}
 #| label: fwl-negative-weights
@@ -173,8 +189,19 @@ data.frame(
 )
 ```
 
+The fitted probabilities now run from $-0.367$ to $1.445$. Twenty-eight units
+fall below zero and 42 rise above one, and the wrong-sign counts match those two
+numbers exactly: 42 treated units carry a negative weight and 28 control units
+carry a positive one. That is not a coincidence but the mechanism described
+above — every unit with $\hat d > 1$ here is treated, every unit with
+$\hat d < 0$ is control, and each flips the sign of its own contribution. In
+total 70 of 500 observations, 14% of the sample, enter the contrast on the wrong
+side.
+
 Those units are the ones with no counterpart in the other arm, and a plain
 regression of $Y$ on $D$ and $X$ gives you no indication that they are there.
+Nothing in the coefficient table changes appearance; only looking at
+$\hat d(X_i)$ reveals it.
 
 
 

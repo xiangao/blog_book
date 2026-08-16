@@ -33,6 +33,14 @@ Greene (*Econometric Analysis*, 8th ed., sec. 17.3) and [Buis (2010)](http://www
 
 Let's illustrate the Ai-Norton point directly: in a logit model with an interaction term, the cross partial derivative $\frac{\partial^2 E(y)}{\partial x_1 \partial x_2}$ (what we actually care about) is not the same object as the estimated coefficient $\beta_{12}$ on $x_1 x_2$ in the linear index. We simulate data with a true interaction effect on the log-odds scale, fit a logit model, and then use the `marginaleffects` package for two distinct things: first the marginal effect of $x_1$ on the probability scale at several values of $x_2$, and then the cross partial derivative itself.
 
+We draw $n = 2000$ observations with $x_1, x_2 \sim N(0,1)$, independent of each
+other. The linear index is
+$\eta = -0.3 + 0.8x_1 + 0.5x_2 + 0.6\,x_1x_2$, the success probability is
+$p = \Lambda(\eta)$, and $y \sim \text{Bernoulli}(p)$. So the true interaction on
+the log-odds scale is $\beta_{12} = 0.6$, a single constant — which is exactly
+the object the coefficient table estimates, and exactly the object that does
+*not* transfer to the probability scale.
+
 ```{r}
 #| label: ai-norton-example
 #| cache: true
@@ -54,7 +62,12 @@ m <- glm(y ~ x1 * x2, data = dat, family = binomial)
 summary(m)$coefficients
 ```
 
-The coefficient on `x1:x2` above is $\hat\beta_{12}$, the interaction effect on the log-odds (linear index) scale — constant by construction. On the *probability* scale nothing is constant. Start with the marginal effect of $x_1$ itself, evaluated at three values of $x_2$:
+The coefficient on `x1:x2` is 0.662 with a standard error of 0.064, against a
+true 0.6 — recovered to within one standard error, as it should be, since the
+logit is correctly specified. The other three are 0.779, 0.530 and $-0.235$
+against true values of 0.8, 0.5 and $-0.3$.
+
+That coefficient is $\hat\beta_{12}$, the interaction effect on the log-odds (linear index) scale — constant by construction. On the *probability* scale nothing is constant. Start with the marginal effect of $x_1$ itself, evaluated at three values of $x_2$:
 
 ```{r}
 #| label: ai-norton-slopes
@@ -64,9 +77,11 @@ The coefficient on `x1:x2` above is $\hat\beta_{12}$, the interaction effect on 
 slopes(m, variables = "x1", by = "x2", newdata = datagrid(x2 = c(-1, 0, 1)))
 ```
 
-The marginal effect of $x_1$ on $P(y=1)$ changes across the three values of
-$x_2$ — and notice that at $x_2=-1$ it is not significant ($p \approx 0.11$)
-even though $\hat\beta_{12}$ is significant at better than $0.001$. Already the
+The marginal effect of $x_1$ on $P(y=1)$ is 0.025 at $x_2=-1$, 0.192 at
+$x_2=0$, and 0.354 at $x_2=1$ — a fourteen-fold change across the three values,
+where the log-odds interaction is one fixed number. Notice too that at
+$x_2=-1$ the effect is not significant ($p = 0.112$) even though
+$\hat\beta_{12}$ is significant at better than $10^{-24}$. Already the
 probability-scale answer and the coefficient tell different stories.
 
 The cross partial derivative is a *further* step: not the effect of $x_1$ at a
@@ -84,9 +99,13 @@ slopes(m, variables = "x1", by = "x2",
        hypothesis = "b2 - b1 = 0")
 ```
 
-Here the cross partial comes out large and highly significant, which is worth
-being honest about: in *this* example it agrees with $\hat\beta_{12}$ in
-significance, differing only in scale and magnitude. Ai and Norton's warning is
+The cross partial is 0.329 with a standard error of 0.030, $z = 11$ — that is
+the difference between the slope at $x_2=1$ and the slope at $x_2=-1$,
+$0.354 - 0.025$, with a proper standard error attached. It is large and highly
+significant, which is worth being honest about: in *this* example it agrees with
+$\hat\beta_{12}$ in significance, differing only in scale and magnitude. Note
+that it is nowhere near 0.662; the two numbers live on different scales and
+there is no reason to expect them to match. Ai and Norton's warning is
 that the two quantities *need not* agree — not that they never do. The
 dependable lesson is the one visible in the table above: on the probability
 scale the answer depends on where you evaluate it, so a single coefficient

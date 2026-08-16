@@ -763,6 +763,7 @@ Note: df = 783; Bound ( 1x female ): <span class="math inline">\(R^2_{Y\sim Z| {
 <span class="header-section-number">15.6</span> sensitivity analysis for IV</h2>
 <p>Even with an IV model, we need sensitivity analysis. The worry would be there could be an unobserved confounder that affects both the instrument and the outcome.</p>
 <p>Cinelli and Hazlett have a package “iv.sensemakr” for this. The usage is similar to “sensemakr”.</p>
+<p>The example is Card’s returns-to-schooling data, 3,010 men from the 1976 NLS. The outcome is log wage, the treatment is years of education, and the instrument is <code>nearc4</code>, an indicator for growing up near a four-year college. The covariates are experience and its square, race, region, and urban indicators. The concern the sensitivity analysis addresses is a confounder affecting both proximity to a college and wages.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># loads package</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://carloscinelli.com/iv.sensemakr/">iv.sensemakr</a></span><span class="op">)</span></span>
@@ -886,7 +887,11 @@ Note: H0 = 0, q = 1, alpha = 0.05, df = 2994.
 =============================================================</code></pre>
 </div>
 </div>
-<p>The basic idea is to run an IV regression, then apply sensmakr to that model. In this case, the authors use “black” and “smsa” as benchmark covariates. The authors believe these are important factors. A quick look at the result we can see that a confounder as strong as “black” or “smsa” is not strong enough to explain away the treatment effect. We can also plot a contour plot to see how strong the confounder needs to be to explain away the treatment effect.</p>
+<p>The basic idea is to run an IV regression, then apply sensemakr to that model. In this case, the authors use “black” and “smsa” as benchmark covariates. The authors believe these are important factors.</p>
+<p>The IV estimate is 0.132 with <span class="math inline">\(t = 2.33\)</span>, <span class="math inline">\(p = 0.02\)</span>, and an Anderson-Rubin confidence interval of <span class="math inline">\([0.025, 0.285]\)</span> that excludes zero. Read the sensitivity statistics next to that, and the picture is not reassuring. The Robustness Value is 0.00667 — two-thirds of one percent. Compare the OLS example earlier in this chapter, where <span class="math inline">\(RV_{q=1}\)</span> was 13.9%. This IV result is roughly twenty times more fragile than that one.</p>
+<p>The benchmark bounds make it concrete, and they point the other way from what one might hope. A confounder as strong as <code>black</code> explains 0.22% of the residual variance of the instrument and 7.5% of the outcome, and under it the adjusted interval becomes <span class="math inline">\([-0.021, 0.402]\)</span>. For <code>smsa</code> the figures are 0.64% and 2.0%, giving <span class="math inline">\([-0.019, 0.396]\)</span>. <strong>Both intervals contain zero.</strong> A confounder no stronger than either benchmark covariate is enough to remove the significance of the estimate.</p>
+<p>That <code>smsa</code> number is worth a second look on its own terms: its instrument-side partial <span class="math inline">\(R^2\)</span> of 0.00639 sits just under the Robustness Value of 0.00667, so a confounder of that strength lands essentially exactly on the tipping point. The two diagnostics agree.</p>
+<p>None of this says the Card estimate is wrong. It says the identification rests on the instrument being cleaner than <code>black</code> or <code>smsa</code> are as predictors, which is an assumption about college proximity that the data cannot check. We can also plot a contour plot to see how strong the confounder needs to be to explain away the treatment effect.</p>
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">card.sens</span>, parm <span class="op">=</span> <span class="st">"rf"</span>, sensitivity.of <span class="op">=</span> <span class="st">"t-value"</span>, lim <span class="op">=</span> <span class="fl">0.08</span>, kz <span class="op">=</span> <span class="fl">1</span>, ky <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><p><img src="sensitivity-analysis_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid" width="672"></p>
 <p>Unfortunately the package currently only allows for one instrument. Should not be too hard to modify it to be more general.</p>
@@ -1461,52 +1466,83 @@ Note: H0 = 0, q = 1, alpha = 0.05, df = 2994.
 <span id="cb14-108"><a href="#cb14-108" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-109"><a href="#cb14-109" aria-hidden="true" tabindex="-1"></a>Even with an IV model, we need sensitivity analysis.  The worry would be there could be an unobserved confounder that affects both the instrument and the outcome.  </span>
 <span id="cb14-110"><a href="#cb14-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-111"><a href="#cb14-111" aria-hidden="true" tabindex="-1"></a>Cinelli and Hazlett have a package "iv.sensemakr" for this.  The usage is similar to "sensemakr". </span>
+<span id="cb14-111"><a href="#cb14-111" aria-hidden="true" tabindex="-1"></a>Cinelli and Hazlett have a package "iv.sensemakr" for this.  The usage is similar to "sensemakr".</span>
 <span id="cb14-112"><a href="#cb14-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-115"><a href="#cb14-115" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb14-116"><a href="#cb14-116" aria-hidden="true" tabindex="-1"></a><span class="co"># loads package</span></span>
-<span id="cb14-117"><a href="#cb14-117" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(iv.sensemakr)</span>
-<span id="cb14-118"><a href="#cb14-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-119"><a href="#cb14-119" aria-hidden="true" tabindex="-1"></a><span class="co"># loads dataset</span></span>
-<span id="cb14-120"><a href="#cb14-120" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"card"</span>)</span>
-<span id="cb14-121"><a href="#cb14-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-122"><a href="#cb14-122" aria-hidden="true" tabindex="-1"></a><span class="co"># prepares data</span></span>
-<span id="cb14-123"><a href="#cb14-123" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> card<span class="sc">$</span>lwage  <span class="co"># outcome</span></span>
-<span id="cb14-124"><a href="#cb14-124" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> card<span class="sc">$</span>educ   <span class="co"># treatment</span></span>
-<span id="cb14-125"><a href="#cb14-125" aria-hidden="true" tabindex="-1"></a>z <span class="ot">&lt;-</span> card<span class="sc">$</span>nearc4 <span class="co"># instrument</span></span>
-<span id="cb14-126"><a href="#cb14-126" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>( <span class="sc">~</span> exper <span class="sc">+</span> expersq <span class="sc">+</span> black <span class="sc">+</span> south <span class="sc">+</span> smsa <span class="sc">+</span> reg661 <span class="sc">+</span> reg662 <span class="sc">+</span></span>
-<span id="cb14-127"><a href="#cb14-127" aria-hidden="true" tabindex="-1"></a>                     reg663 <span class="sc">+</span> reg664 <span class="sc">+</span> reg665<span class="sc">+</span> reg666 <span class="sc">+</span> reg667 <span class="sc">+</span> reg668 <span class="sc">+</span> smsa66,</span>
-<span id="cb14-128"><a href="#cb14-128" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> card) <span class="co"># covariates</span></span>
-<span id="cb14-129"><a href="#cb14-129" aria-hidden="true" tabindex="-1"></a><span class="co"># fits IV model</span></span>
-<span id="cb14-130"><a href="#cb14-130" aria-hidden="true" tabindex="-1"></a>card.fit <span class="ot">&lt;-</span> <span class="fu">iv_fit</span>(y,d,z,x)</span>
-<span id="cb14-131"><a href="#cb14-131" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-132"><a href="#cb14-132" aria-hidden="true" tabindex="-1"></a><span class="co"># see results</span></span>
-<span id="cb14-133"><a href="#cb14-133" aria-hidden="true" tabindex="-1"></a>card.fit</span>
-<span id="cb14-134"><a href="#cb14-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-135"><a href="#cb14-135" aria-hidden="true" tabindex="-1"></a><span class="co"># runs sensitivity analysis</span></span>
-<span id="cb14-136"><a href="#cb14-136" aria-hidden="true" tabindex="-1"></a>card.sens <span class="ot">&lt;-</span> <span class="fu">sensemakr</span>(card.fit, <span class="at">benchmark_covariates =</span> <span class="fu">c</span>(<span class="st">"black"</span>, <span class="st">"smsa"</span>))</span>
-<span id="cb14-137"><a href="#cb14-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-138"><a href="#cb14-138" aria-hidden="true" tabindex="-1"></a><span class="co"># see results</span></span>
-<span id="cb14-139"><a href="#cb14-139" aria-hidden="true" tabindex="-1"></a>card.sens</span>
-<span id="cb14-140"><a href="#cb14-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-141"><a href="#cb14-141" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(card.sens)</span>
-<span id="cb14-142"><a href="#cb14-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-143"><a href="#cb14-143" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-113"><a href="#cb14-113" aria-hidden="true" tabindex="-1"></a>The example is Card's returns-to-schooling data, 3,010 men from the 1976 NLS.</span>
+<span id="cb14-114"><a href="#cb14-114" aria-hidden="true" tabindex="-1"></a>The outcome is log wage, the treatment is years of education, and the instrument</span>
+<span id="cb14-115"><a href="#cb14-115" aria-hidden="true" tabindex="-1"></a>is <span class="in">`nearc4`</span>, an indicator for growing up near a four-year college. The covariates</span>
+<span id="cb14-116"><a href="#cb14-116" aria-hidden="true" tabindex="-1"></a>are experience and its square, race, region, and urban indicators. The concern</span>
+<span id="cb14-117"><a href="#cb14-117" aria-hidden="true" tabindex="-1"></a>the sensitivity analysis addresses is a confounder affecting both proximity to a</span>
+<span id="cb14-118"><a href="#cb14-118" aria-hidden="true" tabindex="-1"></a>college and wages.</span>
+<span id="cb14-119"><a href="#cb14-119" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-122"><a href="#cb14-122" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-123"><a href="#cb14-123" aria-hidden="true" tabindex="-1"></a><span class="co"># loads package</span></span>
+<span id="cb14-124"><a href="#cb14-124" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(iv.sensemakr)</span>
+<span id="cb14-125"><a href="#cb14-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-126"><a href="#cb14-126" aria-hidden="true" tabindex="-1"></a><span class="co"># loads dataset</span></span>
+<span id="cb14-127"><a href="#cb14-127" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"card"</span>)</span>
+<span id="cb14-128"><a href="#cb14-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-129"><a href="#cb14-129" aria-hidden="true" tabindex="-1"></a><span class="co"># prepares data</span></span>
+<span id="cb14-130"><a href="#cb14-130" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> card<span class="sc">$</span>lwage  <span class="co"># outcome</span></span>
+<span id="cb14-131"><a href="#cb14-131" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> card<span class="sc">$</span>educ   <span class="co"># treatment</span></span>
+<span id="cb14-132"><a href="#cb14-132" aria-hidden="true" tabindex="-1"></a>z <span class="ot">&lt;-</span> card<span class="sc">$</span>nearc4 <span class="co"># instrument</span></span>
+<span id="cb14-133"><a href="#cb14-133" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>( <span class="sc">~</span> exper <span class="sc">+</span> expersq <span class="sc">+</span> black <span class="sc">+</span> south <span class="sc">+</span> smsa <span class="sc">+</span> reg661 <span class="sc">+</span> reg662 <span class="sc">+</span></span>
+<span id="cb14-134"><a href="#cb14-134" aria-hidden="true" tabindex="-1"></a>                     reg663 <span class="sc">+</span> reg664 <span class="sc">+</span> reg665<span class="sc">+</span> reg666 <span class="sc">+</span> reg667 <span class="sc">+</span> reg668 <span class="sc">+</span> smsa66,</span>
+<span id="cb14-135"><a href="#cb14-135" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> card) <span class="co"># covariates</span></span>
+<span id="cb14-136"><a href="#cb14-136" aria-hidden="true" tabindex="-1"></a><span class="co"># fits IV model</span></span>
+<span id="cb14-137"><a href="#cb14-137" aria-hidden="true" tabindex="-1"></a>card.fit <span class="ot">&lt;-</span> <span class="fu">iv_fit</span>(y,d,z,x)</span>
+<span id="cb14-138"><a href="#cb14-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-139"><a href="#cb14-139" aria-hidden="true" tabindex="-1"></a><span class="co"># see results</span></span>
+<span id="cb14-140"><a href="#cb14-140" aria-hidden="true" tabindex="-1"></a>card.fit</span>
+<span id="cb14-141"><a href="#cb14-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-142"><a href="#cb14-142" aria-hidden="true" tabindex="-1"></a><span class="co"># runs sensitivity analysis</span></span>
+<span id="cb14-143"><a href="#cb14-143" aria-hidden="true" tabindex="-1"></a>card.sens <span class="ot">&lt;-</span> <span class="fu">sensemakr</span>(card.fit, <span class="at">benchmark_covariates =</span> <span class="fu">c</span>(<span class="st">"black"</span>, <span class="st">"smsa"</span>))</span>
 <span id="cb14-144"><a href="#cb14-144" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-145"><a href="#cb14-145" aria-hidden="true" tabindex="-1"></a>The basic idea is to run an IV regression, then apply sensmakr to that model.  In this case, the authors use "black" and "smsa" as benchmark covariates.  The authors believe these are important factors.  A quick look at the result we can see that a confounder as strong as "black" or "smsa" is not strong enough to explain away the treatment effect.  We can also plot a contour plot to see how strong the confounder needs to be to explain away the treatment effect.</span>
-<span id="cb14-146"><a href="#cb14-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-149"><a href="#cb14-149" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb14-150"><a href="#cb14-150" aria-hidden="true" tabindex="-1"></a><span class="co">#| results: 'asis'</span></span>
+<span id="cb14-145"><a href="#cb14-145" aria-hidden="true" tabindex="-1"></a><span class="co"># see results</span></span>
+<span id="cb14-146"><a href="#cb14-146" aria-hidden="true" tabindex="-1"></a>card.sens</span>
+<span id="cb14-147"><a href="#cb14-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-148"><a href="#cb14-148" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(card.sens)</span>
+<span id="cb14-149"><a href="#cb14-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-150"><a href="#cb14-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb14-151"><a href="#cb14-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-152"><a href="#cb14-152" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(card.sens, <span class="at">parm =</span> <span class="st">"rf"</span>, <span class="at">sensitivity.of =</span> <span class="st">"t-value"</span>, <span class="at">lim =</span> <span class="fl">0.08</span>, <span class="at">kz =</span> <span class="dv">1</span>, <span class="at">ky =</span> <span class="dv">1</span>)</span>
-<span id="cb14-153"><a href="#cb14-153" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb14-154"><a href="#cb14-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-155"><a href="#cb14-155" aria-hidden="true" tabindex="-1"></a>Unfortunately the package currently only allows for one instrument.  Should not be too hard to modify it to be more general.</span>
-<span id="cb14-156"><a href="#cb14-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-157"><a href="#cb14-157" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb14-158"><a href="#cb14-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-159"><a href="#cb14-159" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb14-160"><a href="#cb14-160" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/sensitivity-analysis.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/sensitivity-analysis.html).*</span>
+<span id="cb14-152"><a href="#cb14-152" aria-hidden="true" tabindex="-1"></a>The basic idea is to run an IV regression, then apply sensemakr to that model.  In this case, the authors use "black" and "smsa" as benchmark covariates.  The authors believe these are important factors.</span>
+<span id="cb14-153"><a href="#cb14-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-154"><a href="#cb14-154" aria-hidden="true" tabindex="-1"></a>The IV estimate is 0.132 with $t = 2.33$, $p = 0.02$, and an Anderson-Rubin</span>
+<span id="cb14-155"><a href="#cb14-155" aria-hidden="true" tabindex="-1"></a>confidence interval of $<span class="co">[</span><span class="ot">0.025, 0.285</span><span class="co">]</span>$ that excludes zero. Read the sensitivity</span>
+<span id="cb14-156"><a href="#cb14-156" aria-hidden="true" tabindex="-1"></a>statistics next to that, and the picture is not reassuring. The Robustness Value</span>
+<span id="cb14-157"><a href="#cb14-157" aria-hidden="true" tabindex="-1"></a>is 0.00667 — two-thirds of one percent. Compare the OLS example earlier in this</span>
+<span id="cb14-158"><a href="#cb14-158" aria-hidden="true" tabindex="-1"></a>chapter, where $RV_{q=1}$ was 13.9%. This IV result is roughly twenty times more</span>
+<span id="cb14-159"><a href="#cb14-159" aria-hidden="true" tabindex="-1"></a>fragile than that one.</span>
+<span id="cb14-160"><a href="#cb14-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-161"><a href="#cb14-161" aria-hidden="true" tabindex="-1"></a>The benchmark bounds make it concrete, and they point the other way from what one</span>
+<span id="cb14-162"><a href="#cb14-162" aria-hidden="true" tabindex="-1"></a>might hope. A confounder as strong as <span class="in">`black`</span> explains 0.22% of the residual</span>
+<span id="cb14-163"><a href="#cb14-163" aria-hidden="true" tabindex="-1"></a>variance of the instrument and 7.5% of the outcome, and under it the adjusted</span>
+<span id="cb14-164"><a href="#cb14-164" aria-hidden="true" tabindex="-1"></a>interval becomes $<span class="co">[</span><span class="ot">-0.021, 0.402</span><span class="co">]</span>$. For <span class="in">`smsa`</span> the figures are 0.64% and 2.0%,</span>
+<span id="cb14-165"><a href="#cb14-165" aria-hidden="true" tabindex="-1"></a>giving $<span class="co">[</span><span class="ot">-0.019, 0.396</span><span class="co">]</span>$. **Both intervals contain zero.** A confounder no</span>
+<span id="cb14-166"><a href="#cb14-166" aria-hidden="true" tabindex="-1"></a>stronger than either benchmark covariate is enough to remove the significance of</span>
+<span id="cb14-167"><a href="#cb14-167" aria-hidden="true" tabindex="-1"></a>the estimate.</span>
+<span id="cb14-168"><a href="#cb14-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-169"><a href="#cb14-169" aria-hidden="true" tabindex="-1"></a>That <span class="in">`smsa`</span> number is worth a second look on its own terms: its instrument-side</span>
+<span id="cb14-170"><a href="#cb14-170" aria-hidden="true" tabindex="-1"></a>partial $R^2$ of 0.00639 sits just under the Robustness Value of 0.00667, so a</span>
+<span id="cb14-171"><a href="#cb14-171" aria-hidden="true" tabindex="-1"></a>confounder of that strength lands essentially exactly on the tipping point. The</span>
+<span id="cb14-172"><a href="#cb14-172" aria-hidden="true" tabindex="-1"></a>two diagnostics agree.</span>
+<span id="cb14-173"><a href="#cb14-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-174"><a href="#cb14-174" aria-hidden="true" tabindex="-1"></a>None of this says the Card estimate is wrong. It says the identification rests on</span>
+<span id="cb14-175"><a href="#cb14-175" aria-hidden="true" tabindex="-1"></a>the instrument being cleaner than <span class="in">`black`</span> or <span class="in">`smsa`</span> are as predictors, which is</span>
+<span id="cb14-176"><a href="#cb14-176" aria-hidden="true" tabindex="-1"></a>an assumption about college proximity that the data cannot check. We can also plot a contour plot to see how strong the confounder needs to be to explain away the treatment effect.</span>
+<span id="cb14-177"><a href="#cb14-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-180"><a href="#cb14-180" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-181"><a href="#cb14-181" aria-hidden="true" tabindex="-1"></a><span class="co">#| results: 'asis'</span></span>
+<span id="cb14-182"><a href="#cb14-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-183"><a href="#cb14-183" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(card.sens, <span class="at">parm =</span> <span class="st">"rf"</span>, <span class="at">sensitivity.of =</span> <span class="st">"t-value"</span>, <span class="at">lim =</span> <span class="fl">0.08</span>, <span class="at">kz =</span> <span class="dv">1</span>, <span class="at">ky =</span> <span class="dv">1</span>)</span>
+<span id="cb14-184"><a href="#cb14-184" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-185"><a href="#cb14-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-186"><a href="#cb14-186" aria-hidden="true" tabindex="-1"></a>Unfortunately the package currently only allows for one instrument.  Should not be too hard to modify it to be more general.</span>
+<span id="cb14-187"><a href="#cb14-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-188"><a href="#cb14-188" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb14-189"><a href="#cb14-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-190"><a href="#cb14-190" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb14-191"><a href="#cb14-191" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/sensitivity-analysis.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/sensitivity-analysis.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

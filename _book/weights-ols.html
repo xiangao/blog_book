@@ -623,6 +623,7 @@ window.Quarto = {
 </section><section id="a-worked-example" class="level2" data-number="4.4"><h2 data-number="4.4" class="anchored" data-anchor-id="a-worked-example">
 <span class="header-section-number">4.4</span> A worked example</h2>
 <p>We make the regression weights <span class="math inline">\(\omega_i\)</span> concrete and compare them to IPW weights <span class="math inline">\(1/\hat d(X_i)\)</span> (treated) and <span class="math inline">\(1/(1-\hat d(X_i))\)</span> (control).</p>
+<p>We draw <span class="math inline">\(n = 500\)</span> observations with a single covariate <span class="math inline">\(X \sim N(0,1)\)</span>, treatment <span class="math inline">\(D \sim \text{Bernoulli}(\Lambda(0.5X))\)</span> — so 238 units are treated — and outcome <span class="math inline">\(Y = 1 + 2D + 1.5X + \varepsilon\)</span> with <span class="math inline">\(\varepsilon \sim N(0,1)\)</span>. The effect is constant at 2, so there is no heterogeneity for the weights to mis-average; the point of this first example is only to show that the weights reproduce the coefficient.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org">dplyr</a></span><span class="op">)</span></span>
 <span></span>
@@ -655,7 +656,8 @@ window.Quarto = {
 D             2.084644         2.084644</code></pre>
 </div>
 </div>
-<p>The two are numerically identical (up to floating point), confirming <span class="math inline">\(\hat\tau_{reg} = \sum \omega_i Y_i\)</span>. Plotting <code>omega_reg</code> against <code>ipw</code> for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that <span class="math inline">\(\hat\tau_{reg} \neq \hat\tau_{ATE}\)</span> in general, as discussed above.</p>
+<p>Both give 2.084644, identical to seven digits, confirming <span class="math inline">\(\hat\tau_{reg} = \sum \omega_i Y_i\)</span>. (Both sit a little above the true 2; with <span class="math inline">\(n=500\)</span> and a constant effect that is sampling noise, not weighting.)</p>
+<p>Plotting <code>omega_reg</code> against <code>ipw</code> for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that <span class="math inline">\(\hat\tau_{reg} \neq \hat\tau_{ATE}\)</span> in general, as discussed above.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">ipw</span><span class="op">[</span><span class="va">dat</span><span class="op">$</span><span class="va">D</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span>, <span class="va">omega_reg</span><span class="op">[</span><span class="va">dat</span><span class="op">$</span><span class="va">D</span> <span class="op">==</span> <span class="fl">1</span><span class="op">]</span>,</span>
@@ -673,7 +675,8 @@ D             2.084644         2.084644</code></pre>
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p>Note also what this example does <em>not</em> show. Here <span class="math inline">\(\hat d(X_i)\)</span> stays inside <span class="math inline">\([0.06, 0.99]\)</span>, so every weight keeps its expected sign and the negative-weight problem discussed above never materializes. That is a property of this particular design, not a reassurance. Strengthen the linear index and the linear probability model starts predicting outside the unit interval:</p>
+<p>Both panels slope upward and neither is a straight line through the origin: the two schemes rank units the same way but do not scale together, which is the whole content of <span class="math inline">\(\hat\tau_{reg} \neq \hat\tau_{ATE}\)</span>.</p>
+<p>Note also what this example does <em>not</em> show. Here <span class="math inline">\(\hat d(X_i)\)</span> stays inside <span class="math inline">\([0.062, 0.994]\)</span>, so every weight keeps its expected sign and the negative-weight problem discussed above never materializes. That is a property of this particular design, not a reassurance. We now strengthen the selection from <span class="math inline">\(\Lambda(0.5X)\)</span> to <span class="math inline">\(\Lambda(3X)\)</span>, holding everything else fixed, and the linear probability model starts predicting outside the unit interval:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
 <span><span class="va">X2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
@@ -693,7 +696,8 @@ D             2.084644         2.084644</code></pre>
 1           28           42                 42                 28</code></pre>
 </div>
 </div>
-<p>Those units are the ones with no counterpart in the other arm, and a plain regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(D\)</span> and <span class="math inline">\(X\)</span> gives you no indication that they are there.</p>
+<p>The fitted probabilities now run from <span class="math inline">\(-0.367\)</span> to <span class="math inline">\(1.445\)</span>. Twenty-eight units fall below zero and 42 rise above one, and the wrong-sign counts match those two numbers exactly: 42 treated units carry a negative weight and 28 control units carry a positive one. That is not a coincidence but the mechanism described above — every unit with <span class="math inline">\(\hat d &gt; 1\)</span> here is treated, every unit with <span class="math inline">\(\hat d &lt; 0\)</span> is control, and each flips the sign of its own contribution. In total 70 of 500 observations, 14% of the sample, enter the contrast on the wrong side.</p>
+<p>Those units are the ones with no counterpart in the other arm, and a plain regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(D\)</span> and <span class="math inline">\(X\)</span> gives you no indication that they are there. Nothing in the coefficient table changes appearance; only looking at <span class="math inline">\(\hat d(X_i)\)</span> reveals it.</p>
 
 
 <!-- -->
@@ -1258,94 +1262,121 @@ D             2.084644         2.084644</code></pre>
 <span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a>We make the regression weights $\omega_i$ concrete and compare them to IPW weights $1/\hat d(X_i)$ (treated) and $1/(1-\hat d(X_i))$ (control).</span>
 <span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-example</span></span>
-<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
-<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">500</span></span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a>d_prob <span class="ot">&lt;-</span> <span class="fu">plogis</span>(<span class="fl">0.5</span> <span class="sc">*</span> X)</span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>D <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, d_prob)</span>
-<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> D <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> X <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(Y, D, X)</span>
-<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="co"># Regression-implied weights via the FWL residualization of D on X.</span></span>
-<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a>d_hat <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat))</span>
-<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>resid_D <span class="ot">&lt;-</span> dat<span class="sc">$</span>D <span class="sc">-</span> d_hat</span>
-<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>omega_reg <span class="ot">&lt;-</span> resid_D <span class="sc">/</span> <span class="fu">sum</span>(resid_D<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW weights (Horvitz-Thompson), using the same linear-probability d_hat</span></span>
-<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a><span class="co"># purely for comparability with the regression weights above.</span></span>
-<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span> <span class="sc">/</span> d_hat, <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> d_hat))</span>
-<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a><span class="co"># rescale by a single constant so the treated weights average 1; this only</span></span>
-<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a><span class="co"># fixes the axis scale of the plot below and does not change any comparison</span></span>
-<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> ipw <span class="sc">/</span> <span class="fu">sum</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>]) <span class="sc">*</span> <span class="fu">sum</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a>We draw $n = 500$ observations with a single covariate $X \sim N(0,1)$,</span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>treatment $D \sim \text{Bernoulli}(\Lambda(0.5X))$ — so 238 units are treated —</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>and outcome $Y = 1 + 2D + 1.5X + \varepsilon$ with $\varepsilon \sim N(0,1)$.</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>The effect is constant at 2, so there is no heterogeneity for the weights to</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>mis-average; the point of this first example is only to show that the weights</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>reproduce the coefficient.</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-example</span></span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>d_prob <span class="ot">&lt;-</span> <span class="fu">plogis</span>(<span class="fl">0.5</span> <span class="sc">*</span> X)</span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>D <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, d_prob)</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> D <span class="sc">+</span> <span class="fl">1.5</span> <span class="sc">*</span> X <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(Y, D, X)</span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a><span class="co"># Regression-implied weights via the FWL residualization of D on X.</span></span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>d_hat <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat))</span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>resid_D <span class="ot">&lt;-</span> dat<span class="sc">$</span>D <span class="sc">-</span> d_hat</span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>omega_reg <span class="ot">&lt;-</span> resid_D <span class="sc">/</span> <span class="fu">sum</span>(resid_D<span class="sc">^</span><span class="dv">2</span>)</span>
 <span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>tau_reg <span class="ot">&lt;-</span> <span class="fu">sum</span>(omega_reg <span class="sc">*</span> dat<span class="sc">$</span>Y)</span>
-<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a>tau_lm  <span class="ot">&lt;-</span> <span class="fu">coef</span>(<span class="fu">lm</span>(Y <span class="sc">~</span> D <span class="sc">+</span> X, <span class="at">data =</span> dat))[<span class="st">"D"</span>]</span>
-<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">tau_reg_from_weights =</span> tau_reg, <span class="at">tau_from_lm_coef =</span> tau_lm)</span>
-<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a>The two are numerically identical (up to floating point), confirming $\hat\tau_{reg} = \sum \omega_i Y_i$. Plotting <span class="in">`omega_reg`</span> against <span class="in">`ipw`</span> for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.</span>
-<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-plot</span></span>
-<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
-<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>],</span>
-<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
-<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Treated units"</span>)</span>
-<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>],</span>
-<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
-<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Control units"</span>)</span>
-<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
-<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a>Note also what this example does *not* show. Here $\hat d(X_i)$ stays inside</span>
-<span id="cb7-155"><a href="#cb7-155" aria-hidden="true" tabindex="-1"></a>$<span class="co">[</span><span class="ot">0.06, 0.99</span><span class="co">]</span>$, so every weight keeps its expected sign and the negative-weight</span>
-<span id="cb7-156"><a href="#cb7-156" aria-hidden="true" tabindex="-1"></a>problem discussed above never materializes. That is a property of this particular</span>
-<span id="cb7-157"><a href="#cb7-157" aria-hidden="true" tabindex="-1"></a>design, not a reassurance. Strengthen the linear index and the linear probability</span>
-<span id="cb7-158"><a href="#cb7-158" aria-hidden="true" tabindex="-1"></a>model starts predicting outside the unit interval:</span>
-<span id="cb7-159"><a href="#cb7-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-162"><a href="#cb7-162" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-163"><a href="#cb7-163" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-negative-weights</span></span>
-<span id="cb7-164"><a href="#cb7-164" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-165"><a href="#cb7-165" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-166"><a href="#cb7-166" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-167"><a href="#cb7-167" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
-<span id="cb7-168"><a href="#cb7-168" aria-hidden="true" tabindex="-1"></a>X2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-169"><a href="#cb7-169" aria-hidden="true" tabindex="-1"></a>D2 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="dv">3</span> <span class="sc">*</span> X2))       <span class="co"># much stronger selection on X</span></span>
-<span id="cb7-170"><a href="#cb7-170" aria-hidden="true" tabindex="-1"></a>dat2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">D =</span> D2, <span class="at">X =</span> X2)</span>
-<span id="cb7-171"><a href="#cb7-171" aria-hidden="true" tabindex="-1"></a>d_hat2 <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat2))</span>
-<span id="cb7-172"><a href="#cb7-172" aria-hidden="true" tabindex="-1"></a>omega2 <span class="ot">&lt;-</span> (dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2) <span class="sc">/</span> <span class="fu">sum</span>((dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2)<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb7-173"><a href="#cb7-173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-174"><a href="#cb7-174" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb7-175"><a href="#cb7-175" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_below_0        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
-<span id="cb7-176"><a href="#cb7-176" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_above_1        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&gt;</span> <span class="dv">1</span>),</span>
-<span id="cb7-177"><a href="#cb7-177" aria-hidden="true" tabindex="-1"></a>  <span class="at">treated_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> omega2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
-<span id="cb7-178"><a href="#cb7-178" aria-hidden="true" tabindex="-1"></a>  <span class="at">control_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> omega2 <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
-<span id="cb7-179"><a href="#cb7-179" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb7-180"><a href="#cb7-180" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-181"><a href="#cb7-181" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-182"><a href="#cb7-182" aria-hidden="true" tabindex="-1"></a>Those units are the ones with no counterpart in the other arm, and a plain</span>
-<span id="cb7-183"><a href="#cb7-183" aria-hidden="true" tabindex="-1"></a>regression of $Y$ on $D$ and $X$ gives you no indication that they are there.</span>
-<span id="cb7-184"><a href="#cb7-184" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-185"><a href="#cb7-185" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-186"><a href="#cb7-186" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-187"><a href="#cb7-187" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-188"><a href="#cb7-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a><span class="co"># IPW weights (Horvitz-Thompson), using the same linear-probability d_hat</span></span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a><span class="co"># purely for comparability with the regression weights above.</span></span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span> <span class="sc">/</span> d_hat, <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">-</span> d_hat))</span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a><span class="co"># rescale by a single constant so the treated weights average 1; this only</span></span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a><span class="co"># fixes the axis scale of the plot below and does not change any comparison</span></span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a>ipw <span class="ot">&lt;-</span> ipw <span class="sc">/</span> <span class="fu">sum</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>]) <span class="sc">*</span> <span class="fu">sum</span>(dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a>tau_reg <span class="ot">&lt;-</span> <span class="fu">sum</span>(omega_reg <span class="sc">*</span> dat<span class="sc">$</span>Y)</span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a>tau_lm  <span class="ot">&lt;-</span> <span class="fu">coef</span>(<span class="fu">lm</span>(Y <span class="sc">~</span> D <span class="sc">+</span> X, <span class="at">data =</span> dat))[<span class="st">"D"</span>]</span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">tau_reg_from_weights =</span> tau_reg, <span class="at">tau_from_lm_coef =</span> tau_lm)</span>
+<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a>Both give 2.084644, identical to seven digits, confirming</span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a>$\hat\tau_{reg} = \sum \omega_i Y_i$. (Both sit a little above the true 2;</span>
+<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a>with $n=500$ and a constant effect that is sampling noise, not weighting.)</span>
+<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a>Plotting <span class="in">`omega_reg`</span> against <span class="in">`ipw`</span> for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.</span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-weights-plot</span></span>
+<span id="cb7-152"><a href="#cb7-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-153"><a href="#cb7-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-154"><a href="#cb7-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-155"><a href="#cb7-155" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
+<span id="cb7-156"><a href="#cb7-156" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span>],</span>
+<span id="cb7-157"><a href="#cb7-157" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
+<span id="cb7-158"><a href="#cb7-158" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Treated units"</span>)</span>
+<span id="cb7-159"><a href="#cb7-159" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ipw[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>], omega_reg[dat<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span>],</span>
+<span id="cb7-160"><a href="#cb7-160" aria-hidden="true" tabindex="-1"></a>     <span class="at">xlab =</span> <span class="st">"IPW weight"</span>, <span class="at">ylab =</span> <span class="st">"Regression (FWL) weight"</span>,</span>
+<span id="cb7-161"><a href="#cb7-161" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Control units"</span>)</span>
+<span id="cb7-162"><a href="#cb7-162" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>))</span>
+<span id="cb7-163"><a href="#cb7-163" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-164"><a href="#cb7-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-165"><a href="#cb7-165" aria-hidden="true" tabindex="-1"></a>Both panels slope upward and neither is a straight line through the origin: the</span>
+<span id="cb7-166"><a href="#cb7-166" aria-hidden="true" tabindex="-1"></a>two schemes rank units the same way but do not scale together, which is the</span>
+<span id="cb7-167"><a href="#cb7-167" aria-hidden="true" tabindex="-1"></a>whole content of $\hat\tau_{reg} \neq \hat\tau_{ATE}$.</span>
+<span id="cb7-168"><a href="#cb7-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-169"><a href="#cb7-169" aria-hidden="true" tabindex="-1"></a>Note also what this example does *not* show. Here $\hat d(X_i)$ stays inside</span>
+<span id="cb7-170"><a href="#cb7-170" aria-hidden="true" tabindex="-1"></a>$<span class="co">[</span><span class="ot">0.062, 0.994</span><span class="co">]</span>$, so every weight keeps its expected sign and the negative-weight</span>
+<span id="cb7-171"><a href="#cb7-171" aria-hidden="true" tabindex="-1"></a>problem discussed above never materializes. That is a property of this particular</span>
+<span id="cb7-172"><a href="#cb7-172" aria-hidden="true" tabindex="-1"></a>design, not a reassurance. We now strengthen the selection from</span>
+<span id="cb7-173"><a href="#cb7-173" aria-hidden="true" tabindex="-1"></a>$\Lambda(0.5X)$ to $\Lambda(3X)$, holding everything else fixed, and the linear</span>
+<span id="cb7-174"><a href="#cb7-174" aria-hidden="true" tabindex="-1"></a>probability model starts predicting outside the unit interval:</span>
+<span id="cb7-175"><a href="#cb7-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-178"><a href="#cb7-178" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-179"><a href="#cb7-179" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fwl-negative-weights</span></span>
+<span id="cb7-180"><a href="#cb7-180" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-181"><a href="#cb7-181" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-182"><a href="#cb7-182" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-183"><a href="#cb7-183" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2</span>)</span>
+<span id="cb7-184"><a href="#cb7-184" aria-hidden="true" tabindex="-1"></a>X2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-185"><a href="#cb7-185" aria-hidden="true" tabindex="-1"></a>D2 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="dv">3</span> <span class="sc">*</span> X2))       <span class="co"># much stronger selection on X</span></span>
+<span id="cb7-186"><a href="#cb7-186" aria-hidden="true" tabindex="-1"></a>dat2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">D =</span> D2, <span class="at">X =</span> X2)</span>
+<span id="cb7-187"><a href="#cb7-187" aria-hidden="true" tabindex="-1"></a>d_hat2 <span class="ot">&lt;-</span> <span class="fu">fitted</span>(<span class="fu">lm</span>(D <span class="sc">~</span> X, <span class="at">data =</span> dat2))</span>
+<span id="cb7-188"><a href="#cb7-188" aria-hidden="true" tabindex="-1"></a>omega2 <span class="ot">&lt;-</span> (dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2) <span class="sc">/</span> <span class="fu">sum</span>((dat2<span class="sc">$</span>D <span class="sc">-</span> d_hat2)<span class="sc">^</span><span class="dv">2</span>)</span>
 <span id="cb7-189"><a href="#cb7-189" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-190"><a href="#cb7-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-191"><a href="#cb7-191" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-192"><a href="#cb7-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-193"><a href="#cb7-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-190"><a href="#cb7-190" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb7-191"><a href="#cb7-191" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_below_0        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
+<span id="cb7-192"><a href="#cb7-192" aria-hidden="true" tabindex="-1"></a>  <span class="at">dhat_above_1        =</span> <span class="fu">sum</span>(d_hat2 <span class="sc">&gt;</span> <span class="dv">1</span>),</span>
+<span id="cb7-193"><a href="#cb7-193" aria-hidden="true" tabindex="-1"></a>  <span class="at">treated_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">1</span> <span class="sc">&amp;</span> omega2 <span class="sc">&lt;</span> <span class="dv">0</span>),</span>
+<span id="cb7-194"><a href="#cb7-194" aria-hidden="true" tabindex="-1"></a>  <span class="at">control_wrong_sign  =</span> <span class="fu">sum</span>(dat2<span class="sc">$</span>D <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> omega2 <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb7-195"><a href="#cb7-195" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-196"><a href="#cb7-196" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-197"><a href="#cb7-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-198"><a href="#cb7-198" aria-hidden="true" tabindex="-1"></a>The fitted probabilities now run from $-0.367$ to $1.445$. Twenty-eight units</span>
+<span id="cb7-199"><a href="#cb7-199" aria-hidden="true" tabindex="-1"></a>fall below zero and 42 rise above one, and the wrong-sign counts match those two</span>
+<span id="cb7-200"><a href="#cb7-200" aria-hidden="true" tabindex="-1"></a>numbers exactly: 42 treated units carry a negative weight and 28 control units</span>
+<span id="cb7-201"><a href="#cb7-201" aria-hidden="true" tabindex="-1"></a>carry a positive one. That is not a coincidence but the mechanism described</span>
+<span id="cb7-202"><a href="#cb7-202" aria-hidden="true" tabindex="-1"></a>above — every unit with $\hat d &gt; 1$ here is treated, every unit with</span>
+<span id="cb7-203"><a href="#cb7-203" aria-hidden="true" tabindex="-1"></a>$\hat d &lt; 0$ is control, and each flips the sign of its own contribution. In</span>
+<span id="cb7-204"><a href="#cb7-204" aria-hidden="true" tabindex="-1"></a>total 70 of 500 observations, 14% of the sample, enter the contrast on the wrong</span>
+<span id="cb7-205"><a href="#cb7-205" aria-hidden="true" tabindex="-1"></a>side.</span>
+<span id="cb7-206"><a href="#cb7-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-207"><a href="#cb7-207" aria-hidden="true" tabindex="-1"></a>Those units are the ones with no counterpart in the other arm, and a plain</span>
+<span id="cb7-208"><a href="#cb7-208" aria-hidden="true" tabindex="-1"></a>regression of $Y$ on $D$ and $X$ gives you no indication that they are there.</span>
+<span id="cb7-209"><a href="#cb7-209" aria-hidden="true" tabindex="-1"></a>Nothing in the coefficient table changes appearance; only looking at</span>
+<span id="cb7-210"><a href="#cb7-210" aria-hidden="true" tabindex="-1"></a>$\hat d(X_i)$ reveals it.</span>
+<span id="cb7-211"><a href="#cb7-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-212"><a href="#cb7-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-213"><a href="#cb7-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-214"><a href="#cb7-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-215"><a href="#cb7-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-216"><a href="#cb7-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-217"><a href="#cb7-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-218"><a href="#cb7-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-219"><a href="#cb7-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-220"><a href="#cb7-220" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

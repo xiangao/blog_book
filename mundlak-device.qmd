@@ -62,7 +62,7 @@ reg ln_wage age union mean_age mean_union, cluster(idcode)
 xtreg ln_wage age union mean_age mean_union, re cluster(idcode)
 ```
 
-All three models return the same coefficients and standard errors on age and union.
+All three models return the same coefficients and standard errors on age and union. On the 19,229 person-years of `nlswork` with non-missing union and age, every one of them gives `age` = .0153507 with a clustered standard error of .00069 and `union` = .1055274 with .00986 — agreeing to the last printed digit, with only the confidence bounds differing in the seventh decimal. The $N$ unit dummies of `xtreg, fe` have been replaced by two group means, and nothing was lost.
 
 Wooldridge (2021) extends this to the two-way case. For the TWFE,
 $$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-5}
@@ -87,6 +87,11 @@ The reason is *not* that `race` is orthogonal to the other regressors --- it is 
 reg ln_wage age union mean_age mean_union i.race, cluster(idcode)
 
 ```
+
+And indeed `age` stays at .0153507 and `union` at .1055274, unchanged to seven
+digits by the addition of `i.race`, while race itself is estimated: Black women
+earn 17.9% less ($-.1790995$, SE .0144). A fixed-effect model could report the
+first two numbers but not the third.
 
 ## An important qualification: TWM needs a balanced panel
 
@@ -143,7 +148,14 @@ di "TWM + unit means of dummies   = " %9.7f b_fix
 restore
 ```
 
-What restores the equivalence is including the **unit means of the time dummies**.  They have a
+The numbers make the point. TWFE gives `age` = 0.0276645; two-way Mundlak with
+unit and time means gives 0.0117968 — 43% of it, a factor of 2.35 apart. These
+are not two estimates of the same thing that happen to disagree; on an
+unbalanced panel they are different estimators.
+
+What restores the equivalence is including the **unit means of the time dummies**.  Adding them
+brings TWM to 0.0276646 against TWFE's 0.0276645 — agreement to six decimal
+places, on the same unbalanced data that produced the factor-of-two gap.  They have a
 clear meaning: the unit mean of the dummy for period $t$ is $s_{it}/T_i$, where $s_{it}$
 indicates whether unit $i$ is observed in period $t$.  So adding them amounts to conditioning on
 *which* periods each unit is observed in --- the panel's selection pattern.  This is the
@@ -261,6 +273,12 @@ capture program drop twm3
 restore
 ```
 
+With `g` assigned at random, the three-way fixed-effect estimate is 0.994424.
+Construction B reproduces it exactly, gap 0.000000; construction A gives
+1.007648, a gap of 0.013224. Replace the random assignment with a Latin square,
+which makes the three factors mutually orthogonal, and all three agree at
+0.996471 with both gaps at 0.000000.
+
 So **A is not incorrect but conditional**: it is exact when the factors are mutually orthogonal, and
 inexact otherwise.  A full factorial design gives orthogonality, but so does a Latin square, which
 fills only a fraction of the possible cells --- what matters is the balance property, that each level of
@@ -325,6 +343,22 @@ In the TWM, we allow effects change from $t=q$ to $t=T$, by interacting $w_{it}$
 Even more, if we have another variable, $x_i$, say gender, which is time-invariant, we can allow the effect to be different across gender, across time!
 
 Now I use Wooldridge's code to run on a simulated data set.
+
+The simulation has 100 units observed over 2012–2015, 400 observations, with
+common treatment timing. Each unit draws time-invariant $w_1, w_2 \sim N(0,1)$.
+Units with `id > 50` are treated ($d = 1$, so 50 treated and 50 control), the
+post period is 2014–2015, and $w_{it} = d_i \cdot \text{post}_t$. The covariate
+is $x_1 = N(0,1) + w_1 + 2w_2$, correlated with the unit effects by
+construction, and the untreated outcome is
+$y_1 = 1 + 2x_1 + 3w_1 + u$ with $u \sim N(0,1)$. The observed outcome adds a
+treatment effect that grows over time,
+
+$$
+\text{logy} = y_1 + 2.5\,d_i f_{2014} + 3.5\,d_i f_{2015}.
+$$ {#eq-mundlak-device-15}
+
+So the true effect is 2.5 in the first post year and 3.5 in the second, and
+because the panel is balanced the overall ATT is their average, exactly 3.
 ```{stata}
 *| label: stata3
 *| echo: true
@@ -496,3 +530,23 @@ reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 
 ```
 
 
+
+That is a long chunk, so here is what to take from it. Every specification that
+targets the overall ATT returns **3.206857** — the two-way fixed-effect
+regression, pooled OLS with unit and time means, random effects, and the
+`did`-style variants all agree to seven digits, differing only in the standard
+error's fourth decimal (0.4310 to 0.4326). Against a true ATT of 3, that is
+about half a standard error high. The equivalences claimed throughout this
+chapter hold numerically, not just in the algebra.
+
+Allowing the effect to vary by year recovers the two components separately:
+2.496168 for 2014 and 3.349012 for 2015, against true values of 2.5 and 3.5.
+Their average, 2.92, is what the single-number ATT is summarising, and reporting
+only 3.21 would hide that the effect grows by about a third between the two post
+years.
+
+The imputation approach at the end fits the model on untreated observations only
+and reads the treatment effects off the residuals. Its estimates of
+`c.d#c.t` and `c.d#c.t#c.x1` match the full-sample regression, and the
+pre-treatment interaction `c.d#c.t` is 0.0668 with $p = 0.822$ — no detectable
+differential trend before treatment, which is what the design needs.

@@ -590,7 +590,7 @@ window.Quarto = {
 <p>RE requires <span class="math inline">\(v_i\)</span> and <span class="math inline">\(X_{it}\)</span> to be uncorrelated — an assumption most economists reject. FE is consistent regardless, but it cannot estimate time-invariant covariates (race, gender, etc.). CRE has both advantages: it includes time-invariant variables and remains consistent. Mundlak and Wooldridge show that the CRE coefficients on <span class="math inline">\(X_{it}\)</span> are identical to the FE estimates. Testing whether the coefficients on <span class="math inline">\(\bar X_i\)</span> are jointly zero gives the Mundlak test for choosing between RE and CRE.</p>
 </section><section id="example" class="level2" data-number="9.5"><h2 data-number="9.5" class="anchored" data-anchor-id="example">
 <span class="header-section-number">9.5</span> Example</h2>
-<p>Stata 18 added a <code>cre</code> option to <code>xtreg</code>. The following uses <code>nlswork</code>.</p>
+<p>Stata 18 added a <code>cre</code> option to <code>xtreg</code>. The following uses <code>nlswork</code>, 28,101 person-years from the National Longitudinal Survey of Young Women with complete data on the model’s variables. We regress log wage on <code>tenure</code> and <code>age</code>, which vary within a person, plus <code>race</code>, which does not — the covariate a fixed-effect model has to drop.</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nlswork</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -642,6 +642,8 @@ xt_means     |
 Mundlak test (xt_means = 0): chi2(2) = 331.5144           Prob &gt; chi2 = 0.0000</code></pre>
 </div>
 </div>
+<p>CRE gives <code>tenure</code> = .0211313 and <code>age</code> = .0121949, and estimates race as well: Black women earn 13.1% less (<span class="math inline">\(-.1312068\)</span>, SE .0118), while the “Other” category is marginal (<span class="math inline">\(.1059\)</span>, <span class="math inline">\(p = 0.074\)</span>). The coefficients on the group means are .0376991 for mean tenure and <span class="math inline">\(-.0011984\)</span> for mean age.</p>
+<p>Stata prints the Mundlak test at the foot of the table: <span class="math inline">\(\chi^2(2) = 331.51\)</span>, <span class="math inline">\(p &lt; 0.0001\)</span>. The group means are jointly far from zero, so plain random effects is rejected — <span class="math inline">\(v_i\)</span> and the regressors are correlated, as the reported <span class="math inline">\(\text{corr} = 0.5474\)</span> between the two blocks says directly.</p>
 <p>To compare with a fixed effect model:</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nlswork</span>
@@ -684,7 +686,7 @@ corr(u_i, Xb) = 0.1302                          Prob &gt; F          =     0.000
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>The coefficients on <code>tenure</code> and <code>age</code> are identical. CRE additionally estimates the effect of <code>race</code>.</p>
+<p>The coefficients on <code>tenure</code> and <code>age</code> are identical: .0211313 and .0121949 in both, with standard errors agreeing to the seventh decimal (.0012112 against .0012113). Race is reported as <code>0 (omitted)</code> here, being collinear with the unit effects — the one thing FE cannot do and CRE can. This is the Mundlak result in practice: CRE gives you the fixed-effect estimates <em>and</em> the time-invariant coefficients from a single random-effects fit.</p>
 <p>We can replicate this manually by including the group means in a RE model:</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nlswork</span>
@@ -738,7 +740,8 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>This is what Stata’s <code>cre</code> option does internally.</p>
+<p>This is what Stata’s <code>cre</code> option does internally. Every number matches the first table: <code>tenure</code> .0211313, <code>age</code> .0121949, Black <span class="math inline">\(-.1312068\)</span>, Other .1059379, constant 1.2159, and the same variance components (<span class="math inline">\(\sigma_u\)</span> .3333, <span class="math inline">\(\sigma_e\)</span> .2981, <span class="math inline">\(\rho\)</span> .5557). The <code>cre</code> option is a convenience, not a different estimator.</p>
+<p>The one detail worth care is in the code above: the group means must be computed on the estimation sample. Both <code>tenure</code> and <code>age</code> have missing values in <code>nlswork</code>, so averaging over all of a woman’s rows rather than only her complete ones would give different means and break the equivalence.</p>
 
 
 <!-- -->
@@ -1241,7 +1244,7 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
 <span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
 <span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>Stata 18 added a <span class="in">`cre`</span> option to <span class="in">`xtreg`</span>. The following uses <span class="in">`nlswork`</span>.</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>Stata 18 added a <span class="in">`cre`</span> option to <span class="in">`xtreg`</span>. The following uses <span class="in">`nlswork`</span>, 28,101 person-years from the National Longitudinal Survey of Young Women with complete data on the model's variables. We regress log wage on <span class="in">`tenure`</span> and <span class="in">`age`</span>, which vary within a person, plus <span class="in">`race`</span>, which does not — the covariate a fixed-effect model has to drop.</span>
 <span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: setup</span></span>
@@ -1270,43 +1273,67 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
 <span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_wage tenure age i.race, cre vce(cluster idcode)</span></span>
 <span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>To compare with a fixed effect model:</span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
-<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
-<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_wage tenure age i.race, fe vce(cluster idcode)</span></span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>The coefficients on <span class="in">`tenure`</span> and <span class="in">`age`</span> are identical. CRE additionally estimates the effect of <span class="in">`race`</span>.</span>
-<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>We can replicate this manually by including the group means in a RE model:</span>
-<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
-<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="in">* Restrict the mean calculation to the estimation sample (listwise-deleted</span></span>
-<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="in">* on the model's variables), matching what xtreg's native cre option does</span></span>
-<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a><span class="in">* internally. Both tenure and age have missing values in nlswork, so</span></span>
-<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a><span class="in">* computing age_mean/tenure_mean over all rows for an idcode (rather than</span></span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a><span class="in">* only rows with complete data on ln_wage, tenure, age, and race) would</span></span>
-<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a><span class="in">* make the manual means diverge from cre's.</span></span>
-<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a><span class="in">egen age_mean = mean(age) if !missing(ln_wage, tenure, age, race), by(idcode)</span></span>
-<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a><span class="in">egen tenure_mean = mean(tenure) if !missing(ln_wage, tenure, age, race), by(idcode)</span></span>
-<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_wage tenure tenure_mean age age_mean i.race, vce(cluster idcode)</span></span>
-<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a>This is what Stata's <span class="in">`cre`</span> option does internally.</span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>CRE gives <span class="in">`tenure`</span> = .0211313 and <span class="in">`age`</span> = .0121949, and estimates race as well:</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>Black women earn 13.1% less ($-.1312068$, SE .0118), while the "Other" category</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>is marginal ($.1059$, $p = 0.074$). The coefficients on the group means are</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>.0376991 for mean tenure and $-.0011984$ for mean age.</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>Stata prints the Mundlak test at the foot of the table: $\chi^2(2) = 331.51$,</span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>$p &lt; 0.0001$. The group means are jointly far from zero, so plain random</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a>effects is rejected — $v_i$ and the regressors are correlated, as the reported</span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a>$\text{corr} = 0.5474$ between the two blocks says directly.</span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a>To compare with a fixed effect model:</span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_wage tenure age i.race, fe vce(cluster idcode)</span></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>The coefficients on <span class="in">`tenure`</span> and <span class="in">`age`</span> are identical: .0211313 and .0121949 in</span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a>both, with standard errors agreeing to the seventh decimal (.0012112 against</span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>.0012113). Race is reported as <span class="in">`0 (omitted)`</span> here, being collinear with the unit</span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a>effects — the one thing FE cannot do and CRE can. This is the Mundlak result in</span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>practice: CRE gives you the fixed-effect estimates *and* the time-invariant</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>coefficients from a single random-effects fit.</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>We can replicate this manually by including the group means in a RE model:</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
 <span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a><span class="in">* Restrict the mean calculation to the estimation sample (listwise-deleted</span></span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="in">* on the model's variables), matching what xtreg's native cre option does</span></span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="in">* internally. Both tenure and age have missing values in nlswork, so</span></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="in">* computing age_mean/tenure_mean over all rows for an idcode (rather than</span></span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a><span class="in">* only rows with complete data on ln_wage, tenure, age, and race) would</span></span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a><span class="in">* make the manual means diverge from cre's.</span></span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a><span class="in">egen age_mean = mean(age) if !missing(ln_wage, tenure, age, race), by(idcode)</span></span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a><span class="in">egen tenure_mean = mean(tenure) if !missing(ln_wage, tenure, age, race), by(idcode)</span></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_wage tenure tenure_mean age age_mean i.race, vce(cluster idcode)</span></span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>This is what Stata's <span class="in">`cre`</span> option does internally. Every number matches the</span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>first table: <span class="in">`tenure`</span> .0211313, <span class="in">`age`</span> .0121949, Black $-.1312068$, Other</span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>.1059379, constant 1.2159, and the same variance components ($\sigma_u$ .3333,</span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a>$\sigma_e$ .2981, $\rho$ .5557). The <span class="in">`cre`</span> option is a convenience, not a</span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>different estimator.</span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a>The one detail worth care is in the code above: the group means must be computed</span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a>on the estimation sample. Both <span class="in">`tenure`</span> and <span class="in">`age`</span> have missing values in</span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a><span class="in">`nlswork`</span>, so averaging over all of a woman's rows rather than only her complete</span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a>ones would give different means and break the equivalence.</span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

@@ -613,6 +613,7 @@ window.Quarto = {
 </div>
 </div>
 </div>
+<p>The panel is 22,971 municipality-years: 1,209 Swiss municipalities observed from 1991 to 2009. The outcome <code>nat_rate_ord</code> is the ordinary naturalization rate and <code>indirect</code> marks the switch from direct to indirect democracy, adopted at different dates by different municipalities — staggered treatment timing.</p>
 <section id="twfe" class="level3" data-number="21.1.1"><h3 data-number="21.1.1" class="anchored" data-anchor-id="twfe">
 <span class="header-section-number">21.1.1</span> TWFE</h3>
 <p>First we do a TWFE model on it.</p>
@@ -634,6 +635,7 @@ RMSE: 4.09541     Adj. R2: 0.152719
                 Within R2: 0.005173</code></pre>
 </div>
 </div>
+<p>TWFE gives 1.33932 with a municipality-clustered standard error of 0.1865, close to the 1.22 the original authors report. Keep that number in view: everything below is an attempt to work out whether it can be trusted.</p>
 <p>TWFE has issues when there is staggered adoption and heterogeneous treatment effects.</p>
 <p>Goodman-Bacon (2021) demonstrates that the two-way fixed-effects (TWFE) estimator in a staggered adoption setting can be represented as a weighted average of all possible 2x2 difference-in-differences (DID) estimates between different cohorts. However, when treatment effects change over time heterogeneously across cohorts, the “forbidden” comparisons that use post-treatment data from early adopters as controls for late adopters may introduce bias in the TWFE estimator. We employ the procedure outlined in Goodman-Bacon (2021) and decompose the TWFE estimate using the command bacon in the bacondecomp package.</p>
 <p>“Negative weights” can be the other issue. Basically it is a weighted average of comparison between different cohorts. The weights can be negative in a TWFE model.</p>
@@ -666,6 +668,37 @@ RMSE: 4.09541     Adj. R2: 0.152719
 </div>
 </div>
 </div>
+<p>The decomposition sums to 1.339325, reproducing the TWFE estimate exactly. It splits into four kinds of 2x2 comparison:</p>
+<table class="caption-top table">
+<thead><tr class="header">
+<th>comparison</th>
+<th style="text-align: right;">weight</th>
+<th style="text-align: right;">average estimate</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Treated vs Untreated</td>
+<td style="text-align: right;">0.458</td>
+<td style="text-align: right;">1.612</td>
+</tr>
+<tr class="even">
+<td>Later vs Always Treated</td>
+<td style="text-align: right;">0.314</td>
+<td style="text-align: right;">0.752</td>
+</tr>
+<tr class="odd">
+<td>Earlier vs Later Treated</td>
+<td style="text-align: right;">0.176</td>
+<td style="text-align: right;">1.978</td>
+</tr>
+<tr class="even">
+<td>Later vs Earlier Treated</td>
+<td style="text-align: right;">0.052</td>
+<td style="text-align: right;">0.323</td>
+</tr>
+</tbody>
+</table>
+<p>The clean comparisons — treated against never-treated — carry 46% of the weight and give 1.61. The forbidden ones, which use already-treated units as controls, carry 0.314 + 0.052 = 37% and give much smaller numbers, 0.75 and 0.32. That is what pulls the TWFE estimate down from 1.61 to 1.34.</p>
 <p>The problem shown in Bacon decomposition here is the comparison between “Later” and “Earlier Treated”. It’s a “forbidden” comparison.</p>
 <p>TWFE with event history type of graph.</p>
 <div class="cell">
@@ -1192,8 +1225,57 @@ Comparison: TRUE - FALSE</code></pre>
 </div>
 </div>
 </div>
-</section></section><section id="staggered-did-with-treatment-reversal" class="level2" data-number="21.3"><h2 data-number="21.3" class="anchored" data-anchor-id="staggered-did-with-treatment-reversal">
-<span class="header-section-number">21.3</span> Staggered DiD with treatment reversal</h2>
+</section></section><section id="comparing-the-estimators" class="level2" data-number="21.3"><h2 data-number="21.3" class="anchored" data-anchor-id="comparing-the-estimators">
+<span class="header-section-number">21.3</span> Comparing the estimators</h2>
+<p>It is worth collecting what all of these produced on the same data:</p>
+<table class="caption-top table">
+<thead><tr class="header">
+<th>estimator</th>
+<th style="text-align: right;">ATT</th>
+<th style="text-align: right;">s.e.</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>TWFE</td>
+<td style="text-align: right;">1.339</td>
+<td style="text-align: right;">0.187</td>
+</tr>
+<tr class="even">
+<td>Sun and Abraham</td>
+<td style="text-align: right;">1.331</td>
+<td style="text-align: right;">0.288</td>
+</tr>
+<tr class="odd">
+<td>Callaway and Sant’Anna (simple)</td>
+<td style="text-align: right;">1.331</td>
+<td style="text-align: right;">0.302</td>
+</tr>
+<tr class="even">
+<td>Callaway and Sant’Anna (dynamic)</td>
+<td style="text-align: right;">1.221</td>
+<td style="text-align: right;">0.631</td>
+</tr>
+<tr class="odd">
+<td>Imai, Kim and Wang</td>
+<td style="text-align: right;">1.178</td>
+<td style="text-align: right;">0.335</td>
+</tr>
+<tr class="even">
+<td>Liu, Wang and Xu</td>
+<td style="text-align: right;">1.506</td>
+<td style="text-align: right;">0.204</td>
+</tr>
+<tr class="odd">
+<td>Wooldridge ETWFE</td>
+<td style="text-align: right;">1.330</td>
+<td style="text-align: right;">0.288</td>
+</tr>
+</tbody>
+</table>
+<p>Three things stand out. Sun-Abraham, Callaway-Sant’Anna and ETWFE agree to three digits at 1.33 — they are different routes to the same never-treated-control estimand, and they land on the same number. The spread across all seven, 1.18 to 1.51, is smaller than the standard errors, so on this data the estimator choice does not change the conclusion.</p>
+<p>And TWFE at 1.339 is not far off any of them, despite the forbidden comparisons the Bacon decomposition exposed. That is worth saying plainly: the decomposition shows TWFE <em>is</em> contaminated here, but the contamination happens to be small enough that the answer survives. It would not have to be.</p>
+</section><section id="staggered-did-with-treatment-reversal" class="level2" data-number="21.4"><h2 data-number="21.4" class="anchored" data-anchor-id="staggered-did-with-treatment-reversal">
+<span class="header-section-number">21.4</span> Staggered DiD with treatment reversal</h2>
 <p>With treatment reversal (ie., the treated units go back to control), Wooldridge’s method still works. However, I don’t think package “etwfe” has it implemented.</p>
 <p>So far, packages “fect”, “PanelMatch” can handle treatment reversal.</p>
 <p>We can probably manually do ETWFE with treatment reversal. See Wooldridge’s dropbox for the code in Stata. The basic idea is to treat cohorts as different treatment beginning time and exit time combinations. Then do the same regression with interactions of cohort dummies with the time dummies. It is very flexible. The tricky part is to get the marginal effect and its standard error right.</p>
@@ -1706,312 +1788,361 @@ Comparison: TRUE - FALSE</code></pre>
 <span id="cb44-44"><a href="#cb44-44" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb44-45"><a href="#cb44-45" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb44-46"><a href="#cb44-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-47"><a href="#cb44-47" aria-hidden="true" tabindex="-1"></a><span class="fu">### TWFE</span></span>
-<span id="cb44-48"><a href="#cb44-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-49"><a href="#cb44-49" aria-hidden="true" tabindex="-1"></a>First we do a TWFE model on it.</span>
-<span id="cb44-50"><a href="#cb44-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-53"><a href="#cb44-53" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-54"><a href="#cb44-54" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-55"><a href="#cb44-55" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-56"><a href="#cb44-56" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb44-57"><a href="#cb44-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-58"><a href="#cb44-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-59"><a href="#cb44-59" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fixest)</span>
-<span id="cb44-60"><a href="#cb44-60" aria-hidden="true" tabindex="-1"></a>model_twfe <span class="ot">&lt;-</span> <span class="fu">feols</span>(nat_rate_ord<span class="sc">~</span>indirect<span class="sc">|</span>bfs<span class="sc">+</span>year,</span>
-<span id="cb44-61"><a href="#cb44-61" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data=</span>hh2019, <span class="at">cluster =</span> <span class="st">"bfs"</span>)</span>
-<span id="cb44-62"><a href="#cb44-62" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>( model_twfe)</span>
+<span id="cb44-47"><a href="#cb44-47" aria-hidden="true" tabindex="-1"></a>The panel is 22,971 municipality-years: 1,209 Swiss municipalities observed from</span>
+<span id="cb44-48"><a href="#cb44-48" aria-hidden="true" tabindex="-1"></a>1991 to 2009. The outcome <span class="in">`nat_rate_ord`</span> is the ordinary naturalization rate and</span>
+<span id="cb44-49"><a href="#cb44-49" aria-hidden="true" tabindex="-1"></a><span class="in">`indirect`</span> marks the switch from direct to indirect democracy, adopted at</span>
+<span id="cb44-50"><a href="#cb44-50" aria-hidden="true" tabindex="-1"></a>different dates by different municipalities — staggered treatment timing.</span>
+<span id="cb44-51"><a href="#cb44-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-52"><a href="#cb44-52" aria-hidden="true" tabindex="-1"></a><span class="fu">### TWFE</span></span>
+<span id="cb44-53"><a href="#cb44-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-54"><a href="#cb44-54" aria-hidden="true" tabindex="-1"></a>First we do a TWFE model on it.</span>
+<span id="cb44-55"><a href="#cb44-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-58"><a href="#cb44-58" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-59"><a href="#cb44-59" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-60"><a href="#cb44-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-61"><a href="#cb44-61" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb44-62"><a href="#cb44-62" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb44-63"><a href="#cb44-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-64"><a href="#cb44-64" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-65"><a href="#cb44-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-66"><a href="#cb44-66" aria-hidden="true" tabindex="-1"></a>TWFE has issues when there is staggered adoption and heterogeneous treatment effects.</span>
-<span id="cb44-67"><a href="#cb44-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-68"><a href="#cb44-68" aria-hidden="true" tabindex="-1"></a>Goodman-Bacon (2021) demonstrates that the two-way fixed-effects (TWFE) estimator in a staggered adoption setting can be represented as a weighted average of all possible 2x2 difference-in-differences (DID) estimates between different cohorts. However, when treatment effects change over time heterogeneously across cohorts, the “forbidden” comparisons that use post-treatment data from early adopters as controls for late adopters may introduce bias in the TWFE estimator. We employ the procedure outlined in Goodman-Bacon (2021) and decompose the TWFE estimate using the command bacon in the bacondecomp package.</span>
-<span id="cb44-69"><a href="#cb44-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-70"><a href="#cb44-70" aria-hidden="true" tabindex="-1"></a>"Negative weights" can be the other issue.  Basically it is a weighted average of comparison between different cohorts.  The weights can be negative in a TWFE model.</span>
-<span id="cb44-71"><a href="#cb44-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-72"><a href="#cb44-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-75"><a href="#cb44-75" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-76"><a href="#cb44-76" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-77"><a href="#cb44-77" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-78"><a href="#cb44-78" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb44-79"><a href="#cb44-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-64"><a href="#cb44-64" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fixest)</span>
+<span id="cb44-65"><a href="#cb44-65" aria-hidden="true" tabindex="-1"></a>model_twfe <span class="ot">&lt;-</span> <span class="fu">feols</span>(nat_rate_ord<span class="sc">~</span>indirect<span class="sc">|</span>bfs<span class="sc">+</span>year,</span>
+<span id="cb44-66"><a href="#cb44-66" aria-hidden="true" tabindex="-1"></a>                      <span class="at">data=</span>hh2019, <span class="at">cluster =</span> <span class="st">"bfs"</span>)</span>
+<span id="cb44-67"><a href="#cb44-67" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>( model_twfe)</span>
+<span id="cb44-68"><a href="#cb44-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-69"><a href="#cb44-69" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-70"><a href="#cb44-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-71"><a href="#cb44-71" aria-hidden="true" tabindex="-1"></a>TWFE gives 1.33932 with a municipality-clustered standard error of 0.1865, close</span>
+<span id="cb44-72"><a href="#cb44-72" aria-hidden="true" tabindex="-1"></a>to the 1.22 the original authors report. Keep that number in view: everything</span>
+<span id="cb44-73"><a href="#cb44-73" aria-hidden="true" tabindex="-1"></a>below is an attempt to work out whether it can be trusted.</span>
+<span id="cb44-74"><a href="#cb44-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-75"><a href="#cb44-75" aria-hidden="true" tabindex="-1"></a>TWFE has issues when there is staggered adoption and heterogeneous treatment effects.</span>
+<span id="cb44-76"><a href="#cb44-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-77"><a href="#cb44-77" aria-hidden="true" tabindex="-1"></a>Goodman-Bacon (2021) demonstrates that the two-way fixed-effects (TWFE) estimator in a staggered adoption setting can be represented as a weighted average of all possible 2x2 difference-in-differences (DID) estimates between different cohorts. However, when treatment effects change over time heterogeneously across cohorts, the “forbidden” comparisons that use post-treatment data from early adopters as controls for late adopters may introduce bias in the TWFE estimator. We employ the procedure outlined in Goodman-Bacon (2021) and decompose the TWFE estimate using the command bacon in the bacondecomp package.</span>
+<span id="cb44-78"><a href="#cb44-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-79"><a href="#cb44-79" aria-hidden="true" tabindex="-1"></a>"Negative weights" can be the other issue.  Basically it is a weighted average of comparison between different cohorts.  The weights can be negative in a TWFE model.</span>
 <span id="cb44-80"><a href="#cb44-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-81"><a href="#cb44-81" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bacondecomp)</span>
-<span id="cb44-82"><a href="#cb44-82" aria-hidden="true" tabindex="-1"></a>df_bacon <span class="ot">&lt;-</span> <span class="fu">bacon</span>(nat_rate_ord<span class="sc">~</span>indirect,</span>
-<span id="cb44-83"><a href="#cb44-83" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> hh2019,</span>
-<span id="cb44-84"><a href="#cb44-84" aria-hidden="true" tabindex="-1"></a>                  <span class="at">id_var =</span> <span class="st">"bfs"</span>,</span>
-<span id="cb44-85"><a href="#cb44-85" aria-hidden="true" tabindex="-1"></a>                  <span class="at">time_var =</span> <span class="st">"year"</span>)</span>
-<span id="cb44-86"><a href="#cb44-86" aria-hidden="true" tabindex="-1"></a>coef_bacon <span class="ot">&lt;-</span> <span class="fu">sum</span>(df_bacon<span class="sc">$</span>estimate <span class="sc">*</span> df_bacon<span class="sc">$</span>weight)</span>
-<span id="cb44-87"><a href="#cb44-87" aria-hidden="true" tabindex="-1"></a>coef_bacon</span>
+<span id="cb44-81"><a href="#cb44-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-84"><a href="#cb44-84" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-85"><a href="#cb44-85" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-86"><a href="#cb44-86" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-87"><a href="#cb44-87" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
 <span id="cb44-88"><a href="#cb44-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-89"><a href="#cb44-89" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_bacon) <span class="sc">+</span></span>
-<span id="cb44-90"><a href="#cb44-90" aria-hidden="true" tabindex="-1"></a>   <span class="fu">aes</span>(<span class="at">x =</span> weight, <span class="at">y =</span> estimate, <span class="at">shape =</span> <span class="fu">factor</span>(type), <span class="at">color =</span> <span class="fu">factor</span>(type)) <span class="sc">+</span></span>
-<span id="cb44-91"><a href="#cb44-91" aria-hidden="true" tabindex="-1"></a>   <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Weight"</span>, <span class="at">y =</span> <span class="st">"Estimate"</span>, <span class="at">shape =</span> <span class="st">"Type"</span>, <span class="at">color =</span> <span class="st">'Type'</span>) <span class="sc">+</span></span>
-<span id="cb44-92"><a href="#cb44-92" aria-hidden="true" tabindex="-1"></a>   <span class="fu">geom_point</span>()</span>
-<span id="cb44-93"><a href="#cb44-93" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-94"><a href="#cb44-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-95"><a href="#cb44-95" aria-hidden="true" tabindex="-1"></a>The problem shown in Bacon decomposition here is the comparison between "Later" and "Earlier Treated".  It's a "forbidden" comparison.</span>
-<span id="cb44-96"><a href="#cb44-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-97"><a href="#cb44-97" aria-hidden="true" tabindex="-1"></a>TWFE with event history type of graph.</span>
-<span id="cb44-98"><a href="#cb44-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-101"><a href="#cb44-101" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-102"><a href="#cb44-102" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-103"><a href="#cb44-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-104"><a href="#cb44-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb44-105"><a href="#cb44-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-89"><a href="#cb44-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-90"><a href="#cb44-90" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bacondecomp)</span>
+<span id="cb44-91"><a href="#cb44-91" aria-hidden="true" tabindex="-1"></a>df_bacon <span class="ot">&lt;-</span> <span class="fu">bacon</span>(nat_rate_ord<span class="sc">~</span>indirect,</span>
+<span id="cb44-92"><a href="#cb44-92" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> hh2019,</span>
+<span id="cb44-93"><a href="#cb44-93" aria-hidden="true" tabindex="-1"></a>                  <span class="at">id_var =</span> <span class="st">"bfs"</span>,</span>
+<span id="cb44-94"><a href="#cb44-94" aria-hidden="true" tabindex="-1"></a>                  <span class="at">time_var =</span> <span class="st">"year"</span>)</span>
+<span id="cb44-95"><a href="#cb44-95" aria-hidden="true" tabindex="-1"></a>coef_bacon <span class="ot">&lt;-</span> <span class="fu">sum</span>(df_bacon<span class="sc">$</span>estimate <span class="sc">*</span> df_bacon<span class="sc">$</span>weight)</span>
+<span id="cb44-96"><a href="#cb44-96" aria-hidden="true" tabindex="-1"></a>coef_bacon</span>
+<span id="cb44-97"><a href="#cb44-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-98"><a href="#cb44-98" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_bacon) <span class="sc">+</span></span>
+<span id="cb44-99"><a href="#cb44-99" aria-hidden="true" tabindex="-1"></a>   <span class="fu">aes</span>(<span class="at">x =</span> weight, <span class="at">y =</span> estimate, <span class="at">shape =</span> <span class="fu">factor</span>(type), <span class="at">color =</span> <span class="fu">factor</span>(type)) <span class="sc">+</span></span>
+<span id="cb44-100"><a href="#cb44-100" aria-hidden="true" tabindex="-1"></a>   <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Weight"</span>, <span class="at">y =</span> <span class="st">"Estimate"</span>, <span class="at">shape =</span> <span class="st">"Type"</span>, <span class="at">color =</span> <span class="st">'Type'</span>) <span class="sc">+</span></span>
+<span id="cb44-101"><a href="#cb44-101" aria-hidden="true" tabindex="-1"></a>   <span class="fu">geom_point</span>()</span>
+<span id="cb44-102"><a href="#cb44-102" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-103"><a href="#cb44-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-104"><a href="#cb44-104" aria-hidden="true" tabindex="-1"></a>The decomposition sums to 1.339325, reproducing the TWFE estimate exactly. It</span>
+<span id="cb44-105"><a href="#cb44-105" aria-hidden="true" tabindex="-1"></a>splits into four kinds of 2x2 comparison:</span>
 <span id="cb44-106"><a href="#cb44-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-107"><a href="#cb44-107" aria-hidden="true" tabindex="-1"></a>df.use <span class="ot">&lt;-</span> hh2019 <span class="sc">|&gt;</span></span>
-<span id="cb44-108"><a href="#cb44-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">na.omit</span>()</span>
-<span id="cb44-109"><a href="#cb44-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-110"><a href="#cb44-110" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(</span>
-<span id="cb44-111"><a href="#cb44-111" aria-hidden="true" tabindex="-1"></a>  hh2019 <span class="sc">|&gt;</span></span>
-<span id="cb44-112"><a href="#cb44-112" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(bfs) <span class="sc">|&gt;</span></span>
-<span id="cb44-113"><a href="#cb44-113" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">treatment_mean =</span> <span class="fu">mean</span>(indirect,<span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
-<span id="cb44-114"><a href="#cb44-114" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb44-115"><a href="#cb44-115" aria-hidden="true" tabindex="-1"></a>df.use <span class="ot">&lt;-</span> df[<span class="fu">which</span>(df<span class="sc">$</span>treatment_mean<span class="sc">&lt;</span><span class="dv">1</span>),]</span>
-<span id="cb44-116"><a href="#cb44-116" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-117"><a href="#cb44-117" aria-hidden="true" tabindex="-1"></a>df.twfe <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(<span class="fu">get.cohort</span>(df.use,<span class="at">D=</span><span class="st">"indirect"</span>,<span class="at">index=</span><span class="fu">c</span>(<span class="st">"bfs"</span>,<span class="st">"year"</span>),<span class="at">start0 =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb44-107"><a href="#cb44-107" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> comparison <span class="pp">|</span> weight <span class="pp">|</span> average estimate <span class="pp">|</span></span>
+<span id="cb44-108"><a href="#cb44-108" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|</span></span>
+<span id="cb44-109"><a href="#cb44-109" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Treated vs Untreated <span class="pp">|</span> 0.458 <span class="pp">|</span> 1.612 <span class="pp">|</span></span>
+<span id="cb44-110"><a href="#cb44-110" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Later vs Always Treated <span class="pp">|</span> 0.314 <span class="pp">|</span> 0.752 <span class="pp">|</span></span>
+<span id="cb44-111"><a href="#cb44-111" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Earlier vs Later Treated <span class="pp">|</span> 0.176 <span class="pp">|</span> 1.978 <span class="pp">|</span></span>
+<span id="cb44-112"><a href="#cb44-112" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Later vs Earlier Treated <span class="pp">|</span> 0.052 <span class="pp">|</span> 0.323 <span class="pp">|</span></span>
+<span id="cb44-113"><a href="#cb44-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-114"><a href="#cb44-114" aria-hidden="true" tabindex="-1"></a>The clean comparisons — treated against never-treated — carry 46% of the weight</span>
+<span id="cb44-115"><a href="#cb44-115" aria-hidden="true" tabindex="-1"></a>and give 1.61. The forbidden ones, which use already-treated units as controls,</span>
+<span id="cb44-116"><a href="#cb44-116" aria-hidden="true" tabindex="-1"></a>carry 0.314 + 0.052 = 37% and give much smaller numbers, 0.75 and 0.32. That is</span>
+<span id="cb44-117"><a href="#cb44-117" aria-hidden="true" tabindex="-1"></a>what pulls the TWFE estimate down from 1.61 to 1.34.</span>
 <span id="cb44-118"><a href="#cb44-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-119"><a href="#cb44-119" aria-hidden="true" tabindex="-1"></a><span class="co"># time_to_treatment is NA when the unit is always treated, or never treated.  It needs to be set to an arbitrary value for the twfe model.</span></span>
-<span id="cb44-120"><a href="#cb44-120" aria-hidden="true" tabindex="-1"></a>df.twfe<span class="sc">$</span>treat <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(df.twfe<span class="sc">$</span>treatment_mean<span class="sc">&gt;</span><span class="dv">0</span>) <span class="co"># drop always treated units</span></span>
-<span id="cb44-121"><a href="#cb44-121" aria-hidden="true" tabindex="-1"></a>df.twfe[<span class="fu">which</span>(<span class="fu">is.na</span>(df.twfe<span class="sc">$</span>Time_to_Treatment)),<span class="st">'Time_to_Treatment'</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># can be an arbitrary value</span></span>
-<span id="cb44-122"><a href="#cb44-122" aria-hidden="true" tabindex="-1"></a>twfe.est <span class="ot">&lt;-</span> <span class="fu">feols</span>(nat_rate_ord <span class="sc">~</span> <span class="fu">i</span>(Time_to_Treatment, treat, <span class="at">ref =</span> <span class="sc">-</span><span class="dv">1</span>)<span class="sc">|</span> bfs <span class="sc">+</span> year,</span>
-<span id="cb44-123"><a href="#cb44-123" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> df.twfe, <span class="at">cluster =</span> <span class="st">"bfs"</span>)</span>
-<span id="cb44-124"><a href="#cb44-124" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(twfe.est)</span>
-<span id="cb44-125"><a href="#cb44-125" aria-hidden="true" tabindex="-1"></a>twfe.output <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(twfe.est<span class="sc">$</span>coeftable)</span>
-<span id="cb44-126"><a href="#cb44-126" aria-hidden="true" tabindex="-1"></a>twfe.output <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(twfe.output)</span>
-<span id="cb44-127"><a href="#cb44-127" aria-hidden="true" tabindex="-1"></a>twfe.output<span class="sc">$</span>Time <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="dv">18</span><span class="sc">:-</span><span class="dv">2</span>),<span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">17</span>))<span class="sc">+</span><span class="dv">1</span></span>
-<span id="cb44-128"><a href="#cb44-128" aria-hidden="true" tabindex="-1"></a>p.twfe <span class="ot">&lt;-</span> <span class="fu">esplot</span>(twfe.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'Estimate'</span>,</span>
-<span id="cb44-129"><a href="#cb44-129" aria-hidden="true" tabindex="-1"></a>                               <span class="at">SE =</span> <span class="st">'Std. Error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
-<span id="cb44-130"><a href="#cb44-130" aria-hidden="true" tabindex="-1"></a>p.twfe</span>
-<span id="cb44-131"><a href="#cb44-131" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-132"><a href="#cb44-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-133"><a href="#cb44-133" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-134"><a href="#cb44-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-135"><a href="#cb44-135" aria-hidden="true" tabindex="-1"></a><span class="fu">### Sun and Abraham</span></span>
-<span id="cb44-136"><a href="#cb44-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-137"><a href="#cb44-137" aria-hidden="true" tabindex="-1"></a>Sun and Abraham (2021) estimator is a weighted average of the average treatment effect (ATT) estimates for each cohort, obtained from a TWFE regression that includes cohort dummies fully interacted with indicators of relative time to the treatment’s onset. The iw estimator is robust to heterogeneous treatment effects (HTE) and can be implemented using the command sunab in the package fixest.</span>
-<span id="cb44-138"><a href="#cb44-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-141"><a href="#cb44-141" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-142"><a href="#cb44-142" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-143"><a href="#cb44-143" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-144"><a href="#cb44-144" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb44-145"><a href="#cb44-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-146"><a href="#cb44-146" aria-hidden="true" tabindex="-1"></a>df.sa <span class="ot">&lt;-</span> df.twfe</span>
-<span id="cb44-147"><a href="#cb44-147" aria-hidden="true" tabindex="-1"></a>df.sa[<span class="fu">which</span>(<span class="fu">is.na</span>(df.sa<span class="sc">$</span>FirstTreat)),<span class="st">"FirstTreat"</span>] <span class="ot">&lt;-</span> <span class="dv">1000</span> <span class="co"># replace NA with an arbitrary number</span></span>
-<span id="cb44-148"><a href="#cb44-148" aria-hidden="true" tabindex="-1"></a>model.sa<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">feols</span>(nat_rate_ord<span class="sc">~</span><span class="fu">sunab</span>(FirstTreat,year)<span class="sc">|</span>bfs<span class="sc">+</span>year,</span>
-<span id="cb44-149"><a href="#cb44-149" aria-hidden="true" tabindex="-1"></a>                    <span class="at">data =</span> df.sa, <span class="at">cluster =</span> <span class="st">"bfs"</span>)</span>
-<span id="cb44-150"><a href="#cb44-150" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model.sa<span class="fl">.1</span>,<span class="at">agg =</span> <span class="st">"ATT"</span>)</span>
-<span id="cb44-151"><a href="#cb44-151" aria-hidden="true" tabindex="-1"></a>sa.output <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(model.sa<span class="fl">.1</span><span class="sc">$</span>coeftable)</span>
-<span id="cb44-152"><a href="#cb44-152" aria-hidden="true" tabindex="-1"></a>sa.output <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(sa.output)</span>
-<span id="cb44-153"><a href="#cb44-153" aria-hidden="true" tabindex="-1"></a>sa.output<span class="sc">$</span>Time <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="dv">18</span><span class="sc">:-</span><span class="dv">2</span>),<span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">17</span>))<span class="sc">+</span><span class="dv">1</span></span>
-<span id="cb44-154"><a href="#cb44-154" aria-hidden="true" tabindex="-1"></a>p.sa <span class="ot">&lt;-</span> <span class="fu">esplot</span>(sa.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'Estimate'</span>,</span>
-<span id="cb44-155"><a href="#cb44-155" aria-hidden="true" tabindex="-1"></a>                             <span class="at">SE =</span> <span class="st">'Std. Error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
-<span id="cb44-156"><a href="#cb44-156" aria-hidden="true" tabindex="-1"></a>p.sa</span>
+<span id="cb44-119"><a href="#cb44-119" aria-hidden="true" tabindex="-1"></a>The problem shown in Bacon decomposition here is the comparison between "Later" and "Earlier Treated".  It's a "forbidden" comparison.</span>
+<span id="cb44-120"><a href="#cb44-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-121"><a href="#cb44-121" aria-hidden="true" tabindex="-1"></a>TWFE with event history type of graph.</span>
+<span id="cb44-122"><a href="#cb44-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-125"><a href="#cb44-125" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-126"><a href="#cb44-126" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-127"><a href="#cb44-127" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-128"><a href="#cb44-128" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb44-129"><a href="#cb44-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-130"><a href="#cb44-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-131"><a href="#cb44-131" aria-hidden="true" tabindex="-1"></a>df.use <span class="ot">&lt;-</span> hh2019 <span class="sc">|&gt;</span></span>
+<span id="cb44-132"><a href="#cb44-132" aria-hidden="true" tabindex="-1"></a>  <span class="fu">na.omit</span>()</span>
+<span id="cb44-133"><a href="#cb44-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-134"><a href="#cb44-134" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(</span>
+<span id="cb44-135"><a href="#cb44-135" aria-hidden="true" tabindex="-1"></a>  hh2019 <span class="sc">|&gt;</span></span>
+<span id="cb44-136"><a href="#cb44-136" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(bfs) <span class="sc">|&gt;</span></span>
+<span id="cb44-137"><a href="#cb44-137" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">treatment_mean =</span> <span class="fu">mean</span>(indirect,<span class="at">na.rm =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb44-138"><a href="#cb44-138" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb44-139"><a href="#cb44-139" aria-hidden="true" tabindex="-1"></a>df.use <span class="ot">&lt;-</span> df[<span class="fu">which</span>(df<span class="sc">$</span>treatment_mean<span class="sc">&lt;</span><span class="dv">1</span>),]</span>
+<span id="cb44-140"><a href="#cb44-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-141"><a href="#cb44-141" aria-hidden="true" tabindex="-1"></a>df.twfe <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(<span class="fu">get.cohort</span>(df.use,<span class="at">D=</span><span class="st">"indirect"</span>,<span class="at">index=</span><span class="fu">c</span>(<span class="st">"bfs"</span>,<span class="st">"year"</span>),<span class="at">start0 =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb44-142"><a href="#cb44-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-143"><a href="#cb44-143" aria-hidden="true" tabindex="-1"></a><span class="co"># time_to_treatment is NA when the unit is always treated, or never treated.  It needs to be set to an arbitrary value for the twfe model.</span></span>
+<span id="cb44-144"><a href="#cb44-144" aria-hidden="true" tabindex="-1"></a>df.twfe<span class="sc">$</span>treat <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(df.twfe<span class="sc">$</span>treatment_mean<span class="sc">&gt;</span><span class="dv">0</span>) <span class="co"># drop always treated units</span></span>
+<span id="cb44-145"><a href="#cb44-145" aria-hidden="true" tabindex="-1"></a>df.twfe[<span class="fu">which</span>(<span class="fu">is.na</span>(df.twfe<span class="sc">$</span>Time_to_Treatment)),<span class="st">'Time_to_Treatment'</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># can be an arbitrary value</span></span>
+<span id="cb44-146"><a href="#cb44-146" aria-hidden="true" tabindex="-1"></a>twfe.est <span class="ot">&lt;-</span> <span class="fu">feols</span>(nat_rate_ord <span class="sc">~</span> <span class="fu">i</span>(Time_to_Treatment, treat, <span class="at">ref =</span> <span class="sc">-</span><span class="dv">1</span>)<span class="sc">|</span> bfs <span class="sc">+</span> year,</span>
+<span id="cb44-147"><a href="#cb44-147" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> df.twfe, <span class="at">cluster =</span> <span class="st">"bfs"</span>)</span>
+<span id="cb44-148"><a href="#cb44-148" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(twfe.est)</span>
+<span id="cb44-149"><a href="#cb44-149" aria-hidden="true" tabindex="-1"></a>twfe.output <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(twfe.est<span class="sc">$</span>coeftable)</span>
+<span id="cb44-150"><a href="#cb44-150" aria-hidden="true" tabindex="-1"></a>twfe.output <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(twfe.output)</span>
+<span id="cb44-151"><a href="#cb44-151" aria-hidden="true" tabindex="-1"></a>twfe.output<span class="sc">$</span>Time <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="dv">18</span><span class="sc">:-</span><span class="dv">2</span>),<span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">17</span>))<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb44-152"><a href="#cb44-152" aria-hidden="true" tabindex="-1"></a>p.twfe <span class="ot">&lt;-</span> <span class="fu">esplot</span>(twfe.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'Estimate'</span>,</span>
+<span id="cb44-153"><a href="#cb44-153" aria-hidden="true" tabindex="-1"></a>                               <span class="at">SE =</span> <span class="st">'Std. Error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
+<span id="cb44-154"><a href="#cb44-154" aria-hidden="true" tabindex="-1"></a>p.twfe</span>
+<span id="cb44-155"><a href="#cb44-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-156"><a href="#cb44-156" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb44-157"><a href="#cb44-157" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb44-158"><a href="#cb44-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-159"><a href="#cb44-159" aria-hidden="true" tabindex="-1"></a><span class="fu">## Callaway and Sant’Anna</span></span>
+<span id="cb44-159"><a href="#cb44-159" aria-hidden="true" tabindex="-1"></a><span class="fu">### Sun and Abraham</span></span>
 <span id="cb44-160"><a href="#cb44-160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-161"><a href="#cb44-161" aria-hidden="true" tabindex="-1"></a>Callaway and Sant’Anna (2021) build the estimator from group-time average treatment effects $ATT(g,t)$ — the effect on cohort $g$ at time $t$ — each identified by comparing the treated cohort to a never-treated or not-yet-treated comparison group. The $ATT(g,t)$ are estimated by outcome regression, inverse-probability weighting, or a doubly-robust combination of the two, rather than from a single fully-interacted TWFE regression. These group-time effects are then aggregated with weights into summary parameters (overall, event-study, or by cohort). The estimator is robust to heterogeneous treatment effects (HTE) and can be implemented with the <span class="in">`att_gt`</span> function in the <span class="in">`did`</span> package.</span>
+<span id="cb44-161"><a href="#cb44-161" aria-hidden="true" tabindex="-1"></a>Sun and Abraham (2021) estimator is a weighted average of the average treatment effect (ATT) estimates for each cohort, obtained from a TWFE regression that includes cohort dummies fully interacted with indicators of relative time to the treatment’s onset. The iw estimator is robust to heterogeneous treatment effects (HTE) and can be implemented using the command sunab in the package fixest.</span>
 <span id="cb44-162"><a href="#cb44-162" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb44-165"><a href="#cb44-165" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb44-166"><a href="#cb44-166" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
 <span id="cb44-167"><a href="#cb44-167" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
 <span id="cb44-168"><a href="#cb44-168" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
 <span id="cb44-169"><a href="#cb44-169" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-170"><a href="#cb44-170" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(did)</span>
-<span id="cb44-171"><a href="#cb44-171" aria-hidden="true" tabindex="-1"></a>df.cs <span class="ot">&lt;-</span> df.twfe</span>
-<span id="cb44-172"><a href="#cb44-172" aria-hidden="true" tabindex="-1"></a>df.cs[<span class="fu">which</span>(<span class="fu">is.na</span>(df.cs<span class="sc">$</span>FirstTreat)),<span class="st">"FirstTreat"</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># replace NA with 0</span></span>
-<span id="cb44-173"><a href="#cb44-173" aria-hidden="true" tabindex="-1"></a>cs.est<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"nat_rate_ord"</span>,</span>
-<span id="cb44-174"><a href="#cb44-174" aria-hidden="true" tabindex="-1"></a>                 <span class="at">gname =</span> <span class="st">"FirstTreat"</span>,</span>
-<span id="cb44-175"><a href="#cb44-175" aria-hidden="true" tabindex="-1"></a>                 <span class="at">idname =</span> <span class="st">"bfs"</span>,</span>
-<span id="cb44-176"><a href="#cb44-176" aria-hidden="true" tabindex="-1"></a>                 <span class="at">tname =</span> <span class="st">"year"</span>,</span>
-<span id="cb44-177"><a href="#cb44-177" aria-hidden="true" tabindex="-1"></a>                 <span class="at">xformla =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
-<span id="cb44-178"><a href="#cb44-178" aria-hidden="true" tabindex="-1"></a>                 <span class="at">control_group =</span> <span class="st">"nevertreated"</span>,</span>
-<span id="cb44-179"><a href="#cb44-179" aria-hidden="true" tabindex="-1"></a>                 <span class="at">allow_unbalanced_panel =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb44-180"><a href="#cb44-180" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> df.cs,</span>
-<span id="cb44-181"><a href="#cb44-181" aria-hidden="true" tabindex="-1"></a>                 <span class="at">est_method =</span> <span class="st">"reg"</span>)</span>
-<span id="cb44-182"><a href="#cb44-182" aria-hidden="true" tabindex="-1"></a>cs.est.att<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">aggte</span>(cs.est<span class="fl">.1</span>, <span class="at">type =</span> <span class="st">"simple"</span>, <span class="at">na.rm=</span>T, <span class="at">bstrap =</span> F)</span>
-<span id="cb44-183"><a href="#cb44-183" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(cs.est.att<span class="fl">.1</span>)</span>
+<span id="cb44-170"><a href="#cb44-170" aria-hidden="true" tabindex="-1"></a>df.sa <span class="ot">&lt;-</span> df.twfe</span>
+<span id="cb44-171"><a href="#cb44-171" aria-hidden="true" tabindex="-1"></a>df.sa[<span class="fu">which</span>(<span class="fu">is.na</span>(df.sa<span class="sc">$</span>FirstTreat)),<span class="st">"FirstTreat"</span>] <span class="ot">&lt;-</span> <span class="dv">1000</span> <span class="co"># replace NA with an arbitrary number</span></span>
+<span id="cb44-172"><a href="#cb44-172" aria-hidden="true" tabindex="-1"></a>model.sa<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">feols</span>(nat_rate_ord<span class="sc">~</span><span class="fu">sunab</span>(FirstTreat,year)<span class="sc">|</span>bfs<span class="sc">+</span>year,</span>
+<span id="cb44-173"><a href="#cb44-173" aria-hidden="true" tabindex="-1"></a>                    <span class="at">data =</span> df.sa, <span class="at">cluster =</span> <span class="st">"bfs"</span>)</span>
+<span id="cb44-174"><a href="#cb44-174" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model.sa<span class="fl">.1</span>,<span class="at">agg =</span> <span class="st">"ATT"</span>)</span>
+<span id="cb44-175"><a href="#cb44-175" aria-hidden="true" tabindex="-1"></a>sa.output <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(model.sa<span class="fl">.1</span><span class="sc">$</span>coeftable)</span>
+<span id="cb44-176"><a href="#cb44-176" aria-hidden="true" tabindex="-1"></a>sa.output <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(sa.output)</span>
+<span id="cb44-177"><a href="#cb44-177" aria-hidden="true" tabindex="-1"></a>sa.output<span class="sc">$</span>Time <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="dv">18</span><span class="sc">:-</span><span class="dv">2</span>),<span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">17</span>))<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb44-178"><a href="#cb44-178" aria-hidden="true" tabindex="-1"></a>p.sa <span class="ot">&lt;-</span> <span class="fu">esplot</span>(sa.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'Estimate'</span>,</span>
+<span id="cb44-179"><a href="#cb44-179" aria-hidden="true" tabindex="-1"></a>                             <span class="at">SE =</span> <span class="st">'Std. Error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
+<span id="cb44-180"><a href="#cb44-180" aria-hidden="true" tabindex="-1"></a>p.sa</span>
+<span id="cb44-181"><a href="#cb44-181" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-182"><a href="#cb44-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-183"><a href="#cb44-183" aria-hidden="true" tabindex="-1"></a><span class="fu">## Callaway and Sant’Anna</span></span>
 <span id="cb44-184"><a href="#cb44-184" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-185"><a href="#cb44-185" aria-hidden="true" tabindex="-1"></a>cs.att<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">aggte</span>(cs.est<span class="fl">.1</span>, <span class="at">type =</span> <span class="st">"dynamic"</span>,</span>
-<span id="cb44-186"><a href="#cb44-186" aria-hidden="true" tabindex="-1"></a>                  <span class="at">bstrap=</span><span class="cn">FALSE</span>, <span class="at">cband=</span><span class="cn">FALSE</span>, <span class="at">na.rm=</span>T)</span>
-<span id="cb44-187"><a href="#cb44-187" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(cs.att<span class="fl">.1</span>)</span>
-<span id="cb44-188"><a href="#cb44-188" aria-hidden="true" tabindex="-1"></a>cs.output <span class="ot">&lt;-</span> <span class="fu">cbind.data.frame</span>(<span class="at">Estimate =</span> cs.att<span class="fl">.1</span><span class="sc">$</span>att.egt,</span>
-<span id="cb44-189"><a href="#cb44-189" aria-hidden="true" tabindex="-1"></a>                              <span class="at">SE =</span> cs.att<span class="fl">.1</span><span class="sc">$</span>se.egt,</span>
-<span id="cb44-190"><a href="#cb44-190" aria-hidden="true" tabindex="-1"></a>                              <span class="at">time =</span> cs.att<span class="fl">.1</span><span class="sc">$</span>egt <span class="sc">+</span> <span class="dv">1</span>)</span>
-<span id="cb44-191"><a href="#cb44-191" aria-hidden="true" tabindex="-1"></a>p.cs<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">esplot</span>(cs.output,<span class="at">Period =</span> <span class="st">'time'</span>,<span class="at">Estimate =</span> <span class="st">'Estimate'</span>,</span>
-<span id="cb44-192"><a href="#cb44-192" aria-hidden="true" tabindex="-1"></a>                               <span class="at">SE =</span> <span class="st">'SE'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
-<span id="cb44-193"><a href="#cb44-193" aria-hidden="true" tabindex="-1"></a>p.cs<span class="fl">.1</span></span>
-<span id="cb44-194"><a href="#cb44-194" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-195"><a href="#cb44-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-196"><a href="#cb44-196" aria-hidden="true" tabindex="-1"></a><span class="fu">### Imai, Kim, and Wang</span></span>
-<span id="cb44-197"><a href="#cb44-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-198"><a href="#cb44-198" aria-hidden="true" tabindex="-1"></a>PanelMatch is an R package implementing a set of methodological tools proposed by Imai, Kim, and Wang (2021) that enables researchers to apply matching methods for causal inference on time-series cross-sectional data with binary treatments. The package includes implementations of matching methods based on propensity scores and Mahalanobis distance, as well as weighting methods. PanelMatch enables users to easily calculate a variety of possible quantities of interest, along with standard errors. The software is flexible, allowing users to tune the matching, refinement, and estimation procedures with a large number of parameters. The package also offers a variety of visualization and diagnostic tools for researchers to better understand their data and assess their results.</span>
-<span id="cb44-199"><a href="#cb44-199" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-202"><a href="#cb44-202" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-203"><a href="#cb44-203" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-204"><a href="#cb44-204" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-205"><a href="#cb44-205" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb44-206"><a href="#cb44-206" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-207"><a href="#cb44-207" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(PanelMatch)</span>
-<span id="cb44-208"><a href="#cb44-208" aria-hidden="true" tabindex="-1"></a>df.pm <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(df.twfe)</span>
-<span id="cb44-209"><a href="#cb44-209" aria-hidden="true" tabindex="-1"></a><span class="co"># we need to convert the unit and time indicator to integer</span></span>
-<span id="cb44-210"><a href="#cb44-210" aria-hidden="true" tabindex="-1"></a>df.pm[,<span class="st">"bfs"</span>] <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">as.factor</span>(df.pm[,<span class="st">"bfs"</span>]))</span>
-<span id="cb44-211"><a href="#cb44-211" aria-hidden="true" tabindex="-1"></a>df.pm[,<span class="st">"year"</span>] <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">as.factor</span>(df.pm[,<span class="st">"year"</span>]))</span>
-<span id="cb44-212"><a href="#cb44-212" aria-hidden="true" tabindex="-1"></a>df.pm <span class="ot">&lt;-</span> df.pm[,<span class="fu">c</span>(<span class="st">"bfs"</span>,<span class="st">"year"</span>,<span class="st">"nat_rate_ord"</span>,<span class="st">"indirect"</span>)]</span>
-<span id="cb44-213"><a href="#cb44-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-214"><a href="#cb44-214" aria-hidden="true" tabindex="-1"></a><span class="co"># Create PanelData object (new API)</span></span>
-<span id="cb44-215"><a href="#cb44-215" aria-hidden="true" tabindex="-1"></a>pd <span class="ot">&lt;-</span> <span class="fu">PanelData</span>(df.pm, <span class="at">unit.id =</span> <span class="st">"bfs"</span>, <span class="at">time.id =</span> <span class="st">"year"</span>,</span>
-<span id="cb44-216"><a href="#cb44-216" aria-hidden="true" tabindex="-1"></a>                <span class="at">treatment =</span> <span class="st">"indirect"</span>, <span class="at">outcome =</span> <span class="st">"nat_rate_ord"</span>)</span>
-<span id="cb44-217"><a href="#cb44-217" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-218"><a href="#cb44-218" aria-hidden="true" tabindex="-1"></a>PM.results <span class="ot">&lt;-</span> <span class="fu">PanelMatch</span>(<span class="at">lag=</span><span class="dv">3</span>,</span>
-<span id="cb44-219"><a href="#cb44-219" aria-hidden="true" tabindex="-1"></a>                         <span class="at">panel.data =</span> pd,</span>
-<span id="cb44-220"><a href="#cb44-220" aria-hidden="true" tabindex="-1"></a>                         <span class="at">refinement.method =</span> <span class="st">"none"</span>,</span>
-<span id="cb44-221"><a href="#cb44-221" aria-hidden="true" tabindex="-1"></a>                         <span class="at">qoi =</span> <span class="st">"att"</span>,</span>
-<span id="cb44-222"><a href="#cb44-222" aria-hidden="true" tabindex="-1"></a>                         <span class="at">lead =</span> <span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">3</span>),</span>
-<span id="cb44-223"><a href="#cb44-223" aria-hidden="true" tabindex="-1"></a>                         <span class="at">match.missing =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb44-224"><a href="#cb44-224" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-225"><a href="#cb44-225" aria-hidden="true" tabindex="-1"></a><span class="do">## For pre-treatment dynamic effects</span></span>
-<span id="cb44-226"><a href="#cb44-226" aria-hidden="true" tabindex="-1"></a>PM.results.placebo <span class="ot">&lt;-</span> <span class="fu">PanelMatch</span>(<span class="at">lag=</span><span class="dv">3</span>,</span>
-<span id="cb44-227"><a href="#cb44-227" aria-hidden="true" tabindex="-1"></a>                         <span class="at">panel.data =</span> pd,</span>
-<span id="cb44-228"><a href="#cb44-228" aria-hidden="true" tabindex="-1"></a>                         <span class="at">refinement.method =</span> <span class="st">"none"</span>,</span>
-<span id="cb44-229"><a href="#cb44-229" aria-hidden="true" tabindex="-1"></a>                         <span class="at">qoi =</span> <span class="st">"att"</span>,</span>
-<span id="cb44-230"><a href="#cb44-230" aria-hidden="true" tabindex="-1"></a>                         <span class="at">lead =</span> <span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">3</span>),</span>
-<span id="cb44-231"><a href="#cb44-231" aria-hidden="true" tabindex="-1"></a>                         <span class="at">match.missing =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb44-232"><a href="#cb44-232" aria-hidden="true" tabindex="-1"></a>                         <span class="at">placebo.test =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb44-233"><a href="#cb44-233" aria-hidden="true" tabindex="-1"></a>PE.results.pool <span class="ot">&lt;-</span> <span class="fu">PanelEstimate</span>(PM.results, <span class="at">panel.data =</span> pd, <span class="at">pooled =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb44-234"><a href="#cb44-234" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(PE.results.pool)</span>
-<span id="cb44-235"><a href="#cb44-235" aria-hidden="true" tabindex="-1"></a>PE.results <span class="ot">&lt;-</span> <span class="fu">PanelEstimate</span>(PM.results, <span class="at">panel.data =</span> pd)</span>
-<span id="cb44-236"><a href="#cb44-236" aria-hidden="true" tabindex="-1"></a>PE.results.placebo <span class="ot">&lt;-</span> <span class="fu">placebo_test</span>(PM.results.placebo, <span class="at">panel.data =</span> pd, <span class="at">plot =</span> F)</span>
-<span id="cb44-237"><a href="#cb44-237" aria-hidden="true" tabindex="-1"></a>est_lead <span class="ot">&lt;-</span> <span class="fu">as.vector</span>(<span class="fu">estimates</span>(PE.results))</span>
-<span id="cb44-238"><a href="#cb44-238" aria-hidden="true" tabindex="-1"></a>est_lag <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">as.vector</span>(<span class="fu">estimates</span>(PE.results.placebo)),</span>
-<span id="cb44-239"><a href="#cb44-239" aria-hidden="true" tabindex="-1"></a>                    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="fu">as.vector</span>(PE.results.placebo<span class="sc">$</span>estimates))</span>
-<span id="cb44-240"><a href="#cb44-240" aria-hidden="true" tabindex="-1"></a>sd_lead <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">apply</span>(PE.results<span class="sc">$</span>bootstrapped.estimates,<span class="dv">2</span>,sd),</span>
-<span id="cb44-241"><a href="#cb44-241" aria-hidden="true" tabindex="-1"></a>                    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">length</span>(est_lead)))</span>
-<span id="cb44-242"><a href="#cb44-242" aria-hidden="true" tabindex="-1"></a>sd_lag <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">apply</span>(PE.results.placebo<span class="sc">$</span>bootstrapped.estimates,<span class="dv">2</span>,sd),</span>
-<span id="cb44-243"><a href="#cb44-243" aria-hidden="true" tabindex="-1"></a>                   <span class="at">error =</span> <span class="cf">function</span>(e) <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">length</span>(est_lag)))</span>
-<span id="cb44-244"><a href="#cb44-244" aria-hidden="true" tabindex="-1"></a>coef <span class="ot">&lt;-</span> <span class="fu">c</span>(est_lag, <span class="dv">0</span>, est_lead)</span>
-<span id="cb44-245"><a href="#cb44-245" aria-hidden="true" tabindex="-1"></a>sd <span class="ot">&lt;-</span> <span class="fu">c</span>(sd_lag, <span class="dv">0</span>, sd_lead)</span>
-<span id="cb44-246"><a href="#cb44-246" aria-hidden="true" tabindex="-1"></a>pm.output <span class="ot">&lt;-</span> <span class="fu">cbind.data.frame</span>(<span class="at">ATT=</span>coef, <span class="at">se=</span>sd, <span class="at">t=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">2</span><span class="sc">:</span><span class="dv">4</span>))</span>
-<span id="cb44-247"><a href="#cb44-247" aria-hidden="true" tabindex="-1"></a>p.pm <span class="ot">&lt;-</span> <span class="fu">esplot</span>(<span class="at">data =</span> pm.output,<span class="at">Period =</span> <span class="st">'t'</span>,</span>
-<span id="cb44-248"><a href="#cb44-248" aria-hidden="true" tabindex="-1"></a>               <span class="at">Estimate =</span> <span class="st">'ATT'</span>,<span class="at">SE =</span> <span class="st">'se'</span>)</span>
-<span id="cb44-249"><a href="#cb44-249" aria-hidden="true" tabindex="-1"></a>p.pm</span>
-<span id="cb44-250"><a href="#cb44-250" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-251"><a href="#cb44-251" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-252"><a href="#cb44-252" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-253"><a href="#cb44-253" aria-hidden="true" tabindex="-1"></a><span class="fu">### Liu, Wang and Xu</span></span>
-<span id="cb44-254"><a href="#cb44-254" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-255"><a href="#cb44-255" aria-hidden="true" tabindex="-1"></a>Liu, Wang, and Xu (2022) proposes a method for estimating the fixed effect counterfactual model by utilizing the untreated observations. It is essentially an imputation method that uses the untreated observations to estimate the counterfactual outcome for the treated.</span>
-<span id="cb44-256"><a href="#cb44-256" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-259"><a href="#cb44-259" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-260"><a href="#cb44-260" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-261"><a href="#cb44-261" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-262"><a href="#cb44-262" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb44-263"><a href="#cb44-263" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-264"><a href="#cb44-264" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fect)</span>
-<span id="cb44-265"><a href="#cb44-265" aria-hidden="true" tabindex="-1"></a>out.fect <span class="ot">&lt;-</span> <span class="fu">fect</span>(nat_rate_ord<span class="sc">~</span>indirect, <span class="at">data =</span> df,</span>
-<span id="cb44-266"><a href="#cb44-266" aria-hidden="true" tabindex="-1"></a>                 <span class="at">index =</span> <span class="fu">c</span>(<span class="st">"bfs"</span>,<span class="st">"year"</span>),</span>
-<span id="cb44-267"><a href="#cb44-267" aria-hidden="true" tabindex="-1"></a>                 <span class="at">method =</span> <span class="st">'fe'</span>, <span class="at">se =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb44-268"><a href="#cb44-268" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(out.fect<span class="sc">$</span>est.avg)</span>
-<span id="cb44-269"><a href="#cb44-269" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-270"><a href="#cb44-270" aria-hidden="true" tabindex="-1"></a>fect.output <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(out.fect<span class="sc">$</span>est.att)</span>
-<span id="cb44-271"><a href="#cb44-271" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(fect.output)</span>
-<span id="cb44-272"><a href="#cb44-272" aria-hidden="true" tabindex="-1"></a>fect.output <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(fect.output)</span>
-<span id="cb44-273"><a href="#cb44-273" aria-hidden="true" tabindex="-1"></a>fect.output<span class="sc">$</span>Time <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">17</span><span class="sc">:</span><span class="dv">18</span>)</span>
-<span id="cb44-274"><a href="#cb44-274" aria-hidden="true" tabindex="-1"></a>p.fect <span class="ot">&lt;-</span> <span class="fu">esplot</span>(fect.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'ATT'</span>,</span>
-<span id="cb44-275"><a href="#cb44-275" aria-hidden="true" tabindex="-1"></a>                   <span class="at">SE =</span> <span class="st">'S.E.'</span>,<span class="at">CI.lower =</span> <span class="st">"CI.lower"</span>,</span>
-<span id="cb44-276"><a href="#cb44-276" aria-hidden="true" tabindex="-1"></a>                   <span class="at">CI.upper =</span> <span class="st">'CI.upper'</span>,<span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
-<span id="cb44-277"><a href="#cb44-277" aria-hidden="true" tabindex="-1"></a>p.fect</span>
-<span id="cb44-278"><a href="#cb44-278" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-279"><a href="#cb44-279" aria-hidden="true" tabindex="-1"></a>Borusyak, Jaravel, and Spiess (2021) with package didimputation almost gives the same result as Liu, Wang, and Xu (2022).</span>
+<span id="cb44-185"><a href="#cb44-185" aria-hidden="true" tabindex="-1"></a>Callaway and Sant’Anna (2021) build the estimator from group-time average treatment effects $ATT(g,t)$ — the effect on cohort $g$ at time $t$ — each identified by comparing the treated cohort to a never-treated or not-yet-treated comparison group. The $ATT(g,t)$ are estimated by outcome regression, inverse-probability weighting, or a doubly-robust combination of the two, rather than from a single fully-interacted TWFE regression. These group-time effects are then aggregated with weights into summary parameters (overall, event-study, or by cohort). The estimator is robust to heterogeneous treatment effects (HTE) and can be implemented with the <span class="in">`att_gt`</span> function in the <span class="in">`did`</span> package.</span>
+<span id="cb44-186"><a href="#cb44-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-189"><a href="#cb44-189" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-190"><a href="#cb44-190" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-191"><a href="#cb44-191" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-192"><a href="#cb44-192" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb44-193"><a href="#cb44-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-194"><a href="#cb44-194" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(did)</span>
+<span id="cb44-195"><a href="#cb44-195" aria-hidden="true" tabindex="-1"></a>df.cs <span class="ot">&lt;-</span> df.twfe</span>
+<span id="cb44-196"><a href="#cb44-196" aria-hidden="true" tabindex="-1"></a>df.cs[<span class="fu">which</span>(<span class="fu">is.na</span>(df.cs<span class="sc">$</span>FirstTreat)),<span class="st">"FirstTreat"</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># replace NA with 0</span></span>
+<span id="cb44-197"><a href="#cb44-197" aria-hidden="true" tabindex="-1"></a>cs.est<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"nat_rate_ord"</span>,</span>
+<span id="cb44-198"><a href="#cb44-198" aria-hidden="true" tabindex="-1"></a>                 <span class="at">gname =</span> <span class="st">"FirstTreat"</span>,</span>
+<span id="cb44-199"><a href="#cb44-199" aria-hidden="true" tabindex="-1"></a>                 <span class="at">idname =</span> <span class="st">"bfs"</span>,</span>
+<span id="cb44-200"><a href="#cb44-200" aria-hidden="true" tabindex="-1"></a>                 <span class="at">tname =</span> <span class="st">"year"</span>,</span>
+<span id="cb44-201"><a href="#cb44-201" aria-hidden="true" tabindex="-1"></a>                 <span class="at">xformla =</span> <span class="sc">~</span><span class="dv">1</span>,</span>
+<span id="cb44-202"><a href="#cb44-202" aria-hidden="true" tabindex="-1"></a>                 <span class="at">control_group =</span> <span class="st">"nevertreated"</span>,</span>
+<span id="cb44-203"><a href="#cb44-203" aria-hidden="true" tabindex="-1"></a>                 <span class="at">allow_unbalanced_panel =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb44-204"><a href="#cb44-204" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> df.cs,</span>
+<span id="cb44-205"><a href="#cb44-205" aria-hidden="true" tabindex="-1"></a>                 <span class="at">est_method =</span> <span class="st">"reg"</span>)</span>
+<span id="cb44-206"><a href="#cb44-206" aria-hidden="true" tabindex="-1"></a>cs.est.att<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">aggte</span>(cs.est<span class="fl">.1</span>, <span class="at">type =</span> <span class="st">"simple"</span>, <span class="at">na.rm=</span>T, <span class="at">bstrap =</span> F)</span>
+<span id="cb44-207"><a href="#cb44-207" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(cs.est.att<span class="fl">.1</span>)</span>
+<span id="cb44-208"><a href="#cb44-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-209"><a href="#cb44-209" aria-hidden="true" tabindex="-1"></a>cs.att<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">aggte</span>(cs.est<span class="fl">.1</span>, <span class="at">type =</span> <span class="st">"dynamic"</span>,</span>
+<span id="cb44-210"><a href="#cb44-210" aria-hidden="true" tabindex="-1"></a>                  <span class="at">bstrap=</span><span class="cn">FALSE</span>, <span class="at">cband=</span><span class="cn">FALSE</span>, <span class="at">na.rm=</span>T)</span>
+<span id="cb44-211"><a href="#cb44-211" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(cs.att<span class="fl">.1</span>)</span>
+<span id="cb44-212"><a href="#cb44-212" aria-hidden="true" tabindex="-1"></a>cs.output <span class="ot">&lt;-</span> <span class="fu">cbind.data.frame</span>(<span class="at">Estimate =</span> cs.att<span class="fl">.1</span><span class="sc">$</span>att.egt,</span>
+<span id="cb44-213"><a href="#cb44-213" aria-hidden="true" tabindex="-1"></a>                              <span class="at">SE =</span> cs.att<span class="fl">.1</span><span class="sc">$</span>se.egt,</span>
+<span id="cb44-214"><a href="#cb44-214" aria-hidden="true" tabindex="-1"></a>                              <span class="at">time =</span> cs.att<span class="fl">.1</span><span class="sc">$</span>egt <span class="sc">+</span> <span class="dv">1</span>)</span>
+<span id="cb44-215"><a href="#cb44-215" aria-hidden="true" tabindex="-1"></a>p.cs<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="fu">esplot</span>(cs.output,<span class="at">Period =</span> <span class="st">'time'</span>,<span class="at">Estimate =</span> <span class="st">'Estimate'</span>,</span>
+<span id="cb44-216"><a href="#cb44-216" aria-hidden="true" tabindex="-1"></a>                               <span class="at">SE =</span> <span class="st">'SE'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
+<span id="cb44-217"><a href="#cb44-217" aria-hidden="true" tabindex="-1"></a>p.cs<span class="fl">.1</span></span>
+<span id="cb44-218"><a href="#cb44-218" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-219"><a href="#cb44-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-220"><a href="#cb44-220" aria-hidden="true" tabindex="-1"></a><span class="fu">### Imai, Kim, and Wang</span></span>
+<span id="cb44-221"><a href="#cb44-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-222"><a href="#cb44-222" aria-hidden="true" tabindex="-1"></a>PanelMatch is an R package implementing a set of methodological tools proposed by Imai, Kim, and Wang (2021) that enables researchers to apply matching methods for causal inference on time-series cross-sectional data with binary treatments. The package includes implementations of matching methods based on propensity scores and Mahalanobis distance, as well as weighting methods. PanelMatch enables users to easily calculate a variety of possible quantities of interest, along with standard errors. The software is flexible, allowing users to tune the matching, refinement, and estimation procedures with a large number of parameters. The package also offers a variety of visualization and diagnostic tools for researchers to better understand their data and assess their results.</span>
+<span id="cb44-223"><a href="#cb44-223" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-226"><a href="#cb44-226" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-227"><a href="#cb44-227" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-228"><a href="#cb44-228" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-229"><a href="#cb44-229" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb44-230"><a href="#cb44-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-231"><a href="#cb44-231" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(PanelMatch)</span>
+<span id="cb44-232"><a href="#cb44-232" aria-hidden="true" tabindex="-1"></a>df.pm <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(df.twfe)</span>
+<span id="cb44-233"><a href="#cb44-233" aria-hidden="true" tabindex="-1"></a><span class="co"># we need to convert the unit and time indicator to integer</span></span>
+<span id="cb44-234"><a href="#cb44-234" aria-hidden="true" tabindex="-1"></a>df.pm[,<span class="st">"bfs"</span>] <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">as.factor</span>(df.pm[,<span class="st">"bfs"</span>]))</span>
+<span id="cb44-235"><a href="#cb44-235" aria-hidden="true" tabindex="-1"></a>df.pm[,<span class="st">"year"</span>] <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(<span class="fu">as.factor</span>(df.pm[,<span class="st">"year"</span>]))</span>
+<span id="cb44-236"><a href="#cb44-236" aria-hidden="true" tabindex="-1"></a>df.pm <span class="ot">&lt;-</span> df.pm[,<span class="fu">c</span>(<span class="st">"bfs"</span>,<span class="st">"year"</span>,<span class="st">"nat_rate_ord"</span>,<span class="st">"indirect"</span>)]</span>
+<span id="cb44-237"><a href="#cb44-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-238"><a href="#cb44-238" aria-hidden="true" tabindex="-1"></a><span class="co"># Create PanelData object (new API)</span></span>
+<span id="cb44-239"><a href="#cb44-239" aria-hidden="true" tabindex="-1"></a>pd <span class="ot">&lt;-</span> <span class="fu">PanelData</span>(df.pm, <span class="at">unit.id =</span> <span class="st">"bfs"</span>, <span class="at">time.id =</span> <span class="st">"year"</span>,</span>
+<span id="cb44-240"><a href="#cb44-240" aria-hidden="true" tabindex="-1"></a>                <span class="at">treatment =</span> <span class="st">"indirect"</span>, <span class="at">outcome =</span> <span class="st">"nat_rate_ord"</span>)</span>
+<span id="cb44-241"><a href="#cb44-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-242"><a href="#cb44-242" aria-hidden="true" tabindex="-1"></a>PM.results <span class="ot">&lt;-</span> <span class="fu">PanelMatch</span>(<span class="at">lag=</span><span class="dv">3</span>,</span>
+<span id="cb44-243"><a href="#cb44-243" aria-hidden="true" tabindex="-1"></a>                         <span class="at">panel.data =</span> pd,</span>
+<span id="cb44-244"><a href="#cb44-244" aria-hidden="true" tabindex="-1"></a>                         <span class="at">refinement.method =</span> <span class="st">"none"</span>,</span>
+<span id="cb44-245"><a href="#cb44-245" aria-hidden="true" tabindex="-1"></a>                         <span class="at">qoi =</span> <span class="st">"att"</span>,</span>
+<span id="cb44-246"><a href="#cb44-246" aria-hidden="true" tabindex="-1"></a>                         <span class="at">lead =</span> <span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">3</span>),</span>
+<span id="cb44-247"><a href="#cb44-247" aria-hidden="true" tabindex="-1"></a>                         <span class="at">match.missing =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb44-248"><a href="#cb44-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-249"><a href="#cb44-249" aria-hidden="true" tabindex="-1"></a><span class="do">## For pre-treatment dynamic effects</span></span>
+<span id="cb44-250"><a href="#cb44-250" aria-hidden="true" tabindex="-1"></a>PM.results.placebo <span class="ot">&lt;-</span> <span class="fu">PanelMatch</span>(<span class="at">lag=</span><span class="dv">3</span>,</span>
+<span id="cb44-251"><a href="#cb44-251" aria-hidden="true" tabindex="-1"></a>                         <span class="at">panel.data =</span> pd,</span>
+<span id="cb44-252"><a href="#cb44-252" aria-hidden="true" tabindex="-1"></a>                         <span class="at">refinement.method =</span> <span class="st">"none"</span>,</span>
+<span id="cb44-253"><a href="#cb44-253" aria-hidden="true" tabindex="-1"></a>                         <span class="at">qoi =</span> <span class="st">"att"</span>,</span>
+<span id="cb44-254"><a href="#cb44-254" aria-hidden="true" tabindex="-1"></a>                         <span class="at">lead =</span> <span class="fu">c</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">3</span>),</span>
+<span id="cb44-255"><a href="#cb44-255" aria-hidden="true" tabindex="-1"></a>                         <span class="at">match.missing =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb44-256"><a href="#cb44-256" aria-hidden="true" tabindex="-1"></a>                         <span class="at">placebo.test =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb44-257"><a href="#cb44-257" aria-hidden="true" tabindex="-1"></a>PE.results.pool <span class="ot">&lt;-</span> <span class="fu">PanelEstimate</span>(PM.results, <span class="at">panel.data =</span> pd, <span class="at">pooled =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb44-258"><a href="#cb44-258" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(PE.results.pool)</span>
+<span id="cb44-259"><a href="#cb44-259" aria-hidden="true" tabindex="-1"></a>PE.results <span class="ot">&lt;-</span> <span class="fu">PanelEstimate</span>(PM.results, <span class="at">panel.data =</span> pd)</span>
+<span id="cb44-260"><a href="#cb44-260" aria-hidden="true" tabindex="-1"></a>PE.results.placebo <span class="ot">&lt;-</span> <span class="fu">placebo_test</span>(PM.results.placebo, <span class="at">panel.data =</span> pd, <span class="at">plot =</span> F)</span>
+<span id="cb44-261"><a href="#cb44-261" aria-hidden="true" tabindex="-1"></a>est_lead <span class="ot">&lt;-</span> <span class="fu">as.vector</span>(<span class="fu">estimates</span>(PE.results))</span>
+<span id="cb44-262"><a href="#cb44-262" aria-hidden="true" tabindex="-1"></a>est_lag <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">as.vector</span>(<span class="fu">estimates</span>(PE.results.placebo)),</span>
+<span id="cb44-263"><a href="#cb44-263" aria-hidden="true" tabindex="-1"></a>                    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="fu">as.vector</span>(PE.results.placebo<span class="sc">$</span>estimates))</span>
+<span id="cb44-264"><a href="#cb44-264" aria-hidden="true" tabindex="-1"></a>sd_lead <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">apply</span>(PE.results<span class="sc">$</span>bootstrapped.estimates,<span class="dv">2</span>,sd),</span>
+<span id="cb44-265"><a href="#cb44-265" aria-hidden="true" tabindex="-1"></a>                    <span class="at">error =</span> <span class="cf">function</span>(e) <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">length</span>(est_lead)))</span>
+<span id="cb44-266"><a href="#cb44-266" aria-hidden="true" tabindex="-1"></a>sd_lag <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">apply</span>(PE.results.placebo<span class="sc">$</span>bootstrapped.estimates,<span class="dv">2</span>,sd),</span>
+<span id="cb44-267"><a href="#cb44-267" aria-hidden="true" tabindex="-1"></a>                   <span class="at">error =</span> <span class="cf">function</span>(e) <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="fu">length</span>(est_lag)))</span>
+<span id="cb44-268"><a href="#cb44-268" aria-hidden="true" tabindex="-1"></a>coef <span class="ot">&lt;-</span> <span class="fu">c</span>(est_lag, <span class="dv">0</span>, est_lead)</span>
+<span id="cb44-269"><a href="#cb44-269" aria-hidden="true" tabindex="-1"></a>sd <span class="ot">&lt;-</span> <span class="fu">c</span>(sd_lag, <span class="dv">0</span>, sd_lead)</span>
+<span id="cb44-270"><a href="#cb44-270" aria-hidden="true" tabindex="-1"></a>pm.output <span class="ot">&lt;-</span> <span class="fu">cbind.data.frame</span>(<span class="at">ATT=</span>coef, <span class="at">se=</span>sd, <span class="at">t=</span><span class="fu">c</span>(<span class="sc">-</span><span class="dv">2</span><span class="sc">:</span><span class="dv">4</span>))</span>
+<span id="cb44-271"><a href="#cb44-271" aria-hidden="true" tabindex="-1"></a>p.pm <span class="ot">&lt;-</span> <span class="fu">esplot</span>(<span class="at">data =</span> pm.output,<span class="at">Period =</span> <span class="st">'t'</span>,</span>
+<span id="cb44-272"><a href="#cb44-272" aria-hidden="true" tabindex="-1"></a>               <span class="at">Estimate =</span> <span class="st">'ATT'</span>,<span class="at">SE =</span> <span class="st">'se'</span>)</span>
+<span id="cb44-273"><a href="#cb44-273" aria-hidden="true" tabindex="-1"></a>p.pm</span>
+<span id="cb44-274"><a href="#cb44-274" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-275"><a href="#cb44-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-276"><a href="#cb44-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-277"><a href="#cb44-277" aria-hidden="true" tabindex="-1"></a><span class="fu">### Liu, Wang and Xu</span></span>
+<span id="cb44-278"><a href="#cb44-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-279"><a href="#cb44-279" aria-hidden="true" tabindex="-1"></a>Liu, Wang, and Xu (2022) proposes a method for estimating the fixed effect counterfactual model by utilizing the untreated observations. It is essentially an imputation method that uses the untreated observations to estimate the counterfactual outcome for the treated.</span>
 <span id="cb44-280"><a href="#cb44-280" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-281"><a href="#cb44-281" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-282"><a href="#cb44-282" aria-hidden="true" tabindex="-1"></a><span class="fu">### Wooldridge</span></span>
-<span id="cb44-283"><a href="#cb44-283" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-284"><a href="#cb44-284" aria-hidden="true" tabindex="-1"></a>Wooldridge 2021, also called extended TWFE (ETWFE), is to allow more flexibility to make TWFE work properly.  The problem with TWFE is that we do not specify it flexibly enough.  If we allow heterogeneous treatment effect, then we cannot expect the canonical TWFE to work properly.</span>
-<span id="cb44-285"><a href="#cb44-285" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-288"><a href="#cb44-288" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-289"><a href="#cb44-289" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-290"><a href="#cb44-290" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-291"><a href="#cb44-291" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb44-292"><a href="#cb44-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-293"><a href="#cb44-293" aria-hidden="true" tabindex="-1"></a>df.wool <span class="ot">&lt;-</span> df.twfe</span>
-<span id="cb44-294"><a href="#cb44-294" aria-hidden="true" tabindex="-1"></a>df.wool[<span class="fu">which</span>(<span class="fu">is.na</span>(df.wool<span class="sc">$</span>FirstTreat)),<span class="st">"FirstTreat"</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># replace NA with 0</span></span>
-<span id="cb44-295"><a href="#cb44-295" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-296"><a href="#cb44-296" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(etwfe)</span>
-<span id="cb44-297"><a href="#cb44-297" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-298"><a href="#cb44-298" aria-hidden="true" tabindex="-1"></a>model.wool <span class="ot">=</span> <span class="fu">etwfe</span>(</span>
-<span id="cb44-299"><a href="#cb44-299" aria-hidden="true" tabindex="-1"></a>  <span class="at">fml  =</span> nat_rate_ord <span class="sc">~</span> <span class="dv">1</span>, <span class="co"># outcome ~ controls</span></span>
-<span id="cb44-300"><a href="#cb44-300" aria-hidden="true" tabindex="-1"></a>  <span class="at">tvar =</span> year,        <span class="co"># time variable</span></span>
-<span id="cb44-301"><a href="#cb44-301" aria-hidden="true" tabindex="-1"></a>  <span class="at">gvar =</span> FirstTreat, <span class="co"># group variable</span></span>
-<span id="cb44-302"><a href="#cb44-302" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df.wool,       <span class="co"># dataset</span></span>
-<span id="cb44-303"><a href="#cb44-303" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>bfs,  <span class="co"># vcov adjustment (here: clustered)</span></span>
-<span id="cb44-304"><a href="#cb44-304" aria-hidden="true" tabindex="-1"></a>  <span class="at">cgroup =</span> <span class="st">"never"</span></span>
-<span id="cb44-305"><a href="#cb44-305" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb44-306"><a href="#cb44-306" aria-hidden="true" tabindex="-1"></a>model.wool</span>
-<span id="cb44-307"><a href="#cb44-307" aria-hidden="true" tabindex="-1"></a><span class="fu">emfx</span>(model.wool)</span>
-<span id="cb44-308"><a href="#cb44-308" aria-hidden="true" tabindex="-1"></a>mod_es <span class="ot">=</span> <span class="fu">emfx</span>(model.wool, <span class="at">type =</span> <span class="st">"event"</span>, <span class="at">post_only=</span><span class="cn">FALSE</span>)</span>
-<span id="cb44-309"><a href="#cb44-309" aria-hidden="true" tabindex="-1"></a>mod_es</span>
-<span id="cb44-310"><a href="#cb44-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-311"><a href="#cb44-311" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-312"><a href="#cb44-312" aria-hidden="true" tabindex="-1"></a>wool.output <span class="ot">&lt;-</span> mod_es <span class="sc">|&gt;</span></span>
-<span id="cb44-313"><a href="#cb44-313" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(event <span class="sc">!=</span> <span class="sc">-</span><span class="dv">1</span>) <span class="sc">|&gt;</span></span>
-<span id="cb44-314"><a href="#cb44-314" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Time =</span> event <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
-<span id="cb44-315"><a href="#cb44-315" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
+<span id="cb44-283"><a href="#cb44-283" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-284"><a href="#cb44-284" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-285"><a href="#cb44-285" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-286"><a href="#cb44-286" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb44-287"><a href="#cb44-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-288"><a href="#cb44-288" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fect)</span>
+<span id="cb44-289"><a href="#cb44-289" aria-hidden="true" tabindex="-1"></a>out.fect <span class="ot">&lt;-</span> <span class="fu">fect</span>(nat_rate_ord<span class="sc">~</span>indirect, <span class="at">data =</span> df,</span>
+<span id="cb44-290"><a href="#cb44-290" aria-hidden="true" tabindex="-1"></a>                 <span class="at">index =</span> <span class="fu">c</span>(<span class="st">"bfs"</span>,<span class="st">"year"</span>),</span>
+<span id="cb44-291"><a href="#cb44-291" aria-hidden="true" tabindex="-1"></a>                 <span class="at">method =</span> <span class="st">'fe'</span>, <span class="at">se =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb44-292"><a href="#cb44-292" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(out.fect<span class="sc">$</span>est.avg)</span>
+<span id="cb44-293"><a href="#cb44-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-294"><a href="#cb44-294" aria-hidden="true" tabindex="-1"></a>fect.output <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(out.fect<span class="sc">$</span>est.att)</span>
+<span id="cb44-295"><a href="#cb44-295" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(fect.output)</span>
+<span id="cb44-296"><a href="#cb44-296" aria-hidden="true" tabindex="-1"></a>fect.output <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(fect.output)</span>
+<span id="cb44-297"><a href="#cb44-297" aria-hidden="true" tabindex="-1"></a>fect.output<span class="sc">$</span>Time <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">17</span><span class="sc">:</span><span class="dv">18</span>)</span>
+<span id="cb44-298"><a href="#cb44-298" aria-hidden="true" tabindex="-1"></a>p.fect <span class="ot">&lt;-</span> <span class="fu">esplot</span>(fect.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'ATT'</span>,</span>
+<span id="cb44-299"><a href="#cb44-299" aria-hidden="true" tabindex="-1"></a>                   <span class="at">SE =</span> <span class="st">'S.E.'</span>,<span class="at">CI.lower =</span> <span class="st">"CI.lower"</span>,</span>
+<span id="cb44-300"><a href="#cb44-300" aria-hidden="true" tabindex="-1"></a>                   <span class="at">CI.upper =</span> <span class="st">'CI.upper'</span>,<span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
+<span id="cb44-301"><a href="#cb44-301" aria-hidden="true" tabindex="-1"></a>p.fect</span>
+<span id="cb44-302"><a href="#cb44-302" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-303"><a href="#cb44-303" aria-hidden="true" tabindex="-1"></a>Borusyak, Jaravel, and Spiess (2021) with package didimputation almost gives the same result as Liu, Wang, and Xu (2022).</span>
+<span id="cb44-304"><a href="#cb44-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-305"><a href="#cb44-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-306"><a href="#cb44-306" aria-hidden="true" tabindex="-1"></a><span class="fu">### Wooldridge</span></span>
+<span id="cb44-307"><a href="#cb44-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-308"><a href="#cb44-308" aria-hidden="true" tabindex="-1"></a>Wooldridge 2021, also called extended TWFE (ETWFE), is to allow more flexibility to make TWFE work properly.  The problem with TWFE is that we do not specify it flexibly enough.  If we allow heterogeneous treatment effect, then we cannot expect the canonical TWFE to work properly.</span>
+<span id="cb44-309"><a href="#cb44-309" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-312"><a href="#cb44-312" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-313"><a href="#cb44-313" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-314"><a href="#cb44-314" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-315"><a href="#cb44-315" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
 <span id="cb44-316"><a href="#cb44-316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-317"><a href="#cb44-317" aria-hidden="true" tabindex="-1"></a>p.wool <span class="ot">&lt;-</span> <span class="fu">esplot</span>(wool.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'estimate'</span>,</span>
-<span id="cb44-318"><a href="#cb44-318" aria-hidden="true" tabindex="-1"></a>                 <span class="at">SE =</span> <span class="st">'std.error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
-<span id="cb44-319"><a href="#cb44-319" aria-hidden="true" tabindex="-1"></a>p.wool</span>
-<span id="cb44-320"><a href="#cb44-320" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-321"><a href="#cb44-321" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-322"><a href="#cb44-322" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-323"><a href="#cb44-323" aria-hidden="true" tabindex="-1"></a>Note that in order to get pre-event estimates, we need to set "cgroup=never" in the etwfe function.  Otherwise, ETWFE will only give us post-event estimates. Under the default setting, the control group comprises the “not-yet” treated units, therefore all pre-treatment effects are mechanistically set to zero.  By setting "cgroup=never", we only use never treated units as the control group.  This way we can get pre-treatment estimates, but we are not using all available information for the control group, therefore the estimates may not be as efficient as the default setting.  That cost is visible in the two runs below: the never-treated version gives an ATT of 1.33 with a standard error of 0.288, while the default not-yet-treated version gives 1.51 with a standard error of 0.188 --- a little over a third narrower.</span>
-<span id="cb44-324"><a href="#cb44-324" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-325"><a href="#cb44-325" aria-hidden="true" tabindex="-1"></a>Also we don't have control variable here.  If we have, it is very easy to incorporate into ETWFE.  Wooldridge used the Mundlak device to incorporate control variables, which is a very simple and intuitive way to do it.</span>
-<span id="cb44-326"><a href="#cb44-326" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-327"><a href="#cb44-327" aria-hidden="true" tabindex="-1"></a>If we do the default setting and plot only post-event estimates:</span>
-<span id="cb44-328"><a href="#cb44-328" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-331"><a href="#cb44-331" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb44-332"><a href="#cb44-332" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb44-333"><a href="#cb44-333" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb44-334"><a href="#cb44-334" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb44-317"><a href="#cb44-317" aria-hidden="true" tabindex="-1"></a>df.wool <span class="ot">&lt;-</span> df.twfe</span>
+<span id="cb44-318"><a href="#cb44-318" aria-hidden="true" tabindex="-1"></a>df.wool[<span class="fu">which</span>(<span class="fu">is.na</span>(df.wool<span class="sc">$</span>FirstTreat)),<span class="st">"FirstTreat"</span>] <span class="ot">&lt;-</span> <span class="dv">0</span> <span class="co"># replace NA with 0</span></span>
+<span id="cb44-319"><a href="#cb44-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-320"><a href="#cb44-320" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(etwfe)</span>
+<span id="cb44-321"><a href="#cb44-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-322"><a href="#cb44-322" aria-hidden="true" tabindex="-1"></a>model.wool <span class="ot">=</span> <span class="fu">etwfe</span>(</span>
+<span id="cb44-323"><a href="#cb44-323" aria-hidden="true" tabindex="-1"></a>  <span class="at">fml  =</span> nat_rate_ord <span class="sc">~</span> <span class="dv">1</span>, <span class="co"># outcome ~ controls</span></span>
+<span id="cb44-324"><a href="#cb44-324" aria-hidden="true" tabindex="-1"></a>  <span class="at">tvar =</span> year,        <span class="co"># time variable</span></span>
+<span id="cb44-325"><a href="#cb44-325" aria-hidden="true" tabindex="-1"></a>  <span class="at">gvar =</span> FirstTreat, <span class="co"># group variable</span></span>
+<span id="cb44-326"><a href="#cb44-326" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df.wool,       <span class="co"># dataset</span></span>
+<span id="cb44-327"><a href="#cb44-327" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>bfs,  <span class="co"># vcov adjustment (here: clustered)</span></span>
+<span id="cb44-328"><a href="#cb44-328" aria-hidden="true" tabindex="-1"></a>  <span class="at">cgroup =</span> <span class="st">"never"</span></span>
+<span id="cb44-329"><a href="#cb44-329" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb44-330"><a href="#cb44-330" aria-hidden="true" tabindex="-1"></a>model.wool</span>
+<span id="cb44-331"><a href="#cb44-331" aria-hidden="true" tabindex="-1"></a><span class="fu">emfx</span>(model.wool)</span>
+<span id="cb44-332"><a href="#cb44-332" aria-hidden="true" tabindex="-1"></a>mod_es <span class="ot">=</span> <span class="fu">emfx</span>(model.wool, <span class="at">type =</span> <span class="st">"event"</span>, <span class="at">post_only=</span><span class="cn">FALSE</span>)</span>
+<span id="cb44-333"><a href="#cb44-333" aria-hidden="true" tabindex="-1"></a>mod_es</span>
+<span id="cb44-334"><a href="#cb44-334" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb44-335"><a href="#cb44-335" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-336"><a href="#cb44-336" aria-hidden="true" tabindex="-1"></a>model.wool2 <span class="ot">=</span> <span class="fu">etwfe</span>(</span>
-<span id="cb44-337"><a href="#cb44-337" aria-hidden="true" tabindex="-1"></a>  <span class="at">fml  =</span> nat_rate_ord <span class="sc">~</span> <span class="dv">1</span>, <span class="co"># outcome ~ controls</span></span>
-<span id="cb44-338"><a href="#cb44-338" aria-hidden="true" tabindex="-1"></a>  <span class="at">tvar =</span> year,        <span class="co"># time variable</span></span>
-<span id="cb44-339"><a href="#cb44-339" aria-hidden="true" tabindex="-1"></a>  <span class="at">gvar =</span> FirstTreat, <span class="co"># group variable</span></span>
-<span id="cb44-340"><a href="#cb44-340" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df.wool,       <span class="co"># dataset</span></span>
-<span id="cb44-341"><a href="#cb44-341" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>bfs  <span class="co"># vcov adjustment (here: clustered)</span></span>
-<span id="cb44-342"><a href="#cb44-342" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb44-343"><a href="#cb44-343" aria-hidden="true" tabindex="-1"></a>model.wool2</span>
-<span id="cb44-344"><a href="#cb44-344" aria-hidden="true" tabindex="-1"></a><span class="fu">emfx</span>(model.wool2)</span>
-<span id="cb44-345"><a href="#cb44-345" aria-hidden="true" tabindex="-1"></a>mod_es2 <span class="ot">=</span> <span class="fu">emfx</span>(model.wool2, <span class="at">type =</span> <span class="st">"event"</span>)</span>
-<span id="cb44-346"><a href="#cb44-346" aria-hidden="true" tabindex="-1"></a>mod_es2</span>
-<span id="cb44-347"><a href="#cb44-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-336"><a href="#cb44-336" aria-hidden="true" tabindex="-1"></a>wool.output <span class="ot">&lt;-</span> mod_es <span class="sc">|&gt;</span></span>
+<span id="cb44-337"><a href="#cb44-337" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(event <span class="sc">!=</span> <span class="sc">-</span><span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb44-338"><a href="#cb44-338" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Time =</span> event <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb44-339"><a href="#cb44-339" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
+<span id="cb44-340"><a href="#cb44-340" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-341"><a href="#cb44-341" aria-hidden="true" tabindex="-1"></a>p.wool <span class="ot">&lt;-</span> <span class="fu">esplot</span>(wool.output,<span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'estimate'</span>,</span>
+<span id="cb44-342"><a href="#cb44-342" aria-hidden="true" tabindex="-1"></a>                 <span class="at">SE =</span> <span class="st">'std.error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">12</span>,<span class="dv">10</span>))</span>
+<span id="cb44-343"><a href="#cb44-343" aria-hidden="true" tabindex="-1"></a>p.wool</span>
+<span id="cb44-344"><a href="#cb44-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-345"><a href="#cb44-345" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-346"><a href="#cb44-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-347"><a href="#cb44-347" aria-hidden="true" tabindex="-1"></a>Note that in order to get pre-event estimates, we need to set "cgroup=never" in the etwfe function.  Otherwise, ETWFE will only give us post-event estimates. Under the default setting, the control group comprises the “not-yet” treated units, therefore all pre-treatment effects are mechanistically set to zero.  By setting "cgroup=never", we only use never treated units as the control group.  This way we can get pre-treatment estimates, but we are not using all available information for the control group, therefore the estimates may not be as efficient as the default setting.  That cost is visible in the two runs below: the never-treated version gives an ATT of 1.33 with a standard error of 0.288, while the default not-yet-treated version gives 1.51 with a standard error of 0.188 --- a little over a third narrower.</span>
 <span id="cb44-348"><a href="#cb44-348" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-349"><a href="#cb44-349" aria-hidden="true" tabindex="-1"></a>wool.output2 <span class="ot">&lt;-</span> mod_es2 <span class="sc">|&gt;</span></span>
-<span id="cb44-350"><a href="#cb44-350" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(event <span class="sc">!=</span> <span class="sc">-</span><span class="dv">1</span>) <span class="sc">|&gt;</span></span>
-<span id="cb44-351"><a href="#cb44-351" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Time =</span> event <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
-<span id="cb44-352"><a href="#cb44-352" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
-<span id="cb44-353"><a href="#cb44-353" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-354"><a href="#cb44-354" aria-hidden="true" tabindex="-1"></a>p.wool2 <span class="ot">&lt;-</span> <span class="fu">esplot</span>(wool.output2, <span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'estimate'</span>,</span>
-<span id="cb44-355"><a href="#cb44-355" aria-hidden="true" tabindex="-1"></a>                 <span class="at">SE =</span> <span class="st">'std.error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">10</span>))</span>
-<span id="cb44-356"><a href="#cb44-356" aria-hidden="true" tabindex="-1"></a>p.wool2</span>
-<span id="cb44-357"><a href="#cb44-357" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb44-358"><a href="#cb44-358" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-359"><a href="#cb44-359" aria-hidden="true" tabindex="-1"></a><span class="fu">## Staggered DiD with treatment reversal</span></span>
-<span id="cb44-360"><a href="#cb44-360" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-361"><a href="#cb44-361" aria-hidden="true" tabindex="-1"></a>With treatment reversal (ie., the treated units go back to control), Wooldridge's method still works.  However, I don't think package "etwfe" has it implemented.</span>
-<span id="cb44-362"><a href="#cb44-362" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-363"><a href="#cb44-363" aria-hidden="true" tabindex="-1"></a>So far, packages "fect", "PanelMatch" can handle treatment reversal.</span>
-<span id="cb44-364"><a href="#cb44-364" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-365"><a href="#cb44-365" aria-hidden="true" tabindex="-1"></a>We can probably manually do ETWFE with treatment reversal.  See Wooldridge's dropbox for the code in Stata.  The basic idea is to treat cohorts as different treatment beginning time and exit time combinations.  Then do the same regression with interactions of cohort dummies with the time dummies.  It is very flexible.  The tricky part is to get the marginal effect and its standard error right.</span>
-<span id="cb44-366"><a href="#cb44-366" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-367"><a href="#cb44-367" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb44-368"><a href="#cb44-368" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb44-369"><a href="#cb44-369" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb44-370"><a href="#cb44-370" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/did.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/did.html).*</span>
+<span id="cb44-349"><a href="#cb44-349" aria-hidden="true" tabindex="-1"></a>Also we don't have control variable here.  If we have, it is very easy to incorporate into ETWFE.  Wooldridge used the Mundlak device to incorporate control variables, which is a very simple and intuitive way to do it.</span>
+<span id="cb44-350"><a href="#cb44-350" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-351"><a href="#cb44-351" aria-hidden="true" tabindex="-1"></a>If we do the default setting and plot only post-event estimates:</span>
+<span id="cb44-352"><a href="#cb44-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-355"><a href="#cb44-355" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb44-356"><a href="#cb44-356" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb44-357"><a href="#cb44-357" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb44-358"><a href="#cb44-358" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb44-359"><a href="#cb44-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-360"><a href="#cb44-360" aria-hidden="true" tabindex="-1"></a>model.wool2 <span class="ot">=</span> <span class="fu">etwfe</span>(</span>
+<span id="cb44-361"><a href="#cb44-361" aria-hidden="true" tabindex="-1"></a>  <span class="at">fml  =</span> nat_rate_ord <span class="sc">~</span> <span class="dv">1</span>, <span class="co"># outcome ~ controls</span></span>
+<span id="cb44-362"><a href="#cb44-362" aria-hidden="true" tabindex="-1"></a>  <span class="at">tvar =</span> year,        <span class="co"># time variable</span></span>
+<span id="cb44-363"><a href="#cb44-363" aria-hidden="true" tabindex="-1"></a>  <span class="at">gvar =</span> FirstTreat, <span class="co"># group variable</span></span>
+<span id="cb44-364"><a href="#cb44-364" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df.wool,       <span class="co"># dataset</span></span>
+<span id="cb44-365"><a href="#cb44-365" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>bfs  <span class="co"># vcov adjustment (here: clustered)</span></span>
+<span id="cb44-366"><a href="#cb44-366" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb44-367"><a href="#cb44-367" aria-hidden="true" tabindex="-1"></a>model.wool2</span>
+<span id="cb44-368"><a href="#cb44-368" aria-hidden="true" tabindex="-1"></a><span class="fu">emfx</span>(model.wool2)</span>
+<span id="cb44-369"><a href="#cb44-369" aria-hidden="true" tabindex="-1"></a>mod_es2 <span class="ot">=</span> <span class="fu">emfx</span>(model.wool2, <span class="at">type =</span> <span class="st">"event"</span>)</span>
+<span id="cb44-370"><a href="#cb44-370" aria-hidden="true" tabindex="-1"></a>mod_es2</span>
+<span id="cb44-371"><a href="#cb44-371" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-372"><a href="#cb44-372" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-373"><a href="#cb44-373" aria-hidden="true" tabindex="-1"></a>wool.output2 <span class="ot">&lt;-</span> mod_es2 <span class="sc">|&gt;</span></span>
+<span id="cb44-374"><a href="#cb44-374" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(event <span class="sc">!=</span> <span class="sc">-</span><span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb44-375"><a href="#cb44-375" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Time =</span> event <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb44-376"><a href="#cb44-376" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>()</span>
+<span id="cb44-377"><a href="#cb44-377" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-378"><a href="#cb44-378" aria-hidden="true" tabindex="-1"></a>p.wool2 <span class="ot">&lt;-</span> <span class="fu">esplot</span>(wool.output2, <span class="at">Period =</span> <span class="st">'Time'</span>,<span class="at">Estimate =</span> <span class="st">'estimate'</span>,</span>
+<span id="cb44-379"><a href="#cb44-379" aria-hidden="true" tabindex="-1"></a>                 <span class="at">SE =</span> <span class="st">'std.error'</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">10</span>))</span>
+<span id="cb44-380"><a href="#cb44-380" aria-hidden="true" tabindex="-1"></a>p.wool2</span>
+<span id="cb44-381"><a href="#cb44-381" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb44-382"><a href="#cb44-382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-383"><a href="#cb44-383" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparing the estimators</span></span>
+<span id="cb44-384"><a href="#cb44-384" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-385"><a href="#cb44-385" aria-hidden="true" tabindex="-1"></a>It is worth collecting what all of these produced on the same data:</span>
+<span id="cb44-386"><a href="#cb44-386" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-387"><a href="#cb44-387" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> estimator <span class="pp">|</span> ATT <span class="pp">|</span> s.e. <span class="pp">|</span></span>
+<span id="cb44-388"><a href="#cb44-388" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|---:|</span></span>
+<span id="cb44-389"><a href="#cb44-389" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> TWFE <span class="pp">|</span> 1.339 <span class="pp">|</span> 0.187 <span class="pp">|</span></span>
+<span id="cb44-390"><a href="#cb44-390" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Sun and Abraham <span class="pp">|</span> 1.331 <span class="pp">|</span> 0.288 <span class="pp">|</span></span>
+<span id="cb44-391"><a href="#cb44-391" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Callaway and Sant'Anna (simple) <span class="pp">|</span> 1.331 <span class="pp">|</span> 0.302 <span class="pp">|</span></span>
+<span id="cb44-392"><a href="#cb44-392" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Callaway and Sant'Anna (dynamic) <span class="pp">|</span> 1.221 <span class="pp">|</span> 0.631 <span class="pp">|</span></span>
+<span id="cb44-393"><a href="#cb44-393" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Imai, Kim and Wang <span class="pp">|</span> 1.178 <span class="pp">|</span> 0.335 <span class="pp">|</span></span>
+<span id="cb44-394"><a href="#cb44-394" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Liu, Wang and Xu <span class="pp">|</span> 1.506 <span class="pp">|</span> 0.204 <span class="pp">|</span></span>
+<span id="cb44-395"><a href="#cb44-395" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Wooldridge ETWFE <span class="pp">|</span> 1.330 <span class="pp">|</span> 0.288 <span class="pp">|</span></span>
+<span id="cb44-396"><a href="#cb44-396" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-397"><a href="#cb44-397" aria-hidden="true" tabindex="-1"></a>Three things stand out. Sun-Abraham, Callaway-Sant'Anna and ETWFE agree to three</span>
+<span id="cb44-398"><a href="#cb44-398" aria-hidden="true" tabindex="-1"></a>digits at 1.33 — they are different routes to the same never-treated-control</span>
+<span id="cb44-399"><a href="#cb44-399" aria-hidden="true" tabindex="-1"></a>estimand, and they land on the same number. The spread across all seven, 1.18 to</span>
+<span id="cb44-400"><a href="#cb44-400" aria-hidden="true" tabindex="-1"></a>1.51, is smaller than the standard errors, so on this data the estimator choice</span>
+<span id="cb44-401"><a href="#cb44-401" aria-hidden="true" tabindex="-1"></a>does not change the conclusion.</span>
+<span id="cb44-402"><a href="#cb44-402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-403"><a href="#cb44-403" aria-hidden="true" tabindex="-1"></a>And TWFE at 1.339 is not far off any of them, despite the forbidden comparisons</span>
+<span id="cb44-404"><a href="#cb44-404" aria-hidden="true" tabindex="-1"></a>the Bacon decomposition exposed. That is worth saying plainly: the decomposition</span>
+<span id="cb44-405"><a href="#cb44-405" aria-hidden="true" tabindex="-1"></a>shows TWFE *is* contaminated here, but the contamination happens to be small</span>
+<span id="cb44-406"><a href="#cb44-406" aria-hidden="true" tabindex="-1"></a>enough that the answer survives. It would not have to be.</span>
+<span id="cb44-407"><a href="#cb44-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-408"><a href="#cb44-408" aria-hidden="true" tabindex="-1"></a><span class="fu">## Staggered DiD with treatment reversal</span></span>
+<span id="cb44-409"><a href="#cb44-409" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-410"><a href="#cb44-410" aria-hidden="true" tabindex="-1"></a>With treatment reversal (ie., the treated units go back to control), Wooldridge's method still works.  However, I don't think package "etwfe" has it implemented.</span>
+<span id="cb44-411"><a href="#cb44-411" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-412"><a href="#cb44-412" aria-hidden="true" tabindex="-1"></a>So far, packages "fect", "PanelMatch" can handle treatment reversal.</span>
+<span id="cb44-413"><a href="#cb44-413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-414"><a href="#cb44-414" aria-hidden="true" tabindex="-1"></a>We can probably manually do ETWFE with treatment reversal.  See Wooldridge's dropbox for the code in Stata.  The basic idea is to treat cohorts as different treatment beginning time and exit time combinations.  Then do the same regression with interactions of cohort dummies with the time dummies.  It is very flexible.  The tricky part is to get the marginal effect and its standard error right.</span>
+<span id="cb44-415"><a href="#cb44-415" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-416"><a href="#cb44-416" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb44-417"><a href="#cb44-417" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-418"><a href="#cb44-418" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb44-419"><a href="#cb44-419" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/did.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/did.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

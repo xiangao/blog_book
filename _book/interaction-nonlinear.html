@@ -587,6 +587,7 @@ window.Quarto = {
 </section><section id="a-worked-example" class="level2" data-number="2.2"><h2 data-number="2.2" class="anchored" data-anchor-id="a-worked-example">
 <span class="header-section-number">2.2</span> A worked example</h2>
 <p>Let’s illustrate the Ai-Norton point directly: in a logit model with an interaction term, the cross partial derivative <span class="math inline">\(\frac{\partial^2 E(y)}{\partial x_1 \partial x_2}\)</span> (what we actually care about) is not the same object as the estimated coefficient <span class="math inline">\(\beta_{12}\)</span> on <span class="math inline">\(x_1 x_2\)</span> in the linear index. We simulate data with a true interaction effect on the log-odds scale, fit a logit model, and then use the <code>marginaleffects</code> package for two distinct things: first the marginal effect of <span class="math inline">\(x_1\)</span> on the probability scale at several values of <span class="math inline">\(x_2\)</span>, and then the cross partial derivative itself.</p>
+<p>We draw <span class="math inline">\(n = 2000\)</span> observations with <span class="math inline">\(x_1, x_2 \sim N(0,1)\)</span>, independent of each other. The linear index is <span class="math inline">\(\eta = -0.3 + 0.8x_1 + 0.5x_2 + 0.6\,x_1x_2\)</span>, the success probability is <span class="math inline">\(p = \Lambda(\eta)\)</span>, and <span class="math inline">\(y \sim \text{Bernoulli}(p)\)</span>. So the true interaction on the log-odds scale is <span class="math inline">\(\beta_{12} = 0.6\)</span>, a single constant — which is exactly the object the coefficient table estimates, and exactly the object that does <em>not</em> transfer to the probability scale.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://marginaleffects.com/">marginaleffects</a></span><span class="op">)</span></span>
@@ -610,7 +611,8 @@ x2           0.5296149 0.05537644  9.563903 1.133977e-21
 x1:x2        0.6624955 0.06403580 10.345705 4.376826e-25</code></pre>
 </div>
 </div>
-<p>The coefficient on <code>x1:x2</code> above is <span class="math inline">\(\hat\beta_{12}\)</span>, the interaction effect on the log-odds (linear index) scale — constant by construction. On the <em>probability</em> scale nothing is constant. Start with the marginal effect of <span class="math inline">\(x_1\)</span> itself, evaluated at three values of <span class="math inline">\(x_2\)</span>:</p>
+<p>The coefficient on <code>x1:x2</code> is 0.662 with a standard error of 0.064, against a true 0.6 — recovered to within one standard error, as it should be, since the logit is correctly specified. The other three are 0.779, 0.530 and <span class="math inline">\(-0.235\)</span> against true values of 0.8, 0.5 and <span class="math inline">\(-0.3\)</span>.</p>
+<p>That coefficient is <span class="math inline">\(\hat\beta_{12}\)</span>, the interaction effect on the log-odds (linear index) scale — constant by construction. On the <em>probability</em> scale nothing is constant. Start with the marginal effect of <span class="math inline">\(x_1\)</span> itself, evaluated at three values of <span class="math inline">\(x_2\)</span>:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html">slopes</a></span><span class="op">(</span><span class="va">m</span>, variables <span class="op">=</span> <span class="st">"x1"</span>, by <span class="op">=</span> <span class="st">"x2"</span>, newdata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/datagrid.html">datagrid</a></span><span class="op">(</span>x2 <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
@@ -625,7 +627,7 @@ Type: response
 Comparison: dY/dX</code></pre>
 </div>
 </div>
-<p>The marginal effect of <span class="math inline">\(x_1\)</span> on <span class="math inline">\(P(y=1)\)</span> changes across the three values of <span class="math inline">\(x_2\)</span> — and notice that at <span class="math inline">\(x_2=-1\)</span> it is not significant (<span class="math inline">\(p \approx 0.11\)</span>) even though <span class="math inline">\(\hat\beta_{12}\)</span> is significant at better than <span class="math inline">\(0.001\)</span>. Already the probability-scale answer and the coefficient tell different stories.</p>
+<p>The marginal effect of <span class="math inline">\(x_1\)</span> on <span class="math inline">\(P(y=1)\)</span> is 0.025 at <span class="math inline">\(x_2=-1\)</span>, 0.192 at <span class="math inline">\(x_2=0\)</span>, and 0.354 at <span class="math inline">\(x_2=1\)</span> — a fourteen-fold change across the three values, where the log-odds interaction is one fixed number. Notice too that at <span class="math inline">\(x_2=-1\)</span> the effect is not significant (<span class="math inline">\(p = 0.112\)</span>) even though <span class="math inline">\(\hat\beta_{12}\)</span> is significant at better than <span class="math inline">\(10^{-24}\)</span>. Already the probability-scale answer and the coefficient tell different stories.</p>
 <p>The cross partial derivative is a <em>further</em> step: not the effect of <span class="math inline">\(x_1\)</span> at a given <span class="math inline">\(x_2\)</span>, but how much that effect changes as <span class="math inline">\(x_2\)</span> moves. That is a difference of slopes, so it needs a hypothesis test on top of the <code>by</code> argument rather than a second call to <code><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html">slopes()</a></code>:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/pkg/marginaleffects/man/slopes.html">slopes</a></span><span class="op">(</span><span class="va">m</span>, variables <span class="op">=</span> <span class="st">"x1"</span>, by <span class="op">=</span> <span class="st">"x2"</span>,</span>
@@ -639,7 +641,7 @@ Comparison: dY/dX</code></pre>
 Type: response</code></pre>
 </div>
 </div>
-<p>Here the cross partial comes out large and highly significant, which is worth being honest about: in <em>this</em> example it agrees with <span class="math inline">\(\hat\beta_{12}\)</span> in significance, differing only in scale and magnitude. Ai and Norton’s warning is that the two quantities <em>need not</em> agree — not that they never do. The dependable lesson is the one visible in the table above: on the probability scale the answer depends on where you evaluate it, so a single coefficient cannot summarise it.</p>
+<p>The cross partial is 0.329 with a standard error of 0.030, <span class="math inline">\(z = 11\)</span> — that is the difference between the slope at <span class="math inline">\(x_2=1\)</span> and the slope at <span class="math inline">\(x_2=-1\)</span>, <span class="math inline">\(0.354 - 0.025\)</span>, with a proper standard error attached. It is large and highly significant, which is worth being honest about: in <em>this</em> example it agrees with <span class="math inline">\(\hat\beta_{12}\)</span> in significance, differing only in scale and magnitude. Note that it is nowhere near 0.662; the two numbers live on different scales and there is no reason to expect them to match. Ai and Norton’s warning is that the two quantities <em>need not</em> agree — not that they never do. The dependable lesson is the one visible in the table above: on the probability scale the answer depends on where you evaluate it, so a single coefficient cannot summarise it.</p>
 
 
 <!-- -->
@@ -1140,64 +1142,83 @@ Type: response</code></pre>
 <span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>Let's illustrate the Ai-Norton point directly: in a logit model with an interaction term, the cross partial derivative $\frac{\partial^2 E(y)}{\partial x_1 \partial x_2}$ (what we actually care about) is not the same object as the estimated coefficient $\beta_{12}$ on $x_1 x_2$ in the linear index. We simulate data with a true interaction effect on the log-odds scale, fit a logit model, and then use the <span class="in">`marginaleffects`</span> package for two distinct things: first the marginal effect of $x_1$ on the probability scale at several values of $x_2$, and then the cross partial derivative itself.</span>
 <span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ai-norton-example</span></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>x1 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>x2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>eta <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fl">0.3</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> x1 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> x2 <span class="sc">+</span> <span class="fl">0.6</span> <span class="sc">*</span> x1 <span class="sc">*</span> x2</span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">plogis</span>(eta)</span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, p)</span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(y, x1, x2)</span>
-<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">glm</span>(y <span class="sc">~</span> x1 <span class="sc">*</span> x2, <span class="at">data =</span> dat, <span class="at">family =</span> binomial)</span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m)<span class="sc">$</span>coefficients</span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>The coefficient on <span class="in">`x1:x2`</span> above is $\hat\beta_{12}$, the interaction effect on the log-odds (linear index) scale — constant by construction. On the *probability* scale nothing is constant. Start with the marginal effect of $x_1$ itself, evaluated at three values of $x_2$:</span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ai-norton-slopes</span></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a><span class="fu">slopes</span>(m, <span class="at">variables =</span> <span class="st">"x1"</span>, <span class="at">by =</span> <span class="st">"x2"</span>, <span class="at">newdata =</span> <span class="fu">datagrid</span>(<span class="at">x2 =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>)))</span>
-<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>The marginal effect of $x_1$ on $P(y=1)$ changes across the three values of</span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>$x_2$ — and notice that at $x_2=-1$ it is not significant ($p \approx 0.11$)</span>
-<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>even though $\hat\beta_{12}$ is significant at better than $0.001$. Already the</span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>probability-scale answer and the coefficient tell different stories.</span>
-<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>The cross partial derivative is a *further* step: not the effect of $x_1$ at a</span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>given $x_2$, but how much that effect changes as $x_2$ moves. That is a</span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>difference of slopes, so it needs a hypothesis test on top of the <span class="in">`by`</span> argument</span>
-<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>rather than a second call to <span class="in">`slopes()`</span>:</span>
-<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ai-norton-cross-partial</span></span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a><span class="fu">slopes</span>(m, <span class="at">variables =</span> <span class="st">"x1"</span>, <span class="at">by =</span> <span class="st">"x2"</span>,</span>
-<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>       <span class="at">newdata =</span> <span class="fu">datagrid</span>(<span class="at">x2 =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>)),</span>
-<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a>       <span class="at">hypothesis =</span> <span class="st">"b2 - b1 = 0"</span>)</span>
-<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>Here the cross partial comes out large and highly significant, which is worth</span>
-<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a>being honest about: in *this* example it agrees with $\hat\beta_{12}$ in</span>
-<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>significance, differing only in scale and magnitude. Ai and Norton's warning is</span>
-<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a>that the two quantities *need not* agree — not that they never do. The</span>
-<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>dependable lesson is the one visible in the table above: on the probability</span>
-<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a>scale the answer depends on where you evaluate it, so a single coefficient</span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>cannot summarise it.</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>We draw $n = 2000$ observations with $x_1, x_2 \sim N(0,1)$, independent of each</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>other. The linear index is</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>$\eta = -0.3 + 0.8x_1 + 0.5x_2 + 0.6\,x_1x_2$, the success probability is</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>$p = \Lambda(\eta)$, and $y \sim \text{Bernoulli}(p)$. So the true interaction on</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>the log-odds scale is $\beta_{12} = 0.6$, a single constant — which is exactly</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>the object the coefficient table estimates, and exactly the object that does</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>*not* transfer to the probability scale.</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ai-norton-example</span></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>x1 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>x2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>eta <span class="ot">&lt;-</span> <span class="sc">-</span><span class="fl">0.3</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> x1 <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> x2 <span class="sc">+</span> <span class="fl">0.6</span> <span class="sc">*</span> x1 <span class="sc">*</span> x2</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">plogis</span>(eta)</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, p)</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(y, x1, x2)</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">glm</span>(y <span class="sc">~</span> x1 <span class="sc">*</span> x2, <span class="at">data =</span> dat, <span class="at">family =</span> binomial)</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m)<span class="sc">$</span>coefficients</span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>The coefficient on <span class="in">`x1:x2`</span> is 0.662 with a standard error of 0.064, against a</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>true 0.6 — recovered to within one standard error, as it should be, since the</span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>logit is correctly specified. The other three are 0.779, 0.530 and $-0.235$</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>against true values of 0.8, 0.5 and $-0.3$.</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>That coefficient is $\hat\beta_{12}$, the interaction effect on the log-odds (linear index) scale — constant by construction. On the *probability* scale nothing is constant. Start with the marginal effect of $x_1$ itself, evaluated at three values of $x_2$:</span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ai-norton-slopes</span></span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a><span class="fu">slopes</span>(m, <span class="at">variables =</span> <span class="st">"x1"</span>, <span class="at">by =</span> <span class="st">"x2"</span>, <span class="at">newdata =</span> <span class="fu">datagrid</span>(<span class="at">x2 =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">0</span>, <span class="dv">1</span>)))</span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>The marginal effect of $x_1$ on $P(y=1)$ is 0.025 at $x_2=-1$, 0.192 at</span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a>$x_2=0$, and 0.354 at $x_2=1$ — a fourteen-fold change across the three values,</span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>where the log-odds interaction is one fixed number. Notice too that at</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>$x_2=-1$ the effect is not significant ($p = 0.112$) even though</span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a>$\hat\beta_{12}$ is significant at better than $10^{-24}$. Already the</span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>probability-scale answer and the coefficient tell different stories.</span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a>The cross partial derivative is a *further* step: not the effect of $x_1$ at a</span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a>given $x_2$, but how much that effect changes as $x_2$ moves. That is a</span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>difference of slopes, so it needs a hypothesis test on top of the <span class="in">`by`</span> argument</span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a>rather than a second call to <span class="in">`slopes()`</span>:</span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ai-norton-cross-partial</span></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a><span class="fu">slopes</span>(m, <span class="at">variables =</span> <span class="st">"x1"</span>, <span class="at">by =</span> <span class="st">"x2"</span>,</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>       <span class="at">newdata =</span> <span class="fu">datagrid</span>(<span class="at">x2 =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>)),</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>       <span class="at">hypothesis =</span> <span class="st">"b2 - b1 = 0"</span>)</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a>The cross partial is 0.329 with a standard error of 0.030, $z = 11$ — that is</span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>the difference between the slope at $x_2=1$ and the slope at $x_2=-1$,</span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a>$0.354 - 0.025$, with a proper standard error attached. It is large and highly</span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a>significant, which is worth being honest about: in *this* example it agrees with</span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a>$\hat\beta_{12}$ in significance, differing only in scale and magnitude. Note</span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>that it is nowhere near 0.662; the two numbers live on different scales and</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a>there is no reason to expect them to match. Ai and Norton's warning is</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>that the two quantities *need not* agree — not that they never do. The</span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a>dependable lesson is the one visible in the table above: on the probability</span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>scale the answer depends on where you evaluate it, so a single coefficient</span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a>cannot summarise it.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

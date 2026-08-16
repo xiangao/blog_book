@@ -603,7 +603,8 @@ window.Quarto = {
 </section>
 <section id="four-estimators-one-panel" class="level2" data-number="19.2">
 <h2 data-number="19.2" class="anchored" data-anchor-id="four-estimators-one-panel"><span class="header-section-number">19.2</span> Four estimators, one panel</h2>
-<div id="ed8237a0" class="cell" data-execution_count="1">
+<p>The panel is the California Proposition 99 data: annual per-capita cigarette sales in packs for 39 states from 1970 to 2000, arranged as a <span class="math inline">\(39 \times 31\)</span> matrix with California in the treated row, 38 donor states, and 19 pre-treatment years before the 1989 tax increase. Every estimator below sees exactly the same matrix; all that differs is how each weights the donors and the pre-periods.</p>
+<div id="a604d561" class="cell" data-execution_count="1">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CSV</span>, <span class="bu">DataFrames</span>, <span class="bu">Statistics</span></span>
@@ -669,7 +670,7 @@ y_t = H\,x_t + r_t,\quad r_t \sim \mathcal{N}(0,R)
 </section>
 <section id="the-figure" class="level2" data-number="19.4">
 <h2 data-number="19.4" class="anchored" data-anchor-id="the-figure"><span class="header-section-number">19.4</span> The figure</h2>
-<div id="fc52dd2c" class="cell" data-execution_count="2">
+<div id="1c581ddd" class="cell" data-execution_count="2">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Counterfactual path for each method. omega_* / intercept_* are the donor</span></span>
@@ -727,7 +728,7 @@ y_t = H\,x_t + r_t,\quad r_t \sim \mathcal{N}(0,R)
 </section>
 <section id="setup-code" class="level2" data-number="19.6">
 <h2 data-number="19.6" class="anchored" data-anchor-id="setup-code"><span class="header-section-number">19.6</span> Setup code</h2>
-<div id="900dbc5d" class="cell" data-execution_count="3">
+<div id="d582cd3f" class="cell" data-execution_count="3">
 <details open="" class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode julia code-with-copy"><code class="sourceCode julia"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df     <span class="op">=</span> CSV.<span class="fu">read</span>(<span class="st">"california_prop99.csv"</span>, DataFrame)</span>
@@ -1242,166 +1243,172 @@ y_t = H\,x_t + r_t,\quad r_t \sim \mathcal{N}(0,R)
 <span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="fu">## Four estimators, one panel</span></span>
 <span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="in">```{julia}</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CSV</span>, <span class="bu">DataFrames</span>, <span class="bu">Statistics</span></span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">SynthDiD</span></span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">TASC</span></span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>df    <span class="op">=</span> CSV.<span class="fu">read</span>(<span class="st">"california_prop99.csv"</span>, DataFrame)</span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co"># ... pivot to N×T matrix Y, N0 = 38 donors, T0 = 19 pre-treatment years</span></span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co"># (full setup code below)</span></span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>tau_did  <span class="op">=</span> <span class="fu">did_estimate</span>(Y, N0, T0)</span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>tau_sdid <span class="op">=</span> <span class="fu">synthdid_estimate</span>(Y, N0, T0)</span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>tau_sc   <span class="op">=</span> <span class="fu">sc_estimate</span>(Y, N0, T0)</span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="co"># TASC: treated unit must be row 1</span></span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>Y_tasc <span class="op">=</span> <span class="fu">vcat</span>(Y[(N0<span class="op">+</span><span class="fl">1</span>)<span class="op">:</span><span class="kw">end</span>, <span class="op">:</span>], Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>])</span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>model  <span class="op">=</span> <span class="fu">fit_tasc</span>(Y_tasc; d<span class="op">=</span><span class="fl">2</span>, T0<span class="op">=</span>T0, n_em<span class="op">=</span><span class="fl">200</span>, tol<span class="op">=</span><span class="fl">1e-3</span>)</span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>pred   <span class="op">=</span> <span class="fu">predict_counterfactual</span>(model, Y_tasc)</span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>The panel is the California Proposition 99 data: annual per-capita cigarette</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>sales in packs for 39 states from 1970 to 2000, arranged as a $39 \times 31$</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>matrix with California in the treated row, 38 donor states, and 19 pre-treatment</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>years before the 1989 tax increase. Every estimator below sees exactly the same</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>matrix; all that differs is how each weights the donors and the pre-periods.</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="in">```{julia}</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">CSV</span>, <span class="bu">DataFrames</span>, <span class="bu">Statistics</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">SynthDiD</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="im">using</span> <span class="bu">TASC</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>df    <span class="op">=</span> CSV.<span class="fu">read</span>(<span class="st">"california_prop99.csv"</span>, DataFrame)</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a><span class="co"># ... pivot to N×T matrix Y, N0 = 38 donors, T0 = 19 pre-treatment years</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="co"># (full setup code below)</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>tau_did  <span class="op">=</span> <span class="fu">did_estimate</span>(Y, N0, T0)</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>tau_sdid <span class="op">=</span> <span class="fu">synthdid_estimate</span>(Y, N0, T0)</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>tau_sc   <span class="op">=</span> <span class="fu">sc_estimate</span>(Y, N0, T0)</span>
 <span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Estimator <span class="pp">|</span> ATT (packs per capita) <span class="pp">|</span></span>
-<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|</span></span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Difference-in-differences <span class="pp">|</span> −27.35 <span class="pp">|</span></span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Synthetic control <span class="pp">|</span> −19.62 <span class="pp">|</span></span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Synthetic DiD <span class="pp">|</span> −15.60 <span class="pp">|</span></span>
-<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> TASC <span class="pp">|</span> −17.11 <span class="pp">|</span></span>
-<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>(These are the values computed live in the companion Julia book's</span>
-<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">same analysis</span><span class="co">](https://xiangao.github.io/causal_econometrics_julia/synthetic-control-did-tasc.html)</span>;</span>
-<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>the code in this chapter is <span class="in">`eval: false`</span>, so that chapter is the authoritative</span>
-<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>source for the numbers. The DiD and SC figures also match the published</span>
-<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a><span class="in">`synthdid`</span> benchmarks for this panel.)</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="co"># TASC: treated unit must be row 1</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>Y_tasc <span class="op">=</span> <span class="fu">vcat</span>(Y[(N0<span class="op">+</span><span class="fl">1</span>)<span class="op">:</span><span class="kw">end</span>, <span class="op">:</span>], Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>])</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>model  <span class="op">=</span> <span class="fu">fit_tasc</span>(Y_tasc; d<span class="op">=</span><span class="fl">2</span>, T0<span class="op">=</span>T0, n_em<span class="op">=</span><span class="fl">200</span>, tol<span class="op">=</span><span class="fl">1e-3</span>)</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>pred   <span class="op">=</span> <span class="fu">predict_counterfactual</span>(model, Y_tasc)</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Estimator <span class="pp">|</span> ATT (packs per capita) <span class="pp">|</span></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---:|</span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Difference-in-differences <span class="pp">|</span> −27.35 <span class="pp">|</span></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Synthetic control <span class="pp">|</span> −19.62 <span class="pp">|</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Synthetic DiD <span class="pp">|</span> −15.60 <span class="pp">|</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> TASC <span class="pp">|</span> −17.11 <span class="pp">|</span></span>
 <span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>The smallest and largest estimates differ by nearly twelve packs per capita. That</span>
-<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>is not a rounding issue. It comes from the way each estimator constructs the</span>
-<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>counterfactual.</span>
-<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a><span class="fu">## What changes across estimators</span></span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>(These are the values computed live in the companion Julia book's</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">same analysis</span><span class="co">](https://xiangao.github.io/causal_econometrics_julia/synthetic-control-did-tasc.html)</span>;</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>the code in this chapter is <span class="in">`eval: false`</span>, so that chapter is the authoritative</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>source for the numbers. The DiD and SC figures also match the published</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a><span class="in">`synthdid`</span> benchmarks for this panel.)</span>
 <span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>**DiD (-27.35)** assigns equal weight to every control state and every</span>
-<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>pre-treatment year. California is compared to the average of all 38 donor</span>
-<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>states. In this data, that average sits well below California before treatment.</span>
-<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>So the large DiD estimate is not automatically evidence of a larger causal</span>
-<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>effect. It is partly a warning that equal weights do not fit the pre-period</span>
-<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>well.</span>
-<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>**Synthetic control (-19.62)** replaces equal weights with donor weights chosen</span>
-<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>to match California's 1970-1988 cigarette sales. Once the pre-period fit is</span>
-<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>better, the post-treatment gap shrinks. The move from about -27 to about -20 is</span>
-<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>mostly the price of using a better control group.</span>
-<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>**Synthetic DiD (-15.60)** adds time weights. The estimator can put more weight</span>
-<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>on the pre-treatment years that are more useful for the post-1988</span>
-<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>counterfactual. Here that moves the estimate a bit closer to zero.</span>
-<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>**TASC (-17.11)** does something different. Instead of choosing only weights, it</span>
-<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>fits a state-space model to the pre-treatment panel:</span>
-<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>x_t = A\,x_{t-1} + q_t,\quad q_t \sim \mathcal{N}(0,Q)</span>
-<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>$$ {#eq-tasc-time-aware-synthetic-control-1}</span>
-<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>y_t = H\,x_t + r_t,\quad r_t \sim \mathcal{N}(0,R)</span>
-<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>$$ {#eq-tasc-time-aware-synthetic-control-2}</span>
-<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>The matrix $A$ describes how the latent factors move over time. After</span>
-<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>treatment, the filter continues using the donor panel, and the treated unit's</span>
-<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>row of $H$ maps the latent state to California's counterfactual. The TASC</span>
-<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>estimate (-17.11) lands between SC and SDiD in this example.</span>
-<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a><span class="fu">## The figure</span></span>
-<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a><span class="in">```{julia}</span></span>
-<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a><span class="co"># Counterfactual path for each method. omega_* / intercept_* are the donor</span></span>
-<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a><span class="co"># weights and (for DiD/SDiD) intercepts extracted from the fitted objects</span></span>
-<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a><span class="co"># above (e.g. tau_sdid.weights.omega for SynthDiD.jl) — this snippet is</span></span>
-<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a><span class="co"># schematic and omits that extraction step for brevity; it is not meant to</span></span>
-<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a><span class="co"># run as-is (hence eval: false).</span></span>
-<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>cfact_did  <span class="op">=</span> omega_did<span class="op">'</span>  <span class="op">*</span> Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>] <span class="op">.+</span> intercept_did   <span class="co"># parallel trends</span></span>
-<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>cfact_sdid <span class="op">=</span> omega_sdid<span class="op">'</span> <span class="op">*</span> Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>] <span class="op">.+</span> intercept_sdid</span>
-<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>cfact_sc   <span class="op">=</span> omega_sc<span class="op">'</span>   <span class="op">*</span> Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>]                     <span class="co"># no intercept</span></span>
-<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>cfact_tasc <span class="op">=</span> <span class="fu">vec</span>(pred.target)</span>
-<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>tasc_se    <span class="op">=</span> <span class="fu">sqrt</span>.(<span class="fu">max</span>.(<span class="fu">vec</span>(pred.variance), <span class="fl">0.0</span>))</span>
-<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>![Four counterfactual paths for California. Dashed lines (DiD, SDiD) use pre-period</span>
-<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>intercepts to enforce parallel trends; solid lines (SC, TASC) fit levels directly.</span>
-<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>The shaded band is the TASC 95% posterior interval</span>
-<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>$\hat Y_{1t}(0) \pm 1.96\,\hat\sigma_t$.](tasc-prop99.svg)</span>
-<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>Two things are visible in the figure that the table cannot show.</span>
-<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>First, the pre-treatment paths differ. The DiD control average sits well below</span>
-<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>California before treatment. SC and TASC track California more closely. This is</span>
-<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>why the DiD post-treatment gap is larger.</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>The smallest and largest estimates differ by nearly twelve packs per capita. That</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>is not a rounding issue. It comes from the way each estimator constructs the</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>counterfactual.</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a><span class="fu">## What changes across estimators</span></span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>**DiD (-27.35)** assigns equal weight to every control state and every</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>pre-treatment year. California is compared to the average of all 38 donor</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>states. In this data, that average sits well below California before treatment.</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>So the large DiD estimate is not automatically evidence of a larger causal</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>effect. It is partly a warning that equal weights do not fit the pre-period</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>well.</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>**Synthetic control (-19.62)** replaces equal weights with donor weights chosen</span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>to match California's 1970-1988 cigarette sales. Once the pre-period fit is</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>better, the post-treatment gap shrinks. The move from about -27 to about -20 is</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>mostly the price of using a better control group.</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>**Synthetic DiD (-15.60)** adds time weights. The estimator can put more weight</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>on the pre-treatment years that are more useful for the post-1988</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>counterfactual. Here that moves the estimate a bit closer to zero.</span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>**TASC (-17.11)** does something different. Instead of choosing only weights, it</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>fits a state-space model to the pre-treatment panel:</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>x_t = A\,x_{t-1} + q_t,\quad q_t \sim \mathcal{N}(0,Q)</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>$$ {#eq-tasc-time-aware-synthetic-control-1}</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>y_t = H\,x_t + r_t,\quad r_t \sim \mathcal{N}(0,R)</span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>$$ {#eq-tasc-time-aware-synthetic-control-2}</span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>The matrix $A$ describes how the latent factors move over time. After</span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>treatment, the filter continues using the donor panel, and the treated unit's</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>row of $H$ maps the latent state to California's counterfactual. The TASC</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>estimate (-17.11) lands between SC and SDiD in this example.</span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a><span class="fu">## The figure</span></span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{julia}</span></span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a><span class="co"># Counterfactual path for each method. omega_* / intercept_* are the donor</span></span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a><span class="co"># weights and (for DiD/SDiD) intercepts extracted from the fitted objects</span></span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a><span class="co"># above (e.g. tau_sdid.weights.omega for SynthDiD.jl) — this snippet is</span></span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a><span class="co"># schematic and omits that extraction step for brevity; it is not meant to</span></span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a><span class="co"># run as-is (hence eval: false).</span></span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>cfact_did  <span class="op">=</span> omega_did<span class="op">'</span>  <span class="op">*</span> Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>] <span class="op">.+</span> intercept_did   <span class="co"># parallel trends</span></span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>cfact_sdid <span class="op">=</span> omega_sdid<span class="op">'</span> <span class="op">*</span> Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>] <span class="op">.+</span> intercept_sdid</span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>cfact_sc   <span class="op">=</span> omega_sc<span class="op">'</span>   <span class="op">*</span> Y[<span class="fl">1</span><span class="op">:</span>N0, <span class="op">:</span>]                     <span class="co"># no intercept</span></span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>cfact_tasc <span class="op">=</span> <span class="fu">vec</span>(pred.target)</span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>tasc_se    <span class="op">=</span> <span class="fu">sqrt</span>.(<span class="fu">max</span>.(<span class="fu">vec</span>(pred.variance), <span class="fl">0.0</span>))</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>![Four counterfactual paths for California. Dashed lines (DiD, SDiD) use pre-period</span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>intercepts to enforce parallel trends; solid lines (SC, TASC) fit levels directly.</span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>The shaded band is the TASC 95% posterior interval</span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>$\hat Y_{1t}(0) \pm 1.96\,\hat\sigma_t$.](tasc-prop99.svg)</span>
 <span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>Second, the TASC band is narrow before treatment and wider after 1989. That is</span>
-<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>what I would expect. Before treatment, the smoother can use information from</span>
-<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>both directions in time. After treatment, the filter has to move forward</span>
-<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>without California's observed outcomes, so the uncertainty accumulates through</span>
-<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>$P_{t+1} = AP_tA^\top + Q$.</span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>Two things are visible in the figure that the table cannot show.</span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>First, the pre-treatment paths differ. The DiD control average sits well below</span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>California before treatment. SC and TASC track California more closely. This is</span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>why the DiD post-treatment gap is larger.</span>
 <span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a><span class="fu">## What the comparison teaches</span></span>
-<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Comparison <span class="pp">|</span> What it isolates <span class="pp">|</span></span>
-<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
-<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> DiD vs SC <span class="pp">|</span> Unit weights — equal vs optimised donor match <span class="pp">|</span></span>
-<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SC vs SDiD <span class="pp">|</span> Time weights — equal vs recency-weighted pre-period <span class="pp">|</span></span>
-<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SC vs TASC <span class="pp">|</span> Model — weight fitting vs latent state-space <span class="pp">|</span></span>
-<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SC/SDiD vs TASC <span class="pp">|</span> Uncertainty — point estimate vs posterior interval <span class="pp">|</span></span>
-<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>Which estimator I would use depends on the setting. DiD is transparent, but</span>
-<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>the pre-period fit here is poor. SC improves the donor match. SDiD also weights</span>
-<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>time periods. TASC is useful when the outcome series has persistent dynamics</span>
-<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>and we want uncertainty for the counterfactual path, not just one average</span>
-<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a>number.</span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a>Second, the TASC band is narrow before treatment and wider after 1989. That is</span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>what I would expect. Before treatment, the smoother can use information from</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>both directions in time. After treatment, the filter has to move forward</span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a>without California's observed outcomes, so the uncertainty accumulates through</span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a>$P_{t+1} = AP_tA^\top + Q$.</span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a><span class="fu">## What the comparison teaches</span></span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Comparison <span class="pp">|</span> What it isolates <span class="pp">|</span></span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> DiD vs SC <span class="pp">|</span> Unit weights — equal vs optimised donor match <span class="pp">|</span></span>
+<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SC vs SDiD <span class="pp">|</span> Time weights — equal vs recency-weighted pre-period <span class="pp">|</span></span>
+<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SC vs TASC <span class="pp">|</span> Model — weight fitting vs latent state-space <span class="pp">|</span></span>
+<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> SC/SDiD vs TASC <span class="pp">|</span> Uncertainty — point estimate vs posterior interval <span class="pp">|</span></span>
 <span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a>For this panel, the three methods that try to match the pre-period give</span>
-<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a>estimates between about -15.6 and -19.6. DiD is the outlier. I would read this as a</span>
-<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a>problem with equal weights, not as evidence that the effect of Proposition 99</span>
-<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a>depends on the estimator.</span>
-<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a><span class="fu">## Setup code</span></span>
-<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a><span class="in">```{julia}</span></span>
-<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a>df     <span class="op">=</span> CSV.<span class="fu">read</span>(<span class="st">"california_prop99.csv"</span>, DataFrame)</span>
-<span id="cb4-156"><a href="#cb4-156" aria-hidden="true" tabindex="-1"></a>states <span class="op">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(df.State))</span>
-<span id="cb4-157"><a href="#cb4-157" aria-hidden="true" tabindex="-1"></a>years  <span class="op">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(df.Year))</span>
-<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a>N, T   <span class="op">=</span> <span class="fu">length</span>(states), <span class="fu">length</span>(years)</span>
-<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a>Y_wide      <span class="op">=</span> <span class="fu">zeros</span>(N, T)</span>
-<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a>treated_vec <span class="op">=</span> <span class="fu">zeros</span>(<span class="dt">Bool</span>, N)</span>
-<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row <span class="kw">in</span> <span class="fu">eachrow</span>(df)</span>
-<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a>    i <span class="op">=</span> <span class="fu">findfirst</span>(<span class="op">==</span>(row.State), states)</span>
-<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> <span class="fu">findfirst</span>(<span class="op">==</span>(row.Year), years)</span>
-<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a>    Y_wide[i, t] <span class="op">=</span> row.PacksPerCapita</span>
-<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a>    treated_vec[i] <span class="op">|=</span> (row.treated <span class="op">==</span> <span class="fl">1</span>)</span>
-<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
-<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a>ctrl_idx <span class="op">=</span> <span class="fu">findall</span>(.!treated_vec)</span>
-<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a>trt_idx  <span class="op">=</span> <span class="fu">findall</span>(treated_vec)</span>
-<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a>Y  <span class="op">=</span> Y_wide[<span class="fu">vcat</span>(ctrl_idx, trt_idx), <span class="op">:</span>]   <span class="co"># donors first</span></span>
-<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a>N0 <span class="op">=</span> <span class="fu">length</span>(ctrl_idx)                      <span class="co"># 38</span></span>
-<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a>T0 <span class="op">=</span> <span class="fu">findfirst</span>(<span class="op">==</span>(<span class="fl">1989</span>), years) <span class="op">-</span> <span class="fl">1</span>        <span class="co"># 19</span></span>
-<span id="cb4-174"><a href="#cb4-174" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb4-175"><a href="#cb4-175" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-176"><a href="#cb4-176" aria-hidden="true" tabindex="-1"></a>The <span class="in">`SynthDiD.jl`</span> package provides <span class="in">`did_estimate`</span>, <span class="in">`synthdid_estimate`</span>, and</span>
-<span id="cb4-177"><a href="#cb4-177" aria-hidden="true" tabindex="-1"></a><span class="in">`sc_estimate`</span>. The <span class="in">`TASC.jl`</span> package provides <span class="in">`fit_tasc`</span> and</span>
-<span id="cb4-178"><a href="#cb4-178" aria-hidden="true" tabindex="-1"></a><span class="in">`predict_counterfactual`</span>. Both packages are available on GitHub.</span>
-<span id="cb4-179"><a href="#cb4-179" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-180"><a href="#cb4-180" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a>Which estimator I would use depends on the setting. DiD is transparent, but</span>
+<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a>the pre-period fit here is poor. SC improves the donor match. SDiD also weights</span>
+<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a>time periods. TASC is useful when the outcome series has persistent dynamics</span>
+<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a>and we want uncertainty for the counterfactual path, not just one average</span>
+<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a>number.</span>
+<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a>For this panel, the three methods that try to match the pre-period give</span>
+<span id="cb4-150"><a href="#cb4-150" aria-hidden="true" tabindex="-1"></a>estimates between about -15.6 and -19.6. DiD is the outlier. I would read this as a</span>
+<span id="cb4-151"><a href="#cb4-151" aria-hidden="true" tabindex="-1"></a>problem with equal weights, not as evidence that the effect of Proposition 99</span>
+<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a>depends on the estimator.</span>
+<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a><span class="fu">## Setup code</span></span>
+<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a><span class="in">```{julia}</span></span>
+<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a>df     <span class="op">=</span> CSV.<span class="fu">read</span>(<span class="st">"california_prop99.csv"</span>, DataFrame)</span>
+<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a>states <span class="op">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(df.State))</span>
+<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a>years  <span class="op">=</span> <span class="fu">sort</span>(<span class="fu">unique</span>(df.Year))</span>
+<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a>N, T   <span class="op">=</span> <span class="fu">length</span>(states), <span class="fu">length</span>(years)</span>
+<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a>Y_wide      <span class="op">=</span> <span class="fu">zeros</span>(N, T)</span>
+<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a>treated_vec <span class="op">=</span> <span class="fu">zeros</span>(<span class="dt">Bool</span>, N)</span>
+<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> row <span class="kw">in</span> <span class="fu">eachrow</span>(df)</span>
+<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a>    i <span class="op">=</span> <span class="fu">findfirst</span>(<span class="op">==</span>(row.State), states)</span>
+<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a>    t <span class="op">=</span> <span class="fu">findfirst</span>(<span class="op">==</span>(row.Year), years)</span>
+<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a>    Y_wide[i, t] <span class="op">=</span> row.PacksPerCapita</span>
+<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a>    treated_vec[i] <span class="op">|=</span> (row.treated <span class="op">==</span> <span class="fl">1</span>)</span>
+<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb4-174"><a href="#cb4-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-175"><a href="#cb4-175" aria-hidden="true" tabindex="-1"></a>ctrl_idx <span class="op">=</span> <span class="fu">findall</span>(.!treated_vec)</span>
+<span id="cb4-176"><a href="#cb4-176" aria-hidden="true" tabindex="-1"></a>trt_idx  <span class="op">=</span> <span class="fu">findall</span>(treated_vec)</span>
+<span id="cb4-177"><a href="#cb4-177" aria-hidden="true" tabindex="-1"></a>Y  <span class="op">=</span> Y_wide[<span class="fu">vcat</span>(ctrl_idx, trt_idx), <span class="op">:</span>]   <span class="co"># donors first</span></span>
+<span id="cb4-178"><a href="#cb4-178" aria-hidden="true" tabindex="-1"></a>N0 <span class="op">=</span> <span class="fu">length</span>(ctrl_idx)                      <span class="co"># 38</span></span>
+<span id="cb4-179"><a href="#cb4-179" aria-hidden="true" tabindex="-1"></a>T0 <span class="op">=</span> <span class="fu">findfirst</span>(<span class="op">==</span>(<span class="fl">1989</span>), years) <span class="op">-</span> <span class="fl">1</span>        <span class="co"># 19</span></span>
+<span id="cb4-180"><a href="#cb4-180" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb4-181"><a href="#cb4-181" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-182"><a href="#cb4-182" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb4-183"><a href="#cb4-183" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [Julia](https://xiangao.github.io/causal_econometrics_julia/synthetic-control-did-tasc.html).*</span>
+<span id="cb4-182"><a href="#cb4-182" aria-hidden="true" tabindex="-1"></a>The <span class="in">`SynthDiD.jl`</span> package provides <span class="in">`did_estimate`</span>, <span class="in">`synthdid_estimate`</span>, and</span>
+<span id="cb4-183"><a href="#cb4-183" aria-hidden="true" tabindex="-1"></a><span class="in">`sc_estimate`</span>. The <span class="in">`TASC.jl`</span> package provides <span class="in">`fit_tasc`</span> and</span>
+<span id="cb4-184"><a href="#cb4-184" aria-hidden="true" tabindex="-1"></a><span class="in">`predict_counterfactual`</span>. Both packages are available on GitHub.</span>
+<span id="cb4-185"><a href="#cb4-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-186"><a href="#cb4-186" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb4-187"><a href="#cb4-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-188"><a href="#cb4-188" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb4-189"><a href="#cb4-189" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [Julia](https://xiangao.github.io/causal_econometrics_julia/synthetic-control-did-tasc.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

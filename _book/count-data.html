@@ -652,7 +652,8 @@ window.Quarto = {
 <p>(Note: the <code>log.linear</code> bias line above previously read <code>exp(coef(m3)["x"]) - 2</code> instead of <code>coef(m3)["x"] - 2</code>, which — since the log-linear coefficient is already on the log scale — manufactured a spurious ≈5.4 apparent bias regardless of the model’s actual performance. That has been corrected here to match the other rows. Log-linear regression on <code>log(y+1)</code> is still expected to be biased relative to Poisson-family models in a zero-inflated count setting, for real reasons (the log transform’s nonlinearity near zero, and the fact that <span class="math inline">\(E[\log(y+1)] \neq \log(E[y]+1)\)</span>), but the <em>magnitude</em> of “consistently the worst” above reflects the original (buggy) run and has not been re-verified against a corrected simulation.)</p>
 </section></section><section id="quick-worked-example" class="level2" data-number="23.2"><h2 data-number="23.2" class="anchored" data-anchor-id="quick-worked-example">
 <span class="header-section-number">23.2</span> Quick worked example</h2>
-<p>All five models on a single small dataset (n = 1000, ~40% zeros):</p>
+<p>All five models on a single small dataset (n = 1000, ~40% zeros).</p>
+<p>The DGP is a zero-inflated Poisson built in two independent pieces. We draw <span class="math inline">\(x \sim N(0,1)\)</span> and <span class="math inline">\(z \sim N(0,1)\)</span>, independent of each other. The count part is <span class="math inline">\(y_c \sim \text{Poisson}(\exp(1.5 + 0.8x))\)</span> and the zero part is <span class="math inline">\(y_b \sim \text{Bernoulli}(\Lambda(1 + 2z))\)</span>, with the observed outcome <span class="math inline">\(y = y_c \cdot y_b\)</span>. So the true slope on <span class="math inline">\(x\)</span> is 0.8, and — this is the feature that drives the results — the zero process depends on <span class="math inline">\(z\)</span> alone, never on <span class="math inline">\(x\)</span>.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="http://www.stats.ox.ac.uk/pub/MASS4/">MASS</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/atahk/pscl">pscl</a></span><span class="op">)</span></span>
@@ -757,6 +758,7 @@ window.Quarto = {
 </table>
 </div>
 </div>
+<p>The sample comes out 39% zeros with a non-zero mean of 6.79. The estimated slopes are 0.850 for Poisson, 0.824 for negative binomial, 0.803 for ZIP with the correct zero model, 0.802 for ZIP with the wrong one, 0.803 for the hurdle model, and 0.458 for log-linear OLS.</p>
 <p>The first five models recover the true <code>x</code> slope of 0.8 reasonably well; the log-linear row is included to make the earlier claim checkable, and needs reading with care — see the note after the table. This is the key point of <em>this</em> DGP: the zero-inflation process depends on <code>z</code>, which is generated <strong>independently of <code>x</code></strong>, so omitting the zero model distorts the zero mass and the intercept, not the slope on <code>x</code>. The hurdle model and even the ZIP with a <em>misspecified</em> (x-only) zero model still recover the slope closely; the plain Poisson shows a small upward bias <em>in this particular sample</em> (n = 1000), but that is finite-sample noise, not a systematic property of the model. Since the zero-inflation driver <code>z</code> is independent of <code>x</code>, the conditional mean here is correctly specified for Poisson QMLE — increasing <code>n</code> from 1,000 to 1,000,000 shrinks the Poisson <code>x</code>-coefficient bias from about +0.04 to effectively 0, confirming consistency. The unmodeled excess zeros create overdispersion, but overdispersion under a correctly-specified conditional mean affects only the standard errors (which should be corrected with a robust/sandwich estimator), not the consistency of the slope.</p>
 <p>About the log-linear row: its coefficient is <strong>not</strong> estimating the same thing as the others, which is the real reason to avoid it rather than any particular bias number. The count models target <span class="math inline">\(\log E[y \mid x]\)</span>, whereas OLS on <span class="math inline">\(\log(y+1)\)</span> targets <span class="math inline">\(E[\log(y+1) \mid x]\)</span>, and <span class="math inline">\(E[\log(y+1)] \neq \log(E[y]+1)\)</span> by Jensen’s inequality. The <span class="math inline">\(+1\)</span> offset makes the discrepancy worst exactly where the mass of zeros is. So comparing its coefficient to 0.8 is an apples-to-oranges comparison, and the honest statement is that log-linear answers a different question — not that it answers this one badly by some measured amount coefficient. A misspecified zero process biases the count <em>slope</em> only when the zero process is correlated with the count covariates — which is not the case here. (Change <code>z</code> to depend on <code>x</code> and the omitted-zero-process slope bias appears.)</p>
 </section><section id="mixed-count-models-with-glmmtmb" class="level2" data-number="23.3"><h2 data-number="23.3" class="anchored" data-anchor-id="mixed-count-models-with-glmmtmb">
@@ -1362,125 +1364,137 @@ window.Quarto = {
 <span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a><span class="fu">## Quick worked example</span></span>
 <span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>All five models on a single small dataset (n = 1000, ~40% zeros):</span>
+<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>All five models on a single small dataset (n = 1000, ~40% zeros).</span>
 <span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: quick-example</span></span>
-<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(MASS)</span>
-<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pscl)</span>
-<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a>n  <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
-<span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a>x  <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a>z  <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)                          <span class="co"># zero-inflation driver</span></span>
-<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a>mu <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fl">1.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> x)               <span class="co"># count mean</span></span>
-<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a>y_c <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> mu)</span>
-<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a>y_b <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> z)) <span class="co"># 1 = non-zero</span></span>
-<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a>y   <span class="ot">&lt;-</span> y_c <span class="sc">*</span> y_b                        <span class="co"># zero-inflated count</span></span>
-<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Zero fraction:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(y <span class="sc">==</span> <span class="dv">0</span>), <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
-<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Mean (non-zero):"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(y[y <span class="sc">&gt;</span> <span class="dv">0</span>]), <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>)</span>
-<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Poisson</span></span>
-<span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a>m_pois <span class="ot">&lt;-</span> <span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">family =</span> poisson)</span>
-<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Negative binomial</span></span>
-<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a>m_nb <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(y <span class="sc">~</span> x)</span>
-<span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Zero-inflated Poisson (ZIP) — correct zero model</span></span>
-<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a>m_zip <span class="ot">&lt;-</span> <span class="fu">zeroinfl</span>(y <span class="sc">~</span> x <span class="sc">|</span> z)</span>
-<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. ZIP — wrong zero model (only x)</span></span>
-<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a>m_zip2 <span class="ot">&lt;-</span> <span class="fu">zeroinfl</span>(y <span class="sc">~</span> x <span class="sc">|</span> x)</span>
-<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Hurdle</span></span>
-<span id="cb8-157"><a href="#cb8-157" aria-hidden="true" tabindex="-1"></a>m_hurdle <span class="ot">&lt;-</span> <span class="fu">hurdle</span>(y <span class="sc">~</span> x)</span>
-<span id="cb8-158"><a href="#cb8-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a><span class="co"># 6. Log-linear OLS on log(y + 1)</span></span>
-<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a>m_loglin <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="fu">log</span>(y <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">~</span> x)</span>
-<span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare x coefficient (true = 0.8)</span></span>
-<span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a>coefs <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a>  <span class="at">Poisson    =</span> <span class="fu">coef</span>(m_pois)[<span class="st">"x"</span>],</span>
-<span id="cb8-165"><a href="#cb8-165" aria-hidden="true" tabindex="-1"></a>  <span class="at">NB         =</span> <span class="fu">coef</span>(m_nb)[<span class="st">"x"</span>],</span>
-<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">ZIP (correct z)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">coef</span>(m_zip, <span class="st">"count"</span>)[<span class="st">"x"</span>],</span>
-<span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">ZIP (wrong)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">coef</span>(m_zip2, <span class="st">"count"</span>)[<span class="st">"x"</span>],</span>
-<span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a>  <span class="at">Hurdle     =</span> <span class="fu">coef</span>(m_hurdle, <span class="st">"count"</span>)[<span class="st">"x"</span>],</span>
-<span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Log-linear log(y+1)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">coef</span>(m_loglin)[<span class="st">"x"</span>]</span>
-<span id="cb8-170"><a href="#cb8-170" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
-<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">Model =</span> <span class="fu">names</span>(coefs), <span class="st">`</span><span class="at">x coefficient</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(coefs, <span class="dv">3</span>),</span>
-<span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a>             <span class="at">Bias =</span> <span class="fu">round</span>(coefs <span class="sc">-</span> <span class="fl">0.8</span>, <span class="dv">3</span>)),</span>
-<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"True x coefficient = 0.8"</span></span>
-<span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a>The DGP is a zero-inflated Poisson built in two independent pieces. We draw</span>
+<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a>$x \sim N(0,1)$ and $z \sim N(0,1)$, independent of each other. The count part</span>
+<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>is $y_c \sim \text{Poisson}(\exp(1.5 + 0.8x))$ and the zero part is</span>
+<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a>$y_b \sim \text{Bernoulli}(\Lambda(1 + 2z))$, with the observed outcome</span>
+<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a>$y = y_c \cdot y_b$. So the true slope on $x$ is 0.8, and — this is the feature</span>
+<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a>that drives the results — the zero process depends on $z$ alone, never on $x$.</span>
+<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: quick-example</span></span>
+<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(MASS)</span>
+<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pscl)</span>
+<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a>n  <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a>x  <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a>z  <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)                          <span class="co"># zero-inflation driver</span></span>
+<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a>mu <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fl">1.5</span> <span class="sc">+</span> <span class="fl">0.8</span> <span class="sc">*</span> x)               <span class="co"># count mean</span></span>
+<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a>y_c <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> mu)</span>
+<span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a>y_b <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">plogis</span>(<span class="dv">1</span> <span class="sc">+</span> <span class="dv">2</span> <span class="sc">*</span> z)) <span class="co"># 1 = non-zero</span></span>
+<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a>y   <span class="ot">&lt;-</span> y_c <span class="sc">*</span> y_b                        <span class="co"># zero-inflated count</span></span>
+<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Zero fraction:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(y <span class="sc">==</span> <span class="dv">0</span>), <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Mean (non-zero):"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(y[y <span class="sc">&gt;</span> <span class="dv">0</span>]), <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>)</span>
+<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Poisson</span></span>
+<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a>m_pois <span class="ot">&lt;-</span> <span class="fu">glm</span>(y <span class="sc">~</span> x, <span class="at">family =</span> poisson)</span>
+<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Negative binomial</span></span>
+<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a>m_nb <span class="ot">&lt;-</span> <span class="fu">glm.nb</span>(y <span class="sc">~</span> x)</span>
+<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-157"><a href="#cb8-157" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Zero-inflated Poisson (ZIP) — correct zero model</span></span>
+<span id="cb8-158"><a href="#cb8-158" aria-hidden="true" tabindex="-1"></a>m_zip <span class="ot">&lt;-</span> <span class="fu">zeroinfl</span>(y <span class="sc">~</span> x <span class="sc">|</span> z)</span>
+<span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. ZIP — wrong zero model (only x)</span></span>
+<span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a>m_zip2 <span class="ot">&lt;-</span> <span class="fu">zeroinfl</span>(y <span class="sc">~</span> x <span class="sc">|</span> x)</span>
+<span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a><span class="co"># 5. Hurdle</span></span>
+<span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a>m_hurdle <span class="ot">&lt;-</span> <span class="fu">hurdle</span>(y <span class="sc">~</span> x)</span>
+<span id="cb8-165"><a href="#cb8-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a><span class="co"># 6. Log-linear OLS on log(y + 1)</span></span>
+<span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a>m_loglin <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="fu">log</span>(y <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">~</span> x)</span>
+<span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare x coefficient (true = 0.8)</span></span>
+<span id="cb8-170"><a href="#cb8-170" aria-hidden="true" tabindex="-1"></a>coefs <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
+<span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a>  <span class="at">Poisson    =</span> <span class="fu">coef</span>(m_pois)[<span class="st">"x"</span>],</span>
+<span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a>  <span class="at">NB         =</span> <span class="fu">coef</span>(m_nb)[<span class="st">"x"</span>],</span>
+<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">ZIP (correct z)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">coef</span>(m_zip, <span class="st">"count"</span>)[<span class="st">"x"</span>],</span>
+<span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">ZIP (wrong)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">coef</span>(m_zip2, <span class="st">"count"</span>)[<span class="st">"x"</span>],</span>
+<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a>  <span class="at">Hurdle     =</span> <span class="fu">coef</span>(m_hurdle, <span class="st">"count"</span>)[<span class="st">"x"</span>],</span>
+<span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Log-linear log(y+1)</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">coef</span>(m_loglin)[<span class="st">"x"</span>]</span>
+<span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a>The first five models recover the true <span class="in">`x`</span> slope of 0.8 reasonably well; the</span>
-<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a>log-linear row is included to make the earlier claim checkable, and needs reading</span>
-<span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a>with care --- see the note after the table. This is</span>
-<span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a>the key point of *this* DGP: the zero-inflation process depends on <span class="in">`z`</span>, which</span>
-<span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a>is generated **independently of `x`**, so omitting the zero model distorts the</span>
-<span id="cb8-184"><a href="#cb8-184" aria-hidden="true" tabindex="-1"></a>zero mass and the intercept, not the slope on <span class="in">`x`</span>. The hurdle model and even</span>
-<span id="cb8-185"><a href="#cb8-185" aria-hidden="true" tabindex="-1"></a>the ZIP with a *misspecified* (x-only) zero model still recover the slope</span>
-<span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a>closely; the plain Poisson shows a small upward bias *in this particular</span>
-<span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a>sample* (n = 1000), but that is finite-sample noise, not a systematic property</span>
-<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a>of the model. Since the zero-inflation driver <span class="in">`z`</span> is independent of <span class="in">`x`</span>, the</span>
-<span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a>conditional mean here is correctly specified for Poisson QMLE — increasing <span class="in">`n`</span></span>
-<span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a>from 1,000 to 1,000,000 shrinks the Poisson <span class="in">`x`</span>-coefficient bias from about</span>
-<span id="cb8-191"><a href="#cb8-191" aria-hidden="true" tabindex="-1"></a>+0.04 to effectively 0, confirming consistency. The unmodeled excess zeros</span>
-<span id="cb8-192"><a href="#cb8-192" aria-hidden="true" tabindex="-1"></a>create overdispersion, but overdispersion under a correctly-specified</span>
-<span id="cb8-193"><a href="#cb8-193" aria-hidden="true" tabindex="-1"></a>conditional mean affects only the standard errors (which should be corrected</span>
-<span id="cb8-194"><a href="#cb8-194" aria-hidden="true" tabindex="-1"></a>with a robust/sandwich estimator), not the consistency of the slope.</span>
-<span id="cb8-195"><a href="#cb8-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a>About the log-linear row: its coefficient is **not** estimating the same thing as</span>
-<span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a>the others, which is the real reason to avoid it rather than any particular bias</span>
-<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a>number. The count models target $\log E<span class="co">[</span><span class="ot">y \mid x</span><span class="co">]</span>$, whereas OLS on $\log(y+1)$</span>
-<span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a>targets $E<span class="co">[</span><span class="ot">\log(y+1) \mid x</span><span class="co">]</span>$, and $E<span class="co">[</span><span class="ot">\log(y+1)</span><span class="co">]</span> \neq \log(E<span class="co">[</span><span class="ot">y</span><span class="co">]</span>+1)$ by Jensen's</span>
-<span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>inequality. The $+1$ offset makes the discrepancy worst exactly where the mass of</span>
-<span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a>zeros is. So comparing its coefficient to 0.8 is an apples-to-oranges comparison,</span>
-<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a>and the honest statement is that log-linear answers a different question --- not</span>
-<span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a>that it answers this one badly by some measured amount</span>
-<span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a>coefficient. A misspecified zero process biases the count *slope* only when</span>
-<span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a>the zero process is correlated with the count covariates — which is not the case</span>
-<span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a>here. (Change <span class="in">`z`</span> to depend on <span class="in">`x`</span> and the omitted-zero-process slope bias</span>
-<span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a>appears.)</span>
-<span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a><span class="fu">## Mixed count models with glmmTMB</span></span>
-<span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>When data has both overdispersion *and* random effects (clustered counts, panel</span>
-<span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a>data, repeated measures), <span class="in">`glmmTMB`</span> handles the full range in one package:</span>
-<span id="cb8-213"><a href="#cb8-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-216"><a href="#cb8-216" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb8-217"><a href="#cb8-217" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb8-218"><a href="#cb8-218" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb8-219"><a href="#cb8-219" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-220"><a href="#cb8-220" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glmmTMB)</span>
-<span id="cb8-221"><a href="#cb8-221" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-222"><a href="#cb8-222" aria-hidden="true" tabindex="-1"></a><span class="co"># Zero-inflated negative binomial with random intercept per subject</span></span>
-<span id="cb8-223"><a href="#cb8-223" aria-hidden="true" tabindex="-1"></a>m_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
-<span id="cb8-224"><a href="#cb8-224" aria-hidden="true" tabindex="-1"></a>  count <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject),   <span class="co"># count model</span></span>
-<span id="cb8-225"><a href="#cb8-225" aria-hidden="true" tabindex="-1"></a>  <span class="at">ziformula =</span> <span class="sc">~</span> treatment,                     <span class="co"># zero-inflation model</span></span>
-<span id="cb8-226"><a href="#cb8-226" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> nbinom2,</span>
-<span id="cb8-227"><a href="#cb8-227" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> your_data</span>
-<span id="cb8-228"><a href="#cb8-228" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb8-229"><a href="#cb8-229" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-230"><a href="#cb8-230" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m_glmmtmb)</span>
+<span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">Model =</span> <span class="fu">names</span>(coefs), <span class="st">`</span><span class="at">x coefficient</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">round</span>(coefs, <span class="dv">3</span>),</span>
+<span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a>             <span class="at">Bias =</span> <span class="fu">round</span>(coefs <span class="sc">-</span> <span class="fl">0.8</span>, <span class="dv">3</span>)),</span>
+<span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">"True x coefficient = 0.8"</span></span>
+<span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-184"><a href="#cb8-184" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-185"><a href="#cb8-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a>The sample comes out 39% zeros with a non-zero mean of 6.79. The estimated</span>
+<span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a>slopes are 0.850 for Poisson, 0.824 for negative binomial, 0.803 for ZIP with</span>
+<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a>the correct zero model, 0.802 for ZIP with the wrong one, 0.803 for the hurdle</span>
+<span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a>model, and 0.458 for log-linear OLS.</span>
+<span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-191"><a href="#cb8-191" aria-hidden="true" tabindex="-1"></a>The first five models recover the true <span class="in">`x`</span> slope of 0.8 reasonably well; the</span>
+<span id="cb8-192"><a href="#cb8-192" aria-hidden="true" tabindex="-1"></a>log-linear row is included to make the earlier claim checkable, and needs reading</span>
+<span id="cb8-193"><a href="#cb8-193" aria-hidden="true" tabindex="-1"></a>with care --- see the note after the table. This is</span>
+<span id="cb8-194"><a href="#cb8-194" aria-hidden="true" tabindex="-1"></a>the key point of *this* DGP: the zero-inflation process depends on <span class="in">`z`</span>, which</span>
+<span id="cb8-195"><a href="#cb8-195" aria-hidden="true" tabindex="-1"></a>is generated **independently of `x`**, so omitting the zero model distorts the</span>
+<span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a>zero mass and the intercept, not the slope on <span class="in">`x`</span>. The hurdle model and even</span>
+<span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a>the ZIP with a *misspecified* (x-only) zero model still recover the slope</span>
+<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a>closely; the plain Poisson shows a small upward bias *in this particular</span>
+<span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a>sample* (n = 1000), but that is finite-sample noise, not a systematic property</span>
+<span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>of the model. Since the zero-inflation driver <span class="in">`z`</span> is independent of <span class="in">`x`</span>, the</span>
+<span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a>conditional mean here is correctly specified for Poisson QMLE — increasing <span class="in">`n`</span></span>
+<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a>from 1,000 to 1,000,000 shrinks the Poisson <span class="in">`x`</span>-coefficient bias from about</span>
+<span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a>+0.04 to effectively 0, confirming consistency. The unmodeled excess zeros</span>
+<span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a>create overdispersion, but overdispersion under a correctly-specified</span>
+<span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a>conditional mean affects only the standard errors (which should be corrected</span>
+<span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a>with a robust/sandwich estimator), not the consistency of the slope.</span>
+<span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a>About the log-linear row: its coefficient is **not** estimating the same thing as</span>
+<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a>the others, which is the real reason to avoid it rather than any particular bias</span>
+<span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a>number. The count models target $\log E<span class="co">[</span><span class="ot">y \mid x</span><span class="co">]</span>$, whereas OLS on $\log(y+1)$</span>
+<span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>targets $E<span class="co">[</span><span class="ot">\log(y+1) \mid x</span><span class="co">]</span>$, and $E<span class="co">[</span><span class="ot">\log(y+1)</span><span class="co">]</span> \neq \log(E<span class="co">[</span><span class="ot">y</span><span class="co">]</span>+1)$ by Jensen's</span>
+<span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a>inequality. The $+1$ offset makes the discrepancy worst exactly where the mass of</span>
+<span id="cb8-213"><a href="#cb8-213" aria-hidden="true" tabindex="-1"></a>zeros is. So comparing its coefficient to 0.8 is an apples-to-oranges comparison,</span>
+<span id="cb8-214"><a href="#cb8-214" aria-hidden="true" tabindex="-1"></a>and the honest statement is that log-linear answers a different question --- not</span>
+<span id="cb8-215"><a href="#cb8-215" aria-hidden="true" tabindex="-1"></a>that it answers this one badly by some measured amount</span>
+<span id="cb8-216"><a href="#cb8-216" aria-hidden="true" tabindex="-1"></a>coefficient. A misspecified zero process biases the count *slope* only when</span>
+<span id="cb8-217"><a href="#cb8-217" aria-hidden="true" tabindex="-1"></a>the zero process is correlated with the count covariates — which is not the case</span>
+<span id="cb8-218"><a href="#cb8-218" aria-hidden="true" tabindex="-1"></a>here. (Change <span class="in">`z`</span> to depend on <span class="in">`x`</span> and the omitted-zero-process slope bias</span>
+<span id="cb8-219"><a href="#cb8-219" aria-hidden="true" tabindex="-1"></a>appears.)</span>
+<span id="cb8-220"><a href="#cb8-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-221"><a href="#cb8-221" aria-hidden="true" tabindex="-1"></a><span class="fu">## Mixed count models with glmmTMB</span></span>
+<span id="cb8-222"><a href="#cb8-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-223"><a href="#cb8-223" aria-hidden="true" tabindex="-1"></a>When data has both overdispersion *and* random effects (clustered counts, panel</span>
+<span id="cb8-224"><a href="#cb8-224" aria-hidden="true" tabindex="-1"></a>data, repeated measures), <span class="in">`glmmTMB`</span> handles the full range in one package:</span>
+<span id="cb8-225"><a href="#cb8-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-228"><a href="#cb8-228" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb8-229"><a href="#cb8-229" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb8-230"><a href="#cb8-230" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
 <span id="cb8-231"><a href="#cb8-231" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-232"><a href="#cb8-232" aria-hidden="true" tabindex="-1"></a><span class="co"># Conditional vs marginal predictions</span></span>
-<span id="cb8-233"><a href="#cb8-233" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(m_glmmtmb, <span class="at">type =</span> <span class="st">"conditional"</span>)  <span class="co"># excluding zero-inflation</span></span>
-<span id="cb8-234"><a href="#cb8-234" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(m_glmmtmb, <span class="at">type =</span> <span class="st">"response"</span>)     <span class="co"># including zero-inflation</span></span>
-<span id="cb8-235"><a href="#cb8-235" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-237"><a href="#cb8-237" aria-hidden="true" tabindex="-1"></a><span class="in">`glmmTMB`</span> supports: Poisson, NB1, NB2, zero-inflated variants of all of the</span>
-<span id="cb8-238"><a href="#cb8-238" aria-hidden="true" tabindex="-1"></a>above, hurdle models, beta-binomial, tweedie, and more. The <span class="in">`ziformula`</span></span>
-<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a>argument takes a one-sided formula for the zero-inflation component — use</span>
-<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a><span class="in">`~ 1`</span> for a constant zero-inflation rate, or covariates to model what drives</span>
-<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a>the structural zeros.</span>
+<span id="cb8-232"><a href="#cb8-232" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glmmTMB)</span>
+<span id="cb8-233"><a href="#cb8-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-234"><a href="#cb8-234" aria-hidden="true" tabindex="-1"></a><span class="co"># Zero-inflated negative binomial with random intercept per subject</span></span>
+<span id="cb8-235"><a href="#cb8-235" aria-hidden="true" tabindex="-1"></a>m_glmmtmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a>  count <span class="sc">~</span> treatment <span class="sc">+</span> time <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject),   <span class="co"># count model</span></span>
+<span id="cb8-237"><a href="#cb8-237" aria-hidden="true" tabindex="-1"></a>  <span class="at">ziformula =</span> <span class="sc">~</span> treatment,                     <span class="co"># zero-inflation model</span></span>
+<span id="cb8-238"><a href="#cb8-238" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> nbinom2,</span>
+<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> your_data</span>
+<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m_glmmtmb)</span>
+<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a><span class="co"># Conditional vs marginal predictions</span></span>
+<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(m_glmmtmb, <span class="at">type =</span> <span class="st">"conditional"</span>)  <span class="co"># excluding zero-inflation</span></span>
+<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a><span class="fu">predict</span>(m_glmmtmb, <span class="at">type =</span> <span class="st">"response"</span>)     <span class="co"># including zero-inflation</span></span>
+<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a><span class="in">`glmmTMB`</span> supports: Poisson, NB1, NB2, zero-inflated variants of all of the</span>
+<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a>above, hurdle models, beta-binomial, tweedie, and more. The <span class="in">`ziformula`</span></span>
+<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>argument takes a one-sided formula for the zero-inflation component — use</span>
+<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a><span class="in">`~ 1`</span> for a constant zero-inflation rate, or covariates to model what drives</span>
+<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a>the structural zeros.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

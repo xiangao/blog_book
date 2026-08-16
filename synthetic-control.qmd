@@ -36,6 +36,12 @@ data("smoking")
 smoking %>% dplyr::glimpse()
 ```
 
+The panel is 1,209 state-years: 39 states from 1970 to 2000, with per-capita
+cigarette sales in packs as the outcome and log income, beer sales, the share
+aged 15–24, and retail price as predictors. California passed Proposition 99 in
+1988, so there are 19 pre-treatment years to fit the weights and 12
+post-treatment years to measure the effect.
+
 
 ```{r}
 #| label: rchunk2
@@ -102,6 +108,26 @@ smoking_out %>%
 
 ```
 
+The balance table is where to judge whether the synthetic control is worth
+trusting, and it does well. Retail price matches to three digits (89.4 against
+89.4), the youth share to 0.174 against 0.174, beer sales 24.3 against 24.2. The
+pre-treatment outcomes match closely too: 1975 cigarette sales 127 against 127
+and 1980 sales 120 against 120. Compare those with the raw donor-pool averages
+in the third column — 137 and 138 — and the value of weighting is obvious. The
+one predictor that does not match is log income, 10.1 against 9.85, which the
+optimiser evidently judged less important for predicting the outcome.
+
+The 1988 row is the one to read carefully: 90.1 against 91.4. That is the last
+pre-treatment year and it is fitted, not predicted, so it is a diagnostic rather
+than a result.
+
+Inference comes from the placebo table. California's ratio of post- to
+pre-treatment MSPE is 124, the largest of all 39 units — Georgia is next at
+47.2, less than half. Being ranked first of 39 gives a Fisher exact $p$ of
+$1/39 = 0.0256$. This is a permutation statement, not a sampling one: it says no
+untreated state shows a post-1988 divergence from its own synthetic control as
+large as California's, relative to how well each was fitted beforehand.
+
 ## Generalized Synthetic Control
 
 The idea of generalized SC is to combine both an interactive fixed effect model and synthetic control.  It is basically a panel data synthetic control.  It naturally takes multiple treated units and uses bootstrap to get standard errors.  It generates ATT with standard errors.
@@ -158,6 +184,20 @@ out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"),
 plot(out)
 
 ```
+
+`simdata` is gsynth's own simulated panel: 5 treated units and 45 controls over
+30 periods, with treatment starting in period 21 for the treated group, an
+interactive fixed-effect structure, and two covariates.
+
+The estimated average ATT is 5.084 with a standard error of 0.292 and a 95%
+interval of $[4.512, 5.656]$. The covariate coefficients come out at 1.454 for
+`X1` and 3.507 for `X2`. The period-by-period table is the part worth reading,
+because it includes the pre-treatment periods: those run from $-19$ to $-1$ and
+should be centred on zero if the interactive fixed-effect model has absorbed the
+common factors. They mostly are — $0.059$, $-0.117$, $-0.890$, $1.295$,
+$-1.203$, $2.220$ and so on — bouncing around zero with standard errors of about
+0.5 to 0.7. Two of them ($-16$ and $-14$) are individually significant at 5%,
+which is roughly what one expects from nineteen independent tests at that level.
 
 ---
 

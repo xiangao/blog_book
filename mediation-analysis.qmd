@@ -36,6 +36,17 @@ fit <- sem(model, data = Data)
 summary(fit)
 
 ```
+We simulate $n = 10{,}000$ observations with $X \sim N(0,1)$,
+$M = 0.5X + \varepsilon_2$ and $Y = 0.7M + 0.3X + \varepsilon_1$, both errors
+standard normal. So the true direct effect is $a = 0.3$, the mediator
+coefficient is $b = 0.7$, the treatment-to-mediator path is $c = 0.5$, the
+indirect effect is $bc = 0.35$ and the total is 0.65. There is no confounding of
+any kind.
+
+`lavaan` recovers all of it: $a = 0.286$, $b = 0.699$, $c = 0.511$, giving
+$bc = 0.357$ and a total of 0.643. The model is saturated (0 degrees of
+freedom), so the perfect fit statistic carries no information.
+
 The same analysis in Stata:
 
 ```{r}
@@ -116,6 +127,16 @@ summary(med.out)
 
 ```
 
+And it does. The two component regressions give $c = 0.510954$ and, in the
+outcome equation, $a = 0.285582$ and $b = 0.699006$ — the same numbers `lavaan`
+produced. `mediate()` then reports ACME 0.35684 (against a true 0.35), ADE
+0.28540 (against 0.30) and a total effect of 0.64224 (against 0.65), with the
+proportion mediated at 0.555. The simulation-based intervals all exclude zero.
+
+The point is that on this data the causal machinery adds nothing — which is the
+right outcome for a DGP with no confounding, a linear outcome model and no
+treatment-mediator interaction. Its value appears when those conditions fail.
+
 ## Binary outcome
 
 For example, in the case of binary outcome, the traditional approach will have difficulties.  We can estimate the outcome model and mediator model jointly, but the total effects are not easy to decompose into direct and indirect effect (see Imai et al, page 320 https://imai.fas.harvard.edu/research/files/BaronKenny.pdf).
@@ -138,6 +159,21 @@ med.out <- mediate(med.fit, out.fit, treat = "treat", mediator = "emo",
 summary(med.out)
 
 ```
+
+Here the decomposition does something the linear example could not. The
+`framing` data has a binary outcome (`cong_mesg`, whether the subject sent a
+message to Congress) modelled by probit, with anxiety (`emo`) as the mediator.
+ACME comes out at 0.0813 under control and 0.0824 under treatment, both
+significant, while the direct effects are 0.0183 and 0.0194 with $p = 0.72$ and
+the total effect is 0.1007 with $p = 0.24$.
+
+Read that pattern carefully: the *total* effect is not distinguishable from
+zero, and neither is the direct effect, yet the mediated effect clearly is. A
+study reporting only the total effect would have concluded the framing treatment
+did nothing. The proportion mediated is reported as 0.63, but note its interval
+runs from $-13.7$ to $4.3$ — a ratio whose denominator is indistinguishable from
+zero is not a usable quantity, and this is the standard reason not to lean on
+"proportion mediated".
 
 "mediation" package has more functionalities, such as multilevel, interaction of treatment and mediator, etc.
 

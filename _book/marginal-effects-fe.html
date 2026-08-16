@@ -574,6 +574,7 @@ window.Quarto = {
 </header><section id="marginal-effects-in-a-linear-model" class="level2" data-number="5.1"><h2 data-number="5.1" class="anchored" data-anchor-id="marginal-effects-in-a-linear-model">
 <span class="header-section-number">5.1</span> Marginal effects in a linear model</h2>
 <p>Stata’s <code>margins</code> command computes predicted means and marginal effects, but care is needed when fixed effects are present. In a linear model the issue is benign: demeaning and dummy-variable approaches return the same coefficients and the same marginal effects.</p>
+<p>We check that on the <code>auto</code> data, treating the 5-category repair record <code>rep78</code> as the panel identifier and regressing <code>price</code> on <code>mpg</code> interacted with <code>trunk</code> — once with <code>xtreg, fe</code> (within-demeaning) and once with <code>reg</code> plus <code>i.rep78</code> dummies.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">sysuse</span> auto</span>
@@ -683,9 +684,10 @@ dy/dx wrt:  mpg
 . </code></pre>
 </div>
 </div>
+<p>The two agree exactly. Both give <span class="math inline">\(-98.12003\)</span> on <code>mpg</code>, 295.0544 on <code>trunk</code> and <span class="math inline">\(-12.23318\)</span> on the interaction, and both average marginal effects are <span class="math inline">\(-268.4981\)</span> with a standard error of 74.12513. The only difference is that <code>xtreg</code> reports a <span class="math inline">\(z\)</span> statistic and <code>reg</code> a <span class="math inline">\(t\)</span>, so the confidence intervals differ in the fourth digit. Nothing here needs care.</p>
 </section><section id="marginal-effects-in-a-non-linear-model" class="level2" data-number="5.2"><h2 data-number="5.2" class="anchored" data-anchor-id="marginal-effects-in-a-non-linear-model">
 <span class="header-section-number">5.2</span> Marginal effects in a non-linear model</h2>
-<p>In a nonlinear model the two approaches diverge:</p>
+<p>In a nonlinear model the two approaches diverge. We now need a genuine panel and a count outcome, so we simulate one: 250 observations, 50 units observed over 5 periods. Within each unit, <span class="math inline">\(\text{mpg} \sim N(20, 4^2)\)</span> and <span class="math inline">\(\text{trunk} \sim N(15, 3^2)\)</span> vary period to period, while the unit effect <span class="math inline">\(\alpha_i \sim N(0,1)\)</span> is drawn once and held fixed. The conditional mean is <span class="math inline">\(\lambda_{it} = \exp(0.5 + 0.05\,\text{mpg}_{it} - 0.03\,\text{trunk}_{it} + \alpha_i)\)</span> and <span class="math inline">\(\text{accidents}_{it} \sim \text{Poisson}(\lambda_{it})\)</span>. The true coefficients are 0.05 and <span class="math inline">\(-0.03\)</span>.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="dv">seed</span> 42</span>
@@ -887,7 +889,39 @@ dy/dx wrt:  mpg
 </div>
 <p>(We use a simulated count outcome <code>accidents</code> and a proper panel with 50 units of 5 periods each, rather than <code>auto</code>’s continuous <code>price</code> and its 5-category <code>rep78</code> — a true panel needs many units, and a fixed-effect count model needs an actual count dependent variable.)</p>
 <p>In this example, “xtpoisson, fe” and “poisson … i.id” return the same coefficients (both give <code>mpg</code> = .0487946 with a standard error of .0090524). Fixed effect Poisson model (sometimes called conditional fixed effect Poisson) is the same models as a Poisson model with dummies, just like a linear model (OLS with dummies is the same as fixed effect OLS). Poisson model and OLS are unique in this sense that there is no “incidental parameter” problem.</p>
-<p>The <code>margins</code> calls return different marginal effects even though the models are the same. In the conditional fixed-effect Poisson the fixed effects are conditioned out — they are not estimated. <code>margins, predict(nu0)</code> sets them to zero, which is arbitrary. The Poisson with dummies estimates them, so <code>margins</code> uses actual estimates. The second is more defensible, but for the conditional model the safest route is to report the original coefficients and avoid <code>margins</code> for marginal effects entirely.</p>
+<p>Both recover the truth: 0.0488 against a true 0.05 for <code>mpg</code>, and <span class="math inline">\(-0.0316\)</span> against <span class="math inline">\(-0.03\)</span> for <code>trunk</code>. Note the sample sizes differ, 245 against 250 — <code>xtpoisson, fe</code> drops the one group whose outcome is zero in every period, because such a group contributes nothing to the conditional likelihood. It changes neither coefficient here.</p>
+<p>The <code>margins</code> calls return different marginal effects even though the models are the same, and the spread is not small:</p>
+<table class="caption-top table">
+<thead><tr class="header">
+<th>call</th>
+<th>AME of <code>mpg</code>
+</th>
+<th>std. err.</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>
+<code>margins, dydx(mpg)</code> after <code>xtpoisson, fe</code>
+</td>
+<td>0.0488</td>
+<td>0.0091</td>
+</tr>
+<tr class="even">
+<td><code>margins, dydx(mpg) predict(nu0)</code></td>
+<td>0.0850</td>
+<td>0.0341</td>
+</tr>
+<tr class="odd">
+<td>
+<code>margins, dydx(mpg)</code> after <code>poisson ... i.id</code>
+</td>
+<td>0.2239</td>
+<td>0.0421</td>
+</tr>
+</tbody>
+</table>
+<p>Three answers from one coefficient, the largest 4.6 times the smallest. In the conditional fixed-effect Poisson the fixed effects are conditioned out — they are not estimated. The first row is not really a marginal effect at all: with no <span class="math inline">\(\alpha_i\)</span> to exponentiate against, it returns the coefficient itself. <code>margins, predict(nu0)</code> sets the fixed effect to zero, which is arbitrary, and note that the conditional model has no intercept either — it was swept out with the <span class="math inline">\(\alpha_i\)</span>. So <code>nu0</code> exponentiates <span class="math inline">\(X\beta\)</span> alone, giving a baseline count no unit in the data actually has. The Poisson with dummies estimates the fixed effects, so <code>margins</code> uses actual estimates and gets the largest value.</p>
+<p>The arithmetic is easy to follow, since for a Poisson <span class="math inline">\(\partial\lambda/\partial x = \beta\lambda\)</span> and therefore every one of these AMEs is <span class="math inline">\(\beta\)</span> times an average <span class="math inline">\(\lambda\)</span>. Divide each row by 0.0488 and the implied baselines are 1.00, 1.74 and 4.59. The last matches <span class="math inline">\(E[\lambda] = e^{1.05}E[e^{\alpha}] = 4.71\)</span> from the DGP; the middle matches <span class="math inline">\(e^{X\beta}\)</span> evaluated without intercept or fixed effect, 1.65. The three rows differ only in what they assume about <span class="math inline">\(\alpha_i\)</span>, and none of them is a modelling subtlety — it is a choice of baseline. The third is the defensible one, but for the conditional model the safest route is to report the original coefficients and avoid <code>margins</code> for marginal effects entirely.</p>
 <p>The conditional logit is worse. The fixed effects are not estimated, and unlike Poisson there is an incidental-parameter problem, so logit with dummies is inconsistent unless the panel is deep (roughly 20+ observations per unit). With conditional logit the predicted probability depends on the unestimated <span class="math inline">\(\alpha_i\)</span>; <code>margins</code> after <code>clogit</code> or <code>xtlogit, fe</code> offers options like <code>pu0</code> (set all fixed effects to zero), but none is defensible.</p>
 <p>In a fixed effect logit model,</p>
 <p><span id="eq-marginal-effects-fe-1"><span class="math display">\[ log(P(y=1)/(1-P(y=1))) = \alpha_i +  \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2  \tag{5.1}\]</span></span></p>
@@ -990,7 +1024,7 @@ Expression: Linear prediction, predict(xb)
 Variables that uniquely identify margins: age south</code></pre>
 </div>
 </div>
-<p>This fits a conditional logit of union status on age, south, and their interaction. <code>margins</code> with <code>predict(xb)</code> returns predicted log-odds for different age-by-south combinations — but not predicted probabilities, since those require <span class="math inline">\(\alpha_i\)</span>.</p>
+<p>This fits a conditional logit of union status on age, south, and their interaction, on 12,035 person-years from the <code>union</code> panel. The age coefficient is 0.0097 with a standard error of 0.0050, and the south indicator is <span class="math inline">\(-1.382\)</span> with a standard error of 0.277. <code>margins</code> with <code>predict(xb)</code> then returns predicted log-odds at six ages crossed with south — twelve combinations — but not predicted probabilities, since those require <span class="math inline">\(\alpha_i\)</span>.</p>
 <p>Read the vertical axis of that plot as a <em>relative</em> scale. Because <span class="math inline">\(\alpha_i\)</span> is not estimated, <code>xb</code> is each individual’s log-odds measured from an unidentified baseline, so the level of any single point is arbitrary; what is interpretable is how the curves move across age and how far apart the south and non-south curves sit. Differences within the plot are the estimable quantities, not heights.</p>
 
 
@@ -1467,107 +1501,141 @@ Variables that uniquely identify margins: age south</code></pre>
 <span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>Stata's <span class="in">`margins`</span> command computes predicted means and marginal effects, but care is needed when fixed effects are present. In a linear model the issue is benign: demeaning and dummy-variable approaches return the same coefficients and the same marginal effects.</span>
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>sysuse auto</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>xtset rep78</span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>xtreg price c.mpg<span class="do">##c.trunk, fe</span></span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>reg price c.mpg<span class="do">##c.trunk i.rep78</span></span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="fu">## Marginal effects in a non-linear model</span></span>
-<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>In a nonlinear model the two approaches diverge:</span>
-<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk2</span></span>
-<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>set seed <span class="dv">42</span></span>
-<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>set obs <span class="dv">250</span></span>
-<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>gen id <span class="ot">=</span> <span class="fu">ceil</span>(_n<span class="sc">/</span><span class="dv">5</span>)</span>
-<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>bys id<span class="sc">:</span> gen t <span class="ot">=</span> _n</span>
-<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>gen mpg <span class="ot">=</span> <span class="fu">rnormal</span>(<span class="dv">20</span>,<span class="dv">4</span>)</span>
-<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>gen trunk <span class="ot">=</span> <span class="fu">rnormal</span>(<span class="dv">15</span>,<span class="dv">3</span>)</span>
-<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>gen alpha <span class="ot">=</span> <span class="fu">rnormal</span>(<span class="dv">0</span>,<span class="dv">1</span>)</span>
-<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>bys id<span class="sc">:</span> replace alpha <span class="ot">=</span> alpha[<span class="dv">1</span>]</span>
-<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>gen lambda <span class="ot">=</span> <span class="fu">exp</span>(<span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.05</span><span class="sc">*</span>mpg <span class="sc">-</span> <span class="fl">0.03</span><span class="sc">*</span>trunk <span class="sc">+</span> alpha)</span>
-<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>gen accidents <span class="ot">=</span> <span class="fu">rpoisson</span>(lambda)</span>
-<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>xtset id</span>
-<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>xtpoisson accidents mpg trunk, fe</span>
-<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
-<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg) <span class="fu">predict</span>(nu0)</span>
-<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>poisson accidents mpg trunk i.id</span>
-<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>We check that on the <span class="in">`auto`</span> data, treating the 5-category repair record <span class="in">`rep78`</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>as the panel identifier and regressing <span class="in">`price`</span> on <span class="in">`mpg`</span> interacted with <span class="in">`trunk`</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>— once with <span class="in">`xtreg, fe`</span> (within-demeaning) and once with <span class="in">`reg`</span> plus <span class="in">`i.rep78`</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>dummies.</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>sysuse auto</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>xtset rep78</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>xtreg price c.mpg<span class="do">##c.trunk, fe</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>reg price c.mpg<span class="do">##c.trunk i.rep78</span></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>The two agree exactly. Both give $-98.12003$ on <span class="in">`mpg`</span>, 295.0544 on <span class="in">`trunk`</span> and</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>$-12.23318$ on the interaction, and both average marginal effects are</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>$-268.4981$ with a standard error of 74.12513. The only difference is that</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a><span class="in">`xtreg`</span> reports a $z$ statistic and <span class="in">`reg`</span> a $t$, so the confidence intervals</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>differ in the fourth digit. Nothing here needs care.</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a><span class="fu">## Marginal effects in a non-linear model</span></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>In a nonlinear model the two approaches diverge. We now need a genuine panel and</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>a count outcome, so we simulate one: 250 observations, 50 units observed over 5</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>periods. Within each unit, $\text{mpg} \sim N(20, 4^2)$ and</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>$\text{trunk} \sim N(15, 3^2)$ vary period to period, while the unit effect</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>$\alpha_i \sim N(0,1)$ is drawn once and held fixed. The conditional mean is</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>$\lambda_{it} = \exp(0.5 + 0.05\,\text{mpg}_{it} - 0.03\,\text{trunk}_{it} + \alpha_i)$</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>and $\text{accidents}_{it} \sim \text{Poisson}(\lambda_{it})$. The true</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>coefficients are 0.05 and $-0.03$.</span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk2</span></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
 <span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>(We use a simulated count outcome <span class="in">`accidents`</span> and a proper panel with 50 units of 5 periods each, rather than <span class="in">`auto`</span>'s continuous <span class="in">`price`</span> and its 5-category <span class="in">`rep78`</span> — a true panel needs many units, and a fixed-effect count model needs an actual count dependent variable.)</span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>In this example, "xtpoisson, fe" and "poisson ... i.id" return the</span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>same coefficients (both give <span class="in">`mpg`</span> = .0487946 with a standard error of .0090524).  Fixed effect Poisson model (sometimes called</span>
-<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>conditional fixed effect Poisson) is the same models as a Poisson</span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>model with dummies, just like a linear model (OLS with dummies is the</span>
-<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>same as fixed effect OLS). Poisson model and OLS are unique in this</span>
-<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>sense that there is no "incidental parameter" problem.</span>
-<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>The <span class="in">`margins`</span> calls return different marginal effects even though the models are the same. In the conditional fixed-effect Poisson the fixed effects are conditioned out — they are not estimated. <span class="in">`margins, predict(nu0)`</span> sets them to zero, which is arbitrary. The Poisson with dummies estimates them, so <span class="in">`margins`</span> uses actual estimates. The second is more defensible, but for the conditional model the safest route is to report the original coefficients and avoid <span class="in">`margins`</span> for marginal effects entirely.</span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>The conditional logit is worse. The fixed effects are not estimated, and unlike Poisson there is an incidental-parameter problem, so logit with dummies is inconsistent unless the panel is deep (roughly 20+ observations per unit). With conditional logit the predicted probability depends on the unestimated $\alpha_i$; <span class="in">`margins`</span> after <span class="in">`clogit`</span> or <span class="in">`xtlogit, fe`</span> offers options like <span class="in">`pu0`</span> (set all fixed effects to zero), but none is defensible.</span>
-<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>In a fixed effect logit model,</span>
-<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>$$ log(P(y=1)/(1-P(y=1))) = \alpha_i +  \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-marginal-effects-fe-1}</span>
-<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>Here $\alpha_i$ is the unit fixed effect. Therefore</span>
-<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a>$$ P(y=1) = F(\alpha_i +  \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2) $$ {#eq-marginal-effects-fe-2}</span>
-<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a>Without estimating $\alpha_i$ there is no way to predict $P$ in a meaningful way. But the log-odds are linear in the covariates, and the marginal effect of $x_1$ or $x_2$ on the log-odds does not involve $\alpha_i$. So <span class="in">`margins`</span> with the <span class="in">`predict(xb)`</span> option — marginal effects on the log-odds scale — is interpretable.  Note that <span class="in">`xb`</span> here</span>
-<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>is $X_{it}\beta$ only — the individual fixed effect $\alpha_i$ is not</span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a>estimated in conditional logit and so is not part of the prediction.</span>
-<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>The logged-odds *effect* of a covariate ($\partial(X\beta)/\partial x$)</span>
-<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>therefore matches the original coefficient exactly and does not depend</span>
-<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a>on $\alpha_i$, but <span class="in">`xb`</span> itself is a log-odds relative to each</span>
-<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>individual's (unidentified) baseline, not the individual's absolute</span>
-<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a>log-odds. This lets you make linear extrapolations of relative</span>
-<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a>log-odds across values of the covariates, but not of absolute</span>
-<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a>predicted probabilities, since those would require $\alpha_i$.</span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk3</span></span>
-<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
-<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>clear</span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>webuse union</span>
-<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>clogit union c.age<span class="do">##i.south not_smsa grade, group(idcode)</span></span>
-<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>margins, <span class="fu">at</span>( <span class="at">age=</span>(<span class="dv">15</span> <span class="dv">20</span> <span class="dv">25</span> <span class="dv">30</span> <span class="dv">35</span> <span class="dv">40</span>) <span class="at">south=</span>(<span class="dv">0</span> <span class="dv">1</span>)) <span class="fu">predict</span>(xb)</span>
-<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a>marginsplot</span>
-<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>set seed <span class="dv">42</span></span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>set obs <span class="dv">250</span></span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>gen id <span class="ot">=</span> <span class="fu">ceil</span>(_n<span class="sc">/</span><span class="dv">5</span>)</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>bys id<span class="sc">:</span> gen t <span class="ot">=</span> _n</span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>gen mpg <span class="ot">=</span> <span class="fu">rnormal</span>(<span class="dv">20</span>,<span class="dv">4</span>)</span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>gen trunk <span class="ot">=</span> <span class="fu">rnormal</span>(<span class="dv">15</span>,<span class="dv">3</span>)</span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>gen alpha <span class="ot">=</span> <span class="fu">rnormal</span>(<span class="dv">0</span>,<span class="dv">1</span>)</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>bys id<span class="sc">:</span> replace alpha <span class="ot">=</span> alpha[<span class="dv">1</span>]</span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>gen lambda <span class="ot">=</span> <span class="fu">exp</span>(<span class="fl">0.5</span> <span class="sc">+</span> <span class="fl">0.05</span><span class="sc">*</span>mpg <span class="sc">-</span> <span class="fl">0.03</span><span class="sc">*</span>trunk <span class="sc">+</span> alpha)</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>gen accidents <span class="ot">=</span> <span class="fu">rpoisson</span>(lambda)</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>xtset id</span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>xtpoisson accidents mpg trunk, fe</span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg) <span class="fu">predict</span>(nu0)</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>poisson accidents mpg trunk i.id</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>margins , <span class="fu">dydx</span>(mpg)</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a>(We use a simulated count outcome <span class="in">`accidents`</span> and a proper panel with 50 units of 5 periods each, rather than <span class="in">`auto`</span>'s continuous <span class="in">`price`</span> and its 5-category <span class="in">`rep78`</span> — a true panel needs many units, and a fixed-effect count model needs an actual count dependent variable.)</span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>In this example, "xtpoisson, fe" and "poisson ... i.id" return the</span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a>same coefficients (both give <span class="in">`mpg`</span> = .0487946 with a standard error of .0090524).  Fixed effect Poisson model (sometimes called</span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>conditional fixed effect Poisson) is the same models as a Poisson</span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a>model with dummies, just like a linear model (OLS with dummies is the</span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>same as fixed effect OLS). Poisson model and OLS are unique in this</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>sense that there is no "incidental parameter" problem.</span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>Both recover the truth: 0.0488 against a true 0.05 for <span class="in">`mpg`</span>, and $-0.0316$</span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a>against $-0.03$ for <span class="in">`trunk`</span>. Note the sample sizes differ, 245 against 250 —</span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a><span class="in">`xtpoisson, fe`</span> drops the one group whose outcome is zero in every period,</span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a>because such a group contributes nothing to the conditional likelihood. It</span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>changes neither coefficient here.</span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>The <span class="in">`margins`</span> calls return different marginal effects even though the models are the same, and the spread is not small:</span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> call <span class="pp">|</span> AME of <span class="in">`mpg`</span> <span class="pp">|</span> std. err. <span class="pp">|</span></span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|---|</span></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`margins, dydx(mpg)`</span> after <span class="in">`xtpoisson, fe`</span> <span class="pp">|</span> 0.0488 <span class="pp">|</span> 0.0091 <span class="pp">|</span></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`margins, dydx(mpg) predict(nu0)`</span> <span class="pp">|</span> 0.0850 <span class="pp">|</span> 0.0341 <span class="pp">|</span></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`margins, dydx(mpg)`</span> after <span class="in">`poisson ... i.id`</span> <span class="pp">|</span> 0.2239 <span class="pp">|</span> 0.0421 <span class="pp">|</span></span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>Three answers from one coefficient, the largest 4.6 times the smallest. In the conditional fixed-effect Poisson the fixed effects are conditioned out — they are not estimated. The first row is not really a marginal effect at all: with no $\alpha_i$ to exponentiate against, it returns the coefficient itself. <span class="in">`margins, predict(nu0)`</span> sets the fixed effect to zero, which is arbitrary, and note that the conditional model has no intercept either — it was swept out with the $\alpha_i$. So <span class="in">`nu0`</span> exponentiates $X\beta$ alone, giving a baseline count no unit in the data actually has. The Poisson with dummies estimates the fixed effects, so <span class="in">`margins`</span> uses actual estimates and gets the largest value.</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>The arithmetic is easy to follow, since for a Poisson $\partial\lambda/\partial x = \beta\lambda$ and therefore every one of these AMEs is $\beta$ times an average $\lambda$. Divide each row by 0.0488 and the implied baselines are 1.00, 1.74 and 4.59. The last matches $E<span class="co">[</span><span class="ot">\lambda</span><span class="co">]</span> = e^{1.05}E<span class="co">[</span><span class="ot">e^{\alpha}</span><span class="co">]</span> = 4.71$ from the DGP; the middle matches $e^{X\beta}$ evaluated without intercept or fixed effect, 1.65. The three rows differ only in what they assume about $\alpha_i$, and none of them is a modelling subtlety — it is a choice of baseline. The third is the defensible one, but for the conditional model the safest route is to report the original coefficients and avoid <span class="in">`margins`</span> for marginal effects entirely.</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a>The conditional logit is worse. The fixed effects are not estimated, and unlike Poisson there is an incidental-parameter problem, so logit with dummies is inconsistent unless the panel is deep (roughly 20+ observations per unit). With conditional logit the predicted probability depends on the unestimated $\alpha_i$; <span class="in">`margins`</span> after <span class="in">`clogit`</span> or <span class="in">`xtlogit, fe`</span> offers options like <span class="in">`pu0`</span> (set all fixed effects to zero), but none is defensible.</span>
 <span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>In a fixed effect logit model,</span>
 <span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a>This fits a conditional logit of union status on age, south, and their interaction. <span class="in">`margins`</span> with <span class="in">`predict(xb)`</span> returns predicted log-odds for different age-by-south combinations — but not predicted probabilities, since those require $\alpha_i$.</span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a>$$ log(P(y=1)/(1-P(y=1))) = \alpha_i +  \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2 $$ {#eq-marginal-effects-fe-1}</span>
 <span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>Read the vertical axis of that plot as a *relative* scale.  Because $\alpha_i$ is</span>
-<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a>not estimated, <span class="in">`xb`</span> is each individual's log-odds measured from an unidentified</span>
-<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>baseline, so the level of any single point is arbitrary; what is interpretable is</span>
-<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a>how the curves move across age and how far apart the south and non-south curves</span>
-<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>sit.  Differences within the plot are the estimable quantities, not heights.</span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>Here $\alpha_i$ is the unit fixed effect. Therefore</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>$$ P(y=1) = F(\alpha_i +  \beta_1 x_1 + \beta_2 x_2 + \beta_{12} x_1*x_2) $$ {#eq-marginal-effects-fe-2}</span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>Without estimating $\alpha_i$ there is no way to predict $P$ in a meaningful way. But the log-odds are linear in the covariates, and the marginal effect of $x_1$ or $x_2$ on the log-odds does not involve $\alpha_i$. So <span class="in">`margins`</span> with the <span class="in">`predict(xb)`</span> option — marginal effects on the log-odds scale — is interpretable.  Note that <span class="in">`xb`</span> here</span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a>is $X_{it}\beta$ only — the individual fixed effect $\alpha_i$ is not</span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>estimated in conditional logit and so is not part of the prediction.</span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>The logged-odds *effect* of a covariate ($\partial(X\beta)/\partial x$)</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>therefore matches the original coefficient exactly and does not depend</span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>on $\alpha_i$, but <span class="in">`xb`</span> itself is a log-odds relative to each</span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>individual's (unidentified) baseline, not the individual's absolute</span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>log-odds. This lets you make linear extrapolations of relative</span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>log-odds across values of the covariates, but not of absolute</span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>predicted probabilities, since those would require $\alpha_i$.</span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: stata-chunk3</span></span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine: 'stata'</span></span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| engine.path: '/usr/local/bin/stata'</span></span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a>clear</span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a>webuse union</span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a>clogit union c.age<span class="do">##i.south not_smsa grade, group(idcode)</span></span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a>margins, <span class="fu">at</span>( <span class="at">age=</span>(<span class="dv">15</span> <span class="dv">20</span> <span class="dv">25</span> <span class="dv">30</span> <span class="dv">35</span> <span class="dv">40</span>) <span class="at">south=</span>(<span class="dv">0</span> <span class="dv">1</span>)) <span class="fu">predict</span>(xb)</span>
+<span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a>marginsplot</span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a>This fits a conditional logit of union status on age, south, and their interaction, on 12,035 person-years from the <span class="in">`union`</span> panel. The age coefficient is 0.0097 with a standard error of 0.0050, and the south indicator is $-1.382$ with a standard error of 0.277. <span class="in">`margins`</span> with <span class="in">`predict(xb)`</span> then returns predicted log-odds at six ages crossed with south — twelve combinations — but not predicted probabilities, since those require $\alpha_i$.</span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a>Read the vertical axis of that plot as a *relative* scale.  Because $\alpha_i$ is</span>
+<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a>not estimated, <span class="in">`xb`</span> is each individual's log-odds measured from an unidentified</span>
+<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a>baseline, so the level of any single point is arbitrary; what is interpretable is</span>
+<span id="cb7-150"><a href="#cb7-150" aria-hidden="true" tabindex="-1"></a>how the curves move across age and how far apart the south and non-south curves</span>
+<span id="cb7-151"><a href="#cb7-151" aria-hidden="true" tabindex="-1"></a>sit.  Differences within the plot are the estimable quantities, not heights.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

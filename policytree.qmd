@@ -68,6 +68,21 @@ This is very computationally intensive task.  Right now seems it would work for 
 
 ## Policytree
 
+The simulation is built so that the optimal policy is known. We draw $n = 1000$
+observations with ten independent standard normal covariates. The propensity is
+$e(X) = 1/(1+e^{X_3})$, so treatment depends on $X_3$ alone. The true CATE is
+
+$$
+\tau(X) = \frac{1}{1 + e^{(X_1+X_2)/2}} - \tfrac12,
+$$ {#eq-policytree-8}
+
+and the outcome is $Y = X_3 + W\tau(X) + N(0,1)$.
+
+Because $\tau(X) > 0$ exactly when $X_1 + X_2 < 0$, the optimal policy is the
+half-plane below the line $X_1 + X_2 = 0$ — which is the diagonal drawn on the
+last plot. Note that only $X_1$ and $X_2$ matter for the policy, $X_3$ matters
+only for selection, and $X_4$ through $X_{10}$ are pure noise.
+
 ```{r}
 #| echo: true
 #| message: false
@@ -100,6 +115,27 @@ abline(0, -1, lwd = 4, col = 4)
 ```
 
 In the example, first "causal_forest" is used to estimate the CATE.  "double_robust_scores" is used to calculate the AIPW score.  Then "policy_tree" is used to estimate the policy tree. The level of tree is set to 2.
+
+Read the fitted tree against the truth rather than on its own terms. The optimal
+rule is a *diagonal* boundary, $X_1 + X_2 < 0$, and a depth-2 axis-aligned tree
+cannot represent a diagonal at all — the best it can do is approximate it with
+at most three perpendicular cuts. The tree therefore splits on whichever variables happen to reduce the loss most,
+and because the true signal is spread across a diagonal it may not select $X_1$
+or $X_2$ at all — runs of this chunk routinely split entirely on noise
+covariates such as $X_8$ and $X_{10}$. That is worth seeing rather than
+explaining away: when the policy class cannot express the optimal rule, the
+fitted splits carry little information about which variables matter. The last plot makes this visible: the coloured regions are
+rectangles, the true boundary is the drawn line, and the mismatch between them
+is the approximation error of the policy class, not an estimation failure.
+
+The `boxplot(tt ~ pp)` is the honest summary: it shows the distribution of the
+*true* effect within each recommended action. A good rule puts most of the
+positive-$\tau$ mass in the "treat" box.
+
+Note that this chunk sets no seed, so the covariates, the forest and therefore
+the fitted splits differ on every execution. The qualitative reading above is
+stable; the particular variables and cut points printed are not.
+
 
 ---
 

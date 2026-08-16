@@ -127,6 +127,16 @@ lm1 <- lm(Y ~ A*X, data=data)
 summary(lm1)
 ```
 
+The true interventional model is $Y \mid do(A=a) \sim N((a-1)/2, 1)$, so the
+true intercept is $-0.5$ and the true coefficient on $A$ is 0.5. The naive
+regression of $Y$ on $A$ and $X$ gives $A = 0.493$ and an intercept of $-0.492$,
+with the interaction $A{:}X$ at $-0.009$ and insignificant ($p = 0.68$), which is
+correct — the DGP has no such interaction.
+
+Note this regression *also* includes $X$, which is the adjustment the g-formula
+calls for. Its coefficient of 0.468 is not a causal quantity; it is there to
+close the backdoor.
+
 We can also use MLE:
 
 ```{r}
@@ -140,6 +150,12 @@ We can also use MLE:
 out <- fit_causl(data, formulas = list(X ~ 1, Y ~ A, ~ 1), family = c(1, 1, 1))
 out
 ```
+
+`fit_causl` recovers the same structure directly from the frugal
+parameterisation: intercept $-0.491$ and $A$ at 0.494, against the true $-0.5$
+and 0.5, with a copula parameter of 0.998 against the specified 1. The sandwich
+standard errors barely differ from the model-based ones, which is what should
+happen when the model is correctly specified.
 
 ### Plasmode simulation
 
@@ -277,6 +293,11 @@ avg_comparisons(
     model = m1,
     variables = "A2")
 ```
+
+The fitted model has $A_2 = 2.023$, $A_1{:}A_2 = 0.983$ and
+$A_1{:}A_2{:}L_2 = 0.835$, so the effect of $A_2$ depends on both $A_1$ and
+$L_2$ and cannot be read off any single coefficient. `avg_comparisons` averages
+over the observed distribution and returns 2.51 with a standard error of 0.020.
 
 So the ATE is 2.5.
 

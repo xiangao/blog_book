@@ -576,7 +576,9 @@ window.Quarto = {
 <p>In this simulation exercise, we use Causal Forest (Now is implemented in Generalized Random Forest) (https://github.com/swager/grf) to calculated conditional average treatment effect (or heterogeneous treatment effect). We assume three different data generating processes. The first one is a linear interaction between a variable of interest and the treatment dummy. The second one assumes a nonlinear function (a step function) of a variable of interest, say <span class="math inline">\(X\)</span>, and the treatment dummy <span class="math inline">\(W\)</span>. The third one is also nonlinear, assuming we have variable <span class="math inline">\(X\)</span>, but the real DGP is the interaction of log of <span class="math inline">\(X\)</span> and <span class="math inline">\(W\)</span>.</p>
 </section><section id="linear-effect" class="level2" data-number="17.2"><h2 data-number="17.2" class="anchored" data-anchor-id="linear-effect">
 <span class="header-section-number">17.2</span> Linear effect</h2>
-<p>Suppose we have a panel of firms over time, treatment assignment is random. We split the data into training and test. Then we generate 10 random variables, the first two are highly correlated. Then we collapse V2 into firm means, and use that as the unit effect. That is, we have a DGP as:</p>
+<p>Suppose we have a panel of firms over time, treatment assignment is random. We split the data into training and test. Then we generate 10 random variables, the first two are highly correlated. Then we collapse V2 into firm means, and use that as the unit effect.</p>
+<p>Concretely: <span class="math inline">\(n = 400\)</span> firms over <span class="math inline">\(t = 10\)</span> periods, 4,000 observations, with <span class="math inline">\(p = 10\)</span> standard normal covariates of which <span class="math inline">\(V1\)</span> and <span class="math inline">\(V2\)</span> are correlated at 0.9025. Treatment is <span class="math inline">\(W \sim \text{Bernoulli}(0.5)\)</span>, assigned independently of everything, and a further coin flip splits the sample roughly in half into training and test sets (about 2,014 rows for training). The unit effect <span class="math inline">\(\alpha_i\)</span> is the firm mean of <span class="math inline">\(V2\)</span>.</p>
+<p>That is, we have a DGP as:</p>
 <p><span id="eq-causal-forest-panel-1"><span class="math display">\[y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it}  \tag{17.1}\]</span></span></p>
 <p>Here <span class="math inline">\(\alpha_i\)</span> is not observed, and it is correlated with <span class="math inline">\(V1\)</span>, so leaving it out is in principle a source of bias.</p>
 <p>It is worth being precise about how much bias, though, because the results below are less dramatic than that setup suggests. The unit effect is the <em>firm mean</em> of <span class="math inline">\(V2\)</span> over all <span class="math inline">\(t=10\)</span> periods, and averaging attenuates its correlation with contemporaneous <span class="math inline">\(V1\)</span> by a factor of <span class="math inline">\(t\)</span>: with <span class="math inline">\(\mathrm{Cor}(V1_{it}, V2_{it}) = 0.9025\)</span> we get <span class="math inline">\(\mathrm{Cov}(V1_{it}, \bar V2_i) = 0.9025/10\)</span>, and <span class="math inline">\(\mathrm{Cor}(V1_{it}, \alpha_i) \approx 0.29\)</span>. So the omitted-variable bias on <span class="math inline">\(V1\)</span> is only about <span class="math inline">\(0.05\)</span>–<span class="math inline">\(0.09\)</span>, not a qualitative failure.</p>
@@ -788,7 +790,8 @@ F-statistic:  1765 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
 </div>
-<p>This graph is the predicted value of CATE on the test data, vs.&nbsp;the value of <span class="math inline">\(V1\)</span>.</p>
+<p>The forest’s doubly-robust ATE comes out at 0.9356 with a standard error of 0.0823, and 0.9317 with 0.0816 for the second variant. The true ATE is <span class="math inline">\(E[1 + V1] = 1\)</span>, so both are within one standard error of it — the forest costs a little precision against the correctly specified linear models but is not biased.</p>
+<p>This graph is the predicted value of CATE on the test data, vs.&nbsp;the value of <span class="math inline">\(V1\)</span>. The points should sit on the 45-degree line, and the error bars in the second panel show how much of the scatter is estimation noise rather than a failure to track the true <span class="math inline">\(1 + V1\)</span>.</p>
 <p>Now we graph the predicted CATE against the true CATE. The other nice feature of Causal Forest is that it returns variance for CATE for each observation. We also graph the error bar here.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">graph.data</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html">as.data.frame</a></span><span class="op">(</span><span class="va">tau.hat</span> <span class="op">)</span></span>
@@ -962,6 +965,7 @@ F-statistic: 123.5 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 <p>These linear models miss the <em>shape</em> of the effect, but it overstates things to say they return nothing. Each recovers the best linear approximation to the true CATE <span class="math inline">\(\max(V1,0)\)</span>, which is <span class="math inline">\(0.3989 + 0.5\,V1\)</span>: the fitted <span class="math inline">\(W\)</span> coefficients are <span class="math inline">\(0.40\)</span>–<span class="math inline">\(0.43\)</span> and the <span class="math inline">\(V1{:}W\)</span> interactions are <span class="math inline">\(0.53\)</span>–<span class="math inline">\(0.55\)</span>. In particular the <span class="math inline">\(W\)</span> coefficient is essentially the true ATE, <span class="math inline">\(E[\max(V1,0)] = \phi(0) = 0.3989\)</span>. What a linear specification cannot do is see the kink at <span class="math inline">\(V1 = 0\)</span> — and that is what the forest is for.</p>
 <p>Now we use Causal Forest. The first graph is the predicted CATE against <span class="math inline">\(V1\)</span>; the second graph is the predicted CATE against true CATE. The third one adds in error bars.</p>
+<p>The forest’s ATE is 0.3732 (SE 0.0533) and 0.3722 (SE 0.0529), against the true <span class="math inline">\(0.3989\)</span> — within half a standard error, and no better than the linear model’s <span class="math inline">\(W\)</span> coefficient at recovering the average. The gain is in the shape: the fitted CATE should flatten to zero for <span class="math inline">\(V1 &lt; 0\)</span> and rise linearly above it, which is the kink the linear interaction smooths straight through.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">all_firms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html">levels</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">firm</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">data.train</span><span class="op">$</span><span class="va">firm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">data.train</span><span class="op">$</span><span class="va">firm</span>, levels <span class="op">=</span> <span class="va">all_firms</span><span class="op">)</span></span>
@@ -1180,6 +1184,7 @@ F-statistic: 62.31 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 <p>Here the linear models fail more completely, and instructively so. Because <span class="math inline">\(\log(V1^2)\)</span> is <em>even</em> in <span class="math inline">\(V1\)</span>, its linear interaction with <span class="math inline">\(V1\)</span> is zero by construction: the fitted <span class="math inline">\(V1{:}W\)</span> terms come out at <span class="math inline">\(0.015\)</span>, <span class="math inline">\(-0.019\)</span> and <span class="math inline">\(-0.020\)</span>, i.e.&nbsp;no detectable heterogeneity at all, even though the true CATE varies enormously with <span class="math inline">\(V1\)</span>. The <span class="math inline">\(W\)</span> coefficients (<span class="math inline">\(\approx -1.18\)</span>) still approximate the true ATE, <span class="math inline">\(E[\log(V1^2)] = \psi(1/2) + \log 2 = -1.2704\)</span>. So a linear model gets the average right and the heterogeneity completely wrong.</p>
 <p>Now we run Causal Forest. Again, first graph is predicted CATE against <span class="math inline">\(V1\)</span>, the second one is the predicted CATE against true CATE, the third one adds error bars.</p>
+<p>The forest’s ATE is <span class="math inline">\(-1.2049\)</span> (SE 0.0813) and <span class="math inline">\(-1.2024\)</span> (SE 0.0798) for the two variants, against the true <span class="math inline">\(-1.2704\)</span>. Like the linear models, it gets the average about right. The difference is in the plots: the forest’s fitted CATE traces the U-shape of <span class="math inline">\(\log(V1^2)\)</span>, which no linear interaction can represent.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">all_firms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/levels.html">levels</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">firm</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">data.train</span><span class="op">$</span><span class="va">firm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">data.train</span><span class="op">$</span><span class="va">firm</span>, levels <span class="op">=</span> <span class="va">all_firms</span><span class="op">)</span></span>
@@ -1726,487 +1731,516 @@ F-statistic: 62.31 on 3 and 2010 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a><span class="fu">## Linear effect</span></span>
 <span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>Suppose we have a panel of firms over time, treatment assignment is random.  We split the data into training and test.  Then we generate 10 random variables, the first two are highly correlated.  Then we collapse V2 into firm means, and use that as the unit effect.  That is, we have a DGP as:</span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>Suppose we have a panel of firms over time, treatment assignment is random.  We split the data into training and test.  Then we generate 10 random variables, the first two are highly correlated.  Then we collapse V2 into firm means, and use that as the unit effect.</span>
 <span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>$$y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it} $$ {#eq-causal-forest-panel-1}</span>
-<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>Here $\alpha_i$ is not observed, and it is correlated with $V1$, so leaving it out is in principle a source of bias.</span>
-<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a>It is worth being precise about how much bias, though, because the results below</span>
-<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a>are less dramatic than that setup suggests. The unit effect is the *firm mean* of</span>
-<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a>$V2$ over all $t=10$ periods, and averaging attenuates its correlation with</span>
-<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a>contemporaneous $V1$ by a factor of $t$: with</span>
-<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a>$\mathrm{Cor}(V1_{it}, V2_{it}) = 0.9025$ we get</span>
-<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a>$\mathrm{Cov}(V1_{it}, \bar V2_i) = 0.9025/10$, and</span>
-<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a>$\mathrm{Cor}(V1_{it}, \alpha_i) \approx 0.29$. So the omitted-variable bias on</span>
-<span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a>$V1$ is only about $0.05$--$0.09$, not a qualitative failure.</span>
+<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>Concretely: $n = 400$ firms over $t = 10$ periods, 4,000 observations, with</span>
+<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a>$p = 10$ standard normal covariates of which $V1$ and $V2$ are correlated at</span>
+<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>0.9025. Treatment is $W \sim \text{Bernoulli}(0.5)$, assigned independently of</span>
+<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a>everything, and a further coin flip splits the sample roughly in half into</span>
+<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a>training and test sets (about 2,014 rows for training). The unit effect</span>
+<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a>$\alpha_i$ is the firm mean of $V2$.</span>
+<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a>That is, we have a DGP as:</span>
+<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a>$$y_{it} = \alpha_i + V1_{it} + W_{it} + V1_{it}*W_{it} + \epsilon_{it} $$ {#eq-causal-forest-panel-1}</span>
+<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a>Here $\alpha_i$ is not observed, and it is correlated with $V1$, so leaving it out is in principle a source of bias.</span>
 <span id="cb40-27"><a href="#cb40-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-28"><a href="#cb40-28" aria-hidden="true" tabindex="-1"></a>That is what the three models show: FE, RE and OLS all recover $V1 \approx 1$,</span>
-<span id="cb40-29"><a href="#cb40-29" aria-hidden="true" tabindex="-1"></a>$W \approx 1$ and $V1{:}W \approx 1.05$, essentially the truth. Note in</span>
-<span id="cb40-30"><a href="#cb40-30" aria-hidden="true" tabindex="-1"></a>particular that the *treatment* coefficients are unbiased in all three, because</span>
-<span id="cb40-31"><a href="#cb40-31" aria-hidden="true" tabindex="-1"></a>$W$ is randomized and so independent of $\alpha_i$ — omitting a unit effect</span>
-<span id="cb40-32"><a href="#cb40-32" aria-hidden="true" tabindex="-1"></a>cannot bias the effect of a randomly assigned treatment. If you want a panel</span>
-<span id="cb40-33"><a href="#cb40-33" aria-hidden="true" tabindex="-1"></a>example where FE visibly beats OLS, the unit effect has to be correlated with</span>
-<span id="cb40-34"><a href="#cb40-34" aria-hidden="true" tabindex="-1"></a>$V1$ *contemporaneously* (or $t$ has to be small), and the treatment has to be</span>
-<span id="cb40-35"><a href="#cb40-35" aria-hidden="true" tabindex="-1"></a>non-random.</span>
+<span id="cb40-28"><a href="#cb40-28" aria-hidden="true" tabindex="-1"></a>It is worth being precise about how much bias, though, because the results below</span>
+<span id="cb40-29"><a href="#cb40-29" aria-hidden="true" tabindex="-1"></a>are less dramatic than that setup suggests. The unit effect is the *firm mean* of</span>
+<span id="cb40-30"><a href="#cb40-30" aria-hidden="true" tabindex="-1"></a>$V2$ over all $t=10$ periods, and averaging attenuates its correlation with</span>
+<span id="cb40-31"><a href="#cb40-31" aria-hidden="true" tabindex="-1"></a>contemporaneous $V1$ by a factor of $t$: with</span>
+<span id="cb40-32"><a href="#cb40-32" aria-hidden="true" tabindex="-1"></a>$\mathrm{Cor}(V1_{it}, V2_{it}) = 0.9025$ we get</span>
+<span id="cb40-33"><a href="#cb40-33" aria-hidden="true" tabindex="-1"></a>$\mathrm{Cov}(V1_{it}, \bar V2_i) = 0.9025/10$, and</span>
+<span id="cb40-34"><a href="#cb40-34" aria-hidden="true" tabindex="-1"></a>$\mathrm{Cor}(V1_{it}, \alpha_i) \approx 0.29$. So the omitted-variable bias on</span>
+<span id="cb40-35"><a href="#cb40-35" aria-hidden="true" tabindex="-1"></a>$V1$ is only about $0.05$--$0.09$, not a qualitative failure.</span>
 <span id="cb40-36"><a href="#cb40-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-39"><a href="#cb40-39" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb40-40"><a href="#cb40-40" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk1</span></span>
-<span id="cb40-41"><a href="#cb40-41" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb40-42"><a href="#cb40-42" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb40-43"><a href="#cb40-43" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb40-44"><a href="#cb40-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-45"><a href="#cb40-45" aria-hidden="true" tabindex="-1"></a><span class="co"># This is a simulation exercise to see how causal forest performs</span></span>
-<span id="cb40-46"><a href="#cb40-46" aria-hidden="true" tabindex="-1"></a><span class="co"># First we run a linear model, with panel setting</span></span>
-<span id="cb40-47"><a href="#cb40-47" aria-hidden="true" tabindex="-1"></a><span class="co"># Then two nonlinear situations, with panel setting.</span></span>
-<span id="cb40-48"><a href="#cb40-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-49"><a href="#cb40-49" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lfe, <span class="at">quietly =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb40-50"><a href="#cb40-50" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
-<span id="cb40-51"><a href="#cb40-51" aria-hidden="true" tabindex="-1"></a><span class="fu">require</span>(snowfall)</span>
-<span id="cb40-52"><a href="#cb40-52" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(MASS)</span>
-<span id="cb40-53"><a href="#cb40-53" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(grf)</span>
-<span id="cb40-54"><a href="#cb40-54" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb40-55"><a href="#cb40-55" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
-<span id="cb40-56"><a href="#cb40-56" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
-<span id="cb40-57"><a href="#cb40-57" aria-hidden="true" tabindex="-1"></a><span class="co"># t is no. of periods. p is no. of variables, n is no. of firms.</span></span>
-<span id="cb40-58"><a href="#cb40-58" aria-hidden="true" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="dv">10</span></span>
-<span id="cb40-59"><a href="#cb40-59" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
-<span id="cb40-60"><a href="#cb40-60" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">400</span></span>
-<span id="cb40-61"><a href="#cb40-61" aria-hidden="true" tabindex="-1"></a><span class="co"># generate p random variables</span></span>
-<span id="cb40-62"><a href="#cb40-62" aria-hidden="true" tabindex="-1"></a>data1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>t<span class="sc">*</span>p), n<span class="sc">*</span>t, p))</span>
-<span id="cb40-63"><a href="#cb40-63" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data1) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"X"</span>, <span class="dv">1</span><span class="sc">:</span>p)</span>
-<span id="cb40-64"><a href="#cb40-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-65"><a href="#cb40-65" aria-hidden="true" tabindex="-1"></a>firm<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,n)</span>
-<span id="cb40-66"><a href="#cb40-66" aria-hidden="true" tabindex="-1"></a>time<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,t)</span>
-<span id="cb40-67"><a href="#cb40-67" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">firm=</span>firm,<span class="at">time=</span>time)</span>
-<span id="cb40-68"><a href="#cb40-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-69"><a href="#cb40-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-70"><a href="#cb40-70" aria-hidden="true" tabindex="-1"></a><span class="co"># W is the treatment assignment</span></span>
-<span id="cb40-71"><a href="#cb40-71" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb40-72"><a href="#cb40-72" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>train <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
+<span id="cb40-37"><a href="#cb40-37" aria-hidden="true" tabindex="-1"></a>That is what the three models show: FE, RE and OLS all recover $V1 \approx 1$,</span>
+<span id="cb40-38"><a href="#cb40-38" aria-hidden="true" tabindex="-1"></a>$W \approx 1$ and $V1{:}W \approx 1.05$, essentially the truth. Note in</span>
+<span id="cb40-39"><a href="#cb40-39" aria-hidden="true" tabindex="-1"></a>particular that the *treatment* coefficients are unbiased in all three, because</span>
+<span id="cb40-40"><a href="#cb40-40" aria-hidden="true" tabindex="-1"></a>$W$ is randomized and so independent of $\alpha_i$ — omitting a unit effect</span>
+<span id="cb40-41"><a href="#cb40-41" aria-hidden="true" tabindex="-1"></a>cannot bias the effect of a randomly assigned treatment. If you want a panel</span>
+<span id="cb40-42"><a href="#cb40-42" aria-hidden="true" tabindex="-1"></a>example where FE visibly beats OLS, the unit effect has to be correlated with</span>
+<span id="cb40-43"><a href="#cb40-43" aria-hidden="true" tabindex="-1"></a>$V1$ *contemporaneously* (or $t$ has to be small), and the treatment has to be</span>
+<span id="cb40-44"><a href="#cb40-44" aria-hidden="true" tabindex="-1"></a>non-random.</span>
+<span id="cb40-45"><a href="#cb40-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-48"><a href="#cb40-48" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb40-49"><a href="#cb40-49" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk1</span></span>
+<span id="cb40-50"><a href="#cb40-50" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb40-51"><a href="#cb40-51" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb40-52"><a href="#cb40-52" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb40-53"><a href="#cb40-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-54"><a href="#cb40-54" aria-hidden="true" tabindex="-1"></a><span class="co"># This is a simulation exercise to see how causal forest performs</span></span>
+<span id="cb40-55"><a href="#cb40-55" aria-hidden="true" tabindex="-1"></a><span class="co"># First we run a linear model, with panel setting</span></span>
+<span id="cb40-56"><a href="#cb40-56" aria-hidden="true" tabindex="-1"></a><span class="co"># Then two nonlinear situations, with panel setting.</span></span>
+<span id="cb40-57"><a href="#cb40-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-58"><a href="#cb40-58" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lfe, <span class="at">quietly =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb40-59"><a href="#cb40-59" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
+<span id="cb40-60"><a href="#cb40-60" aria-hidden="true" tabindex="-1"></a><span class="fu">require</span>(snowfall)</span>
+<span id="cb40-61"><a href="#cb40-61" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(MASS)</span>
+<span id="cb40-62"><a href="#cb40-62" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(grf)</span>
+<span id="cb40-63"><a href="#cb40-63" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb40-64"><a href="#cb40-64" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
+<span id="cb40-65"><a href="#cb40-65" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb40-66"><a href="#cb40-66" aria-hidden="true" tabindex="-1"></a><span class="co"># t is no. of periods. p is no. of variables, n is no. of firms.</span></span>
+<span id="cb40-67"><a href="#cb40-67" aria-hidden="true" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb40-68"><a href="#cb40-68" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb40-69"><a href="#cb40-69" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">400</span></span>
+<span id="cb40-70"><a href="#cb40-70" aria-hidden="true" tabindex="-1"></a><span class="co"># generate p random variables</span></span>
+<span id="cb40-71"><a href="#cb40-71" aria-hidden="true" tabindex="-1"></a>data1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>t<span class="sc">*</span>p), n<span class="sc">*</span>t, p))</span>
+<span id="cb40-72"><a href="#cb40-72" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data1) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"X"</span>, <span class="dv">1</span><span class="sc">:</span>p)</span>
 <span id="cb40-73"><a href="#cb40-73" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-74"><a href="#cb40-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-75"><a href="#cb40-75" aria-hidden="true" tabindex="-1"></a><span class="co"># generate two correlated variables</span></span>
-<span id="cb40-76"><a href="#cb40-76" aria-hidden="true" tabindex="-1"></a>covarMat <span class="ot">=</span> <span class="fu">matrix</span>( <span class="fu">c</span>(<span class="dv">1</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, <span class="dv">1</span> ) , <span class="at">nrow=</span><span class="dv">2</span> , <span class="at">ncol=</span><span class="dv">2</span> )</span>
-<span id="cb40-77"><a href="#cb40-77" aria-hidden="true" tabindex="-1"></a>data<span class="fl">.2</span>  <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">mvrnorm</span>(<span class="at">n=</span>n<span class="sc">*</span>t , <span class="at">mu=</span><span class="fu">rep</span>(<span class="dv">0</span>,<span class="dv">2</span>), <span class="at">Sigma=</span>covarMat ))</span>
-<span id="cb40-78"><a href="#cb40-78" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data<span class="fl">.2</span>) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"V1"</span>, <span class="st">"V2"</span>)</span>
-<span id="cb40-79"><a href="#cb40-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-80"><a href="#cb40-80" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data<span class="fl">.2</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb40-81"><a href="#cb40-81" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>()</span>
+<span id="cb40-74"><a href="#cb40-74" aria-hidden="true" tabindex="-1"></a>firm<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,n)</span>
+<span id="cb40-75"><a href="#cb40-75" aria-hidden="true" tabindex="-1"></a>time<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,t)</span>
+<span id="cb40-76"><a href="#cb40-76" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">firm=</span>firm,<span class="at">time=</span>time)</span>
+<span id="cb40-77"><a href="#cb40-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-78"><a href="#cb40-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-79"><a href="#cb40-79" aria-hidden="true" tabindex="-1"></a><span class="co"># W is the treatment assignment</span></span>
+<span id="cb40-80"><a href="#cb40-80" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
+<span id="cb40-81"><a href="#cb40-81" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>train <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
 <span id="cb40-82"><a href="#cb40-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-83"><a href="#cb40-83" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data1)</span>
-<span id="cb40-84"><a href="#cb40-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-85"><a href="#cb40-85" aria-hidden="true" tabindex="-1"></a><span class="co"># generate unit effect by firm means of V2, which is correlated with V1</span></span>
-<span id="cb40-86"><a href="#cb40-86" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-87"><a href="#cb40-87" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(firm) <span class="sc">%&gt;%</span></span>
-<span id="cb40-88"><a href="#cb40-88" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">unit.effect=</span><span class="fu">mean</span>(V2)) <span class="sc">%&gt;%</span></span>
-<span id="cb40-89"><a href="#cb40-89" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb40-90"><a href="#cb40-90" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(firm, time)</span>
+<span id="cb40-83"><a href="#cb40-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-84"><a href="#cb40-84" aria-hidden="true" tabindex="-1"></a><span class="co"># generate two correlated variables</span></span>
+<span id="cb40-85"><a href="#cb40-85" aria-hidden="true" tabindex="-1"></a>covarMat <span class="ot">=</span> <span class="fu">matrix</span>( <span class="fu">c</span>(<span class="dv">1</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, <span class="dv">1</span> ) , <span class="at">nrow=</span><span class="dv">2</span> , <span class="at">ncol=</span><span class="dv">2</span> )</span>
+<span id="cb40-86"><a href="#cb40-86" aria-hidden="true" tabindex="-1"></a>data<span class="fl">.2</span>  <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">mvrnorm</span>(<span class="at">n=</span>n<span class="sc">*</span>t , <span class="at">mu=</span><span class="fu">rep</span>(<span class="dv">0</span>,<span class="dv">2</span>), <span class="at">Sigma=</span>covarMat ))</span>
+<span id="cb40-87"><a href="#cb40-87" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data<span class="fl">.2</span>) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"V1"</span>, <span class="st">"V2"</span>)</span>
+<span id="cb40-88"><a href="#cb40-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-89"><a href="#cb40-89" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data<span class="fl">.2</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb40-90"><a href="#cb40-90" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>()</span>
 <span id="cb40-91"><a href="#cb40-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-92"><a href="#cb40-92" aria-hidden="true" tabindex="-1"></a>y<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-93"><a href="#cb40-93" aria-hidden="true" tabindex="-1"></a>unit<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-94"><a href="#cb40-94" aria-hidden="true" tabindex="-1"></a>X<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-95"><a href="#cb40-95" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">0</span></span>
-<span id="cb40-96"><a href="#cb40-96" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n){</span>
-<span id="cb40-97"><a href="#cb40-97" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>t){</span>
-<span id="cb40-98"><a href="#cb40-98" aria-hidden="true" tabindex="-1"></a>        k<span class="ot">&lt;-</span>k<span class="sc">+</span><span class="dv">1</span></span>
-<span id="cb40-99"><a href="#cb40-99" aria-hidden="true" tabindex="-1"></a>        unit[k]<span class="ot">&lt;-</span>i</span>
-<span id="cb40-100"><a href="#cb40-100" aria-hidden="true" tabindex="-1"></a>        y[k]<span class="ot">&lt;-</span><span class="dv">1</span><span class="sc">+</span> data<span class="sc">$</span>V1[k] <span class="sc">+</span> data<span class="sc">$</span>W[k] <span class="sc">+</span> data<span class="sc">$</span>V1[k]<span class="sc">*</span>data<span class="sc">$</span>W[k] <span class="sc">+</span> data<span class="sc">$</span>unit.effect[k]<span class="sc">+</span><span class="fu">rnorm</span>(<span class="dv">1</span>,<span class="at">mean=</span><span class="dv">0</span>,<span class="at">sd=</span><span class="dv">1</span>)</span>
-<span id="cb40-101"><a href="#cb40-101" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb40-102"><a href="#cb40-102" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb40-103"><a href="#cb40-103" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>unit<span class="ot">=</span>unit</span>
-<span id="cb40-104"><a href="#cb40-104" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>y<span class="ot">=</span>y</span>
-<span id="cb40-105"><a href="#cb40-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-106"><a href="#cb40-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-107"><a href="#cb40-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-108"><a href="#cb40-108" aria-hidden="true" tabindex="-1"></a>data.train <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-109"><a href="#cb40-109" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">1</span>)</span>
-<span id="cb40-110"><a href="#cb40-110" aria-hidden="true" tabindex="-1"></a>data.test <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-111"><a href="#cb40-111" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">0</span>)</span>
-<span id="cb40-112"><a href="#cb40-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-113"><a href="#cb40-113" aria-hidden="true" tabindex="-1"></a><span class="co"># run fixed effect, random effect, and ols to see whether they are</span></span>
-<span id="cb40-114"><a href="#cb40-114" aria-hidden="true" tabindex="-1"></a><span class="co"># biased.</span></span>
-<span id="cb40-115"><a href="#cb40-115" aria-hidden="true" tabindex="-1"></a><span class="co"># in general we should expect fe performs better, since we are</span></span>
-<span id="cb40-116"><a href="#cb40-116" aria-hidden="true" tabindex="-1"></a><span class="co"># omitting unit.effect in the other two models</span></span>
-<span id="cb40-117"><a href="#cb40-117" aria-hidden="true" tabindex="-1"></a>fe <span class="ot">&lt;-</span> <span class="fu">felm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W <span class="sc">|</span> unit, <span class="at">data=</span>data.train)</span>
-<span id="cb40-118"><a href="#cb40-118" aria-hidden="true" tabindex="-1"></a>re <span class="ot">&lt;-</span><span class="fu">lmer</span>(y<span class="sc">~</span>V1<span class="sc">*</span>W<span class="sc">+</span>(<span class="dv">1</span> <span class="sc">|</span> unit), <span class="at">data=</span>data.train)</span>
-<span id="cb40-119"><a href="#cb40-119" aria-hidden="true" tabindex="-1"></a>ols <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W , <span class="at">data=</span>data.train)</span>
-<span id="cb40-120"><a href="#cb40-120" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fe)</span>
-<span id="cb40-121"><a href="#cb40-121" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(re)</span>
-<span id="cb40-122"><a href="#cb40-122" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ols)</span>
-<span id="cb40-123"><a href="#cb40-123" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb40-124"><a href="#cb40-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-125"><a href="#cb40-125" aria-hidden="true" tabindex="-1"></a>Now we run Causal Forest on this data.  Two clarifications about what is and is not at stake here. First, treatment $W$ is **randomized** (`rbinom(., 0.5)`, independent of the firm effect), so the omitted unit effect $\alpha_i$ does *not* confound the treatment effect — it only enters the nuisance functions (and hence precision), it does not create treatment-effect bias. The panel issue here is therefore mainly *dependence and nuisance fit*, not confounding. Second, the firm structure should be handled in two ways: we include the firm dummies in $X$ so the forest can absorb $\alpha_i$ in the nuisance models, **and** we pass <span class="in">`clusters = firm`</span> so that <span class="in">`grf`</span>'s honest sample splitting and its variance estimates keep each firm's repeated observations together rather than treating them as independent rows. Including the dummies alone does neither of those.</span>
-<span id="cb40-126"><a href="#cb40-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-129"><a href="#cb40-129" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb40-130"><a href="#cb40-130" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk2</span></span>
-<span id="cb40-131"><a href="#cb40-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb40-132"><a href="#cb40-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb40-133"><a href="#cb40-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb40-134"><a href="#cb40-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-92"><a href="#cb40-92" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data1)</span>
+<span id="cb40-93"><a href="#cb40-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-94"><a href="#cb40-94" aria-hidden="true" tabindex="-1"></a><span class="co"># generate unit effect by firm means of V2, which is correlated with V1</span></span>
+<span id="cb40-95"><a href="#cb40-95" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-96"><a href="#cb40-96" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(firm) <span class="sc">%&gt;%</span></span>
+<span id="cb40-97"><a href="#cb40-97" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">unit.effect=</span><span class="fu">mean</span>(V2)) <span class="sc">%&gt;%</span></span>
+<span id="cb40-98"><a href="#cb40-98" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb40-99"><a href="#cb40-99" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(firm, time)</span>
+<span id="cb40-100"><a href="#cb40-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-101"><a href="#cb40-101" aria-hidden="true" tabindex="-1"></a>y<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-102"><a href="#cb40-102" aria-hidden="true" tabindex="-1"></a>unit<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-103"><a href="#cb40-103" aria-hidden="true" tabindex="-1"></a>X<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-104"><a href="#cb40-104" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb40-105"><a href="#cb40-105" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n){</span>
+<span id="cb40-106"><a href="#cb40-106" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>t){</span>
+<span id="cb40-107"><a href="#cb40-107" aria-hidden="true" tabindex="-1"></a>        k<span class="ot">&lt;-</span>k<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb40-108"><a href="#cb40-108" aria-hidden="true" tabindex="-1"></a>        unit[k]<span class="ot">&lt;-</span>i</span>
+<span id="cb40-109"><a href="#cb40-109" aria-hidden="true" tabindex="-1"></a>        y[k]<span class="ot">&lt;-</span><span class="dv">1</span><span class="sc">+</span> data<span class="sc">$</span>V1[k] <span class="sc">+</span> data<span class="sc">$</span>W[k] <span class="sc">+</span> data<span class="sc">$</span>V1[k]<span class="sc">*</span>data<span class="sc">$</span>W[k] <span class="sc">+</span> data<span class="sc">$</span>unit.effect[k]<span class="sc">+</span><span class="fu">rnorm</span>(<span class="dv">1</span>,<span class="at">mean=</span><span class="dv">0</span>,<span class="at">sd=</span><span class="dv">1</span>)</span>
+<span id="cb40-110"><a href="#cb40-110" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb40-111"><a href="#cb40-111" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb40-112"><a href="#cb40-112" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>unit<span class="ot">=</span>unit</span>
+<span id="cb40-113"><a href="#cb40-113" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>y<span class="ot">=</span>y</span>
+<span id="cb40-114"><a href="#cb40-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-115"><a href="#cb40-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-116"><a href="#cb40-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-117"><a href="#cb40-117" aria-hidden="true" tabindex="-1"></a>data.train <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-118"><a href="#cb40-118" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">1</span>)</span>
+<span id="cb40-119"><a href="#cb40-119" aria-hidden="true" tabindex="-1"></a>data.test <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-120"><a href="#cb40-120" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">0</span>)</span>
+<span id="cb40-121"><a href="#cb40-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-122"><a href="#cb40-122" aria-hidden="true" tabindex="-1"></a><span class="co"># run fixed effect, random effect, and ols to see whether they are</span></span>
+<span id="cb40-123"><a href="#cb40-123" aria-hidden="true" tabindex="-1"></a><span class="co"># biased.</span></span>
+<span id="cb40-124"><a href="#cb40-124" aria-hidden="true" tabindex="-1"></a><span class="co"># in general we should expect fe performs better, since we are</span></span>
+<span id="cb40-125"><a href="#cb40-125" aria-hidden="true" tabindex="-1"></a><span class="co"># omitting unit.effect in the other two models</span></span>
+<span id="cb40-126"><a href="#cb40-126" aria-hidden="true" tabindex="-1"></a>fe <span class="ot">&lt;-</span> <span class="fu">felm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W <span class="sc">|</span> unit, <span class="at">data=</span>data.train)</span>
+<span id="cb40-127"><a href="#cb40-127" aria-hidden="true" tabindex="-1"></a>re <span class="ot">&lt;-</span><span class="fu">lmer</span>(y<span class="sc">~</span>V1<span class="sc">*</span>W<span class="sc">+</span>(<span class="dv">1</span> <span class="sc">|</span> unit), <span class="at">data=</span>data.train)</span>
+<span id="cb40-128"><a href="#cb40-128" aria-hidden="true" tabindex="-1"></a>ols <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W , <span class="at">data=</span>data.train)</span>
+<span id="cb40-129"><a href="#cb40-129" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fe)</span>
+<span id="cb40-130"><a href="#cb40-130" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(re)</span>
+<span id="cb40-131"><a href="#cb40-131" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ols)</span>
+<span id="cb40-132"><a href="#cb40-132" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb40-133"><a href="#cb40-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-134"><a href="#cb40-134" aria-hidden="true" tabindex="-1"></a>Now we run Causal Forest on this data.  Two clarifications about what is and is not at stake here. First, treatment $W$ is **randomized** (`rbinom(., 0.5)`, independent of the firm effect), so the omitted unit effect $\alpha_i$ does *not* confound the treatment effect — it only enters the nuisance functions (and hence precision), it does not create treatment-effect bias. The panel issue here is therefore mainly *dependence and nuisance fit*, not confounding. Second, the firm structure should be handled in two ways: we include the firm dummies in $X$ so the forest can absorb $\alpha_i$ in the nuisance models, **and** we pass <span class="in">`clusters = firm`</span> so that <span class="in">`grf`</span>'s honest sample splitting and its variance estimates keep each firm's repeated observations together rather than treating them as independent rows. Including the dummies alone does neither of those.</span>
 <span id="cb40-135"><a href="#cb40-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-136"><a href="#cb40-136" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure consistent factor levels across train/test</span></span>
-<span id="cb40-137"><a href="#cb40-137" aria-hidden="true" tabindex="-1"></a>all_firms <span class="ot">&lt;-</span> <span class="fu">levels</span>(<span class="fu">factor</span>(data<span class="sc">$</span>firm))</span>
-<span id="cb40-138"><a href="#cb40-138" aria-hidden="true" tabindex="-1"></a>data.train<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.train<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
-<span id="cb40-139"><a href="#cb40-139" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.test<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
-<span id="cb40-140"><a href="#cb40-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-141"><a href="#cb40-141" aria-hidden="true" tabindex="-1"></a><span class="co"># a is a data set of firm dummies</span></span>
-<span id="cb40-142"><a href="#cb40-142" aria-hidden="true" tabindex="-1"></a><span class="co"># Caution: this one-hot-encodes all ~400 firms into individual dummy columns</span></span>
-<span id="cb40-143"><a href="#cb40-143" aria-hidden="true" tabindex="-1"></a><span class="co"># of X. Random forests split poorly on such a high-cardinality sparse block</span></span>
-<span id="cb40-144"><a href="#cb40-144" aria-hidden="true" tabindex="-1"></a><span class="co"># of binary columns (each dummy is only informative for a tiny fraction of</span></span>
-<span id="cb40-145"><a href="#cb40-145" aria-hidden="true" tabindex="-1"></a><span class="co"># observations). A fixed-effects forest (demean y, W, and the continuous</span></span>
-<span id="cb40-146"><a href="#cb40-146" aria-hidden="true" tabindex="-1"></a><span class="co"># covariates within firm first, then run causal_forest on the demeaned</span></span>
-<span id="cb40-147"><a href="#cb40-147" aria-hidden="true" tabindex="-1"></a><span class="co"># variables) or a method that handles unit effects natively would typically</span></span>
-<span id="cb40-148"><a href="#cb40-148" aria-hidden="true" tabindex="-1"></a><span class="co"># perform better than including firm as raw dummies.</span></span>
-<span id="cb40-149"><a href="#cb40-149" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm, data.train))</span>
-<span id="cb40-150"><a href="#cb40-150" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.train[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
-<span id="cb40-151"><a href="#cb40-151" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data.train<span class="sc">$</span>y</span>
-<span id="cb40-152"><a href="#cb40-152" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data.train<span class="sc">$</span>W</span>
-<span id="cb40-153"><a href="#cb40-153" aria-hidden="true" tabindex="-1"></a><span class="co"># causal forest is run on y against V1, to X10 and firm dummies.</span></span>
-<span id="cb40-154"><a href="#cb40-154" aria-hidden="true" tabindex="-1"></a><span class="co"># clusters = firm makes honest splitting and the variance estimates respect</span></span>
-<span id="cb40-155"><a href="#cb40-155" aria-hidden="true" tabindex="-1"></a><span class="co"># the panel structure (a firm's repeated rows are kept together, not treated</span></span>
-<span id="cb40-156"><a href="#cb40-156" aria-hidden="true" tabindex="-1"></a><span class="co"># as independent observations).</span></span>
-<span id="cb40-157"><a href="#cb40-157" aria-hidden="true" tabindex="-1"></a>tau.forest <span class="ot">=</span> <span class="fu">causal_forest</span>(X, Y, W, <span class="at">clusters =</span> <span class="fu">as.integer</span>(data.train<span class="sc">$</span>firm))</span>
-<span id="cb40-158"><a href="#cb40-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-159"><a href="#cb40-159" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest, <span class="at">target.sample =</span> <span class="st">"all"</span>)</span>
-<span id="cb40-160"><a href="#cb40-160" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest, <span class="at">target.sample =</span> <span class="st">"treated"</span>)</span>
-<span id="cb40-161"><a href="#cb40-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-162"><a href="#cb40-162" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm, data.test))</span>
-<span id="cb40-163"><a href="#cb40-163" aria-hidden="true" tabindex="-1"></a>X.test <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.test[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
-<span id="cb40-164"><a href="#cb40-164" aria-hidden="true" tabindex="-1"></a>Y.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>y</span>
-<span id="cb40-165"><a href="#cb40-165" aria-hidden="true" tabindex="-1"></a>W.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>W</span>
-<span id="cb40-166"><a href="#cb40-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-167"><a href="#cb40-167" aria-hidden="true" tabindex="-1"></a>tau.hat <span class="ot">=</span> <span class="fu">predict</span>(tau.forest, X.test, <span class="at">estimate.variance =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb40-168"><a href="#cb40-168" aria-hidden="true" tabindex="-1"></a>sigma.hat <span class="ot">=</span> <span class="fu">sqrt</span>(tau.hat<span class="sc">$</span>variance.estimates)</span>
-<span id="cb40-169"><a href="#cb40-169" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-170"><a href="#cb40-170" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>pred <span class="ot">&lt;-</span> tau.hat<span class="sc">$</span>predictions</span>
-<span id="cb40-171"><a href="#cb40-171" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data.test, <span class="fu">aes</span>(<span class="at">x=</span>V1, <span class="at">y=</span>pred)) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">1</span>, <span class="at">slope =</span> <span class="dv">1</span>)</span>
-<span id="cb40-172"><a href="#cb40-172" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-173"><a href="#cb40-173" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb40-174"><a href="#cb40-174" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-175"><a href="#cb40-175" aria-hidden="true" tabindex="-1"></a>This graph is the predicted value of CATE on the test data, vs. the value of $V1$.</span>
-<span id="cb40-176"><a href="#cb40-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-177"><a href="#cb40-177" aria-hidden="true" tabindex="-1"></a>Now we graph the predicted CATE against the true CATE.  The other nice feature of Causal Forest is that it returns variance for CATE for each observation.  We also graph the error bar here.</span>
+<span id="cb40-138"><a href="#cb40-138" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb40-139"><a href="#cb40-139" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk2</span></span>
+<span id="cb40-140"><a href="#cb40-140" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb40-141"><a href="#cb40-141" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb40-142"><a href="#cb40-142" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb40-143"><a href="#cb40-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-144"><a href="#cb40-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-145"><a href="#cb40-145" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure consistent factor levels across train/test</span></span>
+<span id="cb40-146"><a href="#cb40-146" aria-hidden="true" tabindex="-1"></a>all_firms <span class="ot">&lt;-</span> <span class="fu">levels</span>(<span class="fu">factor</span>(data<span class="sc">$</span>firm))</span>
+<span id="cb40-147"><a href="#cb40-147" aria-hidden="true" tabindex="-1"></a>data.train<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.train<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
+<span id="cb40-148"><a href="#cb40-148" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.test<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
+<span id="cb40-149"><a href="#cb40-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-150"><a href="#cb40-150" aria-hidden="true" tabindex="-1"></a><span class="co"># a is a data set of firm dummies</span></span>
+<span id="cb40-151"><a href="#cb40-151" aria-hidden="true" tabindex="-1"></a><span class="co"># Caution: this one-hot-encodes all ~400 firms into individual dummy columns</span></span>
+<span id="cb40-152"><a href="#cb40-152" aria-hidden="true" tabindex="-1"></a><span class="co"># of X. Random forests split poorly on such a high-cardinality sparse block</span></span>
+<span id="cb40-153"><a href="#cb40-153" aria-hidden="true" tabindex="-1"></a><span class="co"># of binary columns (each dummy is only informative for a tiny fraction of</span></span>
+<span id="cb40-154"><a href="#cb40-154" aria-hidden="true" tabindex="-1"></a><span class="co"># observations). A fixed-effects forest (demean y, W, and the continuous</span></span>
+<span id="cb40-155"><a href="#cb40-155" aria-hidden="true" tabindex="-1"></a><span class="co"># covariates within firm first, then run causal_forest on the demeaned</span></span>
+<span id="cb40-156"><a href="#cb40-156" aria-hidden="true" tabindex="-1"></a><span class="co"># variables) or a method that handles unit effects natively would typically</span></span>
+<span id="cb40-157"><a href="#cb40-157" aria-hidden="true" tabindex="-1"></a><span class="co"># perform better than including firm as raw dummies.</span></span>
+<span id="cb40-158"><a href="#cb40-158" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm, data.train))</span>
+<span id="cb40-159"><a href="#cb40-159" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.train[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
+<span id="cb40-160"><a href="#cb40-160" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data.train<span class="sc">$</span>y</span>
+<span id="cb40-161"><a href="#cb40-161" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data.train<span class="sc">$</span>W</span>
+<span id="cb40-162"><a href="#cb40-162" aria-hidden="true" tabindex="-1"></a><span class="co"># causal forest is run on y against V1, to X10 and firm dummies.</span></span>
+<span id="cb40-163"><a href="#cb40-163" aria-hidden="true" tabindex="-1"></a><span class="co"># clusters = firm makes honest splitting and the variance estimates respect</span></span>
+<span id="cb40-164"><a href="#cb40-164" aria-hidden="true" tabindex="-1"></a><span class="co"># the panel structure (a firm's repeated rows are kept together, not treated</span></span>
+<span id="cb40-165"><a href="#cb40-165" aria-hidden="true" tabindex="-1"></a><span class="co"># as independent observations).</span></span>
+<span id="cb40-166"><a href="#cb40-166" aria-hidden="true" tabindex="-1"></a>tau.forest <span class="ot">=</span> <span class="fu">causal_forest</span>(X, Y, W, <span class="at">clusters =</span> <span class="fu">as.integer</span>(data.train<span class="sc">$</span>firm))</span>
+<span id="cb40-167"><a href="#cb40-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-168"><a href="#cb40-168" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest, <span class="at">target.sample =</span> <span class="st">"all"</span>)</span>
+<span id="cb40-169"><a href="#cb40-169" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest, <span class="at">target.sample =</span> <span class="st">"treated"</span>)</span>
+<span id="cb40-170"><a href="#cb40-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-171"><a href="#cb40-171" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm, data.test))</span>
+<span id="cb40-172"><a href="#cb40-172" aria-hidden="true" tabindex="-1"></a>X.test <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.test[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
+<span id="cb40-173"><a href="#cb40-173" aria-hidden="true" tabindex="-1"></a>Y.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>y</span>
+<span id="cb40-174"><a href="#cb40-174" aria-hidden="true" tabindex="-1"></a>W.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>W</span>
+<span id="cb40-175"><a href="#cb40-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-176"><a href="#cb40-176" aria-hidden="true" tabindex="-1"></a>tau.hat <span class="ot">=</span> <span class="fu">predict</span>(tau.forest, X.test, <span class="at">estimate.variance =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb40-177"><a href="#cb40-177" aria-hidden="true" tabindex="-1"></a>sigma.hat <span class="ot">=</span> <span class="fu">sqrt</span>(tau.hat<span class="sc">$</span>variance.estimates)</span>
 <span id="cb40-178"><a href="#cb40-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-181"><a href="#cb40-181" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb40-182"><a href="#cb40-182" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk3</span></span>
-<span id="cb40-183"><a href="#cb40-183" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb40-184"><a href="#cb40-184" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb40-185"><a href="#cb40-185" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb40-186"><a href="#cb40-186" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-187"><a href="#cb40-187" aria-hidden="true" tabindex="-1"></a>graph.data  <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(tau.hat )</span>
-<span id="cb40-188"><a href="#cb40-188" aria-hidden="true" tabindex="-1"></a>graph.data  <span class="ot">&lt;-</span> graph.data  <span class="sc">%&gt;%</span></span>
-<span id="cb40-189"><a href="#cb40-189" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cate=</span><span class="dv">1</span><span class="sc">+</span>data.test<span class="sc">$</span>V1) <span class="sc">%&gt;%</span></span>
-<span id="cb40-190"><a href="#cb40-190" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lower=</span>predictions <span class="sc">-</span> sigma.hat , <span class="at">upper=</span>predictions <span class="sc">+</span> sigma.hat )</span>
-<span id="cb40-191"><a href="#cb40-191" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-192"><a href="#cb40-192" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(graph.data , <span class="fu">aes</span>(<span class="at">x=</span>cate, <span class="at">y=</span>predictions)) <span class="sc">+</span> <span class="fu">geom_point</span>()  <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
-<span id="cb40-193"><a href="#cb40-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-179"><a href="#cb40-179" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>pred <span class="ot">&lt;-</span> tau.hat<span class="sc">$</span>predictions</span>
+<span id="cb40-180"><a href="#cb40-180" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data.test, <span class="fu">aes</span>(<span class="at">x=</span>V1, <span class="at">y=</span>pred)) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">1</span>, <span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-181"><a href="#cb40-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-182"><a href="#cb40-182" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb40-183"><a href="#cb40-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-184"><a href="#cb40-184" aria-hidden="true" tabindex="-1"></a>The forest's doubly-robust ATE comes out at 0.9356 with a standard error of</span>
+<span id="cb40-185"><a href="#cb40-185" aria-hidden="true" tabindex="-1"></a>0.0823, and 0.9317 with 0.0816 for the second variant. The true ATE is</span>
+<span id="cb40-186"><a href="#cb40-186" aria-hidden="true" tabindex="-1"></a>$E<span class="co">[</span><span class="ot">1 + V1</span><span class="co">]</span> = 1$, so both are within one standard error of it — the forest costs</span>
+<span id="cb40-187"><a href="#cb40-187" aria-hidden="true" tabindex="-1"></a>a little precision against the correctly specified linear models but is not</span>
+<span id="cb40-188"><a href="#cb40-188" aria-hidden="true" tabindex="-1"></a>biased.</span>
+<span id="cb40-189"><a href="#cb40-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-190"><a href="#cb40-190" aria-hidden="true" tabindex="-1"></a>This graph is the predicted value of CATE on the test data, vs. the value of $V1$.</span>
+<span id="cb40-191"><a href="#cb40-191" aria-hidden="true" tabindex="-1"></a>The points should sit on the 45-degree line, and the error bars in the second</span>
+<span id="cb40-192"><a href="#cb40-192" aria-hidden="true" tabindex="-1"></a>panel show how much of the scatter is estimation noise rather than a failure to</span>
+<span id="cb40-193"><a href="#cb40-193" aria-hidden="true" tabindex="-1"></a>track the true $1 + V1$.</span>
 <span id="cb40-194"><a href="#cb40-194" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-195"><a href="#cb40-195" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_errorbar</span>(graph.data , <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(graph.data , <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">y=</span>predictions), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
-<span id="cb40-196"><a href="#cb40-196" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb40-197"><a href="#cb40-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-198"><a href="#cb40-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-199"><a href="#cb40-199" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Nonlinear effect case 1</span></span>
-<span id="cb40-200"><a href="#cb40-200" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-201"><a href="#cb40-201" aria-hidden="true" tabindex="-1"></a>In the first situation, we assume DGP:</span>
-<span id="cb40-202"><a href="#cb40-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-203"><a href="#cb40-203" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + max(V1_{it},0)*W_{it} +  \epsilon_{it} $$ {#eq-causal-forest-panel-2}</span>
+<span id="cb40-195"><a href="#cb40-195" aria-hidden="true" tabindex="-1"></a>Now we graph the predicted CATE against the true CATE.  The other nice feature of Causal Forest is that it returns variance for CATE for each observation.  We also graph the error bar here.</span>
+<span id="cb40-196"><a href="#cb40-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-199"><a href="#cb40-199" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb40-200"><a href="#cb40-200" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk3</span></span>
+<span id="cb40-201"><a href="#cb40-201" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb40-202"><a href="#cb40-202" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb40-203"><a href="#cb40-203" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
 <span id="cb40-204"><a href="#cb40-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-207"><a href="#cb40-207" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb40-208"><a href="#cb40-208" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk4</span></span>
-<span id="cb40-209"><a href="#cb40-209" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb40-210"><a href="#cb40-210" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb40-211"><a href="#cb40-211" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb40-205"><a href="#cb40-205" aria-hidden="true" tabindex="-1"></a>graph.data  <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(tau.hat )</span>
+<span id="cb40-206"><a href="#cb40-206" aria-hidden="true" tabindex="-1"></a>graph.data  <span class="ot">&lt;-</span> graph.data  <span class="sc">%&gt;%</span></span>
+<span id="cb40-207"><a href="#cb40-207" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cate=</span><span class="dv">1</span><span class="sc">+</span>data.test<span class="sc">$</span>V1) <span class="sc">%&gt;%</span></span>
+<span id="cb40-208"><a href="#cb40-208" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lower=</span>predictions <span class="sc">-</span> sigma.hat , <span class="at">upper=</span>predictions <span class="sc">+</span> sigma.hat )</span>
+<span id="cb40-209"><a href="#cb40-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-210"><a href="#cb40-210" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(graph.data , <span class="fu">aes</span>(<span class="at">x=</span>cate, <span class="at">y=</span>predictions)) <span class="sc">+</span> <span class="fu">geom_point</span>()  <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-211"><a href="#cb40-211" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-212"><a href="#cb40-212" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-213"><a href="#cb40-213" aria-hidden="true" tabindex="-1"></a><span class="co"># if we have a nonlinear effect</span></span>
-<span id="cb40-214"><a href="#cb40-214" aria-hidden="true" tabindex="-1"></a><span class="co"># suppose we have the same X, but y is generated nonlinearly.</span></span>
-<span id="cb40-215"><a href="#cb40-215" aria-hidden="true" tabindex="-1"></a><span class="co"># in this example, y is a nonlinear function of V1 and W</span></span>
-<span id="cb40-216"><a href="#cb40-216" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
-<span id="cb40-217"><a href="#cb40-217" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
-<span id="cb40-218"><a href="#cb40-218" aria-hidden="true" tabindex="-1"></a><span class="co"># t is no. of periods. p is no. of variables, n is no. of firms.</span></span>
-<span id="cb40-219"><a href="#cb40-219" aria-hidden="true" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="dv">10</span></span>
-<span id="cb40-220"><a href="#cb40-220" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
-<span id="cb40-221"><a href="#cb40-221" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">400</span></span>
-<span id="cb40-222"><a href="#cb40-222" aria-hidden="true" tabindex="-1"></a><span class="co"># generate p random variables</span></span>
-<span id="cb40-223"><a href="#cb40-223" aria-hidden="true" tabindex="-1"></a>data1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>t<span class="sc">*</span>p), n<span class="sc">*</span>t, p))</span>
-<span id="cb40-224"><a href="#cb40-224" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data1) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"X"</span>, <span class="dv">1</span><span class="sc">:</span>p)</span>
-<span id="cb40-225"><a href="#cb40-225" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-226"><a href="#cb40-226" aria-hidden="true" tabindex="-1"></a>firm<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,n)</span>
-<span id="cb40-227"><a href="#cb40-227" aria-hidden="true" tabindex="-1"></a>time<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,t)</span>
-<span id="cb40-228"><a href="#cb40-228" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">firm=</span>firm,<span class="at">time=</span>time)</span>
-<span id="cb40-229"><a href="#cb40-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-213"><a href="#cb40-213" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_errorbar</span>(graph.data , <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(graph.data , <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">y=</span>predictions), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-214"><a href="#cb40-214" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb40-215"><a href="#cb40-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-216"><a href="#cb40-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-217"><a href="#cb40-217" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Nonlinear effect case 1</span></span>
+<span id="cb40-218"><a href="#cb40-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-219"><a href="#cb40-219" aria-hidden="true" tabindex="-1"></a>In the first situation, we assume DGP:</span>
+<span id="cb40-220"><a href="#cb40-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-221"><a href="#cb40-221" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + max(V1_{it},0)*W_{it} +  \epsilon_{it} $$ {#eq-causal-forest-panel-2}</span>
+<span id="cb40-222"><a href="#cb40-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-225"><a href="#cb40-225" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb40-226"><a href="#cb40-226" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk4</span></span>
+<span id="cb40-227"><a href="#cb40-227" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb40-228"><a href="#cb40-228" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb40-229"><a href="#cb40-229" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
 <span id="cb40-230"><a href="#cb40-230" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-231"><a href="#cb40-231" aria-hidden="true" tabindex="-1"></a><span class="co"># W is the treatment assignment</span></span>
-<span id="cb40-232"><a href="#cb40-232" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb40-233"><a href="#cb40-233" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>train <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb40-234"><a href="#cb40-234" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-235"><a href="#cb40-235" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-236"><a href="#cb40-236" aria-hidden="true" tabindex="-1"></a><span class="co"># generate two correlated variables</span></span>
-<span id="cb40-237"><a href="#cb40-237" aria-hidden="true" tabindex="-1"></a>covarMat <span class="ot">=</span> <span class="fu">matrix</span>( <span class="fu">c</span>(<span class="dv">1</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, <span class="dv">1</span> ) , <span class="at">nrow=</span><span class="dv">2</span> , <span class="at">ncol=</span><span class="dv">2</span> )</span>
-<span id="cb40-238"><a href="#cb40-238" aria-hidden="true" tabindex="-1"></a>data<span class="fl">.2</span>  <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">mvrnorm</span>(<span class="at">n=</span>n<span class="sc">*</span>t , <span class="at">mu=</span><span class="fu">rep</span>(<span class="dv">0</span>,<span class="dv">2</span>), <span class="at">Sigma=</span>covarMat ))</span>
-<span id="cb40-239"><a href="#cb40-239" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data<span class="fl">.2</span>) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"V1"</span>, <span class="st">"V2"</span>)</span>
-<span id="cb40-240"><a href="#cb40-240" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-241"><a href="#cb40-241" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data<span class="fl">.2</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb40-242"><a href="#cb40-242" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>()</span>
+<span id="cb40-231"><a href="#cb40-231" aria-hidden="true" tabindex="-1"></a><span class="co"># if we have a nonlinear effect</span></span>
+<span id="cb40-232"><a href="#cb40-232" aria-hidden="true" tabindex="-1"></a><span class="co"># suppose we have the same X, but y is generated nonlinearly.</span></span>
+<span id="cb40-233"><a href="#cb40-233" aria-hidden="true" tabindex="-1"></a><span class="co"># in this example, y is a nonlinear function of V1 and W</span></span>
+<span id="cb40-234"><a href="#cb40-234" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
+<span id="cb40-235"><a href="#cb40-235" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb40-236"><a href="#cb40-236" aria-hidden="true" tabindex="-1"></a><span class="co"># t is no. of periods. p is no. of variables, n is no. of firms.</span></span>
+<span id="cb40-237"><a href="#cb40-237" aria-hidden="true" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb40-238"><a href="#cb40-238" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb40-239"><a href="#cb40-239" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">400</span></span>
+<span id="cb40-240"><a href="#cb40-240" aria-hidden="true" tabindex="-1"></a><span class="co"># generate p random variables</span></span>
+<span id="cb40-241"><a href="#cb40-241" aria-hidden="true" tabindex="-1"></a>data1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>t<span class="sc">*</span>p), n<span class="sc">*</span>t, p))</span>
+<span id="cb40-242"><a href="#cb40-242" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data1) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"X"</span>, <span class="dv">1</span><span class="sc">:</span>p)</span>
 <span id="cb40-243"><a href="#cb40-243" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-244"><a href="#cb40-244" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data1)</span>
-<span id="cb40-245"><a href="#cb40-245" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-246"><a href="#cb40-246" aria-hidden="true" tabindex="-1"></a><span class="co"># generate unit effect by firm means of V2, which is correlated with V1</span></span>
-<span id="cb40-247"><a href="#cb40-247" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-248"><a href="#cb40-248" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(firm) <span class="sc">%&gt;%</span></span>
-<span id="cb40-249"><a href="#cb40-249" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">unit.effect=</span><span class="fu">mean</span>(V2)) <span class="sc">%&gt;%</span></span>
-<span id="cb40-250"><a href="#cb40-250" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb40-251"><a href="#cb40-251" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(firm, time)</span>
+<span id="cb40-244"><a href="#cb40-244" aria-hidden="true" tabindex="-1"></a>firm<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,n)</span>
+<span id="cb40-245"><a href="#cb40-245" aria-hidden="true" tabindex="-1"></a>time<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,t)</span>
+<span id="cb40-246"><a href="#cb40-246" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">firm=</span>firm,<span class="at">time=</span>time)</span>
+<span id="cb40-247"><a href="#cb40-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-248"><a href="#cb40-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-249"><a href="#cb40-249" aria-hidden="true" tabindex="-1"></a><span class="co"># W is the treatment assignment</span></span>
+<span id="cb40-250"><a href="#cb40-250" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
+<span id="cb40-251"><a href="#cb40-251" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>train <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
 <span id="cb40-252"><a href="#cb40-252" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-253"><a href="#cb40-253" aria-hidden="true" tabindex="-1"></a>y<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-254"><a href="#cb40-254" aria-hidden="true" tabindex="-1"></a>unit<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-255"><a href="#cb40-255" aria-hidden="true" tabindex="-1"></a>X<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-256"><a href="#cb40-256" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">0</span></span>
-<span id="cb40-257"><a href="#cb40-257" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n){</span>
-<span id="cb40-258"><a href="#cb40-258" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>t){</span>
-<span id="cb40-259"><a href="#cb40-259" aria-hidden="true" tabindex="-1"></a>        k<span class="ot">&lt;-</span>k<span class="sc">+</span><span class="dv">1</span></span>
-<span id="cb40-260"><a href="#cb40-260" aria-hidden="true" tabindex="-1"></a>        unit[k]<span class="ot">&lt;-</span>i</span>
-<span id="cb40-261"><a href="#cb40-261" aria-hidden="true" tabindex="-1"></a>        y[k]<span class="ot">&lt;-</span><span class="dv">1</span><span class="sc">+</span> <span class="fu">pmax</span>(data<span class="sc">$</span>V1[k],<span class="dv">0</span>)<span class="sc">*</span>data<span class="sc">$</span>W[k]  <span class="sc">+</span> data<span class="sc">$</span>unit.effect[k]<span class="sc">+</span><span class="fu">rnorm</span>(<span class="dv">1</span>,<span class="at">mean=</span><span class="dv">0</span>,<span class="at">sd=</span><span class="dv">1</span>)</span>
-<span id="cb40-262"><a href="#cb40-262" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb40-263"><a href="#cb40-263" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb40-264"><a href="#cb40-264" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>y<span class="ot">=</span>y</span>
-<span id="cb40-265"><a href="#cb40-265" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>unit <span class="ot">&lt;-</span> unit</span>
-<span id="cb40-266"><a href="#cb40-266" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-267"><a href="#cb40-267" aria-hidden="true" tabindex="-1"></a>data.train <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-268"><a href="#cb40-268" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">1</span>)</span>
-<span id="cb40-269"><a href="#cb40-269" aria-hidden="true" tabindex="-1"></a>data.test <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-270"><a href="#cb40-270" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">0</span>)</span>
-<span id="cb40-271"><a href="#cb40-271" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-272"><a href="#cb40-272" aria-hidden="true" tabindex="-1"></a><span class="co"># run fixed effect, random effect, and ols to see whether they are</span></span>
-<span id="cb40-273"><a href="#cb40-273" aria-hidden="true" tabindex="-1"></a><span class="co"># biased.</span></span>
-<span id="cb40-274"><a href="#cb40-274" aria-hidden="true" tabindex="-1"></a><span class="co"># they all perform poorly</span></span>
-<span id="cb40-275"><a href="#cb40-275" aria-hidden="true" tabindex="-1"></a>fe <span class="ot">&lt;-</span> <span class="fu">felm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W <span class="sc">|</span> unit, <span class="at">data=</span>data.train)</span>
-<span id="cb40-276"><a href="#cb40-276" aria-hidden="true" tabindex="-1"></a>re <span class="ot">&lt;-</span><span class="fu">lmer</span>(y<span class="sc">~</span>V1<span class="sc">*</span>W<span class="sc">+</span>(<span class="dv">1</span> <span class="sc">|</span> unit), <span class="at">data=</span>data.train)</span>
-<span id="cb40-277"><a href="#cb40-277" aria-hidden="true" tabindex="-1"></a>ols <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W , <span class="at">data=</span>data.train)</span>
-<span id="cb40-278"><a href="#cb40-278" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fe)</span>
-<span id="cb40-279"><a href="#cb40-279" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(re)</span>
-<span id="cb40-280"><a href="#cb40-280" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ols)</span>
-<span id="cb40-281"><a href="#cb40-281" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb40-282"><a href="#cb40-282" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-283"><a href="#cb40-283" aria-hidden="true" tabindex="-1"></a>These linear models miss the *shape* of the effect, but it overstates things to</span>
-<span id="cb40-284"><a href="#cb40-284" aria-hidden="true" tabindex="-1"></a>say they return nothing. Each recovers the best linear approximation to the true</span>
-<span id="cb40-285"><a href="#cb40-285" aria-hidden="true" tabindex="-1"></a>CATE $\max(V1,0)$, which is $0.3989 + 0.5\,V1$: the fitted $W$ coefficients are</span>
-<span id="cb40-286"><a href="#cb40-286" aria-hidden="true" tabindex="-1"></a>$0.40$--$0.43$ and the $V1{:}W$ interactions are $0.53$--$0.55$. In particular the</span>
-<span id="cb40-287"><a href="#cb40-287" aria-hidden="true" tabindex="-1"></a>$W$ coefficient is essentially the true ATE, $E<span class="co">[</span><span class="ot">\max(V1,0)</span><span class="co">]</span> = \phi(0) = 0.3989$.</span>
-<span id="cb40-288"><a href="#cb40-288" aria-hidden="true" tabindex="-1"></a>What a linear specification cannot do is see the kink at $V1 = 0$ — and that is</span>
-<span id="cb40-289"><a href="#cb40-289" aria-hidden="true" tabindex="-1"></a>what the forest is for.</span>
-<span id="cb40-290"><a href="#cb40-290" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-291"><a href="#cb40-291" aria-hidden="true" tabindex="-1"></a>Now we use Causal Forest.  The first graph is the predicted CATE against $V1$; the second graph is the predicted CATE against true CATE.  The third one adds in error bars.</span>
-<span id="cb40-292"><a href="#cb40-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-295"><a href="#cb40-295" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb40-296"><a href="#cb40-296" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk5</span></span>
-<span id="cb40-297"><a href="#cb40-297" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb40-298"><a href="#cb40-298" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb40-299"><a href="#cb40-299" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb40-253"><a href="#cb40-253" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-254"><a href="#cb40-254" aria-hidden="true" tabindex="-1"></a><span class="co"># generate two correlated variables</span></span>
+<span id="cb40-255"><a href="#cb40-255" aria-hidden="true" tabindex="-1"></a>covarMat <span class="ot">=</span> <span class="fu">matrix</span>( <span class="fu">c</span>(<span class="dv">1</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, <span class="dv">1</span> ) , <span class="at">nrow=</span><span class="dv">2</span> , <span class="at">ncol=</span><span class="dv">2</span> )</span>
+<span id="cb40-256"><a href="#cb40-256" aria-hidden="true" tabindex="-1"></a>data<span class="fl">.2</span>  <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">mvrnorm</span>(<span class="at">n=</span>n<span class="sc">*</span>t , <span class="at">mu=</span><span class="fu">rep</span>(<span class="dv">0</span>,<span class="dv">2</span>), <span class="at">Sigma=</span>covarMat ))</span>
+<span id="cb40-257"><a href="#cb40-257" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data<span class="fl">.2</span>) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"V1"</span>, <span class="st">"V2"</span>)</span>
+<span id="cb40-258"><a href="#cb40-258" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-259"><a href="#cb40-259" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data<span class="fl">.2</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb40-260"><a href="#cb40-260" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>()</span>
+<span id="cb40-261"><a href="#cb40-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-262"><a href="#cb40-262" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data1)</span>
+<span id="cb40-263"><a href="#cb40-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-264"><a href="#cb40-264" aria-hidden="true" tabindex="-1"></a><span class="co"># generate unit effect by firm means of V2, which is correlated with V1</span></span>
+<span id="cb40-265"><a href="#cb40-265" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-266"><a href="#cb40-266" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(firm) <span class="sc">%&gt;%</span></span>
+<span id="cb40-267"><a href="#cb40-267" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">unit.effect=</span><span class="fu">mean</span>(V2)) <span class="sc">%&gt;%</span></span>
+<span id="cb40-268"><a href="#cb40-268" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb40-269"><a href="#cb40-269" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(firm, time)</span>
+<span id="cb40-270"><a href="#cb40-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-271"><a href="#cb40-271" aria-hidden="true" tabindex="-1"></a>y<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-272"><a href="#cb40-272" aria-hidden="true" tabindex="-1"></a>unit<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-273"><a href="#cb40-273" aria-hidden="true" tabindex="-1"></a>X<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-274"><a href="#cb40-274" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb40-275"><a href="#cb40-275" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n){</span>
+<span id="cb40-276"><a href="#cb40-276" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>t){</span>
+<span id="cb40-277"><a href="#cb40-277" aria-hidden="true" tabindex="-1"></a>        k<span class="ot">&lt;-</span>k<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb40-278"><a href="#cb40-278" aria-hidden="true" tabindex="-1"></a>        unit[k]<span class="ot">&lt;-</span>i</span>
+<span id="cb40-279"><a href="#cb40-279" aria-hidden="true" tabindex="-1"></a>        y[k]<span class="ot">&lt;-</span><span class="dv">1</span><span class="sc">+</span> <span class="fu">pmax</span>(data<span class="sc">$</span>V1[k],<span class="dv">0</span>)<span class="sc">*</span>data<span class="sc">$</span>W[k]  <span class="sc">+</span> data<span class="sc">$</span>unit.effect[k]<span class="sc">+</span><span class="fu">rnorm</span>(<span class="dv">1</span>,<span class="at">mean=</span><span class="dv">0</span>,<span class="at">sd=</span><span class="dv">1</span>)</span>
+<span id="cb40-280"><a href="#cb40-280" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb40-281"><a href="#cb40-281" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb40-282"><a href="#cb40-282" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>y<span class="ot">=</span>y</span>
+<span id="cb40-283"><a href="#cb40-283" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>unit <span class="ot">&lt;-</span> unit</span>
+<span id="cb40-284"><a href="#cb40-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-285"><a href="#cb40-285" aria-hidden="true" tabindex="-1"></a>data.train <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-286"><a href="#cb40-286" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">1</span>)</span>
+<span id="cb40-287"><a href="#cb40-287" aria-hidden="true" tabindex="-1"></a>data.test <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-288"><a href="#cb40-288" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">0</span>)</span>
+<span id="cb40-289"><a href="#cb40-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-290"><a href="#cb40-290" aria-hidden="true" tabindex="-1"></a><span class="co"># run fixed effect, random effect, and ols to see whether they are</span></span>
+<span id="cb40-291"><a href="#cb40-291" aria-hidden="true" tabindex="-1"></a><span class="co"># biased.</span></span>
+<span id="cb40-292"><a href="#cb40-292" aria-hidden="true" tabindex="-1"></a><span class="co"># they all perform poorly</span></span>
+<span id="cb40-293"><a href="#cb40-293" aria-hidden="true" tabindex="-1"></a>fe <span class="ot">&lt;-</span> <span class="fu">felm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W <span class="sc">|</span> unit, <span class="at">data=</span>data.train)</span>
+<span id="cb40-294"><a href="#cb40-294" aria-hidden="true" tabindex="-1"></a>re <span class="ot">&lt;-</span><span class="fu">lmer</span>(y<span class="sc">~</span>V1<span class="sc">*</span>W<span class="sc">+</span>(<span class="dv">1</span> <span class="sc">|</span> unit), <span class="at">data=</span>data.train)</span>
+<span id="cb40-295"><a href="#cb40-295" aria-hidden="true" tabindex="-1"></a>ols <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W , <span class="at">data=</span>data.train)</span>
+<span id="cb40-296"><a href="#cb40-296" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fe)</span>
+<span id="cb40-297"><a href="#cb40-297" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(re)</span>
+<span id="cb40-298"><a href="#cb40-298" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ols)</span>
+<span id="cb40-299"><a href="#cb40-299" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb40-300"><a href="#cb40-300" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-301"><a href="#cb40-301" aria-hidden="true" tabindex="-1"></a>all_firms <span class="ot">&lt;-</span> <span class="fu">levels</span>(<span class="fu">factor</span>(data<span class="sc">$</span>firm))</span>
-<span id="cb40-302"><a href="#cb40-302" aria-hidden="true" tabindex="-1"></a>data.train<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.train<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
-<span id="cb40-303"><a href="#cb40-303" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.test<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
-<span id="cb40-304"><a href="#cb40-304" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-305"><a href="#cb40-305" aria-hidden="true" tabindex="-1"></a><span class="co"># a is a data set of firm dummies</span></span>
-<span id="cb40-306"><a href="#cb40-306" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.train))</span>
-<span id="cb40-307"><a href="#cb40-307" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.train[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
-<span id="cb40-308"><a href="#cb40-308" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data.train<span class="sc">$</span>y</span>
-<span id="cb40-309"><a href="#cb40-309" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data.train<span class="sc">$</span>W</span>
+<span id="cb40-301"><a href="#cb40-301" aria-hidden="true" tabindex="-1"></a>These linear models miss the *shape* of the effect, but it overstates things to</span>
+<span id="cb40-302"><a href="#cb40-302" aria-hidden="true" tabindex="-1"></a>say they return nothing. Each recovers the best linear approximation to the true</span>
+<span id="cb40-303"><a href="#cb40-303" aria-hidden="true" tabindex="-1"></a>CATE $\max(V1,0)$, which is $0.3989 + 0.5\,V1$: the fitted $W$ coefficients are</span>
+<span id="cb40-304"><a href="#cb40-304" aria-hidden="true" tabindex="-1"></a>$0.40$--$0.43$ and the $V1{:}W$ interactions are $0.53$--$0.55$. In particular the</span>
+<span id="cb40-305"><a href="#cb40-305" aria-hidden="true" tabindex="-1"></a>$W$ coefficient is essentially the true ATE, $E<span class="co">[</span><span class="ot">\max(V1,0)</span><span class="co">]</span> = \phi(0) = 0.3989$.</span>
+<span id="cb40-306"><a href="#cb40-306" aria-hidden="true" tabindex="-1"></a>What a linear specification cannot do is see the kink at $V1 = 0$ — and that is</span>
+<span id="cb40-307"><a href="#cb40-307" aria-hidden="true" tabindex="-1"></a>what the forest is for.</span>
+<span id="cb40-308"><a href="#cb40-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-309"><a href="#cb40-309" aria-hidden="true" tabindex="-1"></a>Now we use Causal Forest.  The first graph is the predicted CATE against $V1$; the second graph is the predicted CATE against true CATE.  The third one adds in error bars.</span>
 <span id="cb40-310"><a href="#cb40-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-311"><a href="#cb40-311" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest = causal_forest(X, Y, W, num.trees = 4000)</span></span>
-<span id="cb40-312"><a href="#cb40-312" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.test))</span>
-<span id="cb40-313"><a href="#cb40-313" aria-hidden="true" tabindex="-1"></a>X.test <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.test[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
-<span id="cb40-314"><a href="#cb40-314" aria-hidden="true" tabindex="-1"></a>Y.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>y</span>
-<span id="cb40-315"><a href="#cb40-315" aria-hidden="true" tabindex="-1"></a>W.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>W</span>
+<span id="cb40-311"><a href="#cb40-311" aria-hidden="true" tabindex="-1"></a>The forest's ATE is 0.3732 (SE 0.0533) and 0.3722 (SE 0.0529), against the true</span>
+<span id="cb40-312"><a href="#cb40-312" aria-hidden="true" tabindex="-1"></a>$0.3989$ — within half a standard error, and no better than the linear model's</span>
+<span id="cb40-313"><a href="#cb40-313" aria-hidden="true" tabindex="-1"></a>$W$ coefficient at recovering the average. The gain is in the shape: the fitted</span>
+<span id="cb40-314"><a href="#cb40-314" aria-hidden="true" tabindex="-1"></a>CATE should flatten to zero for $V1 &lt; 0$ and rise linearly above it, which is the</span>
+<span id="cb40-315"><a href="#cb40-315" aria-hidden="true" tabindex="-1"></a>kink the linear interaction smooths straight through.</span>
 <span id="cb40-316"><a href="#cb40-316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-317"><a href="#cb40-317" aria-hidden="true" tabindex="-1"></a>tau.forest3 <span class="ot">=</span> <span class="fu">causal_forest</span>(X, Y, W, <span class="at">clusters =</span> <span class="fu">as.integer</span>(data.train<span class="sc">$</span>firm))</span>
-<span id="cb40-318"><a href="#cb40-318" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-319"><a href="#cb40-319" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest3, <span class="at">target.sample =</span> <span class="st">"all"</span>)</span>
-<span id="cb40-320"><a href="#cb40-320" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest3, <span class="at">target.sample =</span> <span class="st">"treated"</span>)</span>
-<span id="cb40-321"><a href="#cb40-321" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-322"><a href="#cb40-322" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest3 = causal_forest(X, Y, W, num.trees = 4000)</span></span>
-<span id="cb40-323"><a href="#cb40-323" aria-hidden="true" tabindex="-1"></a>tau.hat3 <span class="ot">=</span> <span class="fu">predict</span>(tau.forest3, X.test, <span class="at">estimate.variance =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb40-324"><a href="#cb40-324" aria-hidden="true" tabindex="-1"></a>sigma.hat3 <span class="ot">=</span> <span class="fu">sqrt</span>(tau.hat3<span class="sc">$</span>variance.estimates)</span>
-<span id="cb40-325"><a href="#cb40-325" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-326"><a href="#cb40-326" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>pred3 <span class="ot">&lt;-</span> tau.hat3<span class="sc">$</span>predictions</span>
-<span id="cb40-327"><a href="#cb40-327" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-328"><a href="#cb40-328" aria-hidden="true" tabindex="-1"></a>seg1 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x1 =</span> <span class="sc">-</span><span class="dv">3</span>, <span class="at">x2 =</span> <span class="dv">0</span>, <span class="at">y1 =</span> <span class="dv">0</span>, <span class="at">y2 =</span> <span class="dv">0</span>)</span>
-<span id="cb40-329"><a href="#cb40-329" aria-hidden="true" tabindex="-1"></a>seg2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x1 =</span> <span class="dv">0</span>, <span class="at">x2 =</span> <span class="dv">2</span>, <span class="at">y1 =</span> <span class="dv">0</span>, <span class="at">y2 =</span> <span class="dv">2</span>)</span>
-<span id="cb40-330"><a href="#cb40-330" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data.test, <span class="fu">aes</span>(<span class="at">x=</span>V1, <span class="at">y=</span>pred3)) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span></span>
-<span id="cb40-331"><a href="#cb40-331" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_segment</span>(<span class="fu">aes</span>(<span class="at">x =</span> x1, <span class="at">y =</span> y1, <span class="at">xend =</span> x2, <span class="at">yend =</span> y2, <span class="at">colour =</span> <span class="st">"segment"</span>), <span class="at">data =</span> seg1)<span class="sc">+</span></span>
-<span id="cb40-332"><a href="#cb40-332" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_segment</span>(<span class="fu">aes</span>(<span class="at">x =</span> x1, <span class="at">y =</span> y1, <span class="at">xend =</span> x2, <span class="at">yend =</span> y2, <span class="at">colour =</span> <span class="st">"segment"</span>), <span class="at">data =</span> seg2)</span>
-<span id="cb40-333"><a href="#cb40-333" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-334"><a href="#cb40-334" aria-hidden="true" tabindex="-1"></a>graph.data3 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(tau.hat3)</span>
-<span id="cb40-335"><a href="#cb40-335" aria-hidden="true" tabindex="-1"></a>graph.data3 <span class="ot">&lt;-</span> graph.data3 <span class="sc">%&gt;%</span></span>
-<span id="cb40-336"><a href="#cb40-336" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cate=</span><span class="fu">pmax</span>(data.test<span class="sc">$</span>V1,<span class="dv">0</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb40-337"><a href="#cb40-337" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lower=</span>predictions <span class="sc">-</span> sigma.hat3, <span class="at">upper=</span>predictions <span class="sc">+</span> sigma.hat3)</span>
-<span id="cb40-338"><a href="#cb40-338" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-339"><a href="#cb40-339" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(graph.data3, <span class="fu">aes</span>(<span class="at">x=</span>cate, <span class="at">y=</span>predictions)) <span class="sc">+</span> <span class="fu">geom_point</span>()  <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-319"><a href="#cb40-319" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb40-320"><a href="#cb40-320" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk5</span></span>
+<span id="cb40-321"><a href="#cb40-321" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb40-322"><a href="#cb40-322" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb40-323"><a href="#cb40-323" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb40-324"><a href="#cb40-324" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-325"><a href="#cb40-325" aria-hidden="true" tabindex="-1"></a>all_firms <span class="ot">&lt;-</span> <span class="fu">levels</span>(<span class="fu">factor</span>(data<span class="sc">$</span>firm))</span>
+<span id="cb40-326"><a href="#cb40-326" aria-hidden="true" tabindex="-1"></a>data.train<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.train<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
+<span id="cb40-327"><a href="#cb40-327" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.test<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
+<span id="cb40-328"><a href="#cb40-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-329"><a href="#cb40-329" aria-hidden="true" tabindex="-1"></a><span class="co"># a is a data set of firm dummies</span></span>
+<span id="cb40-330"><a href="#cb40-330" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.train))</span>
+<span id="cb40-331"><a href="#cb40-331" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.train[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
+<span id="cb40-332"><a href="#cb40-332" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data.train<span class="sc">$</span>y</span>
+<span id="cb40-333"><a href="#cb40-333" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data.train<span class="sc">$</span>W</span>
+<span id="cb40-334"><a href="#cb40-334" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-335"><a href="#cb40-335" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest = causal_forest(X, Y, W, num.trees = 4000)</span></span>
+<span id="cb40-336"><a href="#cb40-336" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.test))</span>
+<span id="cb40-337"><a href="#cb40-337" aria-hidden="true" tabindex="-1"></a>X.test <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.test[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
+<span id="cb40-338"><a href="#cb40-338" aria-hidden="true" tabindex="-1"></a>Y.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>y</span>
+<span id="cb40-339"><a href="#cb40-339" aria-hidden="true" tabindex="-1"></a>W.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>W</span>
 <span id="cb40-340"><a href="#cb40-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-341"><a href="#cb40-341" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-342"><a href="#cb40-342" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_errorbar</span>(graph.data3, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(graph.data3, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">y=</span>predictions), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
-<span id="cb40-343"><a href="#cb40-343" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-344"><a href="#cb40-344" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb40-341"><a href="#cb40-341" aria-hidden="true" tabindex="-1"></a>tau.forest3 <span class="ot">=</span> <span class="fu">causal_forest</span>(X, Y, W, <span class="at">clusters =</span> <span class="fu">as.integer</span>(data.train<span class="sc">$</span>firm))</span>
+<span id="cb40-342"><a href="#cb40-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-343"><a href="#cb40-343" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest3, <span class="at">target.sample =</span> <span class="st">"all"</span>)</span>
+<span id="cb40-344"><a href="#cb40-344" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest3, <span class="at">target.sample =</span> <span class="st">"treated"</span>)</span>
 <span id="cb40-345"><a href="#cb40-345" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-346"><a href="#cb40-346" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-347"><a href="#cb40-347" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Nonlinear effect case 2</span></span>
-<span id="cb40-348"><a href="#cb40-348" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-349"><a href="#cb40-349" aria-hidden="true" tabindex="-1"></a>In the second situation, we assume DGP:</span>
-<span id="cb40-350"><a href="#cb40-350" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-351"><a href="#cb40-351" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + \log(V1_{it}^2)*W_{it} + \min(X3_{it}, 0) + \epsilon_{it} $$ {#eq-causal-forest-panel-3}</span>
-<span id="cb40-352"><a href="#cb40-352" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-353"><a href="#cb40-353" aria-hidden="true" tabindex="-1"></a>But we only observe $V1$, not the log of the squared $V1$.  The extra</span>
-<span id="cb40-354"><a href="#cb40-354" aria-hidden="true" tabindex="-1"></a>$\min(X3_{it},0)$ term is a nonlinearity in the *outcome* rather than in the</span>
-<span id="cb40-355"><a href="#cb40-355" aria-hidden="true" tabindex="-1"></a>treatment effect, so it leaves the CATE equal to $\log(V1^2)$; it is there to give</span>
-<span id="cb40-356"><a href="#cb40-356" aria-hidden="true" tabindex="-1"></a>the forest's nuisance models something nonlinear to fit.</span>
+<span id="cb40-346"><a href="#cb40-346" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest3 = causal_forest(X, Y, W, num.trees = 4000)</span></span>
+<span id="cb40-347"><a href="#cb40-347" aria-hidden="true" tabindex="-1"></a>tau.hat3 <span class="ot">=</span> <span class="fu">predict</span>(tau.forest3, X.test, <span class="at">estimate.variance =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb40-348"><a href="#cb40-348" aria-hidden="true" tabindex="-1"></a>sigma.hat3 <span class="ot">=</span> <span class="fu">sqrt</span>(tau.hat3<span class="sc">$</span>variance.estimates)</span>
+<span id="cb40-349"><a href="#cb40-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-350"><a href="#cb40-350" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>pred3 <span class="ot">&lt;-</span> tau.hat3<span class="sc">$</span>predictions</span>
+<span id="cb40-351"><a href="#cb40-351" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-352"><a href="#cb40-352" aria-hidden="true" tabindex="-1"></a>seg1 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x1 =</span> <span class="sc">-</span><span class="dv">3</span>, <span class="at">x2 =</span> <span class="dv">0</span>, <span class="at">y1 =</span> <span class="dv">0</span>, <span class="at">y2 =</span> <span class="dv">0</span>)</span>
+<span id="cb40-353"><a href="#cb40-353" aria-hidden="true" tabindex="-1"></a>seg2 <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">x1 =</span> <span class="dv">0</span>, <span class="at">x2 =</span> <span class="dv">2</span>, <span class="at">y1 =</span> <span class="dv">0</span>, <span class="at">y2 =</span> <span class="dv">2</span>)</span>
+<span id="cb40-354"><a href="#cb40-354" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data.test, <span class="fu">aes</span>(<span class="at">x=</span>V1, <span class="at">y=</span>pred3)) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb40-355"><a href="#cb40-355" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_segment</span>(<span class="fu">aes</span>(<span class="at">x =</span> x1, <span class="at">y =</span> y1, <span class="at">xend =</span> x2, <span class="at">yend =</span> y2, <span class="at">colour =</span> <span class="st">"segment"</span>), <span class="at">data =</span> seg1)<span class="sc">+</span></span>
+<span id="cb40-356"><a href="#cb40-356" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_segment</span>(<span class="fu">aes</span>(<span class="at">x =</span> x1, <span class="at">y =</span> y1, <span class="at">xend =</span> x2, <span class="at">yend =</span> y2, <span class="at">colour =</span> <span class="st">"segment"</span>), <span class="at">data =</span> seg2)</span>
 <span id="cb40-357"><a href="#cb40-357" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-360"><a href="#cb40-360" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb40-361"><a href="#cb40-361" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk6</span></span>
-<span id="cb40-362"><a href="#cb40-362" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb40-363"><a href="#cb40-363" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb40-364"><a href="#cb40-364" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb40-358"><a href="#cb40-358" aria-hidden="true" tabindex="-1"></a>graph.data3 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(tau.hat3)</span>
+<span id="cb40-359"><a href="#cb40-359" aria-hidden="true" tabindex="-1"></a>graph.data3 <span class="ot">&lt;-</span> graph.data3 <span class="sc">%&gt;%</span></span>
+<span id="cb40-360"><a href="#cb40-360" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cate=</span><span class="fu">pmax</span>(data.test<span class="sc">$</span>V1,<span class="dv">0</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb40-361"><a href="#cb40-361" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lower=</span>predictions <span class="sc">-</span> sigma.hat3, <span class="at">upper=</span>predictions <span class="sc">+</span> sigma.hat3)</span>
+<span id="cb40-362"><a href="#cb40-362" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-363"><a href="#cb40-363" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(graph.data3, <span class="fu">aes</span>(<span class="at">x=</span>cate, <span class="at">y=</span>predictions)) <span class="sc">+</span> <span class="fu">geom_point</span>()  <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-364"><a href="#cb40-364" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-365"><a href="#cb40-365" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-366"><a href="#cb40-366" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-367"><a href="#cb40-367" aria-hidden="true" tabindex="-1"></a><span class="co"># if we have a nonlinear effect</span></span>
-<span id="cb40-368"><a href="#cb40-368" aria-hidden="true" tabindex="-1"></a><span class="co"># suppose we have the same X, but y is generated nonlinearly.</span></span>
-<span id="cb40-369"><a href="#cb40-369" aria-hidden="true" tabindex="-1"></a><span class="co"># another example: we observe V1, but the true treatment effect is log(V1^2)</span></span>
-<span id="cb40-370"><a href="#cb40-370" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
-<span id="cb40-371"><a href="#cb40-371" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
-<span id="cb40-372"><a href="#cb40-372" aria-hidden="true" tabindex="-1"></a><span class="co"># t is no. of periods. p is no. of variables, n is no. of firms.</span></span>
-<span id="cb40-373"><a href="#cb40-373" aria-hidden="true" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="dv">10</span></span>
-<span id="cb40-374"><a href="#cb40-374" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
-<span id="cb40-375"><a href="#cb40-375" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">400</span></span>
-<span id="cb40-376"><a href="#cb40-376" aria-hidden="true" tabindex="-1"></a><span class="co"># generate p random variables</span></span>
-<span id="cb40-377"><a href="#cb40-377" aria-hidden="true" tabindex="-1"></a>data1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>t<span class="sc">*</span>p), n<span class="sc">*</span>t, p))</span>
-<span id="cb40-378"><a href="#cb40-378" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data1) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"X"</span>, <span class="dv">1</span><span class="sc">:</span>p)</span>
-<span id="cb40-379"><a href="#cb40-379" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-380"><a href="#cb40-380" aria-hidden="true" tabindex="-1"></a>firm<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,n)</span>
-<span id="cb40-381"><a href="#cb40-381" aria-hidden="true" tabindex="-1"></a>time<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,t)</span>
-<span id="cb40-382"><a href="#cb40-382" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">firm=</span>firm,<span class="at">time=</span>time)</span>
-<span id="cb40-383"><a href="#cb40-383" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-384"><a href="#cb40-384" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-385"><a href="#cb40-385" aria-hidden="true" tabindex="-1"></a><span class="co"># W is the treatment assignment</span></span>
-<span id="cb40-386"><a href="#cb40-386" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb40-387"><a href="#cb40-387" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>train <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
-<span id="cb40-388"><a href="#cb40-388" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-366"><a href="#cb40-366" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_errorbar</span>(graph.data3, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(graph.data3, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">y=</span>predictions), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-367"><a href="#cb40-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-368"><a href="#cb40-368" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb40-369"><a href="#cb40-369" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-370"><a href="#cb40-370" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-371"><a href="#cb40-371" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Nonlinear effect case 2</span></span>
+<span id="cb40-372"><a href="#cb40-372" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-373"><a href="#cb40-373" aria-hidden="true" tabindex="-1"></a>In the second situation, we assume DGP:</span>
+<span id="cb40-374"><a href="#cb40-374" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-375"><a href="#cb40-375" aria-hidden="true" tabindex="-1"></a>$$y_{it} = 1 +  \alpha_i + \log(V1_{it}^2)*W_{it} + \min(X3_{it}, 0) + \epsilon_{it} $$ {#eq-causal-forest-panel-3}</span>
+<span id="cb40-376"><a href="#cb40-376" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-377"><a href="#cb40-377" aria-hidden="true" tabindex="-1"></a>But we only observe $V1$, not the log of the squared $V1$.  The extra</span>
+<span id="cb40-378"><a href="#cb40-378" aria-hidden="true" tabindex="-1"></a>$\min(X3_{it},0)$ term is a nonlinearity in the *outcome* rather than in the</span>
+<span id="cb40-379"><a href="#cb40-379" aria-hidden="true" tabindex="-1"></a>treatment effect, so it leaves the CATE equal to $\log(V1^2)$; it is there to give</span>
+<span id="cb40-380"><a href="#cb40-380" aria-hidden="true" tabindex="-1"></a>the forest's nuisance models something nonlinear to fit.</span>
+<span id="cb40-381"><a href="#cb40-381" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-384"><a href="#cb40-384" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb40-385"><a href="#cb40-385" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk6</span></span>
+<span id="cb40-386"><a href="#cb40-386" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb40-387"><a href="#cb40-387" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb40-388"><a href="#cb40-388" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
 <span id="cb40-389"><a href="#cb40-389" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-390"><a href="#cb40-390" aria-hidden="true" tabindex="-1"></a><span class="co"># generate two correlated variables</span></span>
-<span id="cb40-391"><a href="#cb40-391" aria-hidden="true" tabindex="-1"></a>covarMat <span class="ot">=</span> <span class="fu">matrix</span>( <span class="fu">c</span>(<span class="dv">1</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, <span class="dv">1</span> ) , <span class="at">nrow=</span><span class="dv">2</span> , <span class="at">ncol=</span><span class="dv">2</span> )</span>
-<span id="cb40-392"><a href="#cb40-392" aria-hidden="true" tabindex="-1"></a>data<span class="fl">.2</span>  <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">mvrnorm</span>(<span class="at">n=</span>n<span class="sc">*</span>t , <span class="at">mu=</span><span class="fu">rep</span>(<span class="dv">0</span>,<span class="dv">2</span>), <span class="at">Sigma=</span>covarMat ))</span>
-<span id="cb40-393"><a href="#cb40-393" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data<span class="fl">.2</span>) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"V1"</span>, <span class="st">"V2"</span>)</span>
-<span id="cb40-394"><a href="#cb40-394" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-395"><a href="#cb40-395" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data<span class="fl">.2</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb40-396"><a href="#cb40-396" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>()</span>
-<span id="cb40-397"><a href="#cb40-397" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-398"><a href="#cb40-398" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data1)</span>
-<span id="cb40-399"><a href="#cb40-399" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-400"><a href="#cb40-400" aria-hidden="true" tabindex="-1"></a><span class="co"># generate unit effect by firm means of V2, which is correlated with V1</span></span>
-<span id="cb40-401"><a href="#cb40-401" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-402"><a href="#cb40-402" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(firm) <span class="sc">%&gt;%</span></span>
-<span id="cb40-403"><a href="#cb40-403" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">unit.effect=</span><span class="fu">mean</span>(V2)) <span class="sc">%&gt;%</span></span>
-<span id="cb40-404"><a href="#cb40-404" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb40-405"><a href="#cb40-405" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(firm, time)</span>
-<span id="cb40-406"><a href="#cb40-406" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-407"><a href="#cb40-407" aria-hidden="true" tabindex="-1"></a>y<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-408"><a href="#cb40-408" aria-hidden="true" tabindex="-1"></a>unit<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-409"><a href="#cb40-409" aria-hidden="true" tabindex="-1"></a>X<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
-<span id="cb40-410"><a href="#cb40-410" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">0</span></span>
-<span id="cb40-411"><a href="#cb40-411" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n){</span>
-<span id="cb40-412"><a href="#cb40-412" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>t){</span>
-<span id="cb40-413"><a href="#cb40-413" aria-hidden="true" tabindex="-1"></a>        k<span class="ot">&lt;-</span>k<span class="sc">+</span><span class="dv">1</span></span>
-<span id="cb40-414"><a href="#cb40-414" aria-hidden="true" tabindex="-1"></a>        unit[k]<span class="ot">&lt;-</span>i</span>
-<span id="cb40-415"><a href="#cb40-415" aria-hidden="true" tabindex="-1"></a>        y[k]<span class="ot">&lt;-</span><span class="dv">1</span><span class="sc">+</span> <span class="fu">log</span>(data<span class="sc">$</span>V1[k]<span class="sc">^</span><span class="dv">2</span>)<span class="sc">*</span>data<span class="sc">$</span>W[k] <span class="sc">+</span> <span class="fu">pmin</span>(data<span class="sc">$</span>X3[k], <span class="dv">0</span>) <span class="sc">+</span> data<span class="sc">$</span>unit.effect[k]<span class="sc">+</span><span class="fu">rnorm</span>(<span class="dv">1</span>,<span class="at">mean=</span><span class="dv">0</span>,<span class="at">sd=</span><span class="dv">1</span>)</span>
-<span id="cb40-416"><a href="#cb40-416" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb40-417"><a href="#cb40-417" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb40-418"><a href="#cb40-418" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>y<span class="ot">=</span>y</span>
-<span id="cb40-419"><a href="#cb40-419" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>unit <span class="ot">&lt;-</span> unit</span>
-<span id="cb40-420"><a href="#cb40-420" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-421"><a href="#cb40-421" aria-hidden="true" tabindex="-1"></a>data.train <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-422"><a href="#cb40-422" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">1</span>)</span>
-<span id="cb40-423"><a href="#cb40-423" aria-hidden="true" tabindex="-1"></a>data.test <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
-<span id="cb40-424"><a href="#cb40-424" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">0</span>)</span>
-<span id="cb40-425"><a href="#cb40-425" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-426"><a href="#cb40-426" aria-hidden="true" tabindex="-1"></a><span class="co"># run fixed effect, random effect, and ols to see whether they are</span></span>
-<span id="cb40-427"><a href="#cb40-427" aria-hidden="true" tabindex="-1"></a><span class="co"># biased.</span></span>
-<span id="cb40-428"><a href="#cb40-428" aria-hidden="true" tabindex="-1"></a><span class="co"># they all perform poorly</span></span>
-<span id="cb40-429"><a href="#cb40-429" aria-hidden="true" tabindex="-1"></a>fe <span class="ot">&lt;-</span> <span class="fu">felm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W <span class="sc">|</span> unit, <span class="at">data=</span>data.train)</span>
-<span id="cb40-430"><a href="#cb40-430" aria-hidden="true" tabindex="-1"></a>re <span class="ot">&lt;-</span><span class="fu">lmer</span>(y<span class="sc">~</span>V1<span class="sc">*</span>W<span class="sc">+</span>(<span class="dv">1</span> <span class="sc">|</span> unit), <span class="at">data=</span>data.train)</span>
-<span id="cb40-431"><a href="#cb40-431" aria-hidden="true" tabindex="-1"></a>ols <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W , <span class="at">data=</span>data.train)</span>
-<span id="cb40-432"><a href="#cb40-432" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fe)</span>
-<span id="cb40-433"><a href="#cb40-433" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(re)</span>
-<span id="cb40-434"><a href="#cb40-434" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ols)</span>
-<span id="cb40-435"><a href="#cb40-435" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-436"><a href="#cb40-436" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb40-437"><a href="#cb40-437" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-438"><a href="#cb40-438" aria-hidden="true" tabindex="-1"></a>Here the linear models fail more completely, and instructively so. Because</span>
-<span id="cb40-439"><a href="#cb40-439" aria-hidden="true" tabindex="-1"></a>$\log(V1^2)$ is *even* in $V1$, its linear interaction with $V1$ is zero by</span>
-<span id="cb40-440"><a href="#cb40-440" aria-hidden="true" tabindex="-1"></a>construction: the fitted $V1{:}W$ terms come out at $0.015$, $-0.019$ and</span>
-<span id="cb40-441"><a href="#cb40-441" aria-hidden="true" tabindex="-1"></a>$-0.020$, i.e. no detectable heterogeneity at all, even though the true CATE</span>
-<span id="cb40-442"><a href="#cb40-442" aria-hidden="true" tabindex="-1"></a>varies enormously with $V1$. The $W$ coefficients ($\approx -1.18$) still</span>
-<span id="cb40-443"><a href="#cb40-443" aria-hidden="true" tabindex="-1"></a>approximate the true ATE, $E<span class="co">[</span><span class="ot">\log(V1^2)</span><span class="co">]</span> = \psi(1/2) + \log 2 = -1.2704$. So a</span>
-<span id="cb40-444"><a href="#cb40-444" aria-hidden="true" tabindex="-1"></a>linear model gets the average right and the heterogeneity completely wrong.</span>
-<span id="cb40-445"><a href="#cb40-445" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-446"><a href="#cb40-446" aria-hidden="true" tabindex="-1"></a>Now we run Causal Forest.  Again, first graph is predicted CATE against $V1$, the second one is the predicted CATE against true CATE, the third one adds error bars.</span>
-<span id="cb40-447"><a href="#cb40-447" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-448"><a href="#cb40-448" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-451"><a href="#cb40-451" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb40-452"><a href="#cb40-452" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk7</span></span>
-<span id="cb40-453"><a href="#cb40-453" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb40-454"><a href="#cb40-454" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb40-455"><a href="#cb40-455" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb40-456"><a href="#cb40-456" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-457"><a href="#cb40-457" aria-hidden="true" tabindex="-1"></a>all_firms <span class="ot">&lt;-</span> <span class="fu">levels</span>(<span class="fu">factor</span>(data<span class="sc">$</span>firm))</span>
-<span id="cb40-458"><a href="#cb40-458" aria-hidden="true" tabindex="-1"></a>data.train<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.train<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
-<span id="cb40-459"><a href="#cb40-459" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.test<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
-<span id="cb40-460"><a href="#cb40-460" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-461"><a href="#cb40-461" aria-hidden="true" tabindex="-1"></a><span class="co"># a is a data set of firm dummies</span></span>
-<span id="cb40-462"><a href="#cb40-462" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.train))</span>
-<span id="cb40-463"><a href="#cb40-463" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.train[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
-<span id="cb40-464"><a href="#cb40-464" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data.train<span class="sc">$</span>y</span>
-<span id="cb40-465"><a href="#cb40-465" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data.train<span class="sc">$</span>W</span>
-<span id="cb40-466"><a href="#cb40-466" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-467"><a href="#cb40-467" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest = causal_forest(X, Y, W, num.trees = 4000)</span></span>
-<span id="cb40-468"><a href="#cb40-468" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.test))</span>
-<span id="cb40-469"><a href="#cb40-469" aria-hidden="true" tabindex="-1"></a>X.test <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.test[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
-<span id="cb40-470"><a href="#cb40-470" aria-hidden="true" tabindex="-1"></a>Y.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>y</span>
-<span id="cb40-471"><a href="#cb40-471" aria-hidden="true" tabindex="-1"></a>W.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>W</span>
-<span id="cb40-472"><a href="#cb40-472" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-473"><a href="#cb40-473" aria-hidden="true" tabindex="-1"></a>tau.forest4 <span class="ot">=</span> <span class="fu">causal_forest</span>(X, Y, W, <span class="at">clusters =</span> <span class="fu">as.integer</span>(data.train<span class="sc">$</span>firm))</span>
-<span id="cb40-474"><a href="#cb40-474" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-475"><a href="#cb40-475" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest4, <span class="at">target.sample =</span> <span class="st">"all"</span>)</span>
-<span id="cb40-476"><a href="#cb40-476" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest4, <span class="at">target.sample =</span> <span class="st">"treated"</span>)</span>
+<span id="cb40-390"><a href="#cb40-390" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-391"><a href="#cb40-391" aria-hidden="true" tabindex="-1"></a><span class="co"># if we have a nonlinear effect</span></span>
+<span id="cb40-392"><a href="#cb40-392" aria-hidden="true" tabindex="-1"></a><span class="co"># suppose we have the same X, but y is generated nonlinearly.</span></span>
+<span id="cb40-393"><a href="#cb40-393" aria-hidden="true" tabindex="-1"></a><span class="co"># another example: we observe V1, but the true treatment effect is log(V1^2)</span></span>
+<span id="cb40-394"><a href="#cb40-394" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">666</span>)</span>
+<span id="cb40-395"><a href="#cb40-395" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">ls</span>())</span>
+<span id="cb40-396"><a href="#cb40-396" aria-hidden="true" tabindex="-1"></a><span class="co"># t is no. of periods. p is no. of variables, n is no. of firms.</span></span>
+<span id="cb40-397"><a href="#cb40-397" aria-hidden="true" tabindex="-1"></a>t <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb40-398"><a href="#cb40-398" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb40-399"><a href="#cb40-399" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span><span class="dv">400</span></span>
+<span id="cb40-400"><a href="#cb40-400" aria-hidden="true" tabindex="-1"></a><span class="co"># generate p random variables</span></span>
+<span id="cb40-401"><a href="#cb40-401" aria-hidden="true" tabindex="-1"></a>data1 <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>t<span class="sc">*</span>p), n<span class="sc">*</span>t, p))</span>
+<span id="cb40-402"><a href="#cb40-402" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data1) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"X"</span>, <span class="dv">1</span><span class="sc">:</span>p)</span>
+<span id="cb40-403"><a href="#cb40-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-404"><a href="#cb40-404" aria-hidden="true" tabindex="-1"></a>firm<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,n)</span>
+<span id="cb40-405"><a href="#cb40-405" aria-hidden="true" tabindex="-1"></a>time<span class="ot">=</span><span class="fu">seq</span>(<span class="dv">1</span>,t)</span>
+<span id="cb40-406"><a href="#cb40-406" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">firm=</span>firm,<span class="at">time=</span>time)</span>
+<span id="cb40-407"><a href="#cb40-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-408"><a href="#cb40-408" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-409"><a href="#cb40-409" aria-hidden="true" tabindex="-1"></a><span class="co"># W is the treatment assignment</span></span>
+<span id="cb40-410"><a href="#cb40-410" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
+<span id="cb40-411"><a href="#cb40-411" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>train <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n<span class="sc">*</span>t, <span class="dv">1</span>, <span class="fl">0.5</span>)</span>
+<span id="cb40-412"><a href="#cb40-412" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-413"><a href="#cb40-413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-414"><a href="#cb40-414" aria-hidden="true" tabindex="-1"></a><span class="co"># generate two correlated variables</span></span>
+<span id="cb40-415"><a href="#cb40-415" aria-hidden="true" tabindex="-1"></a>covarMat <span class="ot">=</span> <span class="fu">matrix</span>( <span class="fu">c</span>(<span class="dv">1</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, .<span class="dv">95</span><span class="sc">^</span><span class="dv">2</span>, <span class="dv">1</span> ) , <span class="at">nrow=</span><span class="dv">2</span> , <span class="at">ncol=</span><span class="dv">2</span> )</span>
+<span id="cb40-416"><a href="#cb40-416" aria-hidden="true" tabindex="-1"></a>data<span class="fl">.2</span>  <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">mvrnorm</span>(<span class="at">n=</span>n<span class="sc">*</span>t , <span class="at">mu=</span><span class="fu">rep</span>(<span class="dv">0</span>,<span class="dv">2</span>), <span class="at">Sigma=</span>covarMat ))</span>
+<span id="cb40-417"><a href="#cb40-417" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(data<span class="fl">.2</span>) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"V1"</span>, <span class="st">"V2"</span>)</span>
+<span id="cb40-418"><a href="#cb40-418" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-419"><a href="#cb40-419" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data<span class="fl">.2</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb40-420"><a href="#cb40-420" aria-hidden="true" tabindex="-1"></a>    <span class="fu">tibble</span>()</span>
+<span id="cb40-421"><a href="#cb40-421" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-422"><a href="#cb40-422" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">bind_cols</span>(data,data1)</span>
+<span id="cb40-423"><a href="#cb40-423" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-424"><a href="#cb40-424" aria-hidden="true" tabindex="-1"></a><span class="co"># generate unit effect by firm means of V2, which is correlated with V1</span></span>
+<span id="cb40-425"><a href="#cb40-425" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-426"><a href="#cb40-426" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(firm) <span class="sc">%&gt;%</span></span>
+<span id="cb40-427"><a href="#cb40-427" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">unit.effect=</span><span class="fu">mean</span>(V2)) <span class="sc">%&gt;%</span></span>
+<span id="cb40-428"><a href="#cb40-428" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb40-429"><a href="#cb40-429" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(firm, time)</span>
+<span id="cb40-430"><a href="#cb40-430" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-431"><a href="#cb40-431" aria-hidden="true" tabindex="-1"></a>y<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-432"><a href="#cb40-432" aria-hidden="true" tabindex="-1"></a>unit<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-433"><a href="#cb40-433" aria-hidden="true" tabindex="-1"></a>X<span class="ot">&lt;-</span><span class="fu">c</span>()</span>
+<span id="cb40-434"><a href="#cb40-434" aria-hidden="true" tabindex="-1"></a>k <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb40-435"><a href="#cb40-435" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n){</span>
+<span id="cb40-436"><a href="#cb40-436" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span>(j <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>t){</span>
+<span id="cb40-437"><a href="#cb40-437" aria-hidden="true" tabindex="-1"></a>        k<span class="ot">&lt;-</span>k<span class="sc">+</span><span class="dv">1</span></span>
+<span id="cb40-438"><a href="#cb40-438" aria-hidden="true" tabindex="-1"></a>        unit[k]<span class="ot">&lt;-</span>i</span>
+<span id="cb40-439"><a href="#cb40-439" aria-hidden="true" tabindex="-1"></a>        y[k]<span class="ot">&lt;-</span><span class="dv">1</span><span class="sc">+</span> <span class="fu">log</span>(data<span class="sc">$</span>V1[k]<span class="sc">^</span><span class="dv">2</span>)<span class="sc">*</span>data<span class="sc">$</span>W[k] <span class="sc">+</span> <span class="fu">pmin</span>(data<span class="sc">$</span>X3[k], <span class="dv">0</span>) <span class="sc">+</span> data<span class="sc">$</span>unit.effect[k]<span class="sc">+</span><span class="fu">rnorm</span>(<span class="dv">1</span>,<span class="at">mean=</span><span class="dv">0</span>,<span class="at">sd=</span><span class="dv">1</span>)</span>
+<span id="cb40-440"><a href="#cb40-440" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb40-441"><a href="#cb40-441" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb40-442"><a href="#cb40-442" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>y<span class="ot">=</span>y</span>
+<span id="cb40-443"><a href="#cb40-443" aria-hidden="true" tabindex="-1"></a>data<span class="sc">$</span>unit <span class="ot">&lt;-</span> unit</span>
+<span id="cb40-444"><a href="#cb40-444" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-445"><a href="#cb40-445" aria-hidden="true" tabindex="-1"></a>data.train <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-446"><a href="#cb40-446" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">1</span>)</span>
+<span id="cb40-447"><a href="#cb40-447" aria-hidden="true" tabindex="-1"></a>data.test <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span></span>
+<span id="cb40-448"><a href="#cb40-448" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(train<span class="sc">==</span><span class="dv">0</span>)</span>
+<span id="cb40-449"><a href="#cb40-449" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-450"><a href="#cb40-450" aria-hidden="true" tabindex="-1"></a><span class="co"># run fixed effect, random effect, and ols to see whether they are</span></span>
+<span id="cb40-451"><a href="#cb40-451" aria-hidden="true" tabindex="-1"></a><span class="co"># biased.</span></span>
+<span id="cb40-452"><a href="#cb40-452" aria-hidden="true" tabindex="-1"></a><span class="co"># they all perform poorly</span></span>
+<span id="cb40-453"><a href="#cb40-453" aria-hidden="true" tabindex="-1"></a>fe <span class="ot">&lt;-</span> <span class="fu">felm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W <span class="sc">|</span> unit, <span class="at">data=</span>data.train)</span>
+<span id="cb40-454"><a href="#cb40-454" aria-hidden="true" tabindex="-1"></a>re <span class="ot">&lt;-</span><span class="fu">lmer</span>(y<span class="sc">~</span>V1<span class="sc">*</span>W<span class="sc">+</span>(<span class="dv">1</span> <span class="sc">|</span> unit), <span class="at">data=</span>data.train)</span>
+<span id="cb40-455"><a href="#cb40-455" aria-hidden="true" tabindex="-1"></a>ols <span class="ot">&lt;-</span> <span class="fu">lm</span>(y <span class="sc">~</span> V1 <span class="sc">*</span> W , <span class="at">data=</span>data.train)</span>
+<span id="cb40-456"><a href="#cb40-456" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fe)</span>
+<span id="cb40-457"><a href="#cb40-457" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(re)</span>
+<span id="cb40-458"><a href="#cb40-458" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ols)</span>
+<span id="cb40-459"><a href="#cb40-459" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-460"><a href="#cb40-460" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb40-461"><a href="#cb40-461" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-462"><a href="#cb40-462" aria-hidden="true" tabindex="-1"></a>Here the linear models fail more completely, and instructively so. Because</span>
+<span id="cb40-463"><a href="#cb40-463" aria-hidden="true" tabindex="-1"></a>$\log(V1^2)$ is *even* in $V1$, its linear interaction with $V1$ is zero by</span>
+<span id="cb40-464"><a href="#cb40-464" aria-hidden="true" tabindex="-1"></a>construction: the fitted $V1{:}W$ terms come out at $0.015$, $-0.019$ and</span>
+<span id="cb40-465"><a href="#cb40-465" aria-hidden="true" tabindex="-1"></a>$-0.020$, i.e. no detectable heterogeneity at all, even though the true CATE</span>
+<span id="cb40-466"><a href="#cb40-466" aria-hidden="true" tabindex="-1"></a>varies enormously with $V1$. The $W$ coefficients ($\approx -1.18$) still</span>
+<span id="cb40-467"><a href="#cb40-467" aria-hidden="true" tabindex="-1"></a>approximate the true ATE, $E<span class="co">[</span><span class="ot">\log(V1^2)</span><span class="co">]</span> = \psi(1/2) + \log 2 = -1.2704$. So a</span>
+<span id="cb40-468"><a href="#cb40-468" aria-hidden="true" tabindex="-1"></a>linear model gets the average right and the heterogeneity completely wrong.</span>
+<span id="cb40-469"><a href="#cb40-469" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-470"><a href="#cb40-470" aria-hidden="true" tabindex="-1"></a>Now we run Causal Forest.  Again, first graph is predicted CATE against $V1$, the second one is the predicted CATE against true CATE, the third one adds error bars.</span>
+<span id="cb40-471"><a href="#cb40-471" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-472"><a href="#cb40-472" aria-hidden="true" tabindex="-1"></a>The forest's ATE is $-1.2049$ (SE 0.0813) and $-1.2024$ (SE 0.0798) for the two</span>
+<span id="cb40-473"><a href="#cb40-473" aria-hidden="true" tabindex="-1"></a>variants, against the true $-1.2704$. Like the linear models, it gets the average</span>
+<span id="cb40-474"><a href="#cb40-474" aria-hidden="true" tabindex="-1"></a>about right. The difference is in the plots: the forest's fitted CATE traces the</span>
+<span id="cb40-475"><a href="#cb40-475" aria-hidden="true" tabindex="-1"></a>U-shape of $\log(V1^2)$, which no linear interaction can represent.</span>
+<span id="cb40-476"><a href="#cb40-476" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb40-477"><a href="#cb40-477" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-478"><a href="#cb40-478" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest3 = causal_forest(X, Y, W, num.trees = 4000)</span></span>
-<span id="cb40-479"><a href="#cb40-479" aria-hidden="true" tabindex="-1"></a>tau.hat4 <span class="ot">=</span> <span class="fu">predict</span>(tau.forest4, X.test, <span class="at">estimate.variance =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb40-480"><a href="#cb40-480" aria-hidden="true" tabindex="-1"></a>sigma.hat4 <span class="ot">=</span> <span class="fu">sqrt</span>(tau.hat4<span class="sc">$</span>variance.estimates)</span>
-<span id="cb40-481"><a href="#cb40-481" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-482"><a href="#cb40-482" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>pred4 <span class="ot">&lt;-</span> tau.hat4<span class="sc">$</span>predictions</span>
-<span id="cb40-483"><a href="#cb40-483" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-484"><a href="#cb40-484" aria-hidden="true" tabindex="-1"></a>fun<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="fu">log</span>(x<span class="sc">^</span><span class="dv">2</span>)</span>
-<span id="cb40-485"><a href="#cb40-485" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data.test, <span class="fu">aes</span>(<span class="at">x=</span>V1, <span class="at">y=</span>pred4)) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span></span>
-<span id="cb40-486"><a href="#cb40-486" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_function</span>(<span class="at">fun =</span> fun<span class="fl">.1</span>, <span class="at">colour=</span><span class="st">"red"</span>) <span class="sc">+</span> <span class="fu">xlim</span>(<span class="sc">-</span><span class="dv">3</span>,<span class="dv">3</span>)</span>
-<span id="cb40-487"><a href="#cb40-487" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-488"><a href="#cb40-488" aria-hidden="true" tabindex="-1"></a>graph.data4 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(tau.hat4)</span>
-<span id="cb40-489"><a href="#cb40-489" aria-hidden="true" tabindex="-1"></a>graph.data4 <span class="ot">&lt;-</span> graph.data4 <span class="sc">%&gt;%</span></span>
-<span id="cb40-490"><a href="#cb40-490" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cate=</span><span class="fu">log</span>(data.test<span class="sc">$</span>V1<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb40-491"><a href="#cb40-491" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lower=</span>predictions <span class="sc">-</span> sigma.hat4, <span class="at">upper=</span>predictions <span class="sc">+</span> sigma.hat4)</span>
-<span id="cb40-492"><a href="#cb40-492" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-493"><a href="#cb40-493" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(graph.data4, <span class="fu">aes</span>(<span class="at">x=</span>cate, <span class="at">y=</span>predictions)) <span class="sc">+</span> <span class="fu">geom_point</span>()  <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
-<span id="cb40-494"><a href="#cb40-494" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-495"><a href="#cb40-495" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_errorbar</span>(graph.data4, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(graph.data4, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">y=</span>predictions), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
-<span id="cb40-496"><a href="#cb40-496" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-497"><a href="#cb40-497" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb40-498"><a href="#cb40-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-499"><a href="#cb40-499" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-500"><a href="#cb40-500" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Summary</span></span>
+<span id="cb40-480"><a href="#cb40-480" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb40-481"><a href="#cb40-481" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk7</span></span>
+<span id="cb40-482"><a href="#cb40-482" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb40-483"><a href="#cb40-483" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb40-484"><a href="#cb40-484" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb40-485"><a href="#cb40-485" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-486"><a href="#cb40-486" aria-hidden="true" tabindex="-1"></a>all_firms <span class="ot">&lt;-</span> <span class="fu">levels</span>(<span class="fu">factor</span>(data<span class="sc">$</span>firm))</span>
+<span id="cb40-487"><a href="#cb40-487" aria-hidden="true" tabindex="-1"></a>data.train<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.train<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
+<span id="cb40-488"><a href="#cb40-488" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>firm <span class="ot">&lt;-</span> <span class="fu">factor</span>(data.test<span class="sc">$</span>firm, <span class="at">levels =</span> all_firms)</span>
+<span id="cb40-489"><a href="#cb40-489" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-490"><a href="#cb40-490" aria-hidden="true" tabindex="-1"></a><span class="co"># a is a data set of firm dummies</span></span>
+<span id="cb40-491"><a href="#cb40-491" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.train))</span>
+<span id="cb40-492"><a href="#cb40-492" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.train[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
+<span id="cb40-493"><a href="#cb40-493" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data.train<span class="sc">$</span>y</span>
+<span id="cb40-494"><a href="#cb40-494" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> data.train<span class="sc">$</span>W</span>
+<span id="cb40-495"><a href="#cb40-495" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-496"><a href="#cb40-496" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest = causal_forest(X, Y, W, num.trees = 4000)</span></span>
+<span id="cb40-497"><a href="#cb40-497" aria-hidden="true" tabindex="-1"></a>a <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">model.matrix</span>(y<span class="sc">~</span>firm,data.test))</span>
+<span id="cb40-498"><a href="#cb40-498" aria-hidden="true" tabindex="-1"></a>X.test <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">bind_cols</span>(data.test[,<span class="fu">c</span>(<span class="dv">5</span>,<span class="dv">7</span><span class="sc">:</span><span class="dv">16</span>)],a))</span>
+<span id="cb40-499"><a href="#cb40-499" aria-hidden="true" tabindex="-1"></a>Y.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>y</span>
+<span id="cb40-500"><a href="#cb40-500" aria-hidden="true" tabindex="-1"></a>W.test <span class="ot">&lt;-</span> data.test<span class="sc">$</span>W</span>
 <span id="cb40-501"><a href="#cb40-501" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-502"><a href="#cb40-502" aria-hidden="true" tabindex="-1"></a>We see in these examples, Causal Forest performs fairly well, while other linear models will not work in the nonlinear DGP situations.</span>
+<span id="cb40-502"><a href="#cb40-502" aria-hidden="true" tabindex="-1"></a>tau.forest4 <span class="ot">=</span> <span class="fu">causal_forest</span>(X, Y, W, <span class="at">clusters =</span> <span class="fu">as.integer</span>(data.train<span class="sc">$</span>firm))</span>
 <span id="cb40-503"><a href="#cb40-503" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-504"><a href="#cb40-504" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb40-505"><a href="#cb40-505" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-506"><a href="#cb40-506" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb40-507"><a href="#cb40-507" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
+<span id="cb40-504"><a href="#cb40-504" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest4, <span class="at">target.sample =</span> <span class="st">"all"</span>)</span>
+<span id="cb40-505"><a href="#cb40-505" aria-hidden="true" tabindex="-1"></a><span class="fu">average_treatment_effect</span>(tau.forest4, <span class="at">target.sample =</span> <span class="st">"treated"</span>)</span>
+<span id="cb40-506"><a href="#cb40-506" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-507"><a href="#cb40-507" aria-hidden="true" tabindex="-1"></a><span class="co">#tau.forest3 = causal_forest(X, Y, W, num.trees = 4000)</span></span>
+<span id="cb40-508"><a href="#cb40-508" aria-hidden="true" tabindex="-1"></a>tau.hat4 <span class="ot">=</span> <span class="fu">predict</span>(tau.forest4, X.test, <span class="at">estimate.variance =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb40-509"><a href="#cb40-509" aria-hidden="true" tabindex="-1"></a>sigma.hat4 <span class="ot">=</span> <span class="fu">sqrt</span>(tau.hat4<span class="sc">$</span>variance.estimates)</span>
+<span id="cb40-510"><a href="#cb40-510" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-511"><a href="#cb40-511" aria-hidden="true" tabindex="-1"></a>data.test<span class="sc">$</span>pred4 <span class="ot">&lt;-</span> tau.hat4<span class="sc">$</span>predictions</span>
+<span id="cb40-512"><a href="#cb40-512" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-513"><a href="#cb40-513" aria-hidden="true" tabindex="-1"></a>fun<span class="fl">.1</span> <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="fu">log</span>(x<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb40-514"><a href="#cb40-514" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(data.test, <span class="fu">aes</span>(<span class="at">x=</span>V1, <span class="at">y=</span>pred4)) <span class="sc">+</span> <span class="fu">geom_point</span>() <span class="sc">+</span></span>
+<span id="cb40-515"><a href="#cb40-515" aria-hidden="true" tabindex="-1"></a><span class="fu">stat_function</span>(<span class="at">fun =</span> fun<span class="fl">.1</span>, <span class="at">colour=</span><span class="st">"red"</span>) <span class="sc">+</span> <span class="fu">xlim</span>(<span class="sc">-</span><span class="dv">3</span>,<span class="dv">3</span>)</span>
+<span id="cb40-516"><a href="#cb40-516" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-517"><a href="#cb40-517" aria-hidden="true" tabindex="-1"></a>graph.data4 <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(tau.hat4)</span>
+<span id="cb40-518"><a href="#cb40-518" aria-hidden="true" tabindex="-1"></a>graph.data4 <span class="ot">&lt;-</span> graph.data4 <span class="sc">%&gt;%</span></span>
+<span id="cb40-519"><a href="#cb40-519" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">cate=</span><span class="fu">log</span>(data.test<span class="sc">$</span>V1<span class="sc">^</span><span class="dv">2</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb40-520"><a href="#cb40-520" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lower=</span>predictions <span class="sc">-</span> sigma.hat4, <span class="at">upper=</span>predictions <span class="sc">+</span> sigma.hat4)</span>
+<span id="cb40-521"><a href="#cb40-521" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-522"><a href="#cb40-522" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(graph.data4, <span class="fu">aes</span>(<span class="at">x=</span>cate, <span class="at">y=</span>predictions)) <span class="sc">+</span> <span class="fu">geom_point</span>()  <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-523"><a href="#cb40-523" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-524"><a href="#cb40-524" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_errorbar</span>(graph.data4, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_point</span>(graph.data4, <span class="at">mapping=</span><span class="fu">aes</span>(<span class="at">x=</span>cate,  <span class="at">y=</span>predictions), <span class="at">alpha =</span> <span class="fl">0.2</span>) <span class="sc">+</span> <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>)</span>
+<span id="cb40-525"><a href="#cb40-525" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-526"><a href="#cb40-526" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb40-527"><a href="#cb40-527" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-528"><a href="#cb40-528" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-529"><a href="#cb40-529" aria-hidden="true" tabindex="-1"></a><span class="fu">##  Summary</span></span>
+<span id="cb40-530"><a href="#cb40-530" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-531"><a href="#cb40-531" aria-hidden="true" tabindex="-1"></a>We see in these examples, Causal Forest performs fairly well, while other linear models will not work in the nonlinear DGP situations.</span>
+<span id="cb40-532"><a href="#cb40-532" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-533"><a href="#cb40-533" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb40-534"><a href="#cb40-534" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-535"><a href="#cb40-535" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb40-536"><a href="#cb40-536" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

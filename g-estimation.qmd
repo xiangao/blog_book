@@ -163,6 +163,12 @@ t1 <- dat %>%
 
 Then calculate the g-formula by hand.
 
+The recipe is the same in both cases: fit a model for the time-1 covariate $L$
+given past treatment, fit a model for $Y$ given treatment, past treatment and
+$L$, then simulate 10,000 people forward with the treatments *fixed* at the
+regime's values, drawing $L$ from its fitted conditional distribution rather
+than conditioning on the observed one.
+
 First for $E[Y^{1,1}]$.
 
 ```{r}
@@ -195,6 +201,8 @@ new_dat_11$Ey <- predict(Y_mod, newdata = new_dat_11, type = "response")
 mean(new_dat_11$Ey)
 ```
 
+That gives $E[Y^{1,1}] = 150.12$.
+
 Then for $E[Y^{0,0}]$.
 
 ```{r}
@@ -219,6 +227,9 @@ new_dat_00$Ey <- predict(Y_mod, newdata = new_dat_00, type = "response")
 mean(new_dat_00$Ey)
 
 ```
+
+And $E[Y^{0,0}] = 134.72$, so always-treat versus never-treat is worth
+$150.12 - 134.72 = 15.40$ by hand.
 
 Now with the gfoRmula package.
 
@@ -293,6 +304,29 @@ gform_res$coeffs
 gform_res$sim_data
 
 ```
+
+The package agrees with the hand calculation. Intervention 4 ("1, 1", always
+treat) gives a g-formula mean of 150.0516 against the 150.12 computed by hand,
+and intervention 1 ("0, 0", never treat) gives 134.5405 against 134.72 — the
+small gaps are Monte Carlo error, since both routes simulate rather than
+integrate. The table's own contrast of the two, 15.51, matches the 15.40 from
+the hand calculation.
+
+The natural course is 141.59, sitting between the two regimes, and the
+non-parametric mean of the observed data is 142.46, which is the check that the
+model-based natural course is not badly misspecified.
+
+The other two regimes are worth a glance. Treating only at time 0 gives 150.35
+and treating only at time 1 gives 134.53 — so essentially all of the effect
+comes from the first period's treatment, and the second period adds nothing.
+
+Reading `gform_res$coeffs` shows why this needs the g-formula rather than a
+regression. The $L$ model has a coefficient of 1.0986 on lagged treatment, so
+past treatment moves the time-1 covariate; and the $Y$ model has 149.85 on $L$
+and $-269.83$ on the $L \times \text{lag}_1 A$ interaction, so that covariate
+in turn moves the outcome. $L$ is a time-varying confounder affected by past
+treatment, which is exactly the configuration where conditioning on it blocks
+part of the effect and omitting it leaves confounding.
 
 ## A second example
 
@@ -428,6 +462,12 @@ s <- simulate(
 
 s$results
 ```
+
+Both packages agree closely. `gfoRmula` gives a natural course of $-4.363$,
+never-treat $-3.133$ and a mean difference of 1.230; `gmethods` gives $-4.360$,
+$-3.139$ and 1.221, with always-treat at $-4.603$ and a difference of $-0.243$.
+The two implementations differ in the third decimal, which is Monte Carlo noise
+from the 50,000-draw simulation, not a disagreement about the estimand.
 
 Note the results are very close.  Also note that in the covariates and treatment models, there is a time variable t0.  This is because these models are pooled regression with all time points.  Therefore a time fixed effect is included.  In the outcome model, there is only the last period data, so the time variable is not included.
 

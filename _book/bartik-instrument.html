@@ -666,6 +666,7 @@ window.Quarto = {
 # ℹ 15,990 more rows</code></pre>
 </div>
 </div>
+<p>The simulation has <span class="math inline">\(L = 1000\)</span> locations, <span class="math inline">\(T = 4\)</span> periods and <span class="math inline">\(K = 4\)</span> industries, 16,000 location-industry-period rows. Baseline shares <span class="math inline">\(z_{lk0}\)</span> are uniform draws normalised to sum to one within each location, national industry growth is <span class="math inline">\(g_{kt} \sim N(0, 0.1^2)\)</span>, current shares add a uniform perturbation and are renormalised, and local industry growth is <span class="math inline">\(g_{lkt} = g_{kt} + N(0, 0.1^2)\)</span>. Local employment growth is <span class="math inline">\(x_{lt} = \sum_k z_{lkt} g_{lkt}\)</span>. The true <span class="math inline">\(\beta\)</span> is 1.</p>
 <p>This assumes we observe the industry shares at time 0 (<span class="math inline">\(z_{lk0}\)</span>), and the industry growth rates (<span class="math inline">\(g_{kt}\)</span>). We also observe the industry shares at time <span class="math inline">\(t\)</span> (<span class="math inline">\(z_{lkt}\)</span>). The employment growth rate at location <span class="math inline">\(l\)</span> and time <span class="math inline">\(t\)</span> (<span class="math inline">\(g_{lkt}\)</span>) is a function of <span class="math inline">\(g_{kt}\)</span> plus some noise. We can calculate the <span class="math inline">\(x_{lt}\)</span>, which is the weighted sum of industry growth rates.</p>
 <p>Next we generate the outcome at <span class="math inline">\(l\)</span>, <span class="math inline">\(t\)</span> level. Outcome (wage growth) is a linear function of <span class="math inline">\(x\)</span> (employment growth) at <span class="math inline">\(l\)</span>, <span class="math inline">\(t\)</span> level.</p>
 <div class="cell">
@@ -677,6 +678,7 @@ window.Quarto = {
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>y_lt <span class="op">=</span> <span class="va">beta</span> <span class="op">*</span> <span class="va">x_lt</span> <span class="op">+</span> <span class="va">sigma</span><span class="op">[</span><span class="fl">3</span><span class="op">]</span> <span class="op">*</span> <span class="va">g_tilde_lkt</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
+<p>The outcome is <span class="math inline">\(y_{lt} = \beta x_{lt} + \sigma_3 \tilde g_{lt}\)</span>, where <span class="math inline">\(\tilde g_{lt}\)</span> is the location’s mean deviation of local from national industry growth. That deviation also enters <span class="math inline">\(x_{lt}\)</span>, which is the endogeneity: local shocks drive both employment growth and wage growth.</p>
 <p>If we run OLS on raw data, we’ll get biased results.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">result_ols</span> <span class="op">&lt;-</span></span>
@@ -784,6 +786,7 @@ window.Quarto = {
 <!-- hack to avoid NA insertion in last line -->
 </div>
 </div>
+<p>OLS gives 1.336 with a standard error of 0.008, against a true <span class="math inline">\(\beta\)</span> of 1 — biased upward by a third, and far outside any confidence interval. The endogenous <span class="math inline">\(\tilde g_{lt}\)</span> is doing the damage.</p>
 <p>Now we generate the Bartik instrument. We calculate the Bartik instrument as the weighted sum of <span class="math inline">\(z_{lk0}\)</span> and <span class="math inline">\(g_{kt}\)</span>.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">b_lt</span> <span class="op">&lt;-</span> <span class="va">df</span> <span class="op">|&gt;</span></span>
@@ -993,6 +996,7 @@ window.Quarto = {
 <!-- hack to avoid NA insertion in last line -->
 </div>
 </div>
+<p>The Bartik instrument recovers the truth: 2SLS gives 0.990 with a standard error of 0.012, against <span class="math inline">\(\beta = 1\)</span>, where OLS gave 1.336. The instrument is built from baseline shares and <em>national</em> growth rates, neither of which contains the local shock <span class="math inline">\(\tilde g_{lt}\)</span>, which is what breaks the endogeneity.</p>
 <section id="calculate-rotemberg-weights" class="level3" data-number="20.4.1"><h3 data-number="20.4.1" class="anchored" data-anchor-id="calculate-rotemberg-weights">
 <span class="header-section-number">20.4.1</span> Calculate Rotemberg weights</h3>
 <p>Let’s do IV using Bartik instruments. No controls here. We use matrix operation to recover the IV estimates, which is the same as the tsls function in R.</p>
@@ -1104,7 +1108,8 @@ window.Quarto = {
 <pre><code>[1] 0.9894259</code></pre>
 </div>
 </div>
-<p>The sum of the product of <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> should be the same as the Bartik estimator.</p>
+<p>The sum of the product of <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> should be the same as the Bartik estimator, and it is: 0.9894 against the 2SLS estimate of 0.990. The decomposition is exact, not approximate.</p>
+<p>Reading the table, the weights are far from uniform across the sixteen industry-period cells. Period 3 carries most of the weight — its four <span class="math inline">\(\alpha\)</span> values are 0.138, 0.222, 0.076 and 0.136, summing to 0.57 — while period 2 contributes almost nothing and even goes slightly negative (<span class="math inline">\(\alpha = -0.008\)</span> and <span class="math inline">\(-0.0004\)</span> for its first two industries). The just-identified <span class="math inline">\(\beta_k\)</span> estimates are all near the true 1, ranging from 0.74 to 1.19, which is what we should see in a simulation with a homogeneous effect.</p>
 <p>Note there is no restriction for <span class="math inline">\(\alpha\)</span>, other than the sum is 1. Therefore it can be negative or positive, and individual weights can exceed 1, as long as they sum to 1. In GPSS the Rotemberg weights routinely take negative values and values greater than 1; this is a feature used to flag problematic instruments.</p>
 </section></section><section id="why-is-good-to-have-rotemberg-weights" class="level2" data-number="20.5"><h2 data-number="20.5" class="anchored" data-anchor-id="why-is-good-to-have-rotemberg-weights">
 <span class="header-section-number">20.5</span> Why is good to have Rotemberg weights?</h2>
@@ -1270,6 +1275,7 @@ window.Quarto = {
 </div>
 <hr>
 <!-- see-also-footer --><p><em>Systematic treatment: <a href="https://xiangao.github.io/causal_econometrics_guide/shift-share-iv.html">R</a> · <a href="https://xiangao.github.io/causal_econometrics_julia/shift-share-iv.html">Julia</a>.</em></p>
+<p>The reduced-form decomposition sums to 0.9091 rather than 0.9894, and that is not an error: it decomposes the reduced-form coefficient (the effect of the instrument on the outcome), not the 2SLS coefficient. The two differ by the first stage, which is not exactly 1.</p>
 
 
 <!-- -->
@@ -1855,241 +1861,277 @@ window.Quarto = {
 <span id="cb18-120"><a href="#cb18-120" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-121"><a href="#cb18-121" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb18-122"><a href="#cb18-122" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-123"><a href="#cb18-123" aria-hidden="true" tabindex="-1"></a>This assumes we observe the industry shares at time 0 ($z_{lk0}$), and the industry growth rates ($g_{kt}$).  We also observe the industry shares at time $t$ ($z_{lkt}$).  The employment growth rate at location $l$ and time $t$ ($g_{lkt}$) is a function of $g_{kt}$ plus some noise.  We can calculate the $x_{lt}$, which is the weighted sum of industry growth rates.</span>
-<span id="cb18-124"><a href="#cb18-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-125"><a href="#cb18-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-126"><a href="#cb18-126" aria-hidden="true" tabindex="-1"></a>Next we generate the outcome at $l$, $t$ level.  Outcome (wage growth) is a linear function of $x$ (employment growth) at $l$, $t$ level.</span>
-<span id="cb18-127"><a href="#cb18-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-128"><a href="#cb18-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-131"><a href="#cb18-131" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb18-132"><a href="#cb18-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb18-133"><a href="#cb18-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb18-134"><a href="#cb18-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-135"><a href="#cb18-135" aria-hidden="true" tabindex="-1"></a>df_lt <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
-<span id="cb18-136"><a href="#cb18-136" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">g_tilde_lkt =</span> g_lkt <span class="sc">-</span> g_kt) <span class="sc">|&gt;</span></span>
-<span id="cb18-137"><a href="#cb18-137" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(l, t) <span class="sc">|&gt;</span></span>
-<span id="cb18-138"><a href="#cb18-138" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">c</span>(x_lt, g_tilde_lkt),  mean),  <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb18-139"><a href="#cb18-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
-<span id="cb18-140"><a href="#cb18-140" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">y_lt =</span> beta <span class="sc">*</span> x_lt <span class="sc">+</span> sigma[<span class="dv">3</span>] <span class="sc">*</span> g_tilde_lkt)</span>
-<span id="cb18-141"><a href="#cb18-141" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-123"><a href="#cb18-123" aria-hidden="true" tabindex="-1"></a>The simulation has $L = 1000$ locations, $T = 4$ periods and $K = 4$</span>
+<span id="cb18-124"><a href="#cb18-124" aria-hidden="true" tabindex="-1"></a>industries, 16,000 location-industry-period rows. Baseline shares $z_{lk0}$ are</span>
+<span id="cb18-125"><a href="#cb18-125" aria-hidden="true" tabindex="-1"></a>uniform draws normalised to sum to one within each location, national industry</span>
+<span id="cb18-126"><a href="#cb18-126" aria-hidden="true" tabindex="-1"></a>growth is $g_{kt} \sim N(0, 0.1^2)$, current shares add a uniform perturbation</span>
+<span id="cb18-127"><a href="#cb18-127" aria-hidden="true" tabindex="-1"></a>and are renormalised, and local industry growth is</span>
+<span id="cb18-128"><a href="#cb18-128" aria-hidden="true" tabindex="-1"></a>$g_{lkt} = g_{kt} + N(0, 0.1^2)$. Local employment growth is</span>
+<span id="cb18-129"><a href="#cb18-129" aria-hidden="true" tabindex="-1"></a>$x_{lt} = \sum_k z_{lkt} g_{lkt}$. The true $\beta$ is 1.</span>
+<span id="cb18-130"><a href="#cb18-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-131"><a href="#cb18-131" aria-hidden="true" tabindex="-1"></a>This assumes we observe the industry shares at time 0 ($z_{lk0}$), and the industry growth rates ($g_{kt}$).  We also observe the industry shares at time $t$ ($z_{lkt}$).  The employment growth rate at location $l$ and time $t$ ($g_{lkt}$) is a function of $g_{kt}$ plus some noise.  We can calculate the $x_{lt}$, which is the weighted sum of industry growth rates.</span>
+<span id="cb18-132"><a href="#cb18-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-133"><a href="#cb18-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-134"><a href="#cb18-134" aria-hidden="true" tabindex="-1"></a>Next we generate the outcome at $l$, $t$ level.  Outcome (wage growth) is a linear function of $x$ (employment growth) at $l$, $t$ level.</span>
+<span id="cb18-135"><a href="#cb18-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-136"><a href="#cb18-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-139"><a href="#cb18-139" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb18-140"><a href="#cb18-140" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb18-141"><a href="#cb18-141" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
 <span id="cb18-142"><a href="#cb18-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-143"><a href="#cb18-143" aria-hidden="true" tabindex="-1"></a>If we run OLS on raw data, we'll get biased results.</span>
-<span id="cb18-144"><a href="#cb18-144" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-147"><a href="#cb18-147" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb18-148"><a href="#cb18-148" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb18-149"><a href="#cb18-149" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-143"><a href="#cb18-143" aria-hidden="true" tabindex="-1"></a>df_lt <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb18-144"><a href="#cb18-144" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">g_tilde_lkt =</span> g_lkt <span class="sc">-</span> g_kt) <span class="sc">|&gt;</span></span>
+<span id="cb18-145"><a href="#cb18-145" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(l, t) <span class="sc">|&gt;</span></span>
+<span id="cb18-146"><a href="#cb18-146" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">c</span>(x_lt, g_tilde_lkt),  mean),  <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb18-147"><a href="#cb18-147" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">|&gt;</span></span>
+<span id="cb18-148"><a href="#cb18-148" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">y_lt =</span> beta <span class="sc">*</span> x_lt <span class="sc">+</span> sigma[<span class="dv">3</span>] <span class="sc">*</span> g_tilde_lkt)</span>
+<span id="cb18-149"><a href="#cb18-149" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb18-150"><a href="#cb18-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-151"><a href="#cb18-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-152"><a href="#cb18-152" aria-hidden="true" tabindex="-1"></a>result_ols <span class="ot">&lt;-</span></span>
-<span id="cb18-153"><a href="#cb18-153" aria-hidden="true" tabindex="-1"></a>  df_lt <span class="sc">|&gt;</span></span>
-<span id="cb18-154"><a href="#cb18-154" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lm</span>(<span class="at">formula =</span> y_lt <span class="sc">~</span> x_lt)</span>
+<span id="cb18-151"><a href="#cb18-151" aria-hidden="true" tabindex="-1"></a>The outcome is $y_{lt} = \beta x_{lt} + \sigma_3 \tilde g_{lt}$, where</span>
+<span id="cb18-152"><a href="#cb18-152" aria-hidden="true" tabindex="-1"></a>$\tilde g_{lt}$ is the location's mean deviation of local from national industry</span>
+<span id="cb18-153"><a href="#cb18-153" aria-hidden="true" tabindex="-1"></a>growth. That deviation also enters $x_{lt}$, which is the endogeneity: local</span>
+<span id="cb18-154"><a href="#cb18-154" aria-hidden="true" tabindex="-1"></a>shocks drive both employment growth and wage growth.</span>
 <span id="cb18-155"><a href="#cb18-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-156"><a href="#cb18-156" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(result_ols)</span>
+<span id="cb18-156"><a href="#cb18-156" aria-hidden="true" tabindex="-1"></a>If we run OLS on raw data, we'll get biased results.</span>
 <span id="cb18-157"><a href="#cb18-157" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-158"><a href="#cb18-158" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb18-159"><a href="#cb18-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-160"><a href="#cb18-160" aria-hidden="true" tabindex="-1"></a>Now we generate the Bartik instrument.  We calculate the Bartik instrument as the weighted sum of $z_{lk0}$ and $g_{kt}$.</span>
-<span id="cb18-161"><a href="#cb18-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-164"><a href="#cb18-164" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb18-165"><a href="#cb18-165" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb18-166"><a href="#cb18-166" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb18-167"><a href="#cb18-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-160"><a href="#cb18-160" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb18-161"><a href="#cb18-161" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb18-162"><a href="#cb18-162" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-163"><a href="#cb18-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-164"><a href="#cb18-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-165"><a href="#cb18-165" aria-hidden="true" tabindex="-1"></a>result_ols <span class="ot">&lt;-</span></span>
+<span id="cb18-166"><a href="#cb18-166" aria-hidden="true" tabindex="-1"></a>  df_lt <span class="sc">|&gt;</span></span>
+<span id="cb18-167"><a href="#cb18-167" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lm</span>(<span class="at">formula =</span> y_lt <span class="sc">~</span> x_lt)</span>
 <span id="cb18-168"><a href="#cb18-168" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-169"><a href="#cb18-169" aria-hidden="true" tabindex="-1"></a>b_lt <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
-<span id="cb18-170"><a href="#cb18-170" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(l, t) <span class="sc">|&gt;</span></span>
-<span id="cb18-171"><a href="#cb18-171" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">b_lt =</span> <span class="fu">sum</span>(z_lk0 <span class="sc">*</span> g_kt)) <span class="sc">|&gt;</span></span>
-<span id="cb18-172"><a href="#cb18-172" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb18-173"><a href="#cb18-173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-174"><a href="#cb18-174" aria-hidden="true" tabindex="-1"></a>df_lt <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
-<span id="cb18-175"><a href="#cb18-175" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(b_lt, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"l"</span>, <span class="st">"t"</span>))</span>
+<span id="cb18-169"><a href="#cb18-169" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(result_ols)</span>
+<span id="cb18-170"><a href="#cb18-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-171"><a href="#cb18-171" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-172"><a href="#cb18-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-173"><a href="#cb18-173" aria-hidden="true" tabindex="-1"></a>OLS gives 1.336 with a standard error of 0.008, against a true $\beta$ of 1 —</span>
+<span id="cb18-174"><a href="#cb18-174" aria-hidden="true" tabindex="-1"></a>biased upward by a third, and far outside any confidence interval. The</span>
+<span id="cb18-175"><a href="#cb18-175" aria-hidden="true" tabindex="-1"></a>endogenous $\tilde g_{lt}$ is doing the damage.</span>
 <span id="cb18-176"><a href="#cb18-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-177"><a href="#cb18-177" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-178"><a href="#cb18-178" aria-hidden="true" tabindex="-1"></a>result_first_stage <span class="ot">&lt;-</span>  <span class="fu">lm</span>(<span class="at">formula =</span> x_lt <span class="sc">~</span> b_lt, <span class="at">data =</span> df_lt)</span>
-<span id="cb18-179"><a href="#cb18-179" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-180"><a href="#cb18-180" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(result_first_stage)</span>
-<span id="cb18-181"><a href="#cb18-181" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-182"><a href="#cb18-182" aria-hidden="true" tabindex="-1"></a>result_tsls <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
-<span id="cb18-183"><a href="#cb18-183" aria-hidden="true" tabindex="-1"></a>  estimatr<span class="sc">::</span><span class="fu">iv_robust</span>(<span class="at">formula =</span> y_lt <span class="sc">~</span> x_lt <span class="sc">|</span> b_lt)</span>
+<span id="cb18-177"><a href="#cb18-177" aria-hidden="true" tabindex="-1"></a>Now we generate the Bartik instrument.  We calculate the Bartik instrument as the weighted sum of $z_{lk0}$ and $g_{kt}$.</span>
+<span id="cb18-178"><a href="#cb18-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-181"><a href="#cb18-181" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb18-182"><a href="#cb18-182" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb18-183"><a href="#cb18-183" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
 <span id="cb18-184"><a href="#cb18-184" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-185"><a href="#cb18-185" aria-hidden="true" tabindex="-1"></a>modelsummary<span class="sc">::</span><span class="fu">modelsummary</span>(result_tsls)</span>
-<span id="cb18-186"><a href="#cb18-186" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb18-187"><a href="#cb18-187" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-188"><a href="#cb18-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-189"><a href="#cb18-189" aria-hidden="true" tabindex="-1"></a><span class="fu">### Calculate Rotemberg weights</span></span>
+<span id="cb18-185"><a href="#cb18-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-186"><a href="#cb18-186" aria-hidden="true" tabindex="-1"></a>b_lt <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb18-187"><a href="#cb18-187" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(l, t) <span class="sc">|&gt;</span></span>
+<span id="cb18-188"><a href="#cb18-188" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">b_lt =</span> <span class="fu">sum</span>(z_lk0 <span class="sc">*</span> g_kt)) <span class="sc">|&gt;</span></span>
+<span id="cb18-189"><a href="#cb18-189" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
 <span id="cb18-190"><a href="#cb18-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-191"><a href="#cb18-191" aria-hidden="true" tabindex="-1"></a>Let's do IV using Bartik instruments.  No controls here.  We use matrix operation to recover the IV estimates, which is the same as the tsls function in R.</span>
-<span id="cb18-192"><a href="#cb18-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-195"><a href="#cb18-195" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb18-196"><a href="#cb18-196" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb18-197"><a href="#cb18-197" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-191"><a href="#cb18-191" aria-hidden="true" tabindex="-1"></a>df_lt <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
+<span id="cb18-192"><a href="#cb18-192" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(b_lt, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">"l"</span>, <span class="st">"t"</span>))</span>
+<span id="cb18-193"><a href="#cb18-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-194"><a href="#cb18-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-195"><a href="#cb18-195" aria-hidden="true" tabindex="-1"></a>result_first_stage <span class="ot">&lt;-</span>  <span class="fu">lm</span>(<span class="at">formula =</span> x_lt <span class="sc">~</span> b_lt, <span class="at">data =</span> df_lt)</span>
+<span id="cb18-196"><a href="#cb18-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-197"><a href="#cb18-197" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(result_first_stage)</span>
 <span id="cb18-198"><a href="#cb18-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-199"><a href="#cb18-199" aria-hidden="true" tabindex="-1"></a>B <span class="ot">=</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="dv">1</span>,df_lt<span class="sc">$</span>b_lt))</span>
-<span id="cb18-200"><a href="#cb18-200" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">=</span> <span class="fu">as.matrix</span>(df_lt<span class="sc">$</span>y_lt)</span>
-<span id="cb18-201"><a href="#cb18-201" aria-hidden="true" tabindex="-1"></a>X <span class="ot">=</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="dv">1</span>,df_lt<span class="sc">$</span>x_lt))</span>
-<span id="cb18-202"><a href="#cb18-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-203"><a href="#cb18-203" aria-hidden="true" tabindex="-1"></a>iv <span class="ot">=</span> <span class="fu">round</span>(<span class="fu">solve</span>(<span class="fu">t</span>(B)<span class="sc">%*%</span>X)<span class="sc">%*%</span><span class="fu">t</span>(B)<span class="sc">%*%</span>Y,<span class="dv">3</span>)</span>
+<span id="cb18-199"><a href="#cb18-199" aria-hidden="true" tabindex="-1"></a>result_tsls <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
+<span id="cb18-200"><a href="#cb18-200" aria-hidden="true" tabindex="-1"></a>  estimatr<span class="sc">::</span><span class="fu">iv_robust</span>(<span class="at">formula =</span> y_lt <span class="sc">~</span> x_lt <span class="sc">|</span> b_lt)</span>
+<span id="cb18-201"><a href="#cb18-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-202"><a href="#cb18-202" aria-hidden="true" tabindex="-1"></a>modelsummary<span class="sc">::</span><span class="fu">modelsummary</span>(result_tsls)</span>
+<span id="cb18-203"><a href="#cb18-203" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb18-204"><a href="#cb18-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-205"><a href="#cb18-205" aria-hidden="true" tabindex="-1"></a><span class="do">## Label and organize results into a data frame</span></span>
-<span id="cb18-206"><a href="#cb18-206" aria-hidden="true" tabindex="-1"></a>beta.hat <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">cbind</span>(<span class="fu">c</span>(<span class="st">"Intercept"</span>,<span class="st">"x"</span>),iv))</span>
-<span id="cb18-207"><a href="#cb18-207" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(beta.hat) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Coeff."</span>,<span class="st">"Est"</span>)</span>
-<span id="cb18-208"><a href="#cb18-208" aria-hidden="true" tabindex="-1"></a>beta.hat</span>
-<span id="cb18-209"><a href="#cb18-209" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-210"><a href="#cb18-210" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb18-211"><a href="#cb18-211" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-212"><a href="#cb18-212" aria-hidden="true" tabindex="-1"></a>Now we calculate the Rotemberg weights.</span>
-<span id="cb18-213"><a href="#cb18-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-216"><a href="#cb18-216" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb18-217"><a href="#cb18-217" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb18-218"><a href="#cb18-218" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb18-219"><a href="#cb18-219" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-220"><a href="#cb18-220" aria-hidden="true" tabindex="-1"></a><span class="co"># This code is the R version of Paul Goldsmith-Pinkham's R code for Rotemberg weights on</span></span>
-<span id="cb18-221"><a href="#cb18-221" aria-hidden="true" tabindex="-1"></a><span class="co"># github; which is actually a call from a C++ code by jjchern.</span></span>
-<span id="cb18-222"><a href="#cb18-222" aria-hidden="true" tabindex="-1"></a><span class="co"># bw.R calls ComputeAlphaBeta.cpp</span></span>
-<span id="cb18-223"><a href="#cb18-223" aria-hidden="true" tabindex="-1"></a><span class="co"># dimensions:  G is KTx1, Z is LTxKT, Y is LTx1, X is LTx1</span></span>
-<span id="cb18-224"><a href="#cb18-224" aria-hidden="true" tabindex="-1"></a><span class="co"># so B=ZG is LTx1</span></span>
-<span id="cb18-225"><a href="#cb18-225" aria-hidden="true" tabindex="-1"></a><span class="co"># Here I learned the dimensions from the ADH example in Paul's github.</span></span>
-<span id="cb18-226"><a href="#cb18-226" aria-hidden="true" tabindex="-1"></a><span class="co"># in ADH example, czone(L) is 722, year(T) is 2, ind(K) is 390.</span></span>
-<span id="cb18-227"><a href="#cb18-227" aria-hidden="true" tabindex="-1"></a><span class="co"># so G is 780x1, Z is 1444x780, Y is 1444x1, X is 1444x1</span></span>
-<span id="cb18-228"><a href="#cb18-228" aria-hidden="true" tabindex="-1"></a>y_lt <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
-<span id="cb18-229"><a href="#cb18-229" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(l,t,y_lt)</span>
-<span id="cb18-230"><a href="#cb18-230" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-231"><a href="#cb18-231" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(y_lt[,<span class="dv">3</span>])</span>
-<span id="cb18-232"><a href="#cb18-232" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-233"><a href="#cb18-233" aria-hidden="true" tabindex="-1"></a>x_lt <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
-<span id="cb18-234"><a href="#cb18-234" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(l,t,x_lt)</span>
+<span id="cb18-205"><a href="#cb18-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-206"><a href="#cb18-206" aria-hidden="true" tabindex="-1"></a>The Bartik instrument recovers the truth: 2SLS gives 0.990 with a standard error</span>
+<span id="cb18-207"><a href="#cb18-207" aria-hidden="true" tabindex="-1"></a>of 0.012, against $\beta = 1$, where OLS gave 1.336. The instrument is built</span>
+<span id="cb18-208"><a href="#cb18-208" aria-hidden="true" tabindex="-1"></a>from baseline shares and *national* growth rates, neither of which contains the</span>
+<span id="cb18-209"><a href="#cb18-209" aria-hidden="true" tabindex="-1"></a>local shock $\tilde g_{lt}$, which is what breaks the endogeneity.</span>
+<span id="cb18-210"><a href="#cb18-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-211"><a href="#cb18-211" aria-hidden="true" tabindex="-1"></a><span class="fu">### Calculate Rotemberg weights</span></span>
+<span id="cb18-212"><a href="#cb18-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-213"><a href="#cb18-213" aria-hidden="true" tabindex="-1"></a>Let's do IV using Bartik instruments.  No controls here.  We use matrix operation to recover the IV estimates, which is the same as the tsls function in R.</span>
+<span id="cb18-214"><a href="#cb18-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-217"><a href="#cb18-217" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb18-218"><a href="#cb18-218" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb18-219"><a href="#cb18-219" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-220"><a href="#cb18-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-221"><a href="#cb18-221" aria-hidden="true" tabindex="-1"></a>B <span class="ot">=</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="dv">1</span>,df_lt<span class="sc">$</span>b_lt))</span>
+<span id="cb18-222"><a href="#cb18-222" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">=</span> <span class="fu">as.matrix</span>(df_lt<span class="sc">$</span>y_lt)</span>
+<span id="cb18-223"><a href="#cb18-223" aria-hidden="true" tabindex="-1"></a>X <span class="ot">=</span> <span class="fu">as.matrix</span>(<span class="fu">cbind</span>(<span class="dv">1</span>,df_lt<span class="sc">$</span>x_lt))</span>
+<span id="cb18-224"><a href="#cb18-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-225"><a href="#cb18-225" aria-hidden="true" tabindex="-1"></a>iv <span class="ot">=</span> <span class="fu">round</span>(<span class="fu">solve</span>(<span class="fu">t</span>(B)<span class="sc">%*%</span>X)<span class="sc">%*%</span><span class="fu">t</span>(B)<span class="sc">%*%</span>Y,<span class="dv">3</span>)</span>
+<span id="cb18-226"><a href="#cb18-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-227"><a href="#cb18-227" aria-hidden="true" tabindex="-1"></a><span class="do">## Label and organize results into a data frame</span></span>
+<span id="cb18-228"><a href="#cb18-228" aria-hidden="true" tabindex="-1"></a>beta.hat <span class="ot">=</span> <span class="fu">as.data.frame</span>(<span class="fu">cbind</span>(<span class="fu">c</span>(<span class="st">"Intercept"</span>,<span class="st">"x"</span>),iv))</span>
+<span id="cb18-229"><a href="#cb18-229" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(beta.hat) <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Coeff."</span>,<span class="st">"Est"</span>)</span>
+<span id="cb18-230"><a href="#cb18-230" aria-hidden="true" tabindex="-1"></a>beta.hat</span>
+<span id="cb18-231"><a href="#cb18-231" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-232"><a href="#cb18-232" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-233"><a href="#cb18-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-234"><a href="#cb18-234" aria-hidden="true" tabindex="-1"></a>Now we calculate the Rotemberg weights.</span>
 <span id="cb18-235"><a href="#cb18-235" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-236"><a href="#cb18-236" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(x_lt[,<span class="dv">3</span>])</span>
-<span id="cb18-237"><a href="#cb18-237" aria-hidden="true" tabindex="-1"></a><span class="co">#X &lt;- as.matrix(cbind(1,x_lt[,3]))</span></span>
-<span id="cb18-238"><a href="#cb18-238" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-239"><a href="#cb18-239" aria-hidden="true" tabindex="-1"></a><span class="co"># global is kt level data set</span></span>
-<span id="cb18-240"><a href="#cb18-240" aria-hidden="true" tabindex="-1"></a><span class="co"># # g_data &lt;- df |&gt;</span></span>
-<span id="cb18-241"><a href="#cb18-241" aria-hidden="true" tabindex="-1"></a><span class="co"># #   group_by(k,t) |&gt;</span></span>
-<span id="cb18-242"><a href="#cb18-242" aria-hidden="true" tabindex="-1"></a><span class="co"># #   summarise(g_kt=sum(g_lkt*z_lkt))</span></span>
-<span id="cb18-243"><a href="#cb18-243" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
-<span id="cb18-244"><a href="#cb18-244" aria-hidden="true" tabindex="-1"></a><span class="co"># G &lt;- as.matrix(g_data[,3])</span></span>
-<span id="cb18-245"><a href="#cb18-245" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-246"><a href="#cb18-246" aria-hidden="true" tabindex="-1"></a>G <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(g_kt[,<span class="dv">3</span>])</span>
-<span id="cb18-247"><a href="#cb18-247" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-248"><a href="#cb18-248" aria-hidden="true" tabindex="-1"></a><span class="co"># generate wide Z matrix, LTxKT from df</span></span>
-<span id="cb18-249"><a href="#cb18-249" aria-hidden="true" tabindex="-1"></a><span class="co"># z_data &lt;- df |&gt;</span></span>
-<span id="cb18-250"><a href="#cb18-250" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(l,t,k,z_lkt) |&gt;</span></span>
-<span id="cb18-251"><a href="#cb18-251" aria-hidden="true" tabindex="-1"></a><span class="co">#   pivot_wider(names_from = k, values_from = z_lkt) |&gt;</span></span>
-<span id="cb18-252"><a href="#cb18-252" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(-l, -t)</span></span>
-<span id="cb18-253"><a href="#cb18-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-254"><a href="#cb18-254" aria-hidden="true" tabindex="-1"></a><span class="co"># this makes a wide Z data, which is LTxKT, KT variables are generated by the spread function.</span></span>
-<span id="cb18-255"><a href="#cb18-255" aria-hidden="true" tabindex="-1"></a><span class="co"># basically expand the shares to KT variables, filled with 0 if there is no data.</span></span>
-<span id="cb18-256"><a href="#cb18-256" aria-hidden="true" tabindex="-1"></a><span class="co"># Use z_lk0 (the INITIAL shares), not z_lkt: the Bartik instrument is B = Z_0 G,</span></span>
-<span id="cb18-257"><a href="#cb18-257" aria-hidden="true" tabindex="-1"></a><span class="co"># so the Rotemberg decomposition has to be taken with respect to the same Z that</span></span>
-<span id="cb18-258"><a href="#cb18-258" aria-hidden="true" tabindex="-1"></a><span class="co"># builds the instrument. Using z_lkt here would decompose a different estimator.</span></span>
-<span id="cb18-259"><a href="#cb18-259" aria-hidden="true" tabindex="-1"></a><span class="co"># z_data &lt;- df |&gt;</span></span>
-<span id="cb18-260"><a href="#cb18-260" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(l,t,k,z_lkt) |&gt;</span></span>
-<span id="cb18-261"><a href="#cb18-261" aria-hidden="true" tabindex="-1"></a><span class="co">#   mutate(k = str_glue("t{t}_sh_ind_{k}") ) |&gt;</span></span>
-<span id="cb18-262"><a href="#cb18-262" aria-hidden="true" tabindex="-1"></a><span class="co">#   spread(k, z_lkt, fill = 0)</span></span>
-<span id="cb18-263"><a href="#cb18-263" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-264"><a href="#cb18-264" aria-hidden="true" tabindex="-1"></a>z_data <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
-<span id="cb18-265"><a href="#cb18-265" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(l,t,k,z_lk0) <span class="sc">|&gt;</span></span>
-<span id="cb18-266"><a href="#cb18-266" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">k =</span> <span class="fu">str_glue</span>(<span class="st">"t{t}_sh_ind_{k}"</span>) ) <span class="sc">|&gt;</span></span>
-<span id="cb18-267"><a href="#cb18-267" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> k, <span class="at">values_from =</span> z_lk0, <span class="at">values_fill =</span> <span class="dv">0</span>)</span>
-<span id="cb18-268"><a href="#cb18-268" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-269"><a href="#cb18-269" aria-hidden="true" tabindex="-1"></a>Z <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(z_data[,<span class="sc">-</span><span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>)])</span>
-<span id="cb18-270"><a href="#cb18-270" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-271"><a href="#cb18-271" aria-hidden="true" tabindex="-1"></a><span class="co"># Residualize Y and X on the controls before forming the weights. There are</span></span>
-<span id="cb18-272"><a href="#cb18-272" aria-hidden="true" tabindex="-1"></a><span class="co"># no controls here other than the constant, so the residualization is just</span></span>
-<span id="cb18-273"><a href="#cb18-273" aria-hidden="true" tabindex="-1"></a><span class="co"># demeaning; this is what makes the Rotemberg decomposition exact (GPSS).</span></span>
-<span id="cb18-274"><a href="#cb18-274" aria-hidden="true" tabindex="-1"></a>Yp <span class="ot">&lt;-</span> Y <span class="sc">-</span> <span class="fu">mean</span>(Y)</span>
-<span id="cb18-275"><a href="#cb18-275" aria-hidden="true" tabindex="-1"></a>Xp <span class="ot">&lt;-</span> X <span class="sc">-</span> <span class="fu">mean</span>(X)</span>
-<span id="cb18-276"><a href="#cb18-276" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> <span class="fu">round</span>((<span class="fu">t</span>(Z) <span class="sc">%*%</span> Yp)<span class="sc">/</span>(<span class="fu">t</span>(Z) <span class="sc">%*%</span> Xp), <span class="at">digits=</span><span class="dv">3</span>)</span>
-<span id="cb18-277"><a href="#cb18-277" aria-hidden="true" tabindex="-1"></a>alpha<span class="ot">=</span>(<span class="fu">diag</span>(<span class="fu">as.numeric</span>(G)) <span class="sc">%*%</span> <span class="fu">t</span>(Z)  <span class="sc">%*%</span> Xp) <span class="sc">/</span> <span class="fu">as.numeric</span>((<span class="fu">t</span>(G) <span class="sc">%*%</span> <span class="fu">t</span>(Z) <span class="sc">%*%</span> Xp))</span>
-<span id="cb18-278"><a href="#cb18-278" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-279"><a href="#cb18-279" aria-hidden="true" tabindex="-1"></a>bw <span class="ot">&lt;-</span> <span class="fu">tibble</span>(g_kt, <span class="at">alpha=</span><span class="fu">as.numeric</span>(alpha), <span class="at">beta=</span><span class="fu">as.numeric</span>(beta)) <span class="sc">|&gt;</span></span>
-<span id="cb18-280"><a href="#cb18-280" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">product=</span>alpha<span class="sc">*</span>beta)</span>
-<span id="cb18-281"><a href="#cb18-281" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-282"><a href="#cb18-282" aria-hidden="true" tabindex="-1"></a>bw</span>
-<span id="cb18-283"><a href="#cb18-283" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-284"><a href="#cb18-284" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(bw<span class="sc">$</span>product)</span>
-<span id="cb18-285"><a href="#cb18-285" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb18-286"><a href="#cb18-286" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-287"><a href="#cb18-287" aria-hidden="true" tabindex="-1"></a>The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator.</span>
-<span id="cb18-288"><a href="#cb18-288" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-289"><a href="#cb18-289" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-290"><a href="#cb18-290" aria-hidden="true" tabindex="-1"></a>Note there is no restriction for $\alpha$, other than the sum is 1.  Therefore it can be negative or positive, and individual weights can exceed 1, as long as they sum to 1.  In GPSS the Rotemberg weights routinely take negative values and values greater than 1; this is a feature used to flag problematic instruments.</span>
-<span id="cb18-291"><a href="#cb18-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-238"><a href="#cb18-238" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb18-239"><a href="#cb18-239" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb18-240"><a href="#cb18-240" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-241"><a href="#cb18-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-242"><a href="#cb18-242" aria-hidden="true" tabindex="-1"></a><span class="co"># This code is the R version of Paul Goldsmith-Pinkham's R code for Rotemberg weights on</span></span>
+<span id="cb18-243"><a href="#cb18-243" aria-hidden="true" tabindex="-1"></a><span class="co"># github; which is actually a call from a C++ code by jjchern.</span></span>
+<span id="cb18-244"><a href="#cb18-244" aria-hidden="true" tabindex="-1"></a><span class="co"># bw.R calls ComputeAlphaBeta.cpp</span></span>
+<span id="cb18-245"><a href="#cb18-245" aria-hidden="true" tabindex="-1"></a><span class="co"># dimensions:  G is KTx1, Z is LTxKT, Y is LTx1, X is LTx1</span></span>
+<span id="cb18-246"><a href="#cb18-246" aria-hidden="true" tabindex="-1"></a><span class="co"># so B=ZG is LTx1</span></span>
+<span id="cb18-247"><a href="#cb18-247" aria-hidden="true" tabindex="-1"></a><span class="co"># Here I learned the dimensions from the ADH example in Paul's github.</span></span>
+<span id="cb18-248"><a href="#cb18-248" aria-hidden="true" tabindex="-1"></a><span class="co"># in ADH example, czone(L) is 722, year(T) is 2, ind(K) is 390.</span></span>
+<span id="cb18-249"><a href="#cb18-249" aria-hidden="true" tabindex="-1"></a><span class="co"># so G is 780x1, Z is 1444x780, Y is 1444x1, X is 1444x1</span></span>
+<span id="cb18-250"><a href="#cb18-250" aria-hidden="true" tabindex="-1"></a>y_lt <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
+<span id="cb18-251"><a href="#cb18-251" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(l,t,y_lt)</span>
+<span id="cb18-252"><a href="#cb18-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-253"><a href="#cb18-253" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(y_lt[,<span class="dv">3</span>])</span>
+<span id="cb18-254"><a href="#cb18-254" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-255"><a href="#cb18-255" aria-hidden="true" tabindex="-1"></a>x_lt <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
+<span id="cb18-256"><a href="#cb18-256" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(l,t,x_lt)</span>
+<span id="cb18-257"><a href="#cb18-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-258"><a href="#cb18-258" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(x_lt[,<span class="dv">3</span>])</span>
+<span id="cb18-259"><a href="#cb18-259" aria-hidden="true" tabindex="-1"></a><span class="co">#X &lt;- as.matrix(cbind(1,x_lt[,3]))</span></span>
+<span id="cb18-260"><a href="#cb18-260" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-261"><a href="#cb18-261" aria-hidden="true" tabindex="-1"></a><span class="co"># global is kt level data set</span></span>
+<span id="cb18-262"><a href="#cb18-262" aria-hidden="true" tabindex="-1"></a><span class="co"># # g_data &lt;- df |&gt;</span></span>
+<span id="cb18-263"><a href="#cb18-263" aria-hidden="true" tabindex="-1"></a><span class="co"># #   group_by(k,t) |&gt;</span></span>
+<span id="cb18-264"><a href="#cb18-264" aria-hidden="true" tabindex="-1"></a><span class="co"># #   summarise(g_kt=sum(g_lkt*z_lkt))</span></span>
+<span id="cb18-265"><a href="#cb18-265" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb18-266"><a href="#cb18-266" aria-hidden="true" tabindex="-1"></a><span class="co"># G &lt;- as.matrix(g_data[,3])</span></span>
+<span id="cb18-267"><a href="#cb18-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-268"><a href="#cb18-268" aria-hidden="true" tabindex="-1"></a>G <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(g_kt[,<span class="dv">3</span>])</span>
+<span id="cb18-269"><a href="#cb18-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-270"><a href="#cb18-270" aria-hidden="true" tabindex="-1"></a><span class="co"># generate wide Z matrix, LTxKT from df</span></span>
+<span id="cb18-271"><a href="#cb18-271" aria-hidden="true" tabindex="-1"></a><span class="co"># z_data &lt;- df |&gt;</span></span>
+<span id="cb18-272"><a href="#cb18-272" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(l,t,k,z_lkt) |&gt;</span></span>
+<span id="cb18-273"><a href="#cb18-273" aria-hidden="true" tabindex="-1"></a><span class="co">#   pivot_wider(names_from = k, values_from = z_lkt) |&gt;</span></span>
+<span id="cb18-274"><a href="#cb18-274" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(-l, -t)</span></span>
+<span id="cb18-275"><a href="#cb18-275" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-276"><a href="#cb18-276" aria-hidden="true" tabindex="-1"></a><span class="co"># this makes a wide Z data, which is LTxKT, KT variables are generated by the spread function.</span></span>
+<span id="cb18-277"><a href="#cb18-277" aria-hidden="true" tabindex="-1"></a><span class="co"># basically expand the shares to KT variables, filled with 0 if there is no data.</span></span>
+<span id="cb18-278"><a href="#cb18-278" aria-hidden="true" tabindex="-1"></a><span class="co"># Use z_lk0 (the INITIAL shares), not z_lkt: the Bartik instrument is B = Z_0 G,</span></span>
+<span id="cb18-279"><a href="#cb18-279" aria-hidden="true" tabindex="-1"></a><span class="co"># so the Rotemberg decomposition has to be taken with respect to the same Z that</span></span>
+<span id="cb18-280"><a href="#cb18-280" aria-hidden="true" tabindex="-1"></a><span class="co"># builds the instrument. Using z_lkt here would decompose a different estimator.</span></span>
+<span id="cb18-281"><a href="#cb18-281" aria-hidden="true" tabindex="-1"></a><span class="co"># z_data &lt;- df |&gt;</span></span>
+<span id="cb18-282"><a href="#cb18-282" aria-hidden="true" tabindex="-1"></a><span class="co">#   select(l,t,k,z_lkt) |&gt;</span></span>
+<span id="cb18-283"><a href="#cb18-283" aria-hidden="true" tabindex="-1"></a><span class="co">#   mutate(k = str_glue("t{t}_sh_ind_{k}") ) |&gt;</span></span>
+<span id="cb18-284"><a href="#cb18-284" aria-hidden="true" tabindex="-1"></a><span class="co">#   spread(k, z_lkt, fill = 0)</span></span>
+<span id="cb18-285"><a href="#cb18-285" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-286"><a href="#cb18-286" aria-hidden="true" tabindex="-1"></a>z_data <span class="ot">&lt;-</span> df <span class="sc">|&gt;</span></span>
+<span id="cb18-287"><a href="#cb18-287" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(l,t,k,z_lk0) <span class="sc">|&gt;</span></span>
+<span id="cb18-288"><a href="#cb18-288" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">k =</span> <span class="fu">str_glue</span>(<span class="st">"t{t}_sh_ind_{k}"</span>) ) <span class="sc">|&gt;</span></span>
+<span id="cb18-289"><a href="#cb18-289" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> k, <span class="at">values_from =</span> z_lk0, <span class="at">values_fill =</span> <span class="dv">0</span>)</span>
+<span id="cb18-290"><a href="#cb18-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-291"><a href="#cb18-291" aria-hidden="true" tabindex="-1"></a>Z <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(z_data[,<span class="sc">-</span><span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>)])</span>
 <span id="cb18-292"><a href="#cb18-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-293"><a href="#cb18-293" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-294"><a href="#cb18-294" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why is good to have Rotemberg weights?</span></span>
-<span id="cb18-295"><a href="#cb18-295" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-296"><a href="#cb18-296" aria-hidden="true" tabindex="-1"></a>GPSS Corollary D.1. shows the interpretation of the Rotemberg weights.</span>
-<span id="cb18-297"><a href="#cb18-297" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-298"><a href="#cb18-298" aria-hidden="true" tabindex="-1"></a>The percentage of bias can be written as:</span>
-<span id="cb18-299"><a href="#cb18-299" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-300"><a href="#cb18-300" aria-hidden="true" tabindex="-1"></a>$$ \frac{E(\tilde{\beta})}{\beta_0} = \sum_k \alpha_k \frac{E(\tilde \beta_k)}{\beta_0}$$ {#eq-bartik-instrument-10}</span>
-<span id="cb18-301"><a href="#cb18-301" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-302"><a href="#cb18-302" aria-hidden="true" tabindex="-1"></a>This is to say the $\alpha_k$ is the share of the bias of the estimate of $\beta$ that comes from the bias of the estimate of $\beta_k$.  That is, how sensitive it is to the bias from industry $k$.</span>
+<span id="cb18-293"><a href="#cb18-293" aria-hidden="true" tabindex="-1"></a><span class="co"># Residualize Y and X on the controls before forming the weights. There are</span></span>
+<span id="cb18-294"><a href="#cb18-294" aria-hidden="true" tabindex="-1"></a><span class="co"># no controls here other than the constant, so the residualization is just</span></span>
+<span id="cb18-295"><a href="#cb18-295" aria-hidden="true" tabindex="-1"></a><span class="co"># demeaning; this is what makes the Rotemberg decomposition exact (GPSS).</span></span>
+<span id="cb18-296"><a href="#cb18-296" aria-hidden="true" tabindex="-1"></a>Yp <span class="ot">&lt;-</span> Y <span class="sc">-</span> <span class="fu">mean</span>(Y)</span>
+<span id="cb18-297"><a href="#cb18-297" aria-hidden="true" tabindex="-1"></a>Xp <span class="ot">&lt;-</span> X <span class="sc">-</span> <span class="fu">mean</span>(X)</span>
+<span id="cb18-298"><a href="#cb18-298" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> <span class="fu">round</span>((<span class="fu">t</span>(Z) <span class="sc">%*%</span> Yp)<span class="sc">/</span>(<span class="fu">t</span>(Z) <span class="sc">%*%</span> Xp), <span class="at">digits=</span><span class="dv">3</span>)</span>
+<span id="cb18-299"><a href="#cb18-299" aria-hidden="true" tabindex="-1"></a>alpha<span class="ot">=</span>(<span class="fu">diag</span>(<span class="fu">as.numeric</span>(G)) <span class="sc">%*%</span> <span class="fu">t</span>(Z)  <span class="sc">%*%</span> Xp) <span class="sc">/</span> <span class="fu">as.numeric</span>((<span class="fu">t</span>(G) <span class="sc">%*%</span> <span class="fu">t</span>(Z) <span class="sc">%*%</span> Xp))</span>
+<span id="cb18-300"><a href="#cb18-300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-301"><a href="#cb18-301" aria-hidden="true" tabindex="-1"></a>bw <span class="ot">&lt;-</span> <span class="fu">tibble</span>(g_kt, <span class="at">alpha=</span><span class="fu">as.numeric</span>(alpha), <span class="at">beta=</span><span class="fu">as.numeric</span>(beta)) <span class="sc">|&gt;</span></span>
+<span id="cb18-302"><a href="#cb18-302" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">product=</span>alpha<span class="sc">*</span>beta)</span>
 <span id="cb18-303"><a href="#cb18-303" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-304"><a href="#cb18-304" aria-hidden="true" tabindex="-1"></a>In my simulations, all the industries are random, therefore the weights are random too.  But in empirical studies, they are not random, most likely dominated by some industries.  This is why it is important to have Rotemberg weights.  It tells us which industries are important in the estimation of the effect of interest.</span>
+<span id="cb18-304"><a href="#cb18-304" aria-hidden="true" tabindex="-1"></a>bw</span>
 <span id="cb18-305"><a href="#cb18-305" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-306"><a href="#cb18-306" aria-hidden="true" tabindex="-1"></a><span class="fu">## What if you are using a reduced form?</span></span>
-<span id="cb18-307"><a href="#cb18-307" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-308"><a href="#cb18-308" aria-hidden="true" tabindex="-1"></a>If you use the reduced form, something like:</span>
-<span id="cb18-309"><a href="#cb18-309" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-310"><a href="#cb18-310" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-311"><a href="#cb18-311" aria-hidden="true" tabindex="-1"></a>$$ y_{lt} = D_{lt} \rho + \beta_0 B_{lt} + \epsilon_{lt}$$ {#eq-bartik-instrument-11}</span>
-<span id="cb18-312"><a href="#cb18-312" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-313"><a href="#cb18-313" aria-hidden="true" tabindex="-1"></a>where $B_{lt}$ is the Bartik instrument, constructed in such as a way:</span>
-<span id="cb18-314"><a href="#cb18-314" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-315"><a href="#cb18-315" aria-hidden="true" tabindex="-1"></a>$$ B_{lt} = Z_{l0} G_{t} = \sum_{k=1}^K z_{lk0} g_{kt} $$ {#eq-bartik-instrument-12}</span>
-<span id="cb18-316"><a href="#cb18-316" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-317"><a href="#cb18-317" aria-hidden="true" tabindex="-1"></a>Then I think the Rotemberg weights should be calculated as:</span>
-<span id="cb18-318"><a href="#cb18-318" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-319"><a href="#cb18-319" aria-hidden="true" tabindex="-1"></a>$$ \beta_{Bartik} = \sum_{k} \hat \alpha_k \hat \beta_k$$ {#eq-bartik-instrument-13}</span>
-<span id="cb18-320"><a href="#cb18-320" aria-hidden="true" tabindex="-1"></a>where</span>
-<span id="cb18-321"><a href="#cb18-321" aria-hidden="true" tabindex="-1"></a>$$ \hat \beta_k = (Z'_k B^{\perp})^{-1} Z'_k Y^{\perp}$$ {#eq-bartik-instrument-14}</span>
-<span id="cb18-322"><a href="#cb18-322" aria-hidden="true" tabindex="-1"></a>and</span>
-<span id="cb18-323"><a href="#cb18-323" aria-hidden="true" tabindex="-1"></a>$$ \hat \alpha_k = \frac{g_k Z'_k B^{\perp}}{\sum_{k'} g_{k'}  Z'_{k'} B^{\perp}}$$ {#eq-bartik-instrument-15}</span>
+<span id="cb18-306"><a href="#cb18-306" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(bw<span class="sc">$</span>product)</span>
+<span id="cb18-307"><a href="#cb18-307" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-308"><a href="#cb18-308" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-309"><a href="#cb18-309" aria-hidden="true" tabindex="-1"></a>The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator, and it is: 0.9894 against the 2SLS estimate of 0.990. The</span>
+<span id="cb18-310"><a href="#cb18-310" aria-hidden="true" tabindex="-1"></a>decomposition is exact, not approximate.</span>
+<span id="cb18-311"><a href="#cb18-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-312"><a href="#cb18-312" aria-hidden="true" tabindex="-1"></a>Reading the table, the weights are far from uniform across the sixteen</span>
+<span id="cb18-313"><a href="#cb18-313" aria-hidden="true" tabindex="-1"></a>industry-period cells. Period 3 carries most of the weight — its four $\alpha$</span>
+<span id="cb18-314"><a href="#cb18-314" aria-hidden="true" tabindex="-1"></a>values are 0.138, 0.222, 0.076 and 0.136, summing to 0.57 — while period 2</span>
+<span id="cb18-315"><a href="#cb18-315" aria-hidden="true" tabindex="-1"></a>contributes almost nothing and even goes slightly negative</span>
+<span id="cb18-316"><a href="#cb18-316" aria-hidden="true" tabindex="-1"></a>($\alpha = -0.008$ and $-0.0004$ for its first two industries). The</span>
+<span id="cb18-317"><a href="#cb18-317" aria-hidden="true" tabindex="-1"></a>just-identified $\beta_k$ estimates are all near the true 1, ranging from 0.74</span>
+<span id="cb18-318"><a href="#cb18-318" aria-hidden="true" tabindex="-1"></a>to 1.19, which is what we should see in a simulation with a homogeneous effect.</span>
+<span id="cb18-319"><a href="#cb18-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-320"><a href="#cb18-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-321"><a href="#cb18-321" aria-hidden="true" tabindex="-1"></a>Note there is no restriction for $\alpha$, other than the sum is 1.  Therefore it can be negative or positive, and individual weights can exceed 1, as long as they sum to 1.  In GPSS the Rotemberg weights routinely take negative values and values greater than 1; this is a feature used to flag problematic instruments.</span>
+<span id="cb18-322"><a href="#cb18-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-323"><a href="#cb18-323" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-324"><a href="#cb18-324" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-325"><a href="#cb18-325" aria-hidden="true" tabindex="-1"></a>where $B^{\perp}$ and $Y^{\perp}$ are residualized $B$ and $Y$.</span>
+<span id="cb18-325"><a href="#cb18-325" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why is good to have Rotemberg weights?</span></span>
 <span id="cb18-326"><a href="#cb18-326" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-327"><a href="#cb18-327" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-327"><a href="#cb18-327" aria-hidden="true" tabindex="-1"></a>GPSS Corollary D.1. shows the interpretation of the Rotemberg weights.</span>
 <span id="cb18-328"><a href="#cb18-328" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-331"><a href="#cb18-331" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb18-332"><a href="#cb18-332" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb18-333"><a href="#cb18-333" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-329"><a href="#cb18-329" aria-hidden="true" tabindex="-1"></a>The percentage of bias can be written as:</span>
+<span id="cb18-330"><a href="#cb18-330" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-331"><a href="#cb18-331" aria-hidden="true" tabindex="-1"></a>$$ \frac{E(\tilde{\beta})}{\beta_0} = \sum_k \alpha_k \frac{E(\tilde \beta_k)}{\beta_0}$$ {#eq-bartik-instrument-10}</span>
+<span id="cb18-332"><a href="#cb18-332" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-333"><a href="#cb18-333" aria-hidden="true" tabindex="-1"></a>This is to say the $\alpha_k$ is the share of the bias of the estimate of $\beta$ that comes from the bias of the estimate of $\beta_k$.  That is, how sensitive it is to the bias from industry $k$.</span>
 <span id="cb18-334"><a href="#cb18-334" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-335"><a href="#cb18-335" aria-hidden="true" tabindex="-1"></a>result_reduced <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
-<span id="cb18-336"><a href="#cb18-336" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lm</span>(<span class="at">formula =</span> y_lt <span class="sc">~</span>  b_lt)</span>
-<span id="cb18-337"><a href="#cb18-337" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-338"><a href="#cb18-338" aria-hidden="true" tabindex="-1"></a>modelsummary<span class="sc">::</span><span class="fu">modelsummary</span>(result_reduced)</span>
-<span id="cb18-339"><a href="#cb18-339" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-335"><a href="#cb18-335" aria-hidden="true" tabindex="-1"></a>In my simulations, all the industries are random, therefore the weights are random too.  But in empirical studies, they are not random, most likely dominated by some industries.  This is why it is important to have Rotemberg weights.  It tells us which industries are important in the estimation of the effect of interest.</span>
+<span id="cb18-336"><a href="#cb18-336" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-337"><a href="#cb18-337" aria-hidden="true" tabindex="-1"></a><span class="fu">## What if you are using a reduced form?</span></span>
+<span id="cb18-338"><a href="#cb18-338" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-339"><a href="#cb18-339" aria-hidden="true" tabindex="-1"></a>If you use the reduced form, something like:</span>
 <span id="cb18-340"><a href="#cb18-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-341"><a href="#cb18-341" aria-hidden="true" tabindex="-1"></a>Now we calculate the Rotemberg weights for the reduced form, for our simulated data.</span>
-<span id="cb18-342"><a href="#cb18-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-341"><a href="#cb18-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-342"><a href="#cb18-342" aria-hidden="true" tabindex="-1"></a>$$ y_{lt} = D_{lt} \rho + \beta_0 B_{lt} + \epsilon_{lt}$$ {#eq-bartik-instrument-11}</span>
 <span id="cb18-343"><a href="#cb18-343" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-346"><a href="#cb18-346" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb18-347"><a href="#cb18-347" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb18-348"><a href="#cb18-348" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-344"><a href="#cb18-344" aria-hidden="true" tabindex="-1"></a>where $B_{lt}$ is the Bartik instrument, constructed in such as a way:</span>
+<span id="cb18-345"><a href="#cb18-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-346"><a href="#cb18-346" aria-hidden="true" tabindex="-1"></a>$$ B_{lt} = Z_{l0} G_{t} = \sum_{k=1}^K z_{lk0} g_{kt} $$ {#eq-bartik-instrument-12}</span>
+<span id="cb18-347"><a href="#cb18-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-348"><a href="#cb18-348" aria-hidden="true" tabindex="-1"></a>Then I think the Rotemberg weights should be calculated as:</span>
 <span id="cb18-349"><a href="#cb18-349" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-350"><a href="#cb18-350" aria-hidden="true" tabindex="-1"></a>B <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(b_lt[,<span class="dv">3</span>])</span>
-<span id="cb18-351"><a href="#cb18-351" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-352"><a href="#cb18-352" aria-hidden="true" tabindex="-1"></a><span class="co"># Residualize Y and B on the controls (here only a constant ⇒ demean), as in</span></span>
-<span id="cb18-353"><a href="#cb18-353" aria-hidden="true" tabindex="-1"></a><span class="co"># the GPSS reduced-form Rotemberg formula above, so the decomposition is exact.</span></span>
-<span id="cb18-354"><a href="#cb18-354" aria-hidden="true" tabindex="-1"></a>Yp <span class="ot">&lt;-</span> Y <span class="sc">-</span> <span class="fu">mean</span>(Y)</span>
-<span id="cb18-355"><a href="#cb18-355" aria-hidden="true" tabindex="-1"></a>Bp <span class="ot">&lt;-</span> B <span class="sc">-</span> <span class="fu">mean</span>(B)</span>
-<span id="cb18-356"><a href="#cb18-356" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> (<span class="fu">t</span>(Z) <span class="sc">%*%</span> Yp)<span class="sc">/</span>(<span class="fu">t</span>(Z) <span class="sc">%*%</span> Bp)</span>
-<span id="cb18-357"><a href="#cb18-357" aria-hidden="true" tabindex="-1"></a>alpha<span class="ot">=</span>(<span class="fu">diag</span>(<span class="fu">as.numeric</span>(G)) <span class="sc">%*%</span> <span class="fu">t</span>(Z)  <span class="sc">%*%</span> Bp) <span class="sc">/</span> <span class="fu">as.numeric</span>((<span class="fu">t</span>(G) <span class="sc">%*%</span> <span class="fu">t</span>(Z) <span class="sc">%*%</span> Bp))</span>
+<span id="cb18-350"><a href="#cb18-350" aria-hidden="true" tabindex="-1"></a>$$ \beta_{Bartik} = \sum_{k} \hat \alpha_k \hat \beta_k$$ {#eq-bartik-instrument-13}</span>
+<span id="cb18-351"><a href="#cb18-351" aria-hidden="true" tabindex="-1"></a>where</span>
+<span id="cb18-352"><a href="#cb18-352" aria-hidden="true" tabindex="-1"></a>$$ \hat \beta_k = (Z'_k B^{\perp})^{-1} Z'_k Y^{\perp}$$ {#eq-bartik-instrument-14}</span>
+<span id="cb18-353"><a href="#cb18-353" aria-hidden="true" tabindex="-1"></a>and</span>
+<span id="cb18-354"><a href="#cb18-354" aria-hidden="true" tabindex="-1"></a>$$ \hat \alpha_k = \frac{g_k Z'_k B^{\perp}}{\sum_{k'} g_{k'}  Z'_{k'} B^{\perp}}$$ {#eq-bartik-instrument-15}</span>
+<span id="cb18-355"><a href="#cb18-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-356"><a href="#cb18-356" aria-hidden="true" tabindex="-1"></a>where $B^{\perp}$ and $Y^{\perp}$ are residualized $B$ and $Y$.</span>
+<span id="cb18-357"><a href="#cb18-357" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb18-358"><a href="#cb18-358" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-359"><a href="#cb18-359" aria-hidden="true" tabindex="-1"></a>bw <span class="ot">&lt;-</span> <span class="fu">tibble</span>(g_kt, <span class="at">alpha=</span><span class="fu">as.numeric</span>(alpha), <span class="at">beta=</span><span class="fu">as.numeric</span>(beta)) <span class="sc">|&gt;</span></span>
-<span id="cb18-360"><a href="#cb18-360" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">product =</span> alpha <span class="sc">*</span> beta)</span>
-<span id="cb18-361"><a href="#cb18-361" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-362"><a href="#cb18-362" aria-hidden="true" tabindex="-1"></a>bw</span>
-<span id="cb18-363"><a href="#cb18-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-364"><a href="#cb18-364" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(bw<span class="sc">$</span>product)</span>
+<span id="cb18-359"><a href="#cb18-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-362"><a href="#cb18-362" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb18-363"><a href="#cb18-363" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb18-364"><a href="#cb18-364" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
 <span id="cb18-365"><a href="#cb18-365" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-366"><a href="#cb18-366" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb18-367"><a href="#cb18-367" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-368"><a href="#cb18-368" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb18-369"><a href="#cb18-369" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-370"><a href="#cb18-370" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb18-371"><a href="#cb18-371" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/shift-share-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/shift-share-iv.html).*</span>
+<span id="cb18-366"><a href="#cb18-366" aria-hidden="true" tabindex="-1"></a>result_reduced <span class="ot">&lt;-</span> df_lt <span class="sc">|&gt;</span></span>
+<span id="cb18-367"><a href="#cb18-367" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lm</span>(<span class="at">formula =</span> y_lt <span class="sc">~</span>  b_lt)</span>
+<span id="cb18-368"><a href="#cb18-368" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-369"><a href="#cb18-369" aria-hidden="true" tabindex="-1"></a>modelsummary<span class="sc">::</span><span class="fu">modelsummary</span>(result_reduced)</span>
+<span id="cb18-370"><a href="#cb18-370" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-371"><a href="#cb18-371" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-372"><a href="#cb18-372" aria-hidden="true" tabindex="-1"></a>Now we calculate the Rotemberg weights for the reduced form, for our simulated data.</span>
+<span id="cb18-373"><a href="#cb18-373" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-374"><a href="#cb18-374" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-377"><a href="#cb18-377" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb18-378"><a href="#cb18-378" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb18-379"><a href="#cb18-379" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb18-380"><a href="#cb18-380" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-381"><a href="#cb18-381" aria-hidden="true" tabindex="-1"></a>B <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(b_lt[,<span class="dv">3</span>])</span>
+<span id="cb18-382"><a href="#cb18-382" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-383"><a href="#cb18-383" aria-hidden="true" tabindex="-1"></a><span class="co"># Residualize Y and B on the controls (here only a constant ⇒ demean), as in</span></span>
+<span id="cb18-384"><a href="#cb18-384" aria-hidden="true" tabindex="-1"></a><span class="co"># the GPSS reduced-form Rotemberg formula above, so the decomposition is exact.</span></span>
+<span id="cb18-385"><a href="#cb18-385" aria-hidden="true" tabindex="-1"></a>Yp <span class="ot">&lt;-</span> Y <span class="sc">-</span> <span class="fu">mean</span>(Y)</span>
+<span id="cb18-386"><a href="#cb18-386" aria-hidden="true" tabindex="-1"></a>Bp <span class="ot">&lt;-</span> B <span class="sc">-</span> <span class="fu">mean</span>(B)</span>
+<span id="cb18-387"><a href="#cb18-387" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">=</span> (<span class="fu">t</span>(Z) <span class="sc">%*%</span> Yp)<span class="sc">/</span>(<span class="fu">t</span>(Z) <span class="sc">%*%</span> Bp)</span>
+<span id="cb18-388"><a href="#cb18-388" aria-hidden="true" tabindex="-1"></a>alpha<span class="ot">=</span>(<span class="fu">diag</span>(<span class="fu">as.numeric</span>(G)) <span class="sc">%*%</span> <span class="fu">t</span>(Z)  <span class="sc">%*%</span> Bp) <span class="sc">/</span> <span class="fu">as.numeric</span>((<span class="fu">t</span>(G) <span class="sc">%*%</span> <span class="fu">t</span>(Z) <span class="sc">%*%</span> Bp))</span>
+<span id="cb18-389"><a href="#cb18-389" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-390"><a href="#cb18-390" aria-hidden="true" tabindex="-1"></a>bw <span class="ot">&lt;-</span> <span class="fu">tibble</span>(g_kt, <span class="at">alpha=</span><span class="fu">as.numeric</span>(alpha), <span class="at">beta=</span><span class="fu">as.numeric</span>(beta)) <span class="sc">|&gt;</span></span>
+<span id="cb18-391"><a href="#cb18-391" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">product =</span> alpha <span class="sc">*</span> beta)</span>
+<span id="cb18-392"><a href="#cb18-392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-393"><a href="#cb18-393" aria-hidden="true" tabindex="-1"></a>bw</span>
+<span id="cb18-394"><a href="#cb18-394" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-395"><a href="#cb18-395" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(bw<span class="sc">$</span>product)</span>
+<span id="cb18-396"><a href="#cb18-396" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-397"><a href="#cb18-397" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb18-398"><a href="#cb18-398" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-399"><a href="#cb18-399" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb18-400"><a href="#cb18-400" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-401"><a href="#cb18-401" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb18-402"><a href="#cb18-402" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/shift-share-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/shift-share-iv.html).*</span>
+<span id="cb18-403"><a href="#cb18-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-404"><a href="#cb18-404" aria-hidden="true" tabindex="-1"></a>The reduced-form decomposition sums to 0.9091 rather than 0.9894, and that is</span>
+<span id="cb18-405"><a href="#cb18-405" aria-hidden="true" tabindex="-1"></a>not an error: it decomposes the reduced-form coefficient (the effect of the</span>
+<span id="cb18-406"><a href="#cb18-406" aria-hidden="true" tabindex="-1"></a>instrument on the outcome), not the 2SLS coefficient. The two differ by the</span>
+<span id="cb18-407"><a href="#cb18-407" aria-hidden="true" tabindex="-1"></a>first stage, which is not exactly 1.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

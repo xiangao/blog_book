@@ -685,6 +685,8 @@ window.Quarto = {
 <span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span><span class="op">(</span>W <span class="op">=</span> <span class="va">W</span>, Z <span class="op">=</span> <span class="va">Z</span>, A <span class="op">=</span> <span class="va">A</span>, Y <span class="op">=</span> <span class="va">Y</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
+<p>The simulation sets <span class="math inline">\(n = 5000\)</span> and every coefficient to 0.5. The hidden confounder is <span class="math inline">\(U \sim N(0,1)\)</span>; the two proxies are <span class="math inline">\(W = 0.5U + \varepsilon_W\)</span> and <span class="math inline">\(Z = 0.5U + \varepsilon_Z\)</span>; treatment is <span class="math inline">\(A = 0.5U + 0.5Z + \varepsilon_A\)</span>; and the outcome is <span class="math inline">\(Y = 0.5U + 0.5A + \varepsilon_Y\)</span>, all errors standard normal. The true effect of <span class="math inline">\(A\)</span> on <span class="math inline">\(Y\)</span> is therefore 0.5.</p>
+<p>Note the roles: <span class="math inline">\(Z\)</span> affects <span class="math inline">\(A\)</span> but not <span class="math inline">\(Y\)</span> directly, <span class="math inline">\(W\)</span> is affected by <span class="math inline">\(U\)</span> but affects nothing, and neither is a valid control for <span class="math inline">\(U\)</span> on its own.</p>
 <p>If we run regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(A\)</span>, <span class="math inline">\(Z\)</span>, <span class="math inline">\(W\)</span>,</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">m1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">Y</span> <span class="op">~</span> <span class="va">A</span> <span class="op">+</span> <span class="va">Z</span> <span class="op">+</span> <span class="va">W</span>, data <span class="op">=</span> <span class="va">data</span><span class="op">)</span></span>
@@ -712,7 +714,7 @@ Multiple R-squared:  0.4556,    Adjusted R-squared:  0.4553
 F-statistic:  1394 on 3 and 4996 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
-<p>We don’t get the true effect of <span class="math inline">\(A\)</span> on <span class="math inline">\(Y\)</span>.</p>
+<p>We don’t get the true effect of <span class="math inline">\(A\)</span> on <span class="math inline">\(Y\)</span>: the coefficient on <span class="math inline">\(A\)</span> is 0.660 against a true 0.5, a bias of 32%. Conditioning on both proxies does not remove the confounding, because neither <span class="math inline">\(W\)</span> nor <span class="math inline">\(Z\)</span> <em>is</em> <span class="math inline">\(U\)</span> — each is a noisy reflection of it, and controlling for a noisy proxy leaves residual confounding. The proxies do carry signal (both are significant, at 0.085 and 0.133), which is what makes this failure mode deceptive: the regression looks like it is adjusting for the confounder.</p>
 <p>If we do the 2sls using <span class="math inline">\(W\)</span> and <span class="math inline">\(Z\)</span>, then we get the true effect.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># Linear-Gaussian (Y, W) toy case ONLY. This two-stage plug-in identifies</span></span>
@@ -748,6 +750,8 @@ Multiple R-squared:  0.446, Adjusted R-squared:  0.4458
 F-statistic:  2012 on 2 and 4997 DF,  p-value: &lt; 2.2e-16</code></pre>
 </div>
 </div>
+<p>The two-stage estimate is 0.489, against the true 0.5 and the naive 0.660. Using the two proxies in the right way — one to build a predicted <span class="math inline">\(E[W \mid A, Z]\)</span> and that prediction as the control — recovers the effect, where using both directly as regressors did not.</p>
+<p>The reported standard error of 0.043 should be ignored, for the reason flagged in the code comment: <span class="math inline">\(S\)</span> is a generated regressor, so the second-stage standard errors are wrong as written and need a bootstrap over both stages.</p>
 <hr>
 <!-- see-also-footer --><p><em>Systematic treatment: <a href="https://xiangao.github.io/causal_econometrics_guide/graphs-identification-estimation.html">R</a> · <a href="https://xiangao.github.io/causal_econometrics_julia/graphs-identification-estimation.html">Julia</a>.</em></p>
 
@@ -1541,55 +1545,79 @@ F-statistic:  2012 on 2 and 4997 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span id="cb6-338"><a href="#cb6-338" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">W =</span> W, <span class="at">Z =</span> Z, <span class="at">A =</span> A, <span class="at">Y =</span> Y)</span>
 <span id="cb6-339"><a href="#cb6-339" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb6-340"><a href="#cb6-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-341"><a href="#cb6-341" aria-hidden="true" tabindex="-1"></a>If we run regression of $Y$ on $A$, $Z$, $W$,</span>
-<span id="cb6-342"><a href="#cb6-342" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-345"><a href="#cb6-345" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb6-346"><a href="#cb6-346" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: proximal3</span></span>
-<span id="cb6-347"><a href="#cb6-347" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb6-348"><a href="#cb6-348" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb6-349"><a href="#cb6-349" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb6-350"><a href="#cb6-350" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb6-351"><a href="#cb6-351" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb6-352"><a href="#cb6-352" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-353"><a href="#cb6-353" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-354"><a href="#cb6-354" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A <span class="sc">+</span> Z <span class="sc">+</span> W, <span class="at">data =</span> data)</span>
-<span id="cb6-355"><a href="#cb6-355" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m1)</span>
-<span id="cb6-356"><a href="#cb6-356" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-357"><a href="#cb6-357" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-358"><a href="#cb6-358" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb6-359"><a href="#cb6-359" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-360"><a href="#cb6-360" aria-hidden="true" tabindex="-1"></a>We don't get the true effect of $A$ on $Y$.</span>
+<span id="cb6-341"><a href="#cb6-341" aria-hidden="true" tabindex="-1"></a>The simulation sets $n = 5000$ and every coefficient to 0.5. The hidden</span>
+<span id="cb6-342"><a href="#cb6-342" aria-hidden="true" tabindex="-1"></a>confounder is $U \sim N(0,1)$; the two proxies are $W = 0.5U + \varepsilon_W$</span>
+<span id="cb6-343"><a href="#cb6-343" aria-hidden="true" tabindex="-1"></a>and $Z = 0.5U + \varepsilon_Z$; treatment is $A = 0.5U + 0.5Z + \varepsilon_A$;</span>
+<span id="cb6-344"><a href="#cb6-344" aria-hidden="true" tabindex="-1"></a>and the outcome is $Y = 0.5U + 0.5A + \varepsilon_Y$, all errors standard</span>
+<span id="cb6-345"><a href="#cb6-345" aria-hidden="true" tabindex="-1"></a>normal. The true effect of $A$ on $Y$ is therefore 0.5.</span>
+<span id="cb6-346"><a href="#cb6-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-347"><a href="#cb6-347" aria-hidden="true" tabindex="-1"></a>Note the roles: $Z$ affects $A$ but not $Y$ directly, $W$ is affected by $U$ but</span>
+<span id="cb6-348"><a href="#cb6-348" aria-hidden="true" tabindex="-1"></a>affects nothing, and neither is a valid control for $U$ on its own.</span>
+<span id="cb6-349"><a href="#cb6-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-350"><a href="#cb6-350" aria-hidden="true" tabindex="-1"></a>If we run regression of $Y$ on $A$, $Z$, $W$,</span>
+<span id="cb6-351"><a href="#cb6-351" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-354"><a href="#cb6-354" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-355"><a href="#cb6-355" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: proximal3</span></span>
+<span id="cb6-356"><a href="#cb6-356" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb6-357"><a href="#cb6-357" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb6-358"><a href="#cb6-358" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb6-359"><a href="#cb6-359" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb6-360"><a href="#cb6-360" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
 <span id="cb6-361"><a href="#cb6-361" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-362"><a href="#cb6-362" aria-hidden="true" tabindex="-1"></a>If we do the 2sls using $W$ and $Z$, then we get the true effect.</span>
-<span id="cb6-363"><a href="#cb6-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-366"><a href="#cb6-366" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb6-367"><a href="#cb6-367" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: proximal4</span></span>
-<span id="cb6-368"><a href="#cb6-368" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb6-369"><a href="#cb6-369" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb6-370"><a href="#cb6-370" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb6-371"><a href="#cb6-371" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb6-372"><a href="#cb6-372" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb6-373"><a href="#cb6-373" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-374"><a href="#cb6-374" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-375"><a href="#cb6-375" aria-hidden="true" tabindex="-1"></a><span class="co"># Linear-Gaussian (Y, W) toy case ONLY. This two-stage plug-in identifies</span></span>
-<span id="cb6-376"><a href="#cb6-376" aria-hidden="true" tabindex="-1"></a><span class="co"># the effect under the linear structure above; it is not the general</span></span>
-<span id="cb6-377"><a href="#cb6-377" aria-hidden="true" tabindex="-1"></a><span class="co"># proximal estimator, and the reported SEs below are NOT valid because S is</span></span>
-<span id="cb6-378"><a href="#cb6-378" aria-hidden="true" tabindex="-1"></a><span class="co"># a generated regressor (bootstrap the whole two-step procedure for inference).</span></span>
-<span id="cb6-379"><a href="#cb6-379" aria-hidden="true" tabindex="-1"></a><span class="co"># Perform the first-stage linear regression W ~ A + Z</span></span>
-<span id="cb6-380"><a href="#cb6-380" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(W <span class="sc">~</span> A <span class="sc">+</span> Z, <span class="at">data =</span> data)</span>
-<span id="cb6-381"><a href="#cb6-381" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the estimated E[W|A,Z]</span></span>
-<span id="cb6-382"><a href="#cb6-382" aria-hidden="true" tabindex="-1"></a>S <span class="ot">&lt;-</span> m1<span class="sc">$</span>fitted.values</span>
-<span id="cb6-383"><a href="#cb6-383" aria-hidden="true" tabindex="-1"></a><span class="co"># Perform the second-stage linear regression Y ~ A + E[W|A,Z]</span></span>
-<span id="cb6-384"><a href="#cb6-384" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A <span class="sc">+</span> S, <span class="at">data =</span> data)</span>
-<span id="cb6-385"><a href="#cb6-385" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m2)   <span class="co"># point estimate OK under the linear model; SEs need bootstrap</span></span>
-<span id="cb6-386"><a href="#cb6-386" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-387"><a href="#cb6-387" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-388"><a href="#cb6-388" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-362"><a href="#cb6-362" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-363"><a href="#cb6-363" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A <span class="sc">+</span> Z <span class="sc">+</span> W, <span class="at">data =</span> data)</span>
+<span id="cb6-364"><a href="#cb6-364" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m1)</span>
+<span id="cb6-365"><a href="#cb6-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-366"><a href="#cb6-366" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-367"><a href="#cb6-367" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-368"><a href="#cb6-368" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-369"><a href="#cb6-369" aria-hidden="true" tabindex="-1"></a>We don't get the true effect of $A$ on $Y$: the coefficient on $A$ is 0.660</span>
+<span id="cb6-370"><a href="#cb6-370" aria-hidden="true" tabindex="-1"></a>against a true 0.5, a bias of 32%. Conditioning on both proxies does not remove</span>
+<span id="cb6-371"><a href="#cb6-371" aria-hidden="true" tabindex="-1"></a>the confounding, because neither $W$ nor $Z$ *is* $U$ — each is a noisy</span>
+<span id="cb6-372"><a href="#cb6-372" aria-hidden="true" tabindex="-1"></a>reflection of it, and controlling for a noisy proxy leaves residual confounding.</span>
+<span id="cb6-373"><a href="#cb6-373" aria-hidden="true" tabindex="-1"></a>The proxies do carry signal (both are significant, at 0.085 and 0.133), which is</span>
+<span id="cb6-374"><a href="#cb6-374" aria-hidden="true" tabindex="-1"></a>what makes this failure mode deceptive: the regression looks like it is</span>
+<span id="cb6-375"><a href="#cb6-375" aria-hidden="true" tabindex="-1"></a>adjusting for the confounder.</span>
+<span id="cb6-376"><a href="#cb6-376" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-377"><a href="#cb6-377" aria-hidden="true" tabindex="-1"></a>If we do the 2sls using $W$ and $Z$, then we get the true effect.</span>
+<span id="cb6-378"><a href="#cb6-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-381"><a href="#cb6-381" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-382"><a href="#cb6-382" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: proximal4</span></span>
+<span id="cb6-383"><a href="#cb6-383" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb6-384"><a href="#cb6-384" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb6-385"><a href="#cb6-385" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb6-386"><a href="#cb6-386" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb6-387"><a href="#cb6-387" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb6-388"><a href="#cb6-388" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-389"><a href="#cb6-389" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-390"><a href="#cb6-390" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb6-391"><a href="#cb6-391" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-392"><a href="#cb6-392" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb6-393"><a href="#cb6-393" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/graphs-identification-estimation.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/graphs-identification-estimation.html).*</span>
+<span id="cb6-390"><a href="#cb6-390" aria-hidden="true" tabindex="-1"></a><span class="co"># Linear-Gaussian (Y, W) toy case ONLY. This two-stage plug-in identifies</span></span>
+<span id="cb6-391"><a href="#cb6-391" aria-hidden="true" tabindex="-1"></a><span class="co"># the effect under the linear structure above; it is not the general</span></span>
+<span id="cb6-392"><a href="#cb6-392" aria-hidden="true" tabindex="-1"></a><span class="co"># proximal estimator, and the reported SEs below are NOT valid because S is</span></span>
+<span id="cb6-393"><a href="#cb6-393" aria-hidden="true" tabindex="-1"></a><span class="co"># a generated regressor (bootstrap the whole two-step procedure for inference).</span></span>
+<span id="cb6-394"><a href="#cb6-394" aria-hidden="true" tabindex="-1"></a><span class="co"># Perform the first-stage linear regression W ~ A + Z</span></span>
+<span id="cb6-395"><a href="#cb6-395" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(W <span class="sc">~</span> A <span class="sc">+</span> Z, <span class="at">data =</span> data)</span>
+<span id="cb6-396"><a href="#cb6-396" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the estimated E[W|A,Z]</span></span>
+<span id="cb6-397"><a href="#cb6-397" aria-hidden="true" tabindex="-1"></a>S <span class="ot">&lt;-</span> m1<span class="sc">$</span>fitted.values</span>
+<span id="cb6-398"><a href="#cb6-398" aria-hidden="true" tabindex="-1"></a><span class="co"># Perform the second-stage linear regression Y ~ A + E[W|A,Z]</span></span>
+<span id="cb6-399"><a href="#cb6-399" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A <span class="sc">+</span> S, <span class="at">data =</span> data)</span>
+<span id="cb6-400"><a href="#cb6-400" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m2)   <span class="co"># point estimate OK under the linear model; SEs need bootstrap</span></span>
+<span id="cb6-401"><a href="#cb6-401" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-402"><a href="#cb6-402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-403"><a href="#cb6-403" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-404"><a href="#cb6-404" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-405"><a href="#cb6-405" aria-hidden="true" tabindex="-1"></a>The two-stage estimate is 0.489, against the true 0.5 and the naive 0.660. Using</span>
+<span id="cb6-406"><a href="#cb6-406" aria-hidden="true" tabindex="-1"></a>the two proxies in the right way — one to build a predicted $E<span class="co">[</span><span class="ot">W \mid A, Z</span><span class="co">]</span>$ and</span>
+<span id="cb6-407"><a href="#cb6-407" aria-hidden="true" tabindex="-1"></a>that prediction as the control — recovers the effect, where using both directly</span>
+<span id="cb6-408"><a href="#cb6-408" aria-hidden="true" tabindex="-1"></a>as regressors did not.</span>
+<span id="cb6-409"><a href="#cb6-409" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-410"><a href="#cb6-410" aria-hidden="true" tabindex="-1"></a>The reported standard error of 0.043 should be ignored, for the reason flagged</span>
+<span id="cb6-411"><a href="#cb6-411" aria-hidden="true" tabindex="-1"></a>in the code comment: $S$ is a generated regressor, so the second-stage standard</span>
+<span id="cb6-412"><a href="#cb6-412" aria-hidden="true" tabindex="-1"></a>errors are wrong as written and need a bootstrap over both stages.</span>
+<span id="cb6-413"><a href="#cb6-413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-414"><a href="#cb6-414" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-415"><a href="#cb6-415" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-416"><a href="#cb6-416" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb6-417"><a href="#cb6-417" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/graphs-identification-estimation.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/graphs-identification-estimation.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

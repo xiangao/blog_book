@@ -27,7 +27,9 @@ reg bweight i.mbsmoke##c.(prenatal1 mmarried mage fbaby)
 margins r.mbsmoke
 ```
 
-`teffects ra` returns the same ATE as `margins r.mbsmoke` after the interacted regression.
+The data here are `bweightex`, a 60-observation extract with birthweight as the outcome and maternal smoking as the treatment.
+
+`teffects ra` returns the same ATE as `margins r.mbsmoke` after the interacted regression: both give $-389.3099$ grams. The standard errors differ slightly, 37.01 against 36.14, because `teffects` accounts for the estimation of the outcome model differently from `margins`' delta method. The point estimate is the same object computed two ways.
 
 For the ATET (average treatment effect on the treated):
 
@@ -44,7 +46,7 @@ reg bweight i.mbsmoke##c.(prenatal1 mmarried mage fbaby)
 margins r.mbsmoke, subpop(mbsmoke)
 ```
 
-The ATET compares potential outcomes for the treated subpopulation, hence the `subpop(mbsmoke)` option in `margins`.
+The ATET compares potential outcomes for the treated subpopulation, hence the `subpop(mbsmoke)` option in `margins`. Both routes give $-437.4721$, again identical, and again with slightly different standard errors (53.44 against 51.10). Note the ATET is 48 grams larger in magnitude than the ATE of $-389.31$: smoking mothers are drawn disproportionately from the groups where smoking does most damage.
 
 
 ### Inverse Probability Weighting (IPW)
@@ -75,7 +77,9 @@ replace ps = 1/(1-ps) if mbsmoke==0
 reg bweight mbsmoke [pweight=ps]
 ```
 
-The manual two-step replication matches the point estimate; the only difference is the standard error (the manual version does not account for first-stage estimation noise).
+We switch here to `cattaneo2`, the full 4,642-birth dataset, and a richer propensity model (a probit in marital status, a quadratic in maternal age, first-baby status and education).
+
+`teffects ipw` gives an ATE of $-230.6886$ with a standard error of 25.82. The manual two-step replication matches the point estimate exactly, $-230.6886$; the only difference is the standard error (the manual version does not account for first-stage estimation noise). Note this is well short of the $-389$ found by RA above — but on different data and a different covariate set, so the two are not comparable.
 
 ### Doubly robust estimators
 
@@ -124,7 +128,7 @@ gen tau_ipwra_i = mu1_ipwra - mu0_ipwra
 sum tau_ipwra_i
 ```
 
-The mean of `tau_ipwra_i` matches `teffects ipwra`'s ATE.
+The mean of `tau_ipwra_i` matches `teffects ipwra`'s ATE exactly: $-238.7679$ in both.
 
 **Manual AIPW:** estimate outcome models $\hat\mu_1(X)$, $\hat\mu_0(X)$ (unweighted, one per arm) and the propensity score $\hat p(X)$, then combine via the augmented-IPW formula
 $$ \hat\tau_{i}^{aipw} = D_i\frac{Y_i-\hat\mu_1(X_i)}{\hat p(X_i)} + \hat\mu_1(X_i) - (1-D_i)\frac{Y_i-\hat\mu_0(X_i)}{1-\hat p(X_i)} - \hat\mu_0(X_i) $$ {#eq-treatment-matching-1}
@@ -148,7 +152,22 @@ gen aipw_i = mbsmoke*(bweight-mu1_aipw)/ps + mu1_aipw - (1-mbsmoke)*(bweight-mu0
 sum aipw_i
 ```
 
-The mean of `aipw_i` is close to `teffects aipw`'s ATE (small differences are expected: `teffects` estimates the treatment and outcome models jointly by ML, while this is a two-step plug-in version).
+The mean of `aipw_i` is $-239.0294$, matching `teffects aipw`'s ATE to four
+decimals. (One might expect a small gap, since `teffects` estimates the
+treatment and outcome models jointly while this is a two-step plug-in; here the
+point estimates coincide, and only the standard errors would differ.)
+
+The two doubly-robust estimators land within 0.3 grams of each other,
+$-238.77$ for IPWRA and $-239.03$ for AIPW, both about 8 grams away from plain
+IPW's $-230.69$.
+
+The unit-level `aipw_i` values are worth a glance before trusting the mean. They
+have a standard deviation of 1,618.6 and run from $-29{,}389$ to $+16{,}313$ —
+two orders of magnitude wider than the estimate itself. That spread comes from
+dividing residuals by $\hat p$ or $1-\hat p$ for units with extreme propensity
+scores. The average is well behaved, but it is an average over some very large
+individual terms, which is exactly why AIPW can be unstable when overlap is
+poor.
 
 ## Matching
 
@@ -178,7 +197,7 @@ reg bweight mbsmoke   [aweight=_weight]
 
 ```
 
-`teffects psmatch` gives the ATT of smoking on birthweight. The manual replication uses `psmatch2` with `logit` and `ties` (by default `teffects` includes all tied matches, while `psmatch2` keeps only one), then runs a weighted regression. Point estimates match; standard errors should be taken from `teffects`.
+`teffects psmatch` gives the ATT of smoking on birthweight, $-236.7848$ with a standard error of 26.58. The manual replication uses `psmatch2` with `logit` and `ties` (by default `teffects` includes all tied matches, while `psmatch2` keeps only one), then runs a weighted regression, and gives $-236.7848$ — the same to four decimals. Point estimates match; standard errors should be taken from `teffects`. The nearest-neighbour ATT sits close to the two doubly-robust ATEs above, $-238.8$ and $-239.0$, though it is a different estimand on a different subpopulation.
 
 ### Nearest neighbor matching
 

@@ -9,6 +9,13 @@ date: "2022-04-06"
 
 To compare a coefficient across two subsamples, interact the subsample indicator with the covariates and run one pooled regression. If only the treatment is interacted, all other coefficients are constrained equal across subsamples; interacting everything relaxes that. This is the Chow test. (The overlapping-samples extension below follows Austin Nichols's Statalist code.)
 
+The data are Stata's `nlsw88`, an extract from the 1988 National Longitudinal
+Survey of Young Women. With non-missing wage and hours, 938 of the women live in
+the South and 1,304 elsewhere, 2,242 in all. We regress hourly `wage` on weekly
+`hours`, and ask whether the slope differs by region. The chunk runs that four ways — two separate
+regressions, `suest`, and the pooled interacted regression — so the equivalences
+are visible side by side.
+
 ```{r}
 #| label: setup
 #| include: false
@@ -43,7 +50,27 @@ esttab south nonsouth suest chow, nogaps mti
 ```
 
 
-The pooled regression with `hours1` and `hours2` replicates the separate south/nonsouth estimates, and `test _b[hours1]-_b[hours2]=0` is the Chow test. Stata's `suest` does the same thing by stacking the two stored estimates and their covariance structure; the interaction approach is more flexible since it works with any estimator.
+The separate regressions give an hours slope of 0.0623 in the South and 0.1108
+elsewhere. The pooled regression with `hours1` and `hours2` returns
+0.0623497 and 0.1107536 — the *same numbers to seven digits*, not merely
+similar ones. That is algebra, not luck: a fully interacted regression is the
+two subsample regressions written as one.
+
+What does differ is the standard errors. The South slope carries 0.0177 in its
+own regression and 0.0189 in the pooled one, because the pooled model estimates
+a single error variance across both groups while the separate regressions each
+get their own (root MSE 5.26 in the South, 5.87 elsewhere). If that pooling is
+unattractive, `suest` avoids it: it stacks the two stored estimates with their
+joint covariance and reports robust standard errors, 0.0174 and 0.0135 here.
+
+`test _b[hours1]-_b[hours2]=0` is the Chow test, and it gives
+$F(1, 2238) = 4.20$ with $p = 0.0405$. The returns to hours are steeper outside
+the South, and the gap of 0.048 dollars per hour is just significant at 5%.
+Note that the `south` dummy itself is 0.163 with $p = 0.860$ — the two regions
+differ in slope, not in intercept, which is precisely the pattern a
+treatment-only interaction would have missed. Stata's `suest` does the same job
+by stacking the two stored estimates and their covariance structure; the
+interaction approach is more flexible since it works with any estimator.
 
 ## A comparison with two different outcomes
 
@@ -148,9 +175,16 @@ esttab south smsa suest stacked, nogaps mti
 
 ```
 
+The cross-tab shows the overlap: of the 1,304 non-South women, 996 live in an
+SMSA, so the two subsamples share members and cannot be produced by a simple
+split. Expanding the data and keeping each observation under whichever
+subsample it belongs to handles that. The pooled `hours1` is 0.0623497, again
+reproducing the South regression exactly, and `hours2` is 0.0954 for the SMSA
+subsample. The `n` indicator is 0.341 with $p = 0.578$.
+
 ## IV regression
 
-The interaction approach works with IV. Interact both the endogenous variable and the instrument with the subsample indicator:
+The interaction approach works with IV. Interact both the endogenous variable and the instrument with the subsample indicator. Here `hours` is instrumented by `union` within each region:
 
 
 
@@ -170,6 +204,14 @@ gen union2=union*(south==0)
 ivregress 2sls wage south (hours1 hours2 = union1 union2)
 test _b[hours1]-_b[hours2]=0
 ```
+
+The IV estimates are 0.978 in the South and 0.626 elsewhere, against OLS values
+of 0.062 and 0.111 — an order of magnitude larger, with standard errors to
+match (0.519 and 0.297). And the Chow test now gives $\chi^2(1) = 0.35$ with
+$p = 0.5554$, where the OLS version rejected at $p = 0.0405$. Instrumenting has
+not overturned the difference between regions; it has made the data too
+imprecise to detect it. The lesson is about the test, not the subsamples: a
+Chow test inherits the precision of whatever estimator it is built on.
 
 ## IV with fixed effects
 
@@ -197,7 +239,9 @@ ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race) cluster(race)
 
 ```
 
-The pooled coefficients do not match the separate regressions because the fixed effects are shared. Interacting them with the subsample indicator fixes it:
+The separate regressions give 1.1071 and 0.7023. The pooled regression gives
+1.1420 and 0.6881 — close, but not equal, and that is the point. The pooled
+coefficients do not match the separate regressions because the fixed effects are shared: one set of race effects is estimated off both subsamples at once, so neither subsample gets the within-group demeaning its own regression used. Interacting them with the subsample indicator fixes it:
 
 
 
@@ -223,7 +267,7 @@ ivregress 2sls wage south (hours1 hours2 = union1 union2) i.race1 i.race2, clust
 
 ```
 
-This reproduces the separate estimates. The approach builds explicit dummies from the interaction of the fixed-effect variable and the subsample indicator, which becomes impractical when the number of fixed-effect levels is large.
+This reproduces the separate estimates exactly: 1.107099 and 0.7023322 in the pooled regression against 1.107099 and 0.7023322 separately. The approach builds explicit dummies from the interaction of the fixed-effect variable and the subsample indicator, which becomes impractical when the number of fixed-effect levels is large.
 
 One caution about how those dummies were built.  `race1 = race*(south==1)` multiplies
 a *categorical code* by an indicator, so non-south observations are assigned
@@ -252,6 +296,14 @@ gen race2=race*(south==0)
 ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race1 race2) cluster(race)
 test _b[hours1]-_b[hours2]=0
 ```
+
+Absorbing `race1` and `race2` as a two-way fixed effect gives the same 1.107099
+and 0.7023322 without building the dummies by hand, and scales to many
+fixed-effect levels. The Chow test is $F(1,2) = 0.31$ with $p = 0.6325$ — but
+read that denominator: 2 degrees of freedom, because the standard errors are
+clustered on `race`, which has three categories. This is the problem the callout
+above flags, and it is why these IV/FE numbers illustrate mechanics rather than
+support any conclusion about the South.
 
 ## Chow test with different covariates
 
@@ -291,7 +343,14 @@ test _b[hours1]-_b[hours2]=0
 esttab  suest chow, nogaps mti
 ```
 
-The stacked model reproduces `suest`'s point estimates exactly. (The `esttab` columns do not line up because `suest` stores equation-qualified names like `south:wage` while the stacked model stores plain `wage`.)
+The stacked model reproduces `suest`'s point estimates exactly: the hours
+coefficient is 0.004828 in the `south` equation and 0.0003663 in the `smsa` one,
+in both. Here the covariates differ — `tenure` appears in the first equation
+only — and the trick of setting `tenure = 1` for the second subsample lets its
+coefficient be absorbed by that equation's intercept. The Chow test on the hours
+coefficient gives $F(1, 2241) = 10.03$ with $p = 0.0016$: hours predicts living
+in the South quite differently from how it predicts living in an SMSA. (The
+`esttab` columns do not line up because `suest` stores equation-qualified names like `south:wage` while the stacked model stores plain `wage`.)
 
 ## Conclusion
 

@@ -49,12 +49,22 @@ w.out1 <- weightit(treat ~ age + educ + race + married + nodegree + re74 + re75,
 w.out1 #print the output
 summary(w.out1)
 ```
+The treated weights are all exactly 1, as the ATT requires, and the control
+weights run from 0.009 to 3.743. The cost is in the effective sample size: 429
+controls carry the information of 99.8 equally weighted ones, a loss of more
+than three quarters.
+
 ```{r}
 #| include: true
 
 library(cobalt)
 bal.tab(w.out1, stats = c("m", "v"), thresholds = c(m = .05))
 ```
+
+Nine of ten contrasts now pass the strict 0.05 threshold, against none before
+weighting. `age` is the exception at 0.1188. Note also the variance ratios,
+which IPTW does not target: `age` sits at 0.458 and `re74` at 1.321, so the
+*means* are balanced while the *spreads* are not.
 
 ### entropy balancing
 
@@ -66,6 +76,13 @@ w.out2 <- weightit(treat ~ age + educ + race + married + nodegree + re74 + re75,
 summary(w.out2)
 bal.tab(w.out2, stats = c("m", "v"), thresholds = c(m = .05))
 ```
+Every mean difference is now zero to three decimals — that is the constraint
+entropy balancing imposes directly, rather than hoping a propensity model
+delivers it — and all nine pass. The effective sample size is 98.46, essentially
+the same as IPTW's 99.82, so the exact balance came at no extra cost in
+precision here. The variance ratios are unchanged in character (`age` 0.410,
+`re74` 1.327): entropy balancing constrains means, not distributions.
+
 Suppose we are satisfied with the balance, we can use the weights to estimate the treatment effect.  We can use the "marginaleffects" package to do that.
 
 ```{r}
@@ -79,6 +96,9 @@ library("marginaleffects")
 avg_comparisons(fit, variables = "treat",
                 newdata = subset(lalonde, treat == 1))
 ```
+
+The entropy-balanced ATT is \$1,273 with a standard error of \$770,
+$p = 0.098$, and a 95% interval of $[-236, 2783]$ that includes zero.
 
 ### energy balancing
 
@@ -124,6 +144,20 @@ directly in the precision of the estimate.
 Matching and weighting are popular in different fields.  We used to say matching involves discarding data therefore changing the estimand, but now with full matching and other methods, matching can be done without losing data.  We used to believe weighting can be unstable, as weights can be highly variable, but with CBPS, entropy balancing and energy balancing, weighting can perform much better.
 
 So, in practice, we can try different methods, either matching or weighting, and see which one gives us better balance. Then use "marginaleffects" to get the treatment effect.
+
+It is worth putting numbers on that, because on this data the choice changes the
+conclusion. Full matching in the [previous chapter](matching-part1.qmd) gave an
+ATT of \$1,977 with a standard error of \$704 and $p = 0.005$. Entropy balancing
+above gives \$1,273 with \$770 and $p = 0.098$. The two point estimates are
+about one standard error apart, and one interval excludes zero while the other
+does not.
+
+Note which way that cuts. Entropy balancing achieves *exact* mean balance, while
+full matching leaves `educ` at $-0.096$; the better-balanced method gives the
+smaller and less significant estimate. Better balance on means is not the same
+thing as a more credible answer, and reporting whichever method happened to
+cross the significance line would be the wrong response to this. The honest
+summary reports both and says the data do not settle it.
 
 ---
 

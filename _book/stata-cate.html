@@ -631,6 +631,7 @@ Not eligi..  |   14012.54   834.0963    16.80   0.000     12377.74    15647.34
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
+<p>The data are <code>assets3</code>: 9,913 households, with net financial assets as the outcome and 401(k) eligibility as the treatment. The group ATEs by income category show strong heterogeneity — $4,000 in the lowest category, $1,425 in the second (not significant), then $5,093, $8,701 and $20,350 as income rises. A single ATE would hide a fivefold spread.</p>
 <p>He said “We can achieve comparable results using standard regression with full interactions:”</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span> <span class="ot">all</span></span>
@@ -865,6 +866,7 @@ e401k      7553       1281   5.897 3.69e-09 ***
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </div>
 </div>
+<p>DoubleML with lasso learners gives an ATE of $7,553 with a standard error of $1,281.</p>
 <p>If we use random forest on the two models:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># suppress messages from mlr3 package during fitting</span></span>
@@ -920,7 +922,7 @@ Not eligi..  |   13999.41   842.9698    16.61   0.000     12347.22     15651.6
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
-<p>The results are somewhat similar, but not exactly the same. There are some subtle differences in the way these two packages running random forest on the two models that I am not aware of.</p>
+<p>With random forests DoubleML gives $9,474 (SE $1,376), while Stata’s <code>cate</code> with <code>rforest</code> for both models gives $7,126 (SE $1,182). The results are somewhat similar, but not exactly the same — a gap of about $2,300, which is larger than either standard error. There are some subtle differences in the way these two packages running random forest on the two models that I am not aware of.</p>
 </section></section><section id="aipw" class="level2" data-number="39.2"><h2 data-number="39.2" class="anchored" data-anchor-id="aipw">
 <span class="header-section-number">39.2</span> AIPW</h2>
 <p>Stata’s cate also has “aipw” option.</p>
@@ -956,6 +958,7 @@ Not eligi..  |   14136.14   857.5555    16.48   0.000     12455.36    15816.92
 ------------------------------------------------------------------------------</code></pre>
 </div>
 </div>
+<p>Stata’s AIPW gives an ATE of $7,929 with a standard error of $1,216, on 9,913 households.</p>
 <p>I’ll try to do this with “npcausal”:</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">npcausal</span><span class="op">)</span></span>
@@ -1561,285 +1564,298 @@ Mean Difference   7570.976 1164.1694  5289.204  9852.748 9913</code></pre>
 <span id="cb23-62"><a href="#cb23-62" aria-hidden="true" tabindex="-1"></a><span class="in">cate po (assets $catecovars) (e401k), group(incomecat) nolog</span></span>
 <span id="cb23-63"><a href="#cb23-63" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb23-64"><a href="#cb23-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-65"><a href="#cb23-65" aria-hidden="true" tabindex="-1"></a>He said "We can achieve comparable results using standard regression with full interactions:"</span>
-<span id="cb23-66"><a href="#cb23-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-67"><a href="#cb23-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-70"><a href="#cb23-70" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb23-71"><a href="#cb23-71" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
-<span id="cb23-72"><a href="#cb23-72" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb23-73"><a href="#cb23-73" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb23-74"><a href="#cb23-74" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb23-75"><a href="#cb23-75" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-76"><a href="#cb23-76" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
-<span id="cb23-77"><a href="#cb23-77" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
-<span id="cb23-78"><a href="#cb23-78" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ i.(incomecat pension married twoearn ira ownhome)</span></span>
-<span id="cb23-79"><a href="#cb23-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-80"><a href="#cb23-80" aria-hidden="true" tabindex="-1"></a><span class="in">* you do not want to see all interactions.</span></span>
-<span id="cb23-81"><a href="#cb23-81" aria-hidden="true" tabindex="-1"></a><span class="in">qui:reg assets i.incomecat##i.e401k##c.($catecovars), robust</span></span>
-<span id="cb23-82"><a href="#cb23-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-83"><a href="#cb23-83" aria-hidden="true" tabindex="-1"></a><span class="in">* Average Treatment Effect (ATE)</span></span>
-<span id="cb23-84"><a href="#cb23-84" aria-hidden="true" tabindex="-1"></a><span class="in">margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r))</span></span>
+<span id="cb23-65"><a href="#cb23-65" aria-hidden="true" tabindex="-1"></a>The data are <span class="in">`assets3`</span>: 9,913 households, with net financial assets as the</span>
+<span id="cb23-66"><a href="#cb23-66" aria-hidden="true" tabindex="-1"></a>outcome and 401(k) eligibility as the treatment. The group ATEs by income</span>
+<span id="cb23-67"><a href="#cb23-67" aria-hidden="true" tabindex="-1"></a>category show strong heterogeneity — \$4,000 in the lowest category, \$1,425 in</span>
+<span id="cb23-68"><a href="#cb23-68" aria-hidden="true" tabindex="-1"></a>the second (not significant), then \$5,093, \$8,701 and \$20,350 as income</span>
+<span id="cb23-69"><a href="#cb23-69" aria-hidden="true" tabindex="-1"></a>rises. A single ATE would hide a fivefold spread.</span>
+<span id="cb23-70"><a href="#cb23-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-71"><a href="#cb23-71" aria-hidden="true" tabindex="-1"></a>He said "We can achieve comparable results using standard regression with full interactions:"</span>
+<span id="cb23-72"><a href="#cb23-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-73"><a href="#cb23-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-76"><a href="#cb23-76" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb23-77"><a href="#cb23-77" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
+<span id="cb23-78"><a href="#cb23-78" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb23-79"><a href="#cb23-79" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb23-80"><a href="#cb23-80" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb23-81"><a href="#cb23-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-82"><a href="#cb23-82" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
+<span id="cb23-83"><a href="#cb23-83" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
+<span id="cb23-84"><a href="#cb23-84" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ i.(incomecat pension married twoearn ira ownhome)</span></span>
 <span id="cb23-85"><a href="#cb23-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-86"><a href="#cb23-86" aria-hidden="true" tabindex="-1"></a><span class="in">* Group Average Treatment Effects (GATEs)</span></span>
-<span id="cb23-87"><a href="#cb23-87" aria-hidden="true" tabindex="-1"></a><span class="in">margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r)) over(incomecat)</span></span>
-<span id="cb23-88"><a href="#cb23-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-89"><a href="#cb23-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-90"><a href="#cb23-90" aria-hidden="true" tabindex="-1"></a>Numerically these two sets of estimations may be close, but I don't think they are from the same model, even the same idea.  The CATE command with "PO" option is to estimate the CATE with "partialling out" approach.</span>
+<span id="cb23-86"><a href="#cb23-86" aria-hidden="true" tabindex="-1"></a><span class="in">* you do not want to see all interactions.</span></span>
+<span id="cb23-87"><a href="#cb23-87" aria-hidden="true" tabindex="-1"></a><span class="in">qui:reg assets i.incomecat##i.e401k##c.($catecovars), robust</span></span>
+<span id="cb23-88"><a href="#cb23-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-89"><a href="#cb23-89" aria-hidden="true" tabindex="-1"></a><span class="in">* Average Treatment Effect (ATE)</span></span>
+<span id="cb23-90"><a href="#cb23-90" aria-hidden="true" tabindex="-1"></a><span class="in">margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r))</span></span>
 <span id="cb23-91"><a href="#cb23-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-92"><a href="#cb23-92" aria-hidden="true" tabindex="-1"></a>What Fernando did is a "regression adjustment" type of model, which is modeling outcome model and allow interaction of treatment and covariates.  The "partialling out" approach is sometimes called double ML.</span>
-<span id="cb23-93"><a href="#cb23-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-94"><a href="#cb23-94" aria-hidden="true" tabindex="-1"></a>Let's see how to replicate "teffects ra" with "reg":</span>
+<span id="cb23-92"><a href="#cb23-92" aria-hidden="true" tabindex="-1"></a><span class="in">* Group Average Treatment Effects (GATEs)</span></span>
+<span id="cb23-93"><a href="#cb23-93" aria-hidden="true" tabindex="-1"></a><span class="in">margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r)) over(incomecat)</span></span>
+<span id="cb23-94"><a href="#cb23-94" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb23-95"><a href="#cb23-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-98"><a href="#cb23-98" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb23-99"><a href="#cb23-99" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata4</span></span>
-<span id="cb23-100"><a href="#cb23-100" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb23-101"><a href="#cb23-101" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb23-102"><a href="#cb23-102" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb23-103"><a href="#cb23-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-104"><a href="#cb23-104" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
-<span id="cb23-105"><a href="#cb23-105" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
-<span id="cb23-106"><a href="#cb23-106" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ i.(incomecat pension married twoearn ira ownhome)</span></span>
-<span id="cb23-107"><a href="#cb23-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-108"><a href="#cb23-108" aria-hidden="true" tabindex="-1"></a><span class="in">teffects ra (assets age educ i.(incomecat pension married twoearn ira ownhome))(e401k)</span></span>
+<span id="cb23-96"><a href="#cb23-96" aria-hidden="true" tabindex="-1"></a>Numerically these two sets of estimations may be close, but I don't think they are from the same model, even the same idea.  The CATE command with "PO" option is to estimate the CATE with "partialling out" approach.</span>
+<span id="cb23-97"><a href="#cb23-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-98"><a href="#cb23-98" aria-hidden="true" tabindex="-1"></a>What Fernando did is a "regression adjustment" type of model, which is modeling outcome model and allow interaction of treatment and covariates.  The "partialling out" approach is sometimes called double ML.</span>
+<span id="cb23-99"><a href="#cb23-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-100"><a href="#cb23-100" aria-hidden="true" tabindex="-1"></a>Let's see how to replicate "teffects ra" with "reg":</span>
+<span id="cb23-101"><a href="#cb23-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-104"><a href="#cb23-104" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb23-105"><a href="#cb23-105" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata4</span></span>
+<span id="cb23-106"><a href="#cb23-106" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb23-107"><a href="#cb23-107" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb23-108"><a href="#cb23-108" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
 <span id="cb23-109"><a href="#cb23-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-110"><a href="#cb23-110" aria-hidden="true" tabindex="-1"></a><span class="in">qui: reg assets i.e401k##c.(age educ) i.e401k##i.(incomecat pension married twoearn ira ownhome)</span></span>
-<span id="cb23-111"><a href="#cb23-111" aria-hidden="true" tabindex="-1"></a><span class="in">margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r))</span></span>
-<span id="cb23-112"><a href="#cb23-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-113"><a href="#cb23-113" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-114"><a href="#cb23-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-110"><a href="#cb23-110" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
+<span id="cb23-111"><a href="#cb23-111" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
+<span id="cb23-112"><a href="#cb23-112" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ i.(incomecat pension married twoearn ira ownhome)</span></span>
+<span id="cb23-113"><a href="#cb23-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-114"><a href="#cb23-114" aria-hidden="true" tabindex="-1"></a><span class="in">teffects ra (assets age educ i.(incomecat pension married twoearn ira ownhome))(e401k)</span></span>
 <span id="cb23-115"><a href="#cb23-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-116"><a href="#cb23-116" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-117"><a href="#cb23-117" aria-hidden="true" tabindex="-1"></a><span class="fu">### DoubleML</span></span>
+<span id="cb23-116"><a href="#cb23-116" aria-hidden="true" tabindex="-1"></a><span class="in">qui: reg assets i.e401k##c.(age educ) i.e401k##i.(incomecat pension married twoearn ira ownhome)</span></span>
+<span id="cb23-117"><a href="#cb23-117" aria-hidden="true" tabindex="-1"></a><span class="in">margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r))</span></span>
 <span id="cb23-118"><a href="#cb23-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-119"><a href="#cb23-119" aria-hidden="true" tabindex="-1"></a>The R package DoubleML implements the double/debiased machine learning framework of Chernozhukov et al. (2018). It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.</span>
+<span id="cb23-119"><a href="#cb23-119" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb23-120"><a href="#cb23-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-121"><a href="#cb23-121" aria-hidden="true" tabindex="-1"></a>They consider a partially linear model:</span>
+<span id="cb23-121"><a href="#cb23-121" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb23-122"><a href="#cb23-122" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-123"><a href="#cb23-123" aria-hidden="true" tabindex="-1"></a>$$ y_i = \theta d_i + g_0(x_i) + \eta_i $$ {#eq-stata-cate-1}</span>
+<span id="cb23-123"><a href="#cb23-123" aria-hidden="true" tabindex="-1"></a><span class="fu">### DoubleML</span></span>
 <span id="cb23-124"><a href="#cb23-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-125"><a href="#cb23-125" aria-hidden="true" tabindex="-1"></a>$$ d_i = m_0(x_i) + v_i $$ {#eq-stata-cate-2}</span>
+<span id="cb23-125"><a href="#cb23-125" aria-hidden="true" tabindex="-1"></a>The R package DoubleML implements the double/debiased machine learning framework of Chernozhukov et al. (2018). It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.</span>
 <span id="cb23-126"><a href="#cb23-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-127"><a href="#cb23-127" aria-hidden="true" tabindex="-1"></a>This model is quite general, except it does not allow interaction of $d$ and $x$; therefore no heterogeneous treatment effect across $x$. But "DoubleML" implements more than partially linear model, it actually allows for heterogeneous treatment effects, in models such as interactive regression model.</span>
+<span id="cb23-127"><a href="#cb23-127" aria-hidden="true" tabindex="-1"></a>They consider a partially linear model:</span>
 <span id="cb23-128"><a href="#cb23-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-129"><a href="#cb23-129" aria-hidden="true" tabindex="-1"></a>The basic idea of doubleML is to use any machine learning algorithm to estimate outcome equation ($l_0(X) = E(Y | X)$) and treatment equation ($m_0(X) = E(D | X)$). Then get the residuals, namely $\hat W=Y-\hat l_0(X)$ and $\hat V = D - \hat m_0(X)$.</span>
+<span id="cb23-129"><a href="#cb23-129" aria-hidden="true" tabindex="-1"></a>$$ y_i = \theta d_i + g_0(x_i) + \eta_i $$ {#eq-stata-cate-1}</span>
 <span id="cb23-130"><a href="#cb23-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-131"><a href="#cb23-131" aria-hidden="true" tabindex="-1"></a>Then regress $\hat W$ on $\hat V$. Based on FWL theorem, you get $\hat \theta$.</span>
+<span id="cb23-131"><a href="#cb23-131" aria-hidden="true" tabindex="-1"></a>$$ d_i = m_0(x_i) + v_i $$ {#eq-stata-cate-2}</span>
 <span id="cb23-132"><a href="#cb23-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-133"><a href="#cb23-133" aria-hidden="true" tabindex="-1"></a>An important component here is to specify a Neyman-orthogonal score function. In the case of PLR, it can be the product of the two residuals:</span>
+<span id="cb23-133"><a href="#cb23-133" aria-hidden="true" tabindex="-1"></a>This model is quite general, except it does not allow interaction of $d$ and $x$; therefore no heterogeneous treatment effect across $x$. But "DoubleML" implements more than partially linear model, it actually allows for heterogeneous treatment effects, in models such as interactive regression model.</span>
 <span id="cb23-134"><a href="#cb23-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-135"><a href="#cb23-135" aria-hidden="true" tabindex="-1"></a>$$\psi (W; \theta, \eta) = (Y-D\theta -g(X))(D-m(X)) $$ {#eq-stata-cate-3}</span>
+<span id="cb23-135"><a href="#cb23-135" aria-hidden="true" tabindex="-1"></a>The basic idea of doubleML is to use any machine learning algorithm to estimate outcome equation ($l_0(X) = E(Y | X)$) and treatment equation ($m_0(X) = E(D | X)$). Then get the residuals, namely $\hat W=Y-\hat l_0(X)$ and $\hat V = D - \hat m_0(X)$.</span>
 <span id="cb23-136"><a href="#cb23-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-137"><a href="#cb23-137" aria-hidden="true" tabindex="-1"></a>The estimators $\hat \theta$ is to solve the equation that the sample mean of this score function being 0.</span>
+<span id="cb23-137"><a href="#cb23-137" aria-hidden="true" tabindex="-1"></a>Then regress $\hat W$ on $\hat V$. Based on FWL theorem, you get $\hat \theta$.</span>
 <span id="cb23-138"><a href="#cb23-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-139"><a href="#cb23-139" aria-hidden="true" tabindex="-1"></a>And the variance of this score function is used as the variance of the doubleML estimator's variance.</span>
+<span id="cb23-139"><a href="#cb23-139" aria-hidden="true" tabindex="-1"></a>An important component here is to specify a Neyman-orthogonal score function. In the case of PLR, it can be the product of the two residuals:</span>
 <span id="cb23-140"><a href="#cb23-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-141"><a href="#cb23-141" aria-hidden="true" tabindex="-1"></a>Now we try to replicate the CATE estimation in Stata using the R package DoubleML.  I have not found a way to include factor variables in the lasso regression in R, so I included them as numeric variables.</span>
+<span id="cb23-141"><a href="#cb23-141" aria-hidden="true" tabindex="-1"></a>$$\psi (W; \theta, \eta) = (Y-D\theta -g(X))(D-m(X)) $$ {#eq-stata-cate-3}</span>
 <span id="cb23-142"><a href="#cb23-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-143"><a href="#cb23-143" aria-hidden="true" tabindex="-1"></a>The example in stata's cate command is to use lasso on both outcome and treatment regression, then random forest on the individual treatment effect to get ATE.  Here I try to replicate it in R.</span>
+<span id="cb23-143"><a href="#cb23-143" aria-hidden="true" tabindex="-1"></a>The estimators $\hat \theta$ is to solve the equation that the sample mean of this score function being 0.</span>
 <span id="cb23-144"><a href="#cb23-144" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-147"><a href="#cb23-147" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb23-148"><a href="#cb23-148" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: doubleml1</span></span>
-<span id="cb23-149"><a href="#cb23-149" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb23-150"><a href="#cb23-150" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb23-151"><a href="#cb23-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb23-152"><a href="#cb23-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb23-153"><a href="#cb23-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb23-154"><a href="#cb23-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-155"><a href="#cb23-155" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-156"><a href="#cb23-156" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(haven)</span>
-<span id="cb23-157"><a href="#cb23-157" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DoubleML)</span>
-<span id="cb23-158"><a href="#cb23-158" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3)</span>
-<span id="cb23-159"><a href="#cb23-159" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3learners)</span>
-<span id="cb23-160"><a href="#cb23-160" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
-<span id="cb23-161"><a href="#cb23-161" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb23-162"><a href="#cb23-162" aria-hidden="true" tabindex="-1"></a><span class="co"># get rid of labels because doubleML does not like them</span></span>
-<span id="cb23-163"><a href="#cb23-163" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_dta</span>(<span class="st">"https://www.stata-press.com/data/r19/assets3.dta"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb23-164"><a href="#cb23-164" aria-hidden="true" tabindex="-1"></a>  <span class="fu">zap_labels</span>()</span>
-<span id="cb23-165"><a href="#cb23-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-166"><a href="#cb23-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-167"><a href="#cb23-167" aria-hidden="true" tabindex="-1"></a>  <span class="co"># pension, married, twoearn, ira, ownhome are already binary 0/1, so</span></span>
-<span id="cb23-168"><a href="#cb23-168" aria-hidden="true" tabindex="-1"></a>  <span class="co"># passing them as numeric is fine. incomecat, however, has 5 unordered</span></span>
-<span id="cb23-169"><a href="#cb23-169" aria-hidden="true" tabindex="-1"></a>  <span class="co"># categories (0-4) -- passing it as a single numeric column would force</span></span>
-<span id="cb23-170"><a href="#cb23-170" aria-hidden="true" tabindex="-1"></a>  <span class="co"># the ML learners (especially the linear regr.glmnet below) to treat</span></span>
-<span id="cb23-171"><a href="#cb23-171" aria-hidden="true" tabindex="-1"></a>  <span class="co"># category 2 as twice category 1, which is not a meaningful assumption</span></span>
-<span id="cb23-172"><a href="#cb23-172" aria-hidden="true" tabindex="-1"></a>  <span class="co"># for a nominal variable. One-hot encode it into dummy columns instead.</span></span>
-<span id="cb23-173"><a href="#cb23-173" aria-hidden="true" tabindex="-1"></a>incomecat_dummies <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(<span class="sc">~</span> <span class="fu">as.factor</span>(incomecat) <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> data)</span>
-<span id="cb23-174"><a href="#cb23-174" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(incomecat_dummies) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"incomecat_"</span>, <span class="dv">0</span><span class="sc">:</span>(<span class="fu">ncol</span>(incomecat_dummies) <span class="sc">-</span> <span class="dv">1</span>))</span>
-<span id="cb23-175"><a href="#cb23-175" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">cbind</span>(data, incomecat_dummies)</span>
-<span id="cb23-176"><a href="#cb23-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-177"><a href="#cb23-177" aria-hidden="true" tabindex="-1"></a>assets3 <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">setDT</span>(data)</span>
-<span id="cb23-178"><a href="#cb23-178" aria-hidden="true" tabindex="-1"></a>dml_data <span class="ot">=</span> DoubleMLData<span class="sc">$</span><span class="fu">new</span>(<span class="at">data =</span> assets3,</span>
-<span id="cb23-179"><a href="#cb23-179" aria-hidden="true" tabindex="-1"></a>                             <span class="at">y_col =</span> <span class="st">"assets"</span>,</span>
-<span id="cb23-180"><a href="#cb23-180" aria-hidden="true" tabindex="-1"></a>                             <span class="at">d_cols =</span> <span class="st">"e401k"</span>,</span>
-<span id="cb23-181"><a href="#cb23-181" aria-hidden="true" tabindex="-1"></a>                             <span class="at">x_cols =</span> <span class="fu">c</span>(<span class="st">"age"</span>,<span class="st">"educ"</span>, <span class="fu">colnames</span>(incomecat_dummies),<span class="st">"pension"</span>, <span class="st">"married"</span>,<span class="st">"twoearn"</span>,<span class="st">"ira"</span>,<span class="st">"ownhome"</span>))</span>
+<span id="cb23-145"><a href="#cb23-145" aria-hidden="true" tabindex="-1"></a>And the variance of this score function is used as the variance of the doubleML estimator's variance.</span>
+<span id="cb23-146"><a href="#cb23-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-147"><a href="#cb23-147" aria-hidden="true" tabindex="-1"></a>Now we try to replicate the CATE estimation in Stata using the R package DoubleML.  I have not found a way to include factor variables in the lasso regression in R, so I included them as numeric variables.</span>
+<span id="cb23-148"><a href="#cb23-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-149"><a href="#cb23-149" aria-hidden="true" tabindex="-1"></a>The example in stata's cate command is to use lasso on both outcome and treatment regression, then random forest on the individual treatment effect to get ATE.  Here I try to replicate it in R.</span>
+<span id="cb23-150"><a href="#cb23-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-153"><a href="#cb23-153" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb23-154"><a href="#cb23-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: doubleml1</span></span>
+<span id="cb23-155"><a href="#cb23-155" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb23-156"><a href="#cb23-156" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb23-157"><a href="#cb23-157" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb23-158"><a href="#cb23-158" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb23-159"><a href="#cb23-159" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb23-160"><a href="#cb23-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-161"><a href="#cb23-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-162"><a href="#cb23-162" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(haven)</span>
+<span id="cb23-163"><a href="#cb23-163" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DoubleML)</span>
+<span id="cb23-164"><a href="#cb23-164" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3)</span>
+<span id="cb23-165"><a href="#cb23-165" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mlr3learners)</span>
+<span id="cb23-166"><a href="#cb23-166" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
+<span id="cb23-167"><a href="#cb23-167" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb23-168"><a href="#cb23-168" aria-hidden="true" tabindex="-1"></a><span class="co"># get rid of labels because doubleML does not like them</span></span>
+<span id="cb23-169"><a href="#cb23-169" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">read_dta</span>(<span class="st">"https://www.stata-press.com/data/r19/assets3.dta"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb23-170"><a href="#cb23-170" aria-hidden="true" tabindex="-1"></a>  <span class="fu">zap_labels</span>()</span>
+<span id="cb23-171"><a href="#cb23-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-172"><a href="#cb23-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-173"><a href="#cb23-173" aria-hidden="true" tabindex="-1"></a>  <span class="co"># pension, married, twoearn, ira, ownhome are already binary 0/1, so</span></span>
+<span id="cb23-174"><a href="#cb23-174" aria-hidden="true" tabindex="-1"></a>  <span class="co"># passing them as numeric is fine. incomecat, however, has 5 unordered</span></span>
+<span id="cb23-175"><a href="#cb23-175" aria-hidden="true" tabindex="-1"></a>  <span class="co"># categories (0-4) -- passing it as a single numeric column would force</span></span>
+<span id="cb23-176"><a href="#cb23-176" aria-hidden="true" tabindex="-1"></a>  <span class="co"># the ML learners (especially the linear regr.glmnet below) to treat</span></span>
+<span id="cb23-177"><a href="#cb23-177" aria-hidden="true" tabindex="-1"></a>  <span class="co"># category 2 as twice category 1, which is not a meaningful assumption</span></span>
+<span id="cb23-178"><a href="#cb23-178" aria-hidden="true" tabindex="-1"></a>  <span class="co"># for a nominal variable. One-hot encode it into dummy columns instead.</span></span>
+<span id="cb23-179"><a href="#cb23-179" aria-hidden="true" tabindex="-1"></a>incomecat_dummies <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(<span class="sc">~</span> <span class="fu">as.factor</span>(incomecat) <span class="sc">-</span> <span class="dv">1</span>, <span class="at">data =</span> data)</span>
+<span id="cb23-180"><a href="#cb23-180" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(incomecat_dummies) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"incomecat_"</span>, <span class="dv">0</span><span class="sc">:</span>(<span class="fu">ncol</span>(incomecat_dummies) <span class="sc">-</span> <span class="dv">1</span>))</span>
+<span id="cb23-181"><a href="#cb23-181" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> <span class="fu">cbind</span>(data, incomecat_dummies)</span>
 <span id="cb23-182"><a href="#cb23-182" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-183"><a href="#cb23-183" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dml_data)</span>
-<span id="cb23-184"><a href="#cb23-184" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-185"><a href="#cb23-185" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
-<span id="cb23-186"><a href="#cb23-186" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.glmnet"</span>, <span class="at">lambda=</span><span class="dv">1</span>)</span>
-<span id="cb23-187"><a href="#cb23-187" aria-hidden="true" tabindex="-1"></a>ml_g_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb23-188"><a href="#cb23-188" aria-hidden="true" tabindex="-1"></a>ml_m_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb23-189"><a href="#cb23-189" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb23-190"><a href="#cb23-190" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_l=</span>ml_g_sim, <span class="at">ml_m=</span>ml_m_sim, <span class="at">n_folds=</span><span class="dv">10</span>)</span>
-<span id="cb23-191"><a href="#cb23-191" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
-<span id="cb23-192"><a href="#cb23-192" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">summary</span>()</span>
-<span id="cb23-193"><a href="#cb23-193" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-194"><a href="#cb23-194" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-195"><a href="#cb23-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-196"><a href="#cb23-196" aria-hidden="true" tabindex="-1"></a>If we use random forest on the two models:</span>
-<span id="cb23-199"><a href="#cb23-199" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb23-200"><a href="#cb23-200" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: doubleml2</span></span>
-<span id="cb23-201"><a href="#cb23-201" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb23-202"><a href="#cb23-202" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb23-203"><a href="#cb23-203" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb23-204"><a href="#cb23-204" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb23-205"><a href="#cb23-205" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb23-206"><a href="#cb23-206" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-207"><a href="#cb23-207" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-208"><a href="#cb23-208" aria-hidden="true" tabindex="-1"></a><span class="co"># suppress messages from mlr3 package during fitting</span></span>
-<span id="cb23-209"><a href="#cb23-209" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
-<span id="cb23-210"><a href="#cb23-210" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.ranger"</span>, <span class="at">num.trees=</span><span class="dv">2000</span>,  <span class="at">max.depth=</span><span class="dv">5</span>, <span class="at">min.node.size=</span><span class="dv">2</span>)</span>
-<span id="cb23-211"><a href="#cb23-211" aria-hidden="true" tabindex="-1"></a>ml_l <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb23-212"><a href="#cb23-212" aria-hidden="true" tabindex="-1"></a>ml_m <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
-<span id="cb23-213"><a href="#cb23-213" aria-hidden="true" tabindex="-1"></a><span class="co"># learner = lrn("regr.glmnet")</span></span>
-<span id="cb23-214"><a href="#cb23-214" aria-hidden="true" tabindex="-1"></a><span class="co"># ml_g_sim = learner$clone()</span></span>
-<span id="cb23-215"><a href="#cb23-215" aria-hidden="true" tabindex="-1"></a><span class="co"># ml_m_sim = learner$clone()</span></span>
-<span id="cb23-216"><a href="#cb23-216" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
-<span id="cb23-217"><a href="#cb23-217" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_l=</span>ml_l, <span class="at">ml_m=</span>ml_m, <span class="at">n_folds=</span><span class="dv">5</span>)</span>
-<span id="cb23-218"><a href="#cb23-218" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
-<span id="cb23-219"><a href="#cb23-219" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">summary</span>()</span>
-<span id="cb23-220"><a href="#cb23-220" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-221"><a href="#cb23-221" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-222"><a href="#cb23-222" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-223"><a href="#cb23-223" aria-hidden="true" tabindex="-1"></a>We can do the same in Stata:</span>
-<span id="cb23-226"><a href="#cb23-226" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb23-227"><a href="#cb23-227" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
-<span id="cb23-228"><a href="#cb23-228" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb23-229"><a href="#cb23-229" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb23-230"><a href="#cb23-230" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb23-183"><a href="#cb23-183" aria-hidden="true" tabindex="-1"></a>assets3 <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">setDT</span>(data)</span>
+<span id="cb23-184"><a href="#cb23-184" aria-hidden="true" tabindex="-1"></a>dml_data <span class="ot">=</span> DoubleMLData<span class="sc">$</span><span class="fu">new</span>(<span class="at">data =</span> assets3,</span>
+<span id="cb23-185"><a href="#cb23-185" aria-hidden="true" tabindex="-1"></a>                             <span class="at">y_col =</span> <span class="st">"assets"</span>,</span>
+<span id="cb23-186"><a href="#cb23-186" aria-hidden="true" tabindex="-1"></a>                             <span class="at">d_cols =</span> <span class="st">"e401k"</span>,</span>
+<span id="cb23-187"><a href="#cb23-187" aria-hidden="true" tabindex="-1"></a>                             <span class="at">x_cols =</span> <span class="fu">c</span>(<span class="st">"age"</span>,<span class="st">"educ"</span>, <span class="fu">colnames</span>(incomecat_dummies),<span class="st">"pension"</span>, <span class="st">"married"</span>,<span class="st">"twoearn"</span>,<span class="st">"ira"</span>,<span class="st">"ownhome"</span>))</span>
+<span id="cb23-188"><a href="#cb23-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-189"><a href="#cb23-189" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(dml_data)</span>
+<span id="cb23-190"><a href="#cb23-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-191"><a href="#cb23-191" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
+<span id="cb23-192"><a href="#cb23-192" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.glmnet"</span>, <span class="at">lambda=</span><span class="dv">1</span>)</span>
+<span id="cb23-193"><a href="#cb23-193" aria-hidden="true" tabindex="-1"></a>ml_g_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb23-194"><a href="#cb23-194" aria-hidden="true" tabindex="-1"></a>ml_m_sim <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb23-195"><a href="#cb23-195" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb23-196"><a href="#cb23-196" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_l=</span>ml_g_sim, <span class="at">ml_m=</span>ml_m_sim, <span class="at">n_folds=</span><span class="dv">10</span>)</span>
+<span id="cb23-197"><a href="#cb23-197" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
+<span id="cb23-198"><a href="#cb23-198" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">summary</span>()</span>
+<span id="cb23-199"><a href="#cb23-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-200"><a href="#cb23-200" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-201"><a href="#cb23-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-202"><a href="#cb23-202" aria-hidden="true" tabindex="-1"></a>DoubleML with lasso learners gives an ATE of \$7,553 with a standard error of</span>
+<span id="cb23-203"><a href="#cb23-203" aria-hidden="true" tabindex="-1"></a>\$1,281.</span>
+<span id="cb23-204"><a href="#cb23-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-205"><a href="#cb23-205" aria-hidden="true" tabindex="-1"></a>If we use random forest on the two models:</span>
+<span id="cb23-208"><a href="#cb23-208" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb23-209"><a href="#cb23-209" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: doubleml2</span></span>
+<span id="cb23-210"><a href="#cb23-210" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb23-211"><a href="#cb23-211" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb23-212"><a href="#cb23-212" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb23-213"><a href="#cb23-213" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb23-214"><a href="#cb23-214" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb23-215"><a href="#cb23-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-216"><a href="#cb23-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-217"><a href="#cb23-217" aria-hidden="true" tabindex="-1"></a><span class="co"># suppress messages from mlr3 package during fitting</span></span>
+<span id="cb23-218"><a href="#cb23-218" aria-hidden="true" tabindex="-1"></a>lgr<span class="sc">::</span><span class="fu">get_logger</span>(<span class="st">"mlr3"</span>)<span class="sc">$</span><span class="fu">set_threshold</span>(<span class="st">"warn"</span>)</span>
+<span id="cb23-219"><a href="#cb23-219" aria-hidden="true" tabindex="-1"></a>learner <span class="ot">=</span> <span class="fu">lrn</span>(<span class="st">"regr.ranger"</span>, <span class="at">num.trees=</span><span class="dv">2000</span>,  <span class="at">max.depth=</span><span class="dv">5</span>, <span class="at">min.node.size=</span><span class="dv">2</span>)</span>
+<span id="cb23-220"><a href="#cb23-220" aria-hidden="true" tabindex="-1"></a>ml_l <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb23-221"><a href="#cb23-221" aria-hidden="true" tabindex="-1"></a>ml_m <span class="ot">=</span> learner<span class="sc">$</span><span class="fu">clone</span>()</span>
+<span id="cb23-222"><a href="#cb23-222" aria-hidden="true" tabindex="-1"></a><span class="co"># learner = lrn("regr.glmnet")</span></span>
+<span id="cb23-223"><a href="#cb23-223" aria-hidden="true" tabindex="-1"></a><span class="co"># ml_g_sim = learner$clone()</span></span>
+<span id="cb23-224"><a href="#cb23-224" aria-hidden="true" tabindex="-1"></a><span class="co"># ml_m_sim = learner$clone()</span></span>
+<span id="cb23-225"><a href="#cb23-225" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb23-226"><a href="#cb23-226" aria-hidden="true" tabindex="-1"></a>obj_dml_plr <span class="ot">=</span> DoubleMLPLR<span class="sc">$</span><span class="fu">new</span>(dml_data, <span class="at">ml_l=</span>ml_l, <span class="at">ml_m=</span>ml_m, <span class="at">n_folds=</span><span class="dv">5</span>)</span>
+<span id="cb23-227"><a href="#cb23-227" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">fit</span>()</span>
+<span id="cb23-228"><a href="#cb23-228" aria-hidden="true" tabindex="-1"></a>obj_dml_plr<span class="sc">$</span><span class="fu">summary</span>()</span>
+<span id="cb23-229"><a href="#cb23-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-230"><a href="#cb23-230" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb23-231"><a href="#cb23-231" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-232"><a href="#cb23-232" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
-<span id="cb23-233"><a href="#cb23-233" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
-<span id="cb23-234"><a href="#cb23-234" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ incomecat pension married twoearn ira ownhome</span></span>
-<span id="cb23-235"><a href="#cb23-235" aria-hidden="true" tabindex="-1"></a><span class="in">cate po (assets age educ incomecat pension married twoearn ira ownhome) (e401k),  omethod(rforest) tmethod(rforest) nolog  xfolds(5)</span></span>
-<span id="cb23-236"><a href="#cb23-236" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-237"><a href="#cb23-237" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-238"><a href="#cb23-238" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-239"><a href="#cb23-239" aria-hidden="true" tabindex="-1"></a>The results are somewhat similar, but not exactly the same.  There are some subtle differences in the way these two packages running random forest on the two models that I am not aware of.</span>
+<span id="cb23-232"><a href="#cb23-232" aria-hidden="true" tabindex="-1"></a>We can do the same in Stata:</span>
+<span id="cb23-235"><a href="#cb23-235" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb23-236"><a href="#cb23-236" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
+<span id="cb23-237"><a href="#cb23-237" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb23-238"><a href="#cb23-238" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb23-239"><a href="#cb23-239" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
 <span id="cb23-240"><a href="#cb23-240" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-241"><a href="#cb23-241" aria-hidden="true" tabindex="-1"></a><span class="fu">## AIPW</span></span>
-<span id="cb23-242"><a href="#cb23-242" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-243"><a href="#cb23-243" aria-hidden="true" tabindex="-1"></a>Stata's cate also has "aipw" option.</span>
-<span id="cb23-244"><a href="#cb23-244" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-241"><a href="#cb23-241" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
+<span id="cb23-242"><a href="#cb23-242" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
+<span id="cb23-243"><a href="#cb23-243" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ incomecat pension married twoearn ira ownhome</span></span>
+<span id="cb23-244"><a href="#cb23-244" aria-hidden="true" tabindex="-1"></a><span class="in">cate po (assets age educ incomecat pension married twoearn ira ownhome) (e401k),  omethod(rforest) tmethod(rforest) nolog  xfolds(5)</span></span>
 <span id="cb23-245"><a href="#cb23-245" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-248"><a href="#cb23-248" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb23-249"><a href="#cb23-249" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata5</span></span>
-<span id="cb23-250"><a href="#cb23-250" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb23-251"><a href="#cb23-251" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb23-252"><a href="#cb23-252" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb23-253"><a href="#cb23-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-254"><a href="#cb23-254" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
-<span id="cb23-255"><a href="#cb23-255" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
-<span id="cb23-256"><a href="#cb23-256" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ incomecat pension married twoearn ira ownhome</span></span>
-<span id="cb23-257"><a href="#cb23-257" aria-hidden="true" tabindex="-1"></a><span class="in">cate aipw (assets $catecovars) (e401k),  nolog</span></span>
-<span id="cb23-258"><a href="#cb23-258" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-259"><a href="#cb23-259" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-260"><a href="#cb23-260" aria-hidden="true" tabindex="-1"></a>I'll try to do this with "npcausal":</span>
-<span id="cb23-261"><a href="#cb23-261" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-264"><a href="#cb23-264" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb23-265"><a href="#cb23-265" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: aipw1</span></span>
-<span id="cb23-266"><a href="#cb23-266" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb23-267"><a href="#cb23-267" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb23-268"><a href="#cb23-268" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb23-269"><a href="#cb23-269" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb23-270"><a href="#cb23-270" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb23-271"><a href="#cb23-271" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-272"><a href="#cb23-272" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
-<span id="cb23-273"><a href="#cb23-273" aria-hidden="true" tabindex="-1"></a><span class="co">#SL.library &lt;- c("SL.earth","SL.gam","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")</span></span>
-<span id="cb23-274"><a href="#cb23-274" aria-hidden="true" tabindex="-1"></a><span class="co">#SL.library &lt;- c("SL.glmnet")</span></span>
-<span id="cb23-275"><a href="#cb23-275" aria-hidden="true" tabindex="-1"></a>SL.lasso <span class="ot">=</span> <span class="cf">function</span>(...) {</span>
-<span id="cb23-276"><a href="#cb23-276" aria-hidden="true" tabindex="-1"></a>  <span class="fu">SL.glmnet</span>(..., <span class="at">alpha=</span><span class="dv">1</span>)</span>
-<span id="cb23-277"><a href="#cb23-277" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb23-278"><a href="#cb23-278" aria-hidden="true" tabindex="-1"></a>SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.lasso"</span>)</span>
-<span id="cb23-279"><a href="#cb23-279" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-280"><a href="#cb23-280" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data<span class="sc">$</span>assets</span>
-<span id="cb23-281"><a href="#cb23-281" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> data<span class="sc">$</span>e401k</span>
-<span id="cb23-282"><a href="#cb23-282" aria-hidden="true" tabindex="-1"></a><span class="co"># incomecat is nominal (5 categories); use the one-hot dummies created above</span></span>
-<span id="cb23-283"><a href="#cb23-283" aria-hidden="true" tabindex="-1"></a><span class="co"># rather than the raw numeric column, for the same reason as in the</span></span>
-<span id="cb23-284"><a href="#cb23-284" aria-hidden="true" tabindex="-1"></a><span class="co"># DoubleML example.</span></span>
-<span id="cb23-285"><a href="#cb23-285" aria-hidden="true" tabindex="-1"></a><span class="co"># as.data.frame() is required: `data` is a tibble, so `data[, cols]` returns a</span></span>
-<span id="cb23-286"><a href="#cb23-286" aria-hidden="true" tabindex="-1"></a><span class="co"># tibble, and npcausal::ate() fails on one with</span></span>
-<span id="cb23-287"><a href="#cb23-287" aria-hidden="true" tabindex="-1"></a><span class="co">#   Error in rep(): invalid 'times' argument</span></span>
-<span id="cb23-288"><a href="#cb23-288" aria-hidden="true" tabindex="-1"></a><span class="co"># It needs a plain data.frame.</span></span>
-<span id="cb23-289"><a href="#cb23-289" aria-hidden="true" tabindex="-1"></a><span class="co"># Two coercions are needed here, both for npcausal/SuperLearner's benefit:</span></span>
-<span id="cb23-290"><a href="#cb23-290" aria-hidden="true" tabindex="-1"></a><span class="co">#   * as.data.frame(): `data` is a tibble, and ate() fails on one with</span></span>
-<span id="cb23-291"><a href="#cb23-291" aria-hidden="true" tabindex="-1"></a><span class="co">#       Error in rep(): invalid 'times' argument</span></span>
-<span id="cb23-292"><a href="#cb23-292" aria-hidden="true" tabindex="-1"></a><span class="co">#   * as.numeric on every column: read_dta() returns haven_labelled columns, and</span></span>
-<span id="cb23-293"><a href="#cb23-293" aria-hidden="true" tabindex="-1"></a><span class="co">#     SuperLearner then errors with</span></span>
-<span id="cb23-294"><a href="#cb23-294" aria-hidden="true" tabindex="-1"></a><span class="co">#       The variable names and order in newX must be identical to ... X</span></span>
-<span id="cb23-295"><a href="#cb23-295" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(data[, <span class="fu">c</span>(<span class="st">"age"</span>, <span class="st">"educ"</span>, <span class="fu">grep</span>(<span class="st">"^incomecat_"</span>, <span class="fu">names</span>(data), <span class="at">value =</span> <span class="cn">TRUE</span>), <span class="st">"pension"</span>, <span class="st">"married"</span>, <span class="st">"twoearn"</span>, <span class="st">"ira"</span>, <span class="st">"ownhome"</span>)])</span>
-<span id="cb23-296"><a href="#cb23-296" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">lapply</span>(W, as.numeric))</span>
-<span id="cb23-297"><a href="#cb23-297" aria-hidden="true" tabindex="-1"></a><span class="co"># npcausal::ate() currently fails on this design with</span></span>
-<span id="cb23-298"><a href="#cb23-298" aria-hidden="true" tabindex="-1"></a><span class="co">#   Error in SuperLearner(): The variable names and order in newX must be</span></span>
-<span id="cb23-299"><a href="#cb23-299" aria-hidden="true" tabindex="-1"></a><span class="co">#   identical to the variable names and order in X</span></span>
-<span id="cb23-300"><a href="#cb23-300" aria-hidden="true" tabindex="-1"></a><span class="co"># raised from inside npcausal's own cross-fitting loop, not from anything in this</span></span>
-<span id="cb23-301"><a href="#cb23-301" aria-hidden="true" tabindex="-1"></a><span class="co"># chunk (the equivalent call works on a synthetic data.frame of the same shape).</span></span>
-<span id="cb23-302"><a href="#cb23-302" aria-hidden="true" tabindex="-1"></a><span class="co"># Wrapped so the chapter degrades gracefully rather than publishing a raw error;</span></span>
-<span id="cb23-303"><a href="#cb23-303" aria-hidden="true" tabindex="-1"></a><span class="co"># the DoubleML comparison above is the working cross-fitted estimate.</span></span>
-<span id="cb23-304"><a href="#cb23-304" aria-hidden="true" tabindex="-1"></a>aipw <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
-<span id="cb23-305"><a href="#cb23-305" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ate</span>(<span class="at">y =</span> Y, <span class="at">a =</span> A, <span class="at">x =</span> W, <span class="at">nsplits =</span> <span class="dv">10</span>, <span class="at">sl.lib =</span> SL.library),</span>
-<span id="cb23-306"><a href="#cb23-306" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
-<span id="cb23-307"><a href="#cb23-307" aria-hidden="true" tabindex="-1"></a>    <span class="fu">message</span>(<span class="st">"npcausal::ate() failed: "</span>, <span class="fu">conditionMessage</span>(e))</span>
-<span id="cb23-308"><a href="#cb23-308" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NULL</span></span>
-<span id="cb23-309"><a href="#cb23-309" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb23-310"><a href="#cb23-310" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb23-311"><a href="#cb23-311" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(aipw)) aipw<span class="sc">$</span>res</span>
-<span id="cb23-312"><a href="#cb23-312" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-313"><a href="#cb23-313" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-314"><a href="#cb23-314" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-315"><a href="#cb23-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-316"><a href="#cb23-316" aria-hidden="true" tabindex="-1"></a>Note here to match the Stata results, I included only "glmnet" in the SuperLearner library.  The results are not exactly the same, but close enough.</span>
-<span id="cb23-317"><a href="#cb23-317" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-318"><a href="#cb23-318" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-319"><a href="#cb23-319" aria-hidden="true" tabindex="-1"></a>Or we can use a similar package with more functionalities: "AIPW".</span>
-<span id="cb23-320"><a href="#cb23-320" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-323"><a href="#cb23-323" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb23-324"><a href="#cb23-324" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: aipw2</span></span>
-<span id="cb23-325"><a href="#cb23-325" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb23-326"><a href="#cb23-326" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb23-327"><a href="#cb23-327" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb23-328"><a href="#cb23-328" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb23-329"><a href="#cb23-329" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb23-246"><a href="#cb23-246" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-247"><a href="#cb23-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-248"><a href="#cb23-248" aria-hidden="true" tabindex="-1"></a>With random forests DoubleML gives \$9,474 (SE \$1,376), while Stata's <span class="in">`cate`</span></span>
+<span id="cb23-249"><a href="#cb23-249" aria-hidden="true" tabindex="-1"></a>with <span class="in">`rforest`</span> for both models gives \$7,126 (SE \$1,182). The results are somewhat similar, but not exactly the same — a gap of about \$2,300, which is larger than either standard error.  There are some subtle differences in the way these two packages running random forest on the two models that I am not aware of.</span>
+<span id="cb23-250"><a href="#cb23-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-251"><a href="#cb23-251" aria-hidden="true" tabindex="-1"></a><span class="fu">## AIPW</span></span>
+<span id="cb23-252"><a href="#cb23-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-253"><a href="#cb23-253" aria-hidden="true" tabindex="-1"></a>Stata's cate also has "aipw" option.</span>
+<span id="cb23-254"><a href="#cb23-254" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-255"><a href="#cb23-255" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-258"><a href="#cb23-258" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb23-259"><a href="#cb23-259" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata5</span></span>
+<span id="cb23-260"><a href="#cb23-260" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb23-261"><a href="#cb23-261" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb23-262"><a href="#cb23-262" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb23-263"><a href="#cb23-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-264"><a href="#cb23-264" aria-hidden="true" tabindex="-1"></a><span class="in">clear all</span></span>
+<span id="cb23-265"><a href="#cb23-265" aria-hidden="true" tabindex="-1"></a><span class="in">webuse assets3</span></span>
+<span id="cb23-266"><a href="#cb23-266" aria-hidden="true" tabindex="-1"></a><span class="in">global catecovars age educ incomecat pension married twoearn ira ownhome</span></span>
+<span id="cb23-267"><a href="#cb23-267" aria-hidden="true" tabindex="-1"></a><span class="in">cate aipw (assets $catecovars) (e401k),  nolog</span></span>
+<span id="cb23-268"><a href="#cb23-268" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-269"><a href="#cb23-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-270"><a href="#cb23-270" aria-hidden="true" tabindex="-1"></a>Stata's AIPW gives an ATE of \$7,929 with a standard error of \$1,216, on 9,913</span>
+<span id="cb23-271"><a href="#cb23-271" aria-hidden="true" tabindex="-1"></a>households.</span>
+<span id="cb23-272"><a href="#cb23-272" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-273"><a href="#cb23-273" aria-hidden="true" tabindex="-1"></a>I'll try to do this with "npcausal":</span>
+<span id="cb23-274"><a href="#cb23-274" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-277"><a href="#cb23-277" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb23-278"><a href="#cb23-278" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: aipw1</span></span>
+<span id="cb23-279"><a href="#cb23-279" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb23-280"><a href="#cb23-280" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb23-281"><a href="#cb23-281" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb23-282"><a href="#cb23-282" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb23-283"><a href="#cb23-283" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb23-284"><a href="#cb23-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-285"><a href="#cb23-285" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(npcausal)</span>
+<span id="cb23-286"><a href="#cb23-286" aria-hidden="true" tabindex="-1"></a><span class="co">#SL.library &lt;- c("SL.earth","SL.gam","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")</span></span>
+<span id="cb23-287"><a href="#cb23-287" aria-hidden="true" tabindex="-1"></a><span class="co">#SL.library &lt;- c("SL.glmnet")</span></span>
+<span id="cb23-288"><a href="#cb23-288" aria-hidden="true" tabindex="-1"></a>SL.lasso <span class="ot">=</span> <span class="cf">function</span>(...) {</span>
+<span id="cb23-289"><a href="#cb23-289" aria-hidden="true" tabindex="-1"></a>  <span class="fu">SL.glmnet</span>(..., <span class="at">alpha=</span><span class="dv">1</span>)</span>
+<span id="cb23-290"><a href="#cb23-290" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb23-291"><a href="#cb23-291" aria-hidden="true" tabindex="-1"></a>SL.library <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"SL.lasso"</span>)</span>
+<span id="cb23-292"><a href="#cb23-292" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-293"><a href="#cb23-293" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> data<span class="sc">$</span>assets</span>
+<span id="cb23-294"><a href="#cb23-294" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> data<span class="sc">$</span>e401k</span>
+<span id="cb23-295"><a href="#cb23-295" aria-hidden="true" tabindex="-1"></a><span class="co"># incomecat is nominal (5 categories); use the one-hot dummies created above</span></span>
+<span id="cb23-296"><a href="#cb23-296" aria-hidden="true" tabindex="-1"></a><span class="co"># rather than the raw numeric column, for the same reason as in the</span></span>
+<span id="cb23-297"><a href="#cb23-297" aria-hidden="true" tabindex="-1"></a><span class="co"># DoubleML example.</span></span>
+<span id="cb23-298"><a href="#cb23-298" aria-hidden="true" tabindex="-1"></a><span class="co"># as.data.frame() is required: `data` is a tibble, so `data[, cols]` returns a</span></span>
+<span id="cb23-299"><a href="#cb23-299" aria-hidden="true" tabindex="-1"></a><span class="co"># tibble, and npcausal::ate() fails on one with</span></span>
+<span id="cb23-300"><a href="#cb23-300" aria-hidden="true" tabindex="-1"></a><span class="co">#   Error in rep(): invalid 'times' argument</span></span>
+<span id="cb23-301"><a href="#cb23-301" aria-hidden="true" tabindex="-1"></a><span class="co"># It needs a plain data.frame.</span></span>
+<span id="cb23-302"><a href="#cb23-302" aria-hidden="true" tabindex="-1"></a><span class="co"># Two coercions are needed here, both for npcausal/SuperLearner's benefit:</span></span>
+<span id="cb23-303"><a href="#cb23-303" aria-hidden="true" tabindex="-1"></a><span class="co">#   * as.data.frame(): `data` is a tibble, and ate() fails on one with</span></span>
+<span id="cb23-304"><a href="#cb23-304" aria-hidden="true" tabindex="-1"></a><span class="co">#       Error in rep(): invalid 'times' argument</span></span>
+<span id="cb23-305"><a href="#cb23-305" aria-hidden="true" tabindex="-1"></a><span class="co">#   * as.numeric on every column: read_dta() returns haven_labelled columns, and</span></span>
+<span id="cb23-306"><a href="#cb23-306" aria-hidden="true" tabindex="-1"></a><span class="co">#     SuperLearner then errors with</span></span>
+<span id="cb23-307"><a href="#cb23-307" aria-hidden="true" tabindex="-1"></a><span class="co">#       The variable names and order in newX must be identical to ... X</span></span>
+<span id="cb23-308"><a href="#cb23-308" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(data[, <span class="fu">c</span>(<span class="st">"age"</span>, <span class="st">"educ"</span>, <span class="fu">grep</span>(<span class="st">"^incomecat_"</span>, <span class="fu">names</span>(data), <span class="at">value =</span> <span class="cn">TRUE</span>), <span class="st">"pension"</span>, <span class="st">"married"</span>, <span class="st">"twoearn"</span>, <span class="st">"ira"</span>, <span class="st">"ownhome"</span>)])</span>
+<span id="cb23-309"><a href="#cb23-309" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">lapply</span>(W, as.numeric))</span>
+<span id="cb23-310"><a href="#cb23-310" aria-hidden="true" tabindex="-1"></a><span class="co"># npcausal::ate() currently fails on this design with</span></span>
+<span id="cb23-311"><a href="#cb23-311" aria-hidden="true" tabindex="-1"></a><span class="co">#   Error in SuperLearner(): The variable names and order in newX must be</span></span>
+<span id="cb23-312"><a href="#cb23-312" aria-hidden="true" tabindex="-1"></a><span class="co">#   identical to the variable names and order in X</span></span>
+<span id="cb23-313"><a href="#cb23-313" aria-hidden="true" tabindex="-1"></a><span class="co"># raised from inside npcausal's own cross-fitting loop, not from anything in this</span></span>
+<span id="cb23-314"><a href="#cb23-314" aria-hidden="true" tabindex="-1"></a><span class="co"># chunk (the equivalent call works on a synthetic data.frame of the same shape).</span></span>
+<span id="cb23-315"><a href="#cb23-315" aria-hidden="true" tabindex="-1"></a><span class="co"># Wrapped so the chapter degrades gracefully rather than publishing a raw error;</span></span>
+<span id="cb23-316"><a href="#cb23-316" aria-hidden="true" tabindex="-1"></a><span class="co"># the DoubleML comparison above is the working cross-fitted estimate.</span></span>
+<span id="cb23-317"><a href="#cb23-317" aria-hidden="true" tabindex="-1"></a>aipw <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(</span>
+<span id="cb23-318"><a href="#cb23-318" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ate</span>(<span class="at">y =</span> Y, <span class="at">a =</span> A, <span class="at">x =</span> W, <span class="at">nsplits =</span> <span class="dv">10</span>, <span class="at">sl.lib =</span> SL.library),</span>
+<span id="cb23-319"><a href="#cb23-319" aria-hidden="true" tabindex="-1"></a>  <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb23-320"><a href="#cb23-320" aria-hidden="true" tabindex="-1"></a>    <span class="fu">message</span>(<span class="st">"npcausal::ate() failed: "</span>, <span class="fu">conditionMessage</span>(e))</span>
+<span id="cb23-321"><a href="#cb23-321" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NULL</span></span>
+<span id="cb23-322"><a href="#cb23-322" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb23-323"><a href="#cb23-323" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-324"><a href="#cb23-324" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(aipw)) aipw<span class="sc">$</span>res</span>
+<span id="cb23-325"><a href="#cb23-325" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-326"><a href="#cb23-326" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-327"><a href="#cb23-327" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-328"><a href="#cb23-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-329"><a href="#cb23-329" aria-hidden="true" tabindex="-1"></a>Note here to match the Stata results, I included only "glmnet" in the SuperLearner library.  The results are not exactly the same, but close enough.</span>
 <span id="cb23-330"><a href="#cb23-330" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-331"><a href="#cb23-331" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AIPW)</span>
-<span id="cb23-332"><a href="#cb23-332" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SuperLearner)</span>
+<span id="cb23-331"><a href="#cb23-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-332"><a href="#cb23-332" aria-hidden="true" tabindex="-1"></a>Or we can use a similar package with more functionalities: "AIPW".</span>
 <span id="cb23-333"><a href="#cb23-333" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-334"><a href="#cb23-334" aria-hidden="true" tabindex="-1"></a><span class="co">#SuperLearner libraries for outcome (Q) and exposure models (g)</span></span>
-<span id="cb23-335"><a href="#cb23-335" aria-hidden="true" tabindex="-1"></a><span class="co">#sl.lib &lt;- c("SL.glmnet")</span></span>
-<span id="cb23-336"><a href="#cb23-336" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-337"><a href="#cb23-337" aria-hidden="true" tabindex="-1"></a>AIPW_sl <span class="ot">&lt;-</span> AIPW<span class="sc">$</span><span class="fu">new</span>(<span class="at">Y=</span> Y,</span>
-<span id="cb23-338"><a href="#cb23-338" aria-hidden="true" tabindex="-1"></a>                     <span class="at">A=</span> A,</span>
-<span id="cb23-339"><a href="#cb23-339" aria-hidden="true" tabindex="-1"></a>                     <span class="at">W=</span> W,</span>
-<span id="cb23-340"><a href="#cb23-340" aria-hidden="true" tabindex="-1"></a>                     <span class="at">Q.SL.library =</span> SL.library,</span>
-<span id="cb23-341"><a href="#cb23-341" aria-hidden="true" tabindex="-1"></a>                     <span class="at">g.SL.library =</span> SL.library,</span>
-<span id="cb23-342"><a href="#cb23-342" aria-hidden="true" tabindex="-1"></a>                     <span class="at">k_split =</span> <span class="dv">10</span>,</span>
-<span id="cb23-343"><a href="#cb23-343" aria-hidden="true" tabindex="-1"></a>                     <span class="at">verbose=</span><span class="cn">FALSE</span>)</span>
-<span id="cb23-344"><a href="#cb23-344" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-345"><a href="#cb23-345" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">fit</span>()</span>
-<span id="cb23-346"><a href="#cb23-346" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">summary</span>()</span>
-<span id="cb23-347"><a href="#cb23-347" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span>result</span>
-<span id="cb23-348"><a href="#cb23-348" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-336"><a href="#cb23-336" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb23-337"><a href="#cb23-337" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: aipw2</span></span>
+<span id="cb23-338"><a href="#cb23-338" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb23-339"><a href="#cb23-339" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb23-340"><a href="#cb23-340" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb23-341"><a href="#cb23-341" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb23-342"><a href="#cb23-342" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb23-343"><a href="#cb23-343" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-344"><a href="#cb23-344" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AIPW)</span>
+<span id="cb23-345"><a href="#cb23-345" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SuperLearner)</span>
+<span id="cb23-346"><a href="#cb23-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-347"><a href="#cb23-347" aria-hidden="true" tabindex="-1"></a><span class="co">#SuperLearner libraries for outcome (Q) and exposure models (g)</span></span>
+<span id="cb23-348"><a href="#cb23-348" aria-hidden="true" tabindex="-1"></a><span class="co">#sl.lib &lt;- c("SL.glmnet")</span></span>
 <span id="cb23-349"><a href="#cb23-349" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-350"><a href="#cb23-350" aria-hidden="true" tabindex="-1"></a><span class="co"># library(ggplot2)</span></span>
-<span id="cb23-351"><a href="#cb23-351" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.p_score()</span></span>
-<span id="cb23-352"><a href="#cb23-352" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.ip_weights()</span></span>
-<span id="cb23-353"><a href="#cb23-353" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-354"><a href="#cb23-354" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb23-355"><a href="#cb23-355" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-356"><a href="#cb23-356" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb23-350"><a href="#cb23-350" aria-hidden="true" tabindex="-1"></a>AIPW_sl <span class="ot">&lt;-</span> AIPW<span class="sc">$</span><span class="fu">new</span>(<span class="at">Y=</span> Y,</span>
+<span id="cb23-351"><a href="#cb23-351" aria-hidden="true" tabindex="-1"></a>                     <span class="at">A=</span> A,</span>
+<span id="cb23-352"><a href="#cb23-352" aria-hidden="true" tabindex="-1"></a>                     <span class="at">W=</span> W,</span>
+<span id="cb23-353"><a href="#cb23-353" aria-hidden="true" tabindex="-1"></a>                     <span class="at">Q.SL.library =</span> SL.library,</span>
+<span id="cb23-354"><a href="#cb23-354" aria-hidden="true" tabindex="-1"></a>                     <span class="at">g.SL.library =</span> SL.library,</span>
+<span id="cb23-355"><a href="#cb23-355" aria-hidden="true" tabindex="-1"></a>                     <span class="at">k_split =</span> <span class="dv">10</span>,</span>
+<span id="cb23-356"><a href="#cb23-356" aria-hidden="true" tabindex="-1"></a>                     <span class="at">verbose=</span><span class="cn">FALSE</span>)</span>
 <span id="cb23-357"><a href="#cb23-357" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-358"><a href="#cb23-358" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb23-359"><a href="#cb23-359" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
+<span id="cb23-358"><a href="#cb23-358" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">fit</span>()</span>
+<span id="cb23-359"><a href="#cb23-359" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span><span class="fu">summary</span>()</span>
+<span id="cb23-360"><a href="#cb23-360" aria-hidden="true" tabindex="-1"></a>AIPW_sl<span class="sc">$</span>result</span>
+<span id="cb23-361"><a href="#cb23-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-362"><a href="#cb23-362" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-363"><a href="#cb23-363" aria-hidden="true" tabindex="-1"></a><span class="co"># library(ggplot2)</span></span>
+<span id="cb23-364"><a href="#cb23-364" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.p_score()</span></span>
+<span id="cb23-365"><a href="#cb23-365" aria-hidden="true" tabindex="-1"></a><span class="co"># AIPW_sl$plot.ip_weights()</span></span>
+<span id="cb23-366"><a href="#cb23-366" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-367"><a href="#cb23-367" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb23-368"><a href="#cb23-368" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-369"><a href="#cb23-369" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb23-370"><a href="#cb23-370" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-371"><a href="#cb23-371" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb23-372"><a href="#cb23-372" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

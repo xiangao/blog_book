@@ -34,6 +34,10 @@ SDiD sets another weight in addition to SC weights, which changes over time. The
 
 ## Example from synthdid
 
+The data are the California Proposition 99 panel: annual per-capita cigarette
+sales in packs for 39 states from 1970 to 2000, with California the single
+treated unit, 38 donors, 19 pre-treatment years and 12 post-treatment years.
+
 ```{r}
 #| label: did13
 #| include: true
@@ -50,6 +54,19 @@ tau.hat = synthdid_estimate(setup$Y, setup$N0, setup$T0)
 summary(tau.hat)
 
 ```
+
+The estimate is $-15.60$ packs per capita, and the summary shows how it gets
+there. The unit weights are concentrated — Nevada 0.124, New Hampshire 0.105,
+Connecticut 0.078 — giving an effective 16.4 donors out of 38. The time weights
+are more concentrated still: 0.427 on 1988, 0.366 on 1986 and 0.206 on 1987,
+which is an effective 2.8 pre-periods out of 19. That is the "time-aware" part of
+synthetic DiD in numbers, and it is the mechanism behind the estimator's
+advantage over plain DiD.
+
+Note also that `se` comes back `NA`. That is not a glitch: the default is a
+jackknife standard error, which deletes one treated unit at a time, and
+California is the only treated unit. The placebo method is the usable option
+here.
 
 
 ```{r}
@@ -68,6 +85,12 @@ names(estimates) = c('Diff-in-Diff', 'Synthetic Control', 'Synthetic Diff-in-Dif
 print(unlist(estimates))
 
 ```
+
+Plain DiD gives $-27.35$, synthetic control $-19.62$, and synthetic DiD
+$-15.60$. The spread across the three is nearly twelve packs per capita, on the
+same data with the same identification assumptions. DiD moves furthest because it
+weights all 38 donors and all 19 pre-periods equally: states unlike California,
+and years unlike the late 1980s, all count in full.
 
 
 ```{r}
@@ -92,7 +115,11 @@ plot
 
 ```
 
-Note: $\lambda_t$ is plotted at the bottom.
+Each panel shows California's path against its weighted control, with the
+estimated effect as the post-1989 gap. Note: $\lambda_t$ is plotted at the
+bottom, so the pre-periods that actually enter each comparison are visible —
+for synthetic DiD they pile up on 1986–1988, while for DiD the weight is flat
+across all nineteen years.
 
 ## Summary
 

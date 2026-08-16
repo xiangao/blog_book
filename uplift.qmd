@@ -121,6 +121,14 @@ In R, the `grf` package implements causal forests. The setup is simpler than
 the uplift tree example: provide outcomes, treatments, and covariates, and the
 forest estimates CATEs using honest splitting.
 
+We simulate $n = 5000$ users with five independent standard normal covariates.
+Treatment is randomly assigned, $W \sim \text{Bernoulli}(0.5)$, so there is no
+confounding. The true CATE is $\tau(X) = 0.3 + 0.5X_1$ — the intervention helps
+high-$x_1$ users more — and the outcome is
+$Y = \tau(X)W + X_2 + \varepsilon$ with $\varepsilon \sim N(0, 0.5^2)$. The
+average true effect is therefore 0.3, and only $x_1$ modifies it while $x_2$
+affects the outcome level and $x_3$ to $x_5$ do nothing.
+
 ```{r}
 #| echo: true
 #| message: false
@@ -184,6 +192,11 @@ barplot(imp, names.arg = colnames(X),
 # Omnibus test: is there significant CATE heterogeneity?
 test_calibration(cf)
 ```
+
+The forest gives a mean estimated CATE of 0.307 against the true 0.300. Sorting
+on the estimate, the targeted group averages a true CATE of 0.858 and the
+non-targeted group 0.071 — a twelvefold separation, which is what makes the
+targeting worth doing rather than treating everyone.
 
 The `test_calibration()` output is a useful diagnostic. It checks whether units
 with higher predicted CATEs also appear to have higher treatment effects.
