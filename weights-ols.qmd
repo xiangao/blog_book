@@ -6,7 +6,7 @@ date: "2025-01-16"
 
 ## Unit level weights for OLS
 
-This chapter follows Hazlett and Shinkre, “Demystifying and Avoiding the OLS 'Weighting Problem': Unmodeled Heterogeneity and Straightforward Solutions.”
+This chapter follows Chad Hazlett and Tanvi Shinkre ([2024](https://arxiv.org/abs/2403.03299)), “Demystifying and avoiding the OLS ‘weighting problem’: unmodeled heterogeneity and straightforward solutions,” arXiv:2403.03299.
 
 Under unconfoundedness, the identifying assumption holds at each level of $X$. When $X$ is discrete and low-dimensional, we can stratify and compute the ATE by the g-formula. In practice we usually run a linear regression
 
@@ -141,7 +141,16 @@ Both give 2.084644, identical to seven digits, confirming
 $\hat\tau_{reg} = \sum \omega_i Y_i$. (Both sit a little above the true 2;
 with $n=500$ and a constant effect that is sampling noise, not weighting.)
 
-Plotting `omega_reg` against `ipw` for treated and control units separately shows the two weighting schemes move in the same direction but are not proportional — confirming that $\hat\tau_{reg} \neq \hat\tau_{ATE}$ in general, as discussed above.
+Plotting `omega_reg` against `ipw` for treated and control units separately shows
+the two weighting schemes move in the same direction but are not proportional.
+
+Be careful about what that does and does not establish. Non-proportional weights
+are *necessary* for $\hat\tau_{reg}$ to differ from the ATE, not sufficient. In
+this example the effect is constant at 2, so every unit's effect is the same
+number and any weights that form a difference of means return that number:
+$\hat\tau_{reg}$ and the ATE coincide here no matter how oddly the weights are
+distributed. A weighting problem needs two ingredients, and this design has only
+one. The section after next supplies the other.
 
 ```{r}
 #| label: fwl-weights-plot
@@ -202,6 +211,107 @@ Those units are the ones with no counterpart in the other arm, and a plain
 regression of $Y$ on $D$ and $X$ gives you no indication that they are there.
 Nothing in the coefficient table changes appearance; only looking at
 $\hat d(X_i)$ reveals it.
+
+This is a property of the *regression* weights specifically, and the reason is
+worth being explicit about. $\hat d(X_i)$ here is not a propensity score we chose
+to estimate with a linear probability model; it is the object OLS implicitly
+uses, because the FWL residualisation of $D$ on $X$ *is* a linear regression.
+Linear fitted values are not confined to $[0,1]$, so out-of-range values, and
+with them wrong-sign weights, are always available to OLS. Genuine IPW weights
+built from a logit or probit propensity score cannot do this: $\hat\pi(X)$ lies
+strictly inside $(0,1)$ by construction, so $1/\hat\pi$ and $1/(1-\hat\pi)$ stay
+positive. IPW has its own failure mode when $\hat\pi$ approaches 0 or 1 — weights
+explode, and the estimate rests on a handful of observations — but it is a
+visible one. The `ipw` vector plotted above is deliberately built from the same
+linear $\hat d$ so that the two weighting schemes are comparable unit by unit; it
+is a diagnostic device, not the IPW estimator one would actually run.
+
+
+## When the weights actually bite
+
+Neither example so far has shown $\hat\tau_{reg}$ miss the ATE, because neither
+had heterogeneous effects. This one does, and it is built on discrete $X$ so that
+every quantity in this chapter can be computed exactly rather than approximated.
+
+Let $X \in \{0, 1, 2\}$ with probabilities $0.4, 0.3, 0.3$; let the treatment
+probability be $d(x) = 0.5, 0.1, 0.9$; and let the effect be
+$\tau(x) = 1, 4, 4$. The outcome is $Y = 1 + \tau(X)D + 2X + \varepsilon$ with
+$\varepsilon \sim N(0,1)$, and we draw $n = 20{,}000$. The design is chosen so
+that the stratum where treatment is most balanced, $x = 0$ with $d = 0.5$, is
+also the stratum with the small effect.
+
+The population ATE follows from the definition:
+$0.4(1) + 0.3(4) + 0.3(4) = 2.8$. Angrist's strata-level formula above weights
+each stratum by $d(x)\{1-d(x)\}P(X=x)$ instead — that is $0.10, 0.027, 0.027$,
+or $0.649, 0.175, 0.175$ once normalised, against the true shares
+$0.4, 0.3, 0.3$. The $x=0$ stratum carries 65% of the regression's weight and
+40% of the ATE's, so the regression should be pulled toward that stratum's
+effect of 1.
+
+```{r}
+#| label: weighting-bites
+#| cache: true
+#| warning: false
+#| message: false
+set.seed(11)
+n  <- 20000
+px <- c(0.4, 0.3, 0.3)          # P(X = 0, 1, 2)
+dx <- c(0.5, 0.1, 0.9)          # P(D = 1 | X)
+tx <- c(1,   4,   4)            # tau(X)
+
+X   <- sample(0:2, n, TRUE, prob = px)
+D   <- rbinom(n, 1, dx[X + 1])
+Y   <- 1 + tx[X + 1] * D + 2 * X + rnorm(n)
+dat3 <- data.frame(Y, D, X = factor(X))
+
+# What OLS returns
+tau_ols <- coef(lm(Y ~ D + X, data = dat3))["D"]
+
+# Angrist's variance-weighted average of the stratum effects, computed from the
+# population quantities rather than estimated
+w   <- dx * (1 - dx) * px
+ang <- sum(w * tx) / sum(w)
+
+# g-computation on a saturated arm-specific model
+m   <- lm(Y ~ D * X, data = dat3)
+tau_g <- mean(predict(m, transform(dat3, D = 1)) -
+              predict(m, transform(dat3, D = 0)))
+
+# Lin's interaction estimator: D, centred covariates, and their interaction
+Xc  <- scale(model.matrix(~ X, dat3)[, -1, drop = FALSE], scale = FALSE)
+tau_lin <- coef(lm(dat3$Y ~ dat3$D + Xc + dat3$D:Xc))[2]
+
+data.frame(population_ATE = sum(px * tx),
+           angrist_formula = ang,
+           ols_coefficient = tau_ols,
+           g_computation = tau_g,
+           lin_interaction = tau_lin, row.names = NULL)
+```
+
+The OLS coefficient is 2.08 against a population ATE of 2.80. It is not a noisy
+estimate of the ATE; it is a precise estimate of something else. Angrist's
+formula predicts 2.052 from the population quantities alone, and the regression
+delivers 2.082 — the gap between those two is sampling noise, while the gap
+between either of them and 2.80 is the weighting problem. The regression is
+answering a question about the stratum where treatment happens to be most
+balanced, and nothing in its output says so.
+
+The two recommended estimators recover the ATE, and recover it identically:
+g-computation and Lin's interaction estimator both return 2.840, against a
+realised sample ATE of 2.814. That they agree to every printed digit is the
+algebraic equivalence noted in the previous section, not a coincidence of this
+draw. Both work here because the saturated model in a discrete $X$ satisfies
+separate linearity exactly — each arm's conditional mean is linear in the stratum
+dummies, since it is *saturated* in them.
+
+The practical reading is that the weighting problem needs heterogeneity and
+non-proportional weights together. The first two examples had the weights; this
+one adds the heterogeneity, and the cost appears immediately. Since one rarely
+knows in advance whether effects are heterogeneous, the cheap insurance is to run
+the interaction or imputation estimator by default: under constant effects it
+returns what OLS would have returned, and under heterogeneity it returns the ATE
+that OLS would have missed.
+
 
 
 

@@ -41,6 +41,172 @@ This is the same model reparametrized. $\beta_1$ is unchanged, and $\beta_2$ is 
 
 The BW model has two advantages. It recovers the fixed-effect coefficient while estimating time-invariant covariates. And it extends naturally to cross-level interactions, random slopes, and other multilevel structures. Implementation is straightforward: run a random-effects model on either equation above.
 
+### Is this just Mundlak?
+
+Yes. @eq-fixed-random-effect-4 *is* the Mundlak device: Mundlak's regression puts
+$x_{it}$ and $\bar x_i$ on the right-hand side of a random-effects model, which is
+exactly what that equation does. So the between-within model and the Mundlak
+device are one model in two parameterisations, fitted by the same random-effects
+command. It is worth doing the algebra, because the identity is easy to state
+loosely and easy to get wrong on the inference side.
+
+Write $d_{it} = x_{it} - \bar x_i$ for the within deviation, and label the two
+specifications by their coefficients: $b_1, b_2$ for the hybrid form
+@eq-fixed-random-effect-3 and $p_1, p_2$ for the contextual form
+@eq-fixed-random-effect-4. Expanding the hybrid regressor block,
+
+$$
+b_1 (x_{it} - \bar x_i) + b_2 \bar x_i = b_1 x_{it} + (b_2 - b_1)\bar x_i ,
+$$ {#eq-fixed-random-effect-5}
+
+so $p_1 = b_1$ and $p_2 = b_2 - b_1$. Substitution shows the map, but the reason
+behind it is worth stating more strongly: the two regressor matrices are related
+by an invertible linear transformation. With $X = [\,x_{it}, \bar x_i\,]$ and
+$W = [\,d_{it}, \bar x_i\,]$,
+
+$$
+W = XA, \qquad
+A = \begin{pmatrix} 1 & 0 \\ -1 & 1 \end{pmatrix}, \qquad
+A^{-1} = \begin{pmatrix} 1 & 0 \\ 1 & 1 \end{pmatrix},
+$$ {#eq-fixed-random-effect-6}
+
+and $\det A = 1$, so the two designs span the same column space. Everything that
+depends only on that space is numerically identical: fitted values, residuals,
+the likelihood, the estimated variance components, and the GLS quasi-demeaning
+weight $\theta$. Only the coordinates change, by
+$b = A^{-1}p$, and the covariance matrix by $\text{Var}(b) = A^{-1}\text{Var}(p)A^{-1\prime}$.
+Componentwise that is
+
+$$
+\text{Var}(p_1) = \text{Var}(b_1), \qquad
+\text{Var}(p_2) = \text{Var}(b_1) + \text{Var}(b_2) + 2\,\text{Cov}(b_1,b_2),
+$$ {#eq-fixed-random-effect-7}
+
+which already says something useful: the standard error printed next to the
+between effect is not the standard error you want for the contextual effect.
+
+#### Why the within coefficient is the fixed-effect estimator
+
+This part needs a proof rather than a substitution. The relevant fact is that
+$\sum_t d_{it} = 0$ within every unit by construction, so $d$ is orthogonal to
+any group-invariant column: for $v_i$ constant within $i$,
+
+$$
+\sum_{i,t} d_{it} v_i = \sum_i v_i \sum_t d_{it} = 0 ,
+$$ {#eq-fixed-random-effect-8}
+
+which covers the intercept, $\bar x_i$ and $z_i$ alike.
+
+Random effects is OLS after quasi-demeaning, $\tilde w_{it} = w_{it} - \theta \bar w_i$
+with $\theta = 1 - \sqrt{\sigma^2_\epsilon / (\sigma^2_\epsilon + T\sigma^2_c)}$.
+Apply it to the hybrid regressors. Because $\bar d_i = 0$ we get
+$\tilde d_{it} = d_{it}$: the within-deviation regressor passes through the GLS
+transform untouched, whatever $\theta$ is. The remaining regressors are
+group-invariant and stay so after scaling by $1-\theta$. Orthogonality therefore
+survives the transform, and by Frisch-Waugh-Lovell
+
+$$
+b_1 = \frac{\sum d_{it}\tilde y_{it}}{\sum d_{it}^2}
+    = \frac{\sum d_{it} y_{it}}{\sum d_{it}^2}
+    = \frac{\sum (x_{it}-\bar x_i)(y_{it}-\bar y_i)}{\sum (x_{it}-\bar x_i)^2},
+$$ {#eq-fixed-random-effect-9}
+
+the second and third equalities both by @eq-fixed-random-effect-8. That last
+expression is the within estimator. Note that $\theta$ has dropped out, so the
+identity holds for *any* $\theta$ — for random effects, for pooled OLS
+($\theta = 0$) and for fixed effects ($\theta = 1$). That is why running a
+random-effects model on either equation returns the fixed-effect coefficient. It
+also gives $\text{Cov}(b_1,b_2) = 0$ exactly, which combined with
+@eq-fixed-random-effect-7 yields
+$\text{Var}(p_2) = \text{Var}(b_1) + \text{Var}(b_2)$ and
+$\text{Cov}(p_1,p_2) = -\text{Var}(b_1)$.
+
+All of this is checkable on the chapter's own data. We take a single regressor,
+weeks worked, fit both parameterisations by `plm`, and compare against the
+within estimator and against the variance map:
+
+```{r}
+#| label: bw-mundlak-identity
+#| echo: true
+#| message: false
+#| warning: false
+
+library(plm); library(panelr); data("WageData")
+d <- WageData
+d$xbar <- ave(d$wks, d$id)          # unit mean
+d$xdev <- d$wks - d$xbar            # within deviation
+
+fe  <- plm(lwage ~ wks,          data = d, index = c("id", "t"), model = "within")
+hyb <- plm(lwage ~ xdev + xbar,  data = d, index = c("id", "t"), model = "random")
+mun <- plm(lwage ~ wks  + xbar,  data = d, index = c("id", "t"), model = "random")
+
+b <- coef(hyb); p <- coef(mun); Vh <- vcov(hyb); Vm <- vcov(mun)
+
+data.frame(
+  check = c("p1 - b1", "p2 - (b2 - b1)", "b1 - FE within",
+            "sum(xdev * xbar)", "Cov(b1, b2)",
+            "Var(p2) - [Var(b1) + Var(b2)]", "Cov(p1, p2) + Var(b1)",
+            "theta(hybrid) - theta(Mundlak)"),
+  value = c(p["wks"] - b["xdev"],
+            p["xbar"] - (b["xbar"] - b["xdev"]),
+            b["xdev"] - coef(fe)["wks"],
+            sum(d$xdev * d$xbar),
+            Vh["xdev", "xbar"],
+            Vm["xbar", "xbar"] - (Vh["xdev", "xdev"] + Vh["xbar", "xbar"]),
+            Vm["wks", "xbar"] + Vh["xdev", "xdev"],
+            hyb$ercomp$theta - mun$ercomp$theta),
+  row.names = NULL)
+```
+
+Every entry is zero to machine precision. The two parameterisations are the same
+fit, the within coefficient is the fixed-effect estimate, the hybrid regressors
+are orthogonal, and the variance map holds as derived.
+
+#### So why keep both
+
+The fit is one object, but the parameterisation settles three practical things.
+
+*Which quantity is printed.* $b_2$ is the between effect and $p_2$ is between
+minus within. They are different parameters with non-interchangeable standard
+errors, and whichever form you fit, the other costs a `lincom`.
+
+*Which hypothesis is one line.* $p_2 = 0$ says between equals within, which is
+exactly the random-effects assumption that the regressors are uncorrelated with
+$c_i$. The Mundlak form prints that as a single $t$; in hybrid form it is the
+contrast $b_1 = b_2$. The two tests agree numerically, but only one is printed.
+This is the Mundlak form of the Hausman test, asymptotically equivalent to the
+classical version and with the practical advantage of working directly with
+cluster-robust standard errors. The [next chapter](mundlak-device.qmd) develops
+it and its two-way extension for difference-in-differences.
+
+*What the second coefficient is for.* In multilevel work $p_2$ is not a
+diagnostic but the estimand: holding a pupil's own status fixed, what does the
+school mean do? The hybrid's $b_2$ answers a different question, the total
+between-unit association. Two literatures ask two questions of one regression,
+and each named the parameterisation that printed its answer. That is the honest
+reason both names survive.
+
+There is also a reason to prefer the hybrid form in extensions. Its two
+regressors are exactly orthogonal, where $x_{it}$ and $\bar x_i$ are correlated.
+That does not change the fit, but if you want a random slope on the within
+component you need the deviation as its own column; a random slope on $x_{it}$
+would mix within and between variation.
+
+#### Where the equivalence stops
+
+The reparameterisation is exact for anything with a linear index, logit and
+Poisson mixed models included, since $XA$ spans the same space and the index is
+unchanged. The two names stay interchangeable there.
+
+The fixed-effect identity does not carry over. The proof above used two
+linear-model facts: that random effects is OLS on quasi-demeaned data, and that
+$d$ is orthogonal to group constants. A logit or Poisson mixed model has no such
+transform, the unit effects do not sweep out, and the hybrid within coefficient
+is not the conditional-logit estimate but an approximation to it. Keep the two
+claims separate: the parameterisations are always the same model, while "within
+coefficient equals fixed effects" is a linear-model result. The last section of
+this chapter returns to that point.
+
 ## BW model in R
 
 R's [`panelr`](https://panelr.jacob-long.com/articles/wbm.html) package implements BW models directly. The data are `WageData`, a balanced panel of 595 men observed over 7 years. We model log wage on weeks worked, union membership, marital status and occupation, all time-varying, plus two time-invariant covariates — black and female — that a fixed-effect model could not touch.

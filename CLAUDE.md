@@ -363,3 +363,100 @@ the published page until someone renders with `radiant` available.
 - `partial-interference`: the Monte Carlo shows configuration $(0,0)$ with an
   empirical SD of 8.760 against a mean reported SE of 0.448 — a positivity
   failure, since no-treated-neighbours is rare in clusters of five.
+
+## Stylus-markup pass (2026-08-24)
+
+Source: `~/projects/claude/Topics-on-econometrics-and-causal-inference (1)_26_260823_150932.pdf`
+— the rendered PDF with handwritten ink. Marks mean: cross = delete, underline or
+circle = unclear, handwriting = instruction. Located by pixel-diffing at 100 dpi
+against the pristine `_book/` PDF (tablet exports flatten strokes into the page
+content stream, so there is no annotation object list to read).
+
+**Coverage: only 15 of 578 pages were marked, all between p.20 and p.91.** The
+markup covers ch.1, 3, 4, 6 and 7 and stops in the middle of ch.7. Chapters 2 and
+5 fall inside that range but carry no marks. **Everything from ch.8
+(`mundlak-device.qmd`, PDF p.93 in the 578-page build) onward is unread.**
+
+### The one real bug
+
+`chow-test.qmd` printed Stata error `already preserved / r(621)` five times.
+Cause: the `stata2` chunk called `preserve` with no matching `restore`, and every
+chunk in that file sets `collectcode: true`, so its code is replayed at the top of
+every later chunk — each replay then hit `preserve` twice. `stata8` had the same
+unmatched `preserve` (harmless, being last). Both now balanced. **When a Stata
+chunk uses `collectcode`, every `preserve` must have a `restore` in the same
+chunk**, or the error propagates to all downstream chunks.
+
+### Missing figures
+
+`marginsplot` renders nothing unless the graph is exported and included; the
+chunk output alone shows only "Variables that uniquely identify margins". Two
+chapters called `marginsplot` and then described a plot that was never in the
+book — `interaction-regression.qmd` (marked) and `marginal-effects-fe.qmd` (same
+defect, unmarked, fixed too). The working pattern was already in
+`comparing-margins.qmd`: `graph export "name.svg", as(svg) replace` followed by
+`![](name.svg)`. New files: `marginsplot-interaction.svg`, `marginsplot-clogit.svg`.
+
+### Content
+
+- `chow-test.qmd`: step-by-step walk-throughs of the reshape/stacking chunk, the
+  `expand` construction for overlapping samples, and the split-instrument IV
+  chunk; a new closing paragraph stating the pattern the whole chapter turns on
+  (a Chow test needs the *covariance* between two coefficients, which separate
+  regressions never produce, so every construction exists to move both into one
+  estimation). Answers "what are we doing w/ this code?" and the chapter-level
+  "needs better explanation and interpretation for the codes".
+- `weights-ols.qmd`: citation completed to Hazlett and Shinkre (2024),
+  arXiv:2403.03299 (name was spelled correctly; year and link were missing).
+  Corrected an over-claim: the constant-effect example was said to confirm
+  $\tau_{reg} \neq \tau_{ATE}$, but with a constant effect any weights return the
+  same number — non-proportional weights are necessary, not sufficient. New
+  section "When the weights actually bite" supplies the missing ingredient with
+  discrete $X \in \{0,1,2\}$, $P = .4/.3/.3$, $d = .5/.1/.9$, $\tau = 1/4/4$:
+  population ATE 2.8, Angrist's variance-weighted average 2.052 (analytic), OLS
+  2.082, g-computation and Lin both 2.840. Angrist weights normalise to
+  .649/.175/.175 against true shares .4/.3/.3, which is exactly why OLS lands at
+  2.08. Also made explicit that wrong-sign weights are an OLS artefact — the
+  implied $\hat d(X)$ is a *linear* fit and can leave $[0,1]$ — whereas a logit
+  propensity keeps IPW weights positive; the `ipw` vector in the earlier chunk is
+  built from the linear $\hat d$ for unit-by-unit comparability and is a
+  diagnostic device, not the IPW estimator one would run.
+- `comparing-margins.qmd`: added the missing Summary. Checked against the
+  chapter's own content first — an earlier draft wrongly said the chapter used
+  `pwcompare` and compared predicted probabilities rather than contrasts.
+- `fixed-random-effect.qmd`: new "Is this just Mundlak?" answering the margin
+  note, with the full derivation. The two specifications are related by an
+  invertible map $W = XA$ with $A = [[1,0],[-1,1]]$, so they span the same column
+  space: identical fit, likelihood, variance components and $\theta$, with
+  $b = A^{-1}p$ and $\text{Var}(b) = A^{-1}\text{Var}(p)A^{-1\prime}$. The
+  within-coefficient-equals-FE result is proved separately from
+  $\sum_t d_{it} = 0$: the within deviation is orthogonal to every
+  group-invariant column and passes through the GLS quasi-demeaning untouched
+  ($\bar d_i = 0 \Rightarrow \tilde d = d$), so FWL gives the within estimator
+  and $\theta$ drops out — hence the identity holds for RE, pooled OLS
+  ($\theta=0$) and FE ($\theta=1$) alike, and $\text{Cov}(b_1,b_2)=0$ exactly.
+  A verification chunk (`bw-mundlak-identity`) checks all eight identities on the
+  chapter's own `WageData` with `plm`; every one is zero to machine precision
+  (largest 3.5e-12, on `sum(xdev*xbar)`).
+  **Why both survive**, since the fit is identical: $b_2$ is the between effect
+  while $p_2$ is between-minus-within, so the printed standard errors are not
+  interchangeable ($\text{Var}(p_2) = \text{Var}(b_1)+\text{Var}(b_2)$);
+  $p_2 = 0$ is a one-line Hausman test where the hybrid needs a `lincom`; the
+  contextual effect is a substantive estimand in multilevel work, not only a
+  diagnostic; and the hybrid's orthogonal columns are what let you put a random
+  slope on the within component alone.
+  **Scope limit**: the reparameterisation is exact for any linear index, GLMMs
+  included, but the FE identity is a linear-model result — a logit or Poisson
+  mixed model has no quasi-demeaning transform, so the hybrid within coefficient
+  only approximates conditional logit. That is the open question the chapter's
+  last section refers to. Cross-links to `mundlak-device.qmd`.
+  Adds `plm` as a dependency of this chapter.
+
+### Render note
+
+`quarto render --to html` **cleans `_book/` and deletes the PDF built earlier**.
+Render both formats in one `quarto render` (no `--to`) or the book directory ends
+up with only one format. This bit both books this session.
+
+Rendered clean to HTML and PDF (584 pages, was 578). Pre-existing `:::` fenced-div
+warnings from `lmtp.qmd` onward are unrelated to this pass. Not committed.

@@ -716,6 +716,24 @@ t statistics in parentheses
 </section><section id="a-comparison-with-two-different-outcomes" class="level2" data-number="3.2"><h2 data-number="3.2" class="anchored" data-anchor-id="a-comparison-with-two-different-outcomes">
 <span class="header-section-number">3.2</span> A comparison with two different outcomes</h2>
 <p>The same idea compares a coefficient across two different outcomes. Stack the two outcome variables into a long format, interact the covariates with the stacking indicator, and run one regression.</p>
+<p>The chunk below does that in seven steps, and it is worth reading them in order because the payoff is the last two columns of the table agreeing.</p>
+<ol type="1">
+<li>
+<code>reg south wage hours</code> and <code>reg smsa wage hours</code>, each stored with <code>est sto</code>. These are the two equations we want to compare, fitted separately.</li>
+<li>
+<code>suest south smsa</code> refits them jointly and stacks the two coefficient vectors into one, with a robust covariance matrix across equations. This is the benchmark: it is the standard way to test a cross-equation hypothesis.</li>
+<li>
+<code>preserve</code>, because the next steps reshape the data and we want it back.</li>
+<li>
+<code>gen Y1=south</code>, <code>gen Y2=smsa</code>, <code>gen id=_n</code>. Copy the two outcomes into a numbered pair and give every woman an id.</li>
+<li>
+<code>reshape long Y, i(id) j(subsample)</code> turns each woman’s one row into two: one carrying <code>Y = south</code> with <code>subsample == 1</code>, one carrying <code>Y = smsa</code> with <code>subsample == 2</code>. The stacked outcome is now a single variable <code>Y</code>.</li>
+<li>
+<code>gen wage1=wage*(subsample==1)</code> and its three siblings. Each covariate is split into the part that acts in equation 1 and the part that acts in equation 2. A single regression on <code>wage1 wage2 hours1 hours2</code> therefore estimates a separate slope per equation, which is what the two separate regressions did.</li>
+<li>
+<code>reg Y wage? hours? subsample, cluster(id)</code> fits it, and <code>test _b[wage1]-_b[wage2]=0</code> is the cross-equation test. The <code>?</code> is a Stata wildcard, so <code>wage?</code> expands to <code>wage1 wage2</code>.</li>
+</ol>
+<p>The whole construction exists so that a hypothesis <em>across</em> two equations becomes a hypothesis <em>within</em> one, where <code>test</code> can reach both coefficients.</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -742,13 +760,15 @@ t statistics in parentheses
 <span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> Y wage? hours? subsample, <span class="kw">cluster</span>(id)</span>
 <span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> _b[wage1]-_b[wage2]=0</span>
 <span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="kw">est</span> sto stacked</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>* Note: <span class="kw">suest</span> stores coefficients under equation-qualified names (<span class="fu">e</span>.g.</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>* south:hours), <span class="kw">while</span> the single-<span class="kw">sample</span> models <span class="kw">store</span> the same</span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>* coefficient simply <span class="kw">as</span> <span class="st">"hours"</span>; esttab matches <span class="kw">by</span> exact coefficient</span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>* <span class="bn">name</span>, so these land <span class="kw">on</span> <span class="kw">separate</span> <span class="bn">rows</span> instead <span class="kw">of</span> being aligned. Use</span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>* esttab's coeflabel()/eqlabel() options, <span class="kw">or</span> <span class="kw">rename</span> coefficients <span class="kw">on</span> the</span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>* stored <span class="kw">estimates</span> first, to <span class="fu">get</span> a directly comparable <span class="kw">table</span>.</span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>esttab south smsa <span class="kw">suest</span> stacked, nogaps mti</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>* Match the <span class="kw">preserve</span> above, so the <span class="kw">reshape</span> does <span class="kw">not</span> leak into later chunks.</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="kw">restore</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>* Note: <span class="kw">suest</span> stores coefficients under equation-qualified names (<span class="fu">e</span>.g.</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>* south:hours), <span class="kw">while</span> the single-<span class="kw">sample</span> models <span class="kw">store</span> the same</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>* coefficient simply <span class="kw">as</span> <span class="st">"hours"</span>; esttab matches <span class="kw">by</span> exact coefficient</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>* <span class="bn">name</span>, so these land <span class="kw">on</span> <span class="kw">separate</span> <span class="bn">rows</span> instead <span class="kw">of</span> being aligned. Use</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>* esttab's coeflabel()/eqlabel() options, <span class="kw">or</span> <span class="kw">rename</span> coefficients <span class="kw">on</span> the</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>* stored <span class="kw">estimates</span> first, to <span class="fu">get</span> a directly comparable <span class="kw">table</span>.</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>esttab south smsa <span class="kw">suest</span> stacked, nogaps mti</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
 <pre><code>(NLSW, 1988 extract)
 
@@ -857,6 +877,7 @@ Linear regression                               Number of obs     =      4,484
 
 
 
+
 ----------------------------------------------------------------------------
                       (1)             (2)             (3)             (4)   
                     south            smsa           suest         stacked   
@@ -901,7 +922,7 @@ t statistics in parentheses
 * p&lt;0.05, ** p&lt;0.01, *** p&lt;0.001</code></pre>
 </div>
 </div>
-<p>The two outcomes (<code>south</code> and <code>smsa</code>) are stacked as <code>Y</code>, the covariates are interacted with the stacking indicator, and the pooled regression returns the separate coefficients.</p>
+<p>Read the table by columns. The first two are the separate regressions, the third is <code>suest</code>, and the fourth is the stacked regression. The <code>wage1</code> coefficient in column four equals the <code>wage</code> coefficient in column one, and <code>wage2</code> equals the <code>wage</code> coefficient in column two: stacking has reproduced both single-equation fits exactly, in one regression, with both coefficients now addressable by <code>test</code>. Note the sample size, 4,484 in the stacked column against 2,242 in the others — the reshape doubled the rows, which is the next point.</p>
 <p>One detail matters a great deal here, and it is easy to skip. Stacking puts <strong>two rows per person</strong> in the data, so the two error terms belonging to the same person are correlated by construction. The cross-equation test is precisely a comparison <em>across</em> those two rows, so its standard error has to account for that correlation. Clustering on the stacking id does it, and it is not a cosmetic adjustment:</p>
 <table class="caption-top table">
 <thead><tr class="header">
@@ -927,7 +948,22 @@ t statistics in parentheses
 <p>Without clustering the statistic is inflated by more than half. With it, the stacked test reproduces <code>suest</code> almost exactly – the small remaining gap is just the <span class="math inline">\(F\)</span>-versus-<span class="math inline">\(\chi^2\)</span> finite-sample adjustment. Note that <code>robust</code> alone will <em>not</em> fix this; the cluster variable has to be the id you stacked on.</p>
 </section><section id="overlapping-samples" class="level2" data-number="3.3"><h2 data-number="3.3" class="anchored" data-anchor-id="overlapping-samples">
 <span class="header-section-number">3.3</span> Overlapping samples</h2>
-<p>The same method extends to overlapping subsamples. Here south and smsa overlap — some observations belong to both — so a simple split is not possible:</p>
+<p>The same method extends to overlapping subsamples. Here south and smsa overlap — some observations belong to both — so a simple split is not possible.</p>
+<p>The reshape trick from the previous section will not work here, because a woman who is both southern and in an SMSA has to appear in both subsamples rather than be assigned to one. <code>expand</code> handles that instead:</p>
+<ol type="1">
+<li>
+<code>ta south smsa</code> shows the overlap, which is the reason for what follows.</li>
+<li>
+<code>preserve</code>, then <code>expand 2</code> duplicates every row, so each woman now has two copies.</li>
+<li>
+<code>bys idcode: g n=_n</code> numbers a woman’s two copies 1 and 2.</li>
+<li>
+<code>keep if (n==1&amp;south)|(n==2&amp;smsa)</code> keeps copy 1 only if she is southern and copy 2 only if she is in an SMSA. A woman in both keeps both copies; a woman in neither drops out; a woman in exactly one keeps one. Each surviving row now represents one woman’s membership in one subsample.</li>
+<li>
+<code>g hours1=hours*(n==1)</code> and <code>g hours2=hours*(n==2)</code> split the covariate by subsample, as before. Within this restricted sample <code>n==1</code> means southern and <code>n==2</code> means SMSA, so the copy number <em>is</em> the subsample indicator.</li>
+<li>
+<code>reg wage hours? n, cl(idcode)</code> fits both slopes at once, clustering on the woman rather than on a stacking id, since a woman can now contribute one row or two.</li>
+</ol>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -1088,7 +1124,9 @@ t statistics in parentheses
 <p>The cross-tab shows the overlap: of the 1,304 non-South women, 996 live in an SMSA, so the two subsamples share members and cannot be produced by a simple split. Expanding the data and keeping each observation under whichever subsample it belongs to handles that. The pooled <code>hours1</code> is 0.0623497, again reproducing the South regression exactly, and <code>hours2</code> is 0.0954 for the SMSA subsample. The <code>n</code> indicator is 0.341 with <span class="math inline">\(p = 0.578\)</span>.</p>
 </section><section id="iv-regression" class="level2" data-number="3.4"><h2 data-number="3.4" class="anchored" data-anchor-id="iv-regression">
 <span class="header-section-number">3.4</span> IV regression</h2>
-<p>The interaction approach works with IV. Interact both the endogenous variable and the instrument with the subsample indicator. Here <code>hours</code> is instrumented by <code>union</code> within each region:</p>
+<p>The interaction approach works with IV. Interact both the endogenous variable and the instrument with the subsample indicator. Here <code>hours</code> is instrumented by <code>union</code> within each region.</p>
+<p>The point is not to get a different estimate. The two interacted 2SLS coefficients reproduce the two subsample IV regressions exactly, just as they did for OLS. The point is that running them separately leaves the two estimates in different <code>ivregress</code> results with no joint covariance between them, so there is nothing to test the difference <em>with</em>. Interacting puts both in one estimation, so <code>test _b[hours1]-_b[hours2]=0</code> can reach both coefficients and their covariance. That is the whole reason for the construction, and it is the same reason as in the OLS case.</p>
+<p>Two details specific to IV. The instrument must be split alongside the endogenous variable — <code>union1</code> and <code>union2</code>, not just <code>hours1</code> and <code>hours2</code> — because an instrument that is not subsample-specific would identify a single pooled first stage and defeat the purpose. And the number of instruments must still match the number of endogenous regressors: two of each here, so the system is exactly identified, as each subsample regression was on its own.</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">sysuse</span> nlsw88, <span class="kw">clear</span></span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>ivregress 2sls wage (hours=<span class="kw">union</span>) <span class="kw">if</span> south</span>
@@ -1101,11 +1139,7 @@ t statistics in parentheses
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>ivregress 2sls wage south (hours1 hours2 = union1 union2)</span>
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> _b[hours1]-_b[hours2]=0</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>already preserved
-r(621);
-
-
-(NLSW, 1988 extract)
+<pre><code>(NLSW, 1988 extract)
 
 
 Instrumental-variables 2SLS regression            Number of obs   =        798
@@ -1194,11 +1228,7 @@ Exogenous:  south union1 union2
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>ivreghdfe wage (hours=<span class="kw">union</span>) <span class="kw">if</span> !south, a(race) <span class="kw">cluster</span>(race)</span>
 <span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race) <span class="kw">cluster</span>(race)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>already preserved
-r(621);
-
-
-(NLSW, 1988 extract)
+<pre><code>(NLSW, 1988 extract)
 
 (4 missing values generated)
 
@@ -1390,8 +1420,13 @@ Absorbed degrees of freedom:
 <span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>ivreghdfe wage (hours=<span class="kw">union</span>) <span class="kw">if</span> !south, a(race) <span class="kw">cluster</span>(race)</span>
 <span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>ivregress 2sls wage south (hours1 hours2 = union1 union2) i.race1 i.race2, <span class="kw">cluster</span>(race)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>already preserved
-r(621);
+<pre><code>Warning: estimated covariance matrix of moment conditions not of full rank.
+         overidentification statistic not reported, and standard errors and
+         model tests should be interpreted with caution.
+Possible causes:
+         number of clusters insufficient to calculate robust covariance matrix
+         singleton dummy variable (dummy with one 1 and N-1 0s or vice versa)
+partial option may address problem.
 
 
 (NLSW, 1988 extract)
@@ -1559,8 +1594,13 @@ Exogenous:  south 1.race1 2.race1 1.race2 2.race2 union1 union2</code></pre>
 <span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race1 race2) <span class="kw">cluster</span>(race)</span>
 <span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> _b[hours1]-_b[hours2]=0</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>already preserved
-r(621);
+<pre><code>Warning: estimated covariance matrix of moment conditions not of full rank.
+         overidentification statistic not reported, and standard errors and
+         model tests should be interpreted with caution.
+Possible causes:
+         number of clusters insufficient to calculate robust covariance matrix
+         singleton dummy variable (dummy with one 1 and N-1 0s or vice versa)
+partial option may address problem.
 
 
 (NLSW, 1988 extract)
@@ -1672,10 +1712,23 @@ Absorbed degrees of freedom:
 <span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="kw">reg</span> Y wage? hours? tenure? subsample, <span class="kw">cluster</span>(id)</span>
 <span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="kw">est</span> sto chow</span>
 <span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="kw">test</span> _b[hours1]-_b[hours2]=0</span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>esttab  <span class="kw">suest</span> chow, nogaps mti</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>esttab  <span class="kw">suest</span> chow, nogaps mti</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="kw">restore</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>already preserved
-r(621);
+<pre><code>Warning: estimated covariance matrix of moment conditions not of full rank.
+         overidentification statistic not reported, and standard errors and
+         model tests should be interpreted with caution.
+Possible causes:
+         number of clusters insufficient to calculate robust covariance matrix
+         singleton dummy variable (dummy with one 1 and N-1 0s or vice versa)
+partial option may address problem.
+Warning: estimated covariance matrix of moment conditions not of full rank.
+         overidentification statistic not reported, and standard errors and
+         model tests should be interpreted with caution.
+Possible causes:
+         number of clusters insufficient to calculate robust covariance matrix
+         singleton dummy variable (dummy with one 1 and N-1 0s or vice versa)
+partial option may address problem.
 
 
 (NLSW, 1988 extract)
@@ -1851,6 +1904,8 @@ t statistics in parentheses
 <span class="header-section-number">3.7</span> Conclusion</h2>
 <p><code>suest</code> and the stacking method both test cross-equation hypotheses with robust standard errors. <code>sureg</code> does the same under a GLS framework, but it assumes homoscedastic errors across equations; under misspecification it remains consistent but its standard errors are invalid. When the equations share covariates <code>sureg</code> and OLS give the same point estimates; with different covariates they diverge.</p>
 <p>The stacking approach is the most portable. It works in any language, extends to IV and fixed-effect models, and requires only that the single-equation estimator works — no special post-estimation infrastructure.</p>
+<p>One pattern runs through every example in this chapter, and it is worth stating once on its own. A Chow test is a hypothesis about two coefficients that live in two different regressions. Stata’s <code>test</code> can only reach coefficients inside a single stored estimation result, and, more importantly, testing a difference requires the covariance between the two estimates, which separate regressions never produce. Every construction here — the reshape for two outcomes, the <code>expand</code> for overlapping samples, the split instruments under IV, the absorbed fixed effects — exists to move both coefficients into one estimation so that the covariance exists and <code>test</code> can use it. <code>suest</code> does the same thing by a different route, refitting the stored estimates jointly with a robust cross-equation covariance matrix.</p>
+<p>So the choice among them is practical rather than statistical. Use <code>suest</code> when the estimator supports it and the samples are the same. Stack when the samples overlap, when the covariates differ across equations, or when the estimator is one <code>suest</code> will not take — which, in practice, means most fixed-effect and IV commands.</p>
 
 
 <!-- -->
@@ -2394,287 +2449,378 @@ t statistics in parentheses
 <span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>The same idea compares a coefficient across two different outcomes. Stack the two outcome variables into a long format, interact the covariates with the stacking indicator, and run one regression.</span>
 <span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
-<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a><span class="in">est clear</span></span>
-<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
-<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a><span class="in">reg south wage hours</span></span>
-<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a><span class="in">est sto south</span></span>
-<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a><span class="in">reg smsa wage hours</span></span>
-<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a><span class="in">est sto smsa</span></span>
-<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a><span class="in">suest south smsa</span></span>
-<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a><span class="in">est sto suest</span></span>
-<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
-<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y1=south</span></span>
-<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y2=smsa</span></span>
-<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a><span class="in">gen id=_n</span></span>
-<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a><span class="in">reshape long Y, i(id) j(subsample)</span></span>
-<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage1=wage*(subsample==1)</span></span>
-<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage2=wage*(subsample==2)</span></span>
-<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(subsample==1)</span></span>
-<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(subsample==2)</span></span>
-<span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a><span class="in">* Each individual contributes TWO rows here (one per stacked outcome), so the</span></span>
-<span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a><span class="in">* errors are correlated within id.  Clustering on the stacking id is what makes</span></span>
-<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a><span class="in">* the cross-equation test comparable to suest -- see the note below.</span></span>
-<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a><span class="in">reg Y wage? hours? subsample, cluster(id)</span></span>
-<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[wage1]-_b[wage2]=0</span></span>
-<span id="cb17-115"><a href="#cb17-115" aria-hidden="true" tabindex="-1"></a><span class="in">est sto stacked</span></span>
-<span id="cb17-116"><a href="#cb17-116" aria-hidden="true" tabindex="-1"></a><span class="in">* Note: suest stores coefficients under equation-qualified names (e.g.</span></span>
-<span id="cb17-117"><a href="#cb17-117" aria-hidden="true" tabindex="-1"></a><span class="in">* south:hours), while the single-sample models store the same</span></span>
-<span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a><span class="in">* coefficient simply as "hours"; esttab matches by exact coefficient</span></span>
-<span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a><span class="in">* name, so these land on separate rows instead of being aligned. Use</span></span>
-<span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a><span class="in">* esttab's coeflabel()/eqlabel() options, or rename coefficients on the</span></span>
-<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a><span class="in">* stored estimates first, to get a directly comparable table.</span></span>
-<span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a><span class="in">esttab south smsa suest stacked, nogaps mti</span></span>
-<span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-124"><a href="#cb17-124" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a>The two outcomes (<span class="in">`south`</span> and <span class="in">`smsa`</span>) are stacked as <span class="in">`Y`</span>, the covariates are interacted with the stacking indicator, and the pooled regression returns the separate coefficients.</span>
-<span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a>One detail matters a great deal here, and it is easy to skip.  Stacking puts **two</span>
-<span id="cb17-129"><a href="#cb17-129" aria-hidden="true" tabindex="-1"></a>rows per person** in the data, so the two error terms belonging to the same person</span>
-<span id="cb17-130"><a href="#cb17-130" aria-hidden="true" tabindex="-1"></a>are correlated by construction.  The cross-equation test is precisely a comparison</span>
-<span id="cb17-131"><a href="#cb17-131" aria-hidden="true" tabindex="-1"></a>*across* those two rows, so its standard error has to account for that</span>
-<span id="cb17-132"><a href="#cb17-132" aria-hidden="true" tabindex="-1"></a>correlation.  Clustering on the stacking id does it, and it is not a cosmetic</span>
-<span id="cb17-133"><a href="#cb17-133" aria-hidden="true" tabindex="-1"></a>adjustment:</span>
-<span id="cb17-134"><a href="#cb17-134" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-135"><a href="#cb17-135" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="pp">|</span> test of the wage coefficient across equations <span class="pp">|</span></span>
-<span id="cb17-136"><a href="#cb17-136" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
-<span id="cb17-137"><a href="#cb17-137" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`suest`</span> <span class="pp">|</span> $\chi^2(1) = 72.22$ <span class="pp">|</span></span>
-<span id="cb17-138"><a href="#cb17-138" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> stacked, **no** clustering <span class="pp">|</span> $F(1, 4478) = 114.12$ <span class="pp">|</span></span>
-<span id="cb17-139"><a href="#cb17-139" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> stacked, <span class="in">`cluster(id)`</span> <span class="pp">|</span> $F(1, 2241) = 72.14$ <span class="pp">|</span></span>
-<span id="cb17-140"><a href="#cb17-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-141"><a href="#cb17-141" aria-hidden="true" tabindex="-1"></a>Without clustering the statistic is inflated by more than half.  With it, the</span>
-<span id="cb17-142"><a href="#cb17-142" aria-hidden="true" tabindex="-1"></a>stacked test reproduces <span class="in">`suest`</span> almost exactly -- the small remaining gap is just</span>
-<span id="cb17-143"><a href="#cb17-143" aria-hidden="true" tabindex="-1"></a>the $F$-versus-$\chi^2$ finite-sample adjustment.  Note that <span class="in">`robust`</span> alone will</span>
-<span id="cb17-144"><a href="#cb17-144" aria-hidden="true" tabindex="-1"></a>*not* fix this; the cluster variable has to be the id you stacked on.</span>
-<span id="cb17-145"><a href="#cb17-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-146"><a href="#cb17-146" aria-hidden="true" tabindex="-1"></a><span class="fu">## Overlapping samples</span></span>
-<span id="cb17-147"><a href="#cb17-147" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-148"><a href="#cb17-148" aria-hidden="true" tabindex="-1"></a>The same method extends to overlapping subsamples. Here south and smsa overlap — some observations belong to both — so a simple split is not possible:</span>
-<span id="cb17-149"><a href="#cb17-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-150"><a href="#cb17-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-153"><a href="#cb17-153" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb17-154"><a href="#cb17-154" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
-<span id="cb17-155"><a href="#cb17-155" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb17-156"><a href="#cb17-156" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb17-157"><a href="#cb17-157" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-158"><a href="#cb17-158" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-159"><a href="#cb17-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-160"><a href="#cb17-160" aria-hidden="true" tabindex="-1"></a><span class="in">est clear</span></span>
-<span id="cb17-161"><a href="#cb17-161" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
-<span id="cb17-162"><a href="#cb17-162" aria-hidden="true" tabindex="-1"></a><span class="in">ta south smsa</span></span>
-<span id="cb17-163"><a href="#cb17-163" aria-hidden="true" tabindex="-1"></a><span class="in">reg wage hours if south</span></span>
-<span id="cb17-164"><a href="#cb17-164" aria-hidden="true" tabindex="-1"></a><span class="in">est sto south</span></span>
-<span id="cb17-165"><a href="#cb17-165" aria-hidden="true" tabindex="-1"></a><span class="in">reg wage hours if smsa</span></span>
-<span id="cb17-166"><a href="#cb17-166" aria-hidden="true" tabindex="-1"></a><span class="in">est sto smsa</span></span>
-<span id="cb17-167"><a href="#cb17-167" aria-hidden="true" tabindex="-1"></a><span class="in">suest south smsa</span></span>
-<span id="cb17-168"><a href="#cb17-168" aria-hidden="true" tabindex="-1"></a><span class="in">est sto suest</span></span>
-<span id="cb17-169"><a href="#cb17-169" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
-<span id="cb17-170"><a href="#cb17-170" aria-hidden="true" tabindex="-1"></a><span class="in">expand 2</span></span>
-<span id="cb17-171"><a href="#cb17-171" aria-hidden="true" tabindex="-1"></a><span class="in">bys idcode: g n=_n</span></span>
-<span id="cb17-172"><a href="#cb17-172" aria-hidden="true" tabindex="-1"></a><span class="in">keep if (n==1&amp;south)|(n==2&amp;smsa)</span></span>
-<span id="cb17-173"><a href="#cb17-173" aria-hidden="true" tabindex="-1"></a><span class="in">* hours1 is hours in the south subsample (n==1), hours2 is hours in the</span></span>
-<span id="cb17-174"><a href="#cb17-174" aria-hidden="true" tabindex="-1"></a><span class="in">* smsa subsample (n==2); within this restricted sample n==1 &lt;=&gt; south==1</span></span>
-<span id="cb17-175"><a href="#cb17-175" aria-hidden="true" tabindex="-1"></a><span class="in">* and n==2 &lt;=&gt; smsa==1, so this is equivalent to but clearer than negating</span></span>
-<span id="cb17-176"><a href="#cb17-176" aria-hidden="true" tabindex="-1"></a><span class="in">* the complementary condition.</span></span>
-<span id="cb17-177"><a href="#cb17-177" aria-hidden="true" tabindex="-1"></a><span class="in">g hours1=hours*(n==1)</span></span>
-<span id="cb17-178"><a href="#cb17-178" aria-hidden="true" tabindex="-1"></a><span class="in">g hours2=hours*(n==2)</span></span>
-<span id="cb17-179"><a href="#cb17-179" aria-hidden="true" tabindex="-1"></a><span class="in">reg wage hours? n, cl(idcode)</span></span>
-<span id="cb17-180"><a href="#cb17-180" aria-hidden="true" tabindex="-1"></a><span class="in">est sto stacked</span></span>
-<span id="cb17-181"><a href="#cb17-181" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
-<span id="cb17-182"><a href="#cb17-182" aria-hidden="true" tabindex="-1"></a><span class="in">esttab south smsa suest stacked, nogaps mti</span></span>
-<span id="cb17-183"><a href="#cb17-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-184"><a href="#cb17-184" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-185"><a href="#cb17-185" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-186"><a href="#cb17-186" aria-hidden="true" tabindex="-1"></a>The cross-tab shows the overlap: of the 1,304 non-South women, 996 live in an</span>
-<span id="cb17-187"><a href="#cb17-187" aria-hidden="true" tabindex="-1"></a>SMSA, so the two subsamples share members and cannot be produced by a simple</span>
-<span id="cb17-188"><a href="#cb17-188" aria-hidden="true" tabindex="-1"></a>split. Expanding the data and keeping each observation under whichever</span>
-<span id="cb17-189"><a href="#cb17-189" aria-hidden="true" tabindex="-1"></a>subsample it belongs to handles that. The pooled <span class="in">`hours1`</span> is 0.0623497, again</span>
-<span id="cb17-190"><a href="#cb17-190" aria-hidden="true" tabindex="-1"></a>reproducing the South regression exactly, and <span class="in">`hours2`</span> is 0.0954 for the SMSA</span>
-<span id="cb17-191"><a href="#cb17-191" aria-hidden="true" tabindex="-1"></a>subsample. The <span class="in">`n`</span> indicator is 0.341 with $p = 0.578$.</span>
-<span id="cb17-192"><a href="#cb17-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-193"><a href="#cb17-193" aria-hidden="true" tabindex="-1"></a><span class="fu">## IV regression</span></span>
-<span id="cb17-194"><a href="#cb17-194" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-195"><a href="#cb17-195" aria-hidden="true" tabindex="-1"></a>The interaction approach works with IV. Interact both the endogenous variable and the instrument with the subsample indicator. Here <span class="in">`hours`</span> is instrumented by <span class="in">`union`</span> within each region:</span>
-<span id="cb17-196"><a href="#cb17-196" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-197"><a href="#cb17-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-198"><a href="#cb17-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-201"><a href="#cb17-201" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb17-202"><a href="#cb17-202" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata4</span></span>
-<span id="cb17-203"><a href="#cb17-203" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb17-204"><a href="#cb17-204" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb17-205"><a href="#cb17-205" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-206"><a href="#cb17-206" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
-<span id="cb17-207"><a href="#cb17-207" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage (hours=union) if south</span></span>
-<span id="cb17-208"><a href="#cb17-208" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage (hours=union) if !south</span></span>
-<span id="cb17-209"><a href="#cb17-209" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
-<span id="cb17-210"><a href="#cb17-210" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
-<span id="cb17-211"><a href="#cb17-211" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
-<span id="cb17-212"><a href="#cb17-212" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
+<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a>The chunk below does that in seven steps, and it is worth reading them in order</span>
+<span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a>because the payoff is the last two columns of the table agreeing.</span>
+<span id="cb17-85"><a href="#cb17-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span><span class="in">`reg south wage hours`</span> and <span class="in">`reg smsa wage hours`</span>, each stored with <span class="in">`est sto`</span>.</span>
+<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a>   These are the two equations we want to compare, fitted separately.</span>
+<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span><span class="in">`suest south smsa`</span> refits them jointly and stacks the two coefficient</span>
+<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a>   vectors into one, with a robust covariance matrix across equations. This is</span>
+<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a>   the benchmark: it is the standard way to test a cross-equation hypothesis.</span>
+<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span><span class="in">`preserve`</span>, because the next steps reshape the data and we want it back.</span>
+<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span><span class="in">`gen Y1=south`</span>, <span class="in">`gen Y2=smsa`</span>, <span class="in">`gen id=_n`</span>. Copy the two outcomes into a</span>
+<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a>   numbered pair and give every woman an id.</span>
+<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span><span class="in">`reshape long Y, i(id) j(subsample)`</span> turns each woman's one row into two:</span>
+<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a>   one carrying <span class="in">`Y = south`</span> with <span class="in">`subsample == 1`</span>, one carrying <span class="in">`Y = smsa`</span> with</span>
+<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a>   <span class="in">`subsample == 2`</span>. The stacked outcome is now a single variable <span class="in">`Y`</span>.</span>
+<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span><span class="in">`gen wage1=wage*(subsample==1)`</span> and its three siblings. Each covariate is</span>
+<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a>   split into the part that acts in equation 1 and the part that acts in</span>
+<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a>   equation 2. A single regression on <span class="in">`wage1 wage2 hours1 hours2`</span> therefore</span>
+<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a>   estimates a separate slope per equation, which is what the two separate</span>
+<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a>   regressions did.</span>
+<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a><span class="ss">7. </span><span class="in">`reg Y wage? hours? subsample, cluster(id)`</span> fits it, and</span>
+<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a>   <span class="in">`test _b[wage1]-_b[wage2]=0`</span> is the cross-equation test. The <span class="in">`?`</span> is a Stata</span>
+<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a>   wildcard, so <span class="in">`wage?`</span> expands to <span class="in">`wage1 wage2`</span>.</span>
+<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a>The whole construction exists so that a hypothesis *across* two equations</span>
+<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a>becomes a hypothesis *within* one, where <span class="in">`test`</span> can reach both coefficients.</span>
+<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata2</span></span>
+<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb17-115"><a href="#cb17-115" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb17-116"><a href="#cb17-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-117"><a href="#cb17-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a><span class="in">est clear</span></span>
+<span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
+<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a><span class="in">reg south wage hours</span></span>
+<span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a><span class="in">est sto south</span></span>
+<span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a><span class="in">reg smsa wage hours</span></span>
+<span id="cb17-124"><a href="#cb17-124" aria-hidden="true" tabindex="-1"></a><span class="in">est sto smsa</span></span>
+<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a><span class="in">suest south smsa</span></span>
+<span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a><span class="in">est sto suest</span></span>
+<span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
+<span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y1=south</span></span>
+<span id="cb17-129"><a href="#cb17-129" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y2=smsa</span></span>
+<span id="cb17-130"><a href="#cb17-130" aria-hidden="true" tabindex="-1"></a><span class="in">gen id=_n</span></span>
+<span id="cb17-131"><a href="#cb17-131" aria-hidden="true" tabindex="-1"></a><span class="in">reshape long Y, i(id) j(subsample)</span></span>
+<span id="cb17-132"><a href="#cb17-132" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage1=wage*(subsample==1)</span></span>
+<span id="cb17-133"><a href="#cb17-133" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage2=wage*(subsample==2)</span></span>
+<span id="cb17-134"><a href="#cb17-134" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(subsample==1)</span></span>
+<span id="cb17-135"><a href="#cb17-135" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(subsample==2)</span></span>
+<span id="cb17-136"><a href="#cb17-136" aria-hidden="true" tabindex="-1"></a><span class="in">* Each individual contributes TWO rows here (one per stacked outcome), so the</span></span>
+<span id="cb17-137"><a href="#cb17-137" aria-hidden="true" tabindex="-1"></a><span class="in">* errors are correlated within id.  Clustering on the stacking id is what makes</span></span>
+<span id="cb17-138"><a href="#cb17-138" aria-hidden="true" tabindex="-1"></a><span class="in">* the cross-equation test comparable to suest -- see the note below.</span></span>
+<span id="cb17-139"><a href="#cb17-139" aria-hidden="true" tabindex="-1"></a><span class="in">reg Y wage? hours? subsample, cluster(id)</span></span>
+<span id="cb17-140"><a href="#cb17-140" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[wage1]-_b[wage2]=0</span></span>
+<span id="cb17-141"><a href="#cb17-141" aria-hidden="true" tabindex="-1"></a><span class="in">est sto stacked</span></span>
+<span id="cb17-142"><a href="#cb17-142" aria-hidden="true" tabindex="-1"></a><span class="in">* Match the preserve above, so the reshape does not leak into later chunks.</span></span>
+<span id="cb17-143"><a href="#cb17-143" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
+<span id="cb17-144"><a href="#cb17-144" aria-hidden="true" tabindex="-1"></a><span class="in">* Note: suest stores coefficients under equation-qualified names (e.g.</span></span>
+<span id="cb17-145"><a href="#cb17-145" aria-hidden="true" tabindex="-1"></a><span class="in">* south:hours), while the single-sample models store the same</span></span>
+<span id="cb17-146"><a href="#cb17-146" aria-hidden="true" tabindex="-1"></a><span class="in">* coefficient simply as "hours"; esttab matches by exact coefficient</span></span>
+<span id="cb17-147"><a href="#cb17-147" aria-hidden="true" tabindex="-1"></a><span class="in">* name, so these land on separate rows instead of being aligned. Use</span></span>
+<span id="cb17-148"><a href="#cb17-148" aria-hidden="true" tabindex="-1"></a><span class="in">* esttab's coeflabel()/eqlabel() options, or rename coefficients on the</span></span>
+<span id="cb17-149"><a href="#cb17-149" aria-hidden="true" tabindex="-1"></a><span class="in">* stored estimates first, to get a directly comparable table.</span></span>
+<span id="cb17-150"><a href="#cb17-150" aria-hidden="true" tabindex="-1"></a><span class="in">esttab south smsa suest stacked, nogaps mti</span></span>
+<span id="cb17-151"><a href="#cb17-151" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-152"><a href="#cb17-152" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-153"><a href="#cb17-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-154"><a href="#cb17-154" aria-hidden="true" tabindex="-1"></a>Read the table by columns. The first two are the separate regressions, the</span>
+<span id="cb17-155"><a href="#cb17-155" aria-hidden="true" tabindex="-1"></a>third is <span class="in">`suest`</span>, and the fourth is the stacked regression. The <span class="in">`wage1`</span></span>
+<span id="cb17-156"><a href="#cb17-156" aria-hidden="true" tabindex="-1"></a>coefficient in column four equals the <span class="in">`wage`</span> coefficient in column one, and</span>
+<span id="cb17-157"><a href="#cb17-157" aria-hidden="true" tabindex="-1"></a><span class="in">`wage2`</span> equals the <span class="in">`wage`</span> coefficient in column two: stacking has reproduced</span>
+<span id="cb17-158"><a href="#cb17-158" aria-hidden="true" tabindex="-1"></a>both single-equation fits exactly, in one regression, with both coefficients now</span>
+<span id="cb17-159"><a href="#cb17-159" aria-hidden="true" tabindex="-1"></a>addressable by <span class="in">`test`</span>. Note the sample size, 4,484 in the stacked column against</span>
+<span id="cb17-160"><a href="#cb17-160" aria-hidden="true" tabindex="-1"></a>2,242 in the others — the reshape doubled the rows, which is the next point.</span>
+<span id="cb17-161"><a href="#cb17-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-162"><a href="#cb17-162" aria-hidden="true" tabindex="-1"></a>One detail matters a great deal here, and it is easy to skip.  Stacking puts **two</span>
+<span id="cb17-163"><a href="#cb17-163" aria-hidden="true" tabindex="-1"></a>rows per person** in the data, so the two error terms belonging to the same person</span>
+<span id="cb17-164"><a href="#cb17-164" aria-hidden="true" tabindex="-1"></a>are correlated by construction.  The cross-equation test is precisely a comparison</span>
+<span id="cb17-165"><a href="#cb17-165" aria-hidden="true" tabindex="-1"></a>*across* those two rows, so its standard error has to account for that</span>
+<span id="cb17-166"><a href="#cb17-166" aria-hidden="true" tabindex="-1"></a>correlation.  Clustering on the stacking id does it, and it is not a cosmetic</span>
+<span id="cb17-167"><a href="#cb17-167" aria-hidden="true" tabindex="-1"></a>adjustment:</span>
+<span id="cb17-168"><a href="#cb17-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-169"><a href="#cb17-169" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="pp">|</span> test of the wage coefficient across equations <span class="pp">|</span></span>
+<span id="cb17-170"><a href="#cb17-170" aria-hidden="true" tabindex="-1"></a><span class="pp">|---|---|</span></span>
+<span id="cb17-171"><a href="#cb17-171" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> <span class="in">`suest`</span> <span class="pp">|</span> $\chi^2(1) = 72.22$ <span class="pp">|</span></span>
+<span id="cb17-172"><a href="#cb17-172" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> stacked, **no** clustering <span class="pp">|</span> $F(1, 4478) = 114.12$ <span class="pp">|</span></span>
+<span id="cb17-173"><a href="#cb17-173" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> stacked, <span class="in">`cluster(id)`</span> <span class="pp">|</span> $F(1, 2241) = 72.14$ <span class="pp">|</span></span>
+<span id="cb17-174"><a href="#cb17-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-175"><a href="#cb17-175" aria-hidden="true" tabindex="-1"></a>Without clustering the statistic is inflated by more than half.  With it, the</span>
+<span id="cb17-176"><a href="#cb17-176" aria-hidden="true" tabindex="-1"></a>stacked test reproduces <span class="in">`suest`</span> almost exactly -- the small remaining gap is just</span>
+<span id="cb17-177"><a href="#cb17-177" aria-hidden="true" tabindex="-1"></a>the $F$-versus-$\chi^2$ finite-sample adjustment.  Note that <span class="in">`robust`</span> alone will</span>
+<span id="cb17-178"><a href="#cb17-178" aria-hidden="true" tabindex="-1"></a>*not* fix this; the cluster variable has to be the id you stacked on.</span>
+<span id="cb17-179"><a href="#cb17-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-180"><a href="#cb17-180" aria-hidden="true" tabindex="-1"></a><span class="fu">## Overlapping samples</span></span>
+<span id="cb17-181"><a href="#cb17-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-182"><a href="#cb17-182" aria-hidden="true" tabindex="-1"></a>The same method extends to overlapping subsamples. Here south and smsa overlap</span>
+<span id="cb17-183"><a href="#cb17-183" aria-hidden="true" tabindex="-1"></a>— some observations belong to both — so a simple split is not possible.</span>
+<span id="cb17-184"><a href="#cb17-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-185"><a href="#cb17-185" aria-hidden="true" tabindex="-1"></a>The reshape trick from the previous section will not work here, because a woman</span>
+<span id="cb17-186"><a href="#cb17-186" aria-hidden="true" tabindex="-1"></a>who is both southern and in an SMSA has to appear in both subsamples rather than</span>
+<span id="cb17-187"><a href="#cb17-187" aria-hidden="true" tabindex="-1"></a>be assigned to one. <span class="in">`expand`</span> handles that instead:</span>
+<span id="cb17-188"><a href="#cb17-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-189"><a href="#cb17-189" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span><span class="in">`ta south smsa`</span> shows the overlap, which is the reason for what follows.</span>
+<span id="cb17-190"><a href="#cb17-190" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span><span class="in">`preserve`</span>, then <span class="in">`expand 2`</span> duplicates every row, so each woman now has two</span>
+<span id="cb17-191"><a href="#cb17-191" aria-hidden="true" tabindex="-1"></a>   copies.</span>
+<span id="cb17-192"><a href="#cb17-192" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span><span class="in">`bys idcode: g n=_n`</span> numbers a woman's two copies 1 and 2.</span>
+<span id="cb17-193"><a href="#cb17-193" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span><span class="in">`keep if (n==1&amp;south)|(n==2&amp;smsa)`</span> keeps copy 1 only if she is southern and</span>
+<span id="cb17-194"><a href="#cb17-194" aria-hidden="true" tabindex="-1"></a>   copy 2 only if she is in an SMSA. A woman in both keeps both copies; a woman</span>
+<span id="cb17-195"><a href="#cb17-195" aria-hidden="true" tabindex="-1"></a>   in neither drops out; a woman in exactly one keeps one. Each surviving row</span>
+<span id="cb17-196"><a href="#cb17-196" aria-hidden="true" tabindex="-1"></a>   now represents one woman's membership in one subsample.</span>
+<span id="cb17-197"><a href="#cb17-197" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span><span class="in">`g hours1=hours*(n==1)`</span> and <span class="in">`g hours2=hours*(n==2)`</span> split the covariate by</span>
+<span id="cb17-198"><a href="#cb17-198" aria-hidden="true" tabindex="-1"></a>   subsample, as before. Within this restricted sample <span class="in">`n==1`</span> means southern and</span>
+<span id="cb17-199"><a href="#cb17-199" aria-hidden="true" tabindex="-1"></a>   <span class="in">`n==2`</span> means SMSA, so the copy number *is* the subsample indicator.</span>
+<span id="cb17-200"><a href="#cb17-200" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span><span class="in">`reg wage hours? n, cl(idcode)`</span> fits both slopes at once, clustering on the</span>
+<span id="cb17-201"><a href="#cb17-201" aria-hidden="true" tabindex="-1"></a>   woman rather than on a stacking id, since a woman can now contribute one row</span>
+<span id="cb17-202"><a href="#cb17-202" aria-hidden="true" tabindex="-1"></a>   or two.</span>
+<span id="cb17-203"><a href="#cb17-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-204"><a href="#cb17-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-207"><a href="#cb17-207" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb17-208"><a href="#cb17-208" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata3</span></span>
+<span id="cb17-209"><a href="#cb17-209" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb17-210"><a href="#cb17-210" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb17-211"><a href="#cb17-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-212"><a href="#cb17-212" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-213"><a href="#cb17-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-214"><a href="#cb17-214" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage south (hours1 hours2 = union1 union2)</span></span>
-<span id="cb17-215"><a href="#cb17-215" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[hours1]-_b[hours2]=0</span></span>
-<span id="cb17-216"><a href="#cb17-216" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-217"><a href="#cb17-217" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-218"><a href="#cb17-218" aria-hidden="true" tabindex="-1"></a>The IV estimates are 0.978 in the South and 0.626 elsewhere, against OLS values</span>
-<span id="cb17-219"><a href="#cb17-219" aria-hidden="true" tabindex="-1"></a>of 0.062 and 0.111 — an order of magnitude larger, with standard errors to</span>
-<span id="cb17-220"><a href="#cb17-220" aria-hidden="true" tabindex="-1"></a>match (0.519 and 0.297). And the Chow test now gives $\chi^2(1) = 0.35$ with</span>
-<span id="cb17-221"><a href="#cb17-221" aria-hidden="true" tabindex="-1"></a>$p = 0.5554$, where the OLS version rejected at $p = 0.0405$. Instrumenting has</span>
-<span id="cb17-222"><a href="#cb17-222" aria-hidden="true" tabindex="-1"></a>not overturned the difference between regions; it has made the data too</span>
-<span id="cb17-223"><a href="#cb17-223" aria-hidden="true" tabindex="-1"></a>imprecise to detect it. The lesson is about the test, not the subsamples: a</span>
-<span id="cb17-224"><a href="#cb17-224" aria-hidden="true" tabindex="-1"></a>Chow test inherits the precision of whatever estimator it is built on.</span>
-<span id="cb17-225"><a href="#cb17-225" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-226"><a href="#cb17-226" aria-hidden="true" tabindex="-1"></a><span class="fu">## IV with fixed effects</span></span>
-<span id="cb17-227"><a href="#cb17-227" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-228"><a href="#cb17-228" aria-hidden="true" tabindex="-1"></a>With fixed effects the pooled regression needs the fixed effects themselves interacted with the subsample indicator. The first attempt below omits this and fails to reproduce the separate estimates:</span>
-<span id="cb17-229"><a href="#cb17-229" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-230"><a href="#cb17-230" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
-<span id="cb17-231"><a href="#cb17-231" aria-hidden="true" tabindex="-1"></a>The examples below cluster standard errors on <span class="in">`race`</span>, which in <span class="in">`nlsw88`</span> has only three categories (White, Black, Other). Cluster-robust standard errors rely on asymptotics in the number of clusters $G \to \infty$; with $G=3$ they are severely downward-biased, inflating t-statistics and false-positive rates. These chunks use <span class="in">`race`</span> purely to illustrate the fixed-effect/IV mechanics — in an actual analysis, cluster on a variable with many more categories (e.g., <span class="in">`industry`</span> or <span class="in">`occupation`</span>), or on the true level of treatment assignment/sampling design.</span>
-<span id="cb17-232"><a href="#cb17-232" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-233"><a href="#cb17-233" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-234"><a href="#cb17-234" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-237"><a href="#cb17-237" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb17-238"><a href="#cb17-238" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata5</span></span>
-<span id="cb17-239"><a href="#cb17-239" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb17-240"><a href="#cb17-240" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb17-241"><a href="#cb17-241" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-242"><a href="#cb17-242" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-243"><a href="#cb17-243" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
-<span id="cb17-244"><a href="#cb17-244" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
-<span id="cb17-245"><a href="#cb17-245" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
-<span id="cb17-246"><a href="#cb17-246" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
-<span id="cb17-247"><a href="#cb17-247" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
-<span id="cb17-248"><a href="#cb17-248" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if south, a(race) cluster(race)</span></span>
-<span id="cb17-249"><a href="#cb17-249" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if !south, a(race) cluster(race)</span></span>
-<span id="cb17-250"><a href="#cb17-250" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race) cluster(race)</span></span>
-<span id="cb17-251"><a href="#cb17-251" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-252"><a href="#cb17-252" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-253"><a href="#cb17-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-254"><a href="#cb17-254" aria-hidden="true" tabindex="-1"></a>The separate regressions give 1.1071 and 0.7023. The pooled regression gives</span>
-<span id="cb17-255"><a href="#cb17-255" aria-hidden="true" tabindex="-1"></a>1.1420 and 0.6881 — close, but not equal, and that is the point. The pooled</span>
-<span id="cb17-256"><a href="#cb17-256" aria-hidden="true" tabindex="-1"></a>coefficients do not match the separate regressions because the fixed effects are shared: one set of race effects is estimated off both subsamples at once, so neither subsample gets the within-group demeaning its own regression used. Interacting them with the subsample indicator fixes it:</span>
-<span id="cb17-257"><a href="#cb17-257" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-258"><a href="#cb17-258" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-259"><a href="#cb17-259" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-262"><a href="#cb17-262" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb17-263"><a href="#cb17-263" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata6</span></span>
-<span id="cb17-264"><a href="#cb17-264" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb17-265"><a href="#cb17-265" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb17-266"><a href="#cb17-266" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-267"><a href="#cb17-267" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-268"><a href="#cb17-268" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
-<span id="cb17-269"><a href="#cb17-269" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
-<span id="cb17-270"><a href="#cb17-270" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
-<span id="cb17-271"><a href="#cb17-271" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
-<span id="cb17-272"><a href="#cb17-272" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
-<span id="cb17-273"><a href="#cb17-273" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-274"><a href="#cb17-274" aria-hidden="true" tabindex="-1"></a><span class="in">gen race1=race*(south==1)</span></span>
-<span id="cb17-275"><a href="#cb17-275" aria-hidden="true" tabindex="-1"></a><span class="in">gen race2=race*(south==0)</span></span>
-<span id="cb17-276"><a href="#cb17-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-214"><a href="#cb17-214" aria-hidden="true" tabindex="-1"></a><span class="in">est clear</span></span>
+<span id="cb17-215"><a href="#cb17-215" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
+<span id="cb17-216"><a href="#cb17-216" aria-hidden="true" tabindex="-1"></a><span class="in">ta south smsa</span></span>
+<span id="cb17-217"><a href="#cb17-217" aria-hidden="true" tabindex="-1"></a><span class="in">reg wage hours if south</span></span>
+<span id="cb17-218"><a href="#cb17-218" aria-hidden="true" tabindex="-1"></a><span class="in">est sto south</span></span>
+<span id="cb17-219"><a href="#cb17-219" aria-hidden="true" tabindex="-1"></a><span class="in">reg wage hours if smsa</span></span>
+<span id="cb17-220"><a href="#cb17-220" aria-hidden="true" tabindex="-1"></a><span class="in">est sto smsa</span></span>
+<span id="cb17-221"><a href="#cb17-221" aria-hidden="true" tabindex="-1"></a><span class="in">suest south smsa</span></span>
+<span id="cb17-222"><a href="#cb17-222" aria-hidden="true" tabindex="-1"></a><span class="in">est sto suest</span></span>
+<span id="cb17-223"><a href="#cb17-223" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
+<span id="cb17-224"><a href="#cb17-224" aria-hidden="true" tabindex="-1"></a><span class="in">expand 2</span></span>
+<span id="cb17-225"><a href="#cb17-225" aria-hidden="true" tabindex="-1"></a><span class="in">bys idcode: g n=_n</span></span>
+<span id="cb17-226"><a href="#cb17-226" aria-hidden="true" tabindex="-1"></a><span class="in">keep if (n==1&amp;south)|(n==2&amp;smsa)</span></span>
+<span id="cb17-227"><a href="#cb17-227" aria-hidden="true" tabindex="-1"></a><span class="in">* hours1 is hours in the south subsample (n==1), hours2 is hours in the</span></span>
+<span id="cb17-228"><a href="#cb17-228" aria-hidden="true" tabindex="-1"></a><span class="in">* smsa subsample (n==2); within this restricted sample n==1 &lt;=&gt; south==1</span></span>
+<span id="cb17-229"><a href="#cb17-229" aria-hidden="true" tabindex="-1"></a><span class="in">* and n==2 &lt;=&gt; smsa==1, so this is equivalent to but clearer than negating</span></span>
+<span id="cb17-230"><a href="#cb17-230" aria-hidden="true" tabindex="-1"></a><span class="in">* the complementary condition.</span></span>
+<span id="cb17-231"><a href="#cb17-231" aria-hidden="true" tabindex="-1"></a><span class="in">g hours1=hours*(n==1)</span></span>
+<span id="cb17-232"><a href="#cb17-232" aria-hidden="true" tabindex="-1"></a><span class="in">g hours2=hours*(n==2)</span></span>
+<span id="cb17-233"><a href="#cb17-233" aria-hidden="true" tabindex="-1"></a><span class="in">reg wage hours? n, cl(idcode)</span></span>
+<span id="cb17-234"><a href="#cb17-234" aria-hidden="true" tabindex="-1"></a><span class="in">est sto stacked</span></span>
+<span id="cb17-235"><a href="#cb17-235" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
+<span id="cb17-236"><a href="#cb17-236" aria-hidden="true" tabindex="-1"></a><span class="in">esttab south smsa suest stacked, nogaps mti</span></span>
+<span id="cb17-237"><a href="#cb17-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-238"><a href="#cb17-238" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-239"><a href="#cb17-239" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-240"><a href="#cb17-240" aria-hidden="true" tabindex="-1"></a>The cross-tab shows the overlap: of the 1,304 non-South women, 996 live in an</span>
+<span id="cb17-241"><a href="#cb17-241" aria-hidden="true" tabindex="-1"></a>SMSA, so the two subsamples share members and cannot be produced by a simple</span>
+<span id="cb17-242"><a href="#cb17-242" aria-hidden="true" tabindex="-1"></a>split. Expanding the data and keeping each observation under whichever</span>
+<span id="cb17-243"><a href="#cb17-243" aria-hidden="true" tabindex="-1"></a>subsample it belongs to handles that. The pooled <span class="in">`hours1`</span> is 0.0623497, again</span>
+<span id="cb17-244"><a href="#cb17-244" aria-hidden="true" tabindex="-1"></a>reproducing the South regression exactly, and <span class="in">`hours2`</span> is 0.0954 for the SMSA</span>
+<span id="cb17-245"><a href="#cb17-245" aria-hidden="true" tabindex="-1"></a>subsample. The <span class="in">`n`</span> indicator is 0.341 with $p = 0.578$.</span>
+<span id="cb17-246"><a href="#cb17-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-247"><a href="#cb17-247" aria-hidden="true" tabindex="-1"></a><span class="fu">## IV regression</span></span>
+<span id="cb17-248"><a href="#cb17-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-249"><a href="#cb17-249" aria-hidden="true" tabindex="-1"></a>The interaction approach works with IV. Interact both the endogenous variable and</span>
+<span id="cb17-250"><a href="#cb17-250" aria-hidden="true" tabindex="-1"></a>the instrument with the subsample indicator. Here <span class="in">`hours`</span> is instrumented by</span>
+<span id="cb17-251"><a href="#cb17-251" aria-hidden="true" tabindex="-1"></a><span class="in">`union`</span> within each region.</span>
+<span id="cb17-252"><a href="#cb17-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-253"><a href="#cb17-253" aria-hidden="true" tabindex="-1"></a>The point is not to get a different estimate. The two interacted 2SLS</span>
+<span id="cb17-254"><a href="#cb17-254" aria-hidden="true" tabindex="-1"></a>coefficients reproduce the two subsample IV regressions exactly, just as they did</span>
+<span id="cb17-255"><a href="#cb17-255" aria-hidden="true" tabindex="-1"></a>for OLS. The point is that running them separately leaves the two estimates in</span>
+<span id="cb17-256"><a href="#cb17-256" aria-hidden="true" tabindex="-1"></a>different <span class="in">`ivregress`</span> results with no joint covariance between them, so there is</span>
+<span id="cb17-257"><a href="#cb17-257" aria-hidden="true" tabindex="-1"></a>nothing to test the difference *with*. Interacting puts both in one estimation,</span>
+<span id="cb17-258"><a href="#cb17-258" aria-hidden="true" tabindex="-1"></a>so <span class="in">`test _b[hours1]-_b[hours2]=0`</span> can reach both coefficients and their</span>
+<span id="cb17-259"><a href="#cb17-259" aria-hidden="true" tabindex="-1"></a>covariance. That is the whole reason for the construction, and it is the same</span>
+<span id="cb17-260"><a href="#cb17-260" aria-hidden="true" tabindex="-1"></a>reason as in the OLS case.</span>
+<span id="cb17-261"><a href="#cb17-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-262"><a href="#cb17-262" aria-hidden="true" tabindex="-1"></a>Two details specific to IV. The instrument must be split alongside the</span>
+<span id="cb17-263"><a href="#cb17-263" aria-hidden="true" tabindex="-1"></a>endogenous variable — <span class="in">`union1`</span> and <span class="in">`union2`</span>, not just <span class="in">`hours1`</span> and <span class="in">`hours2`</span> —</span>
+<span id="cb17-264"><a href="#cb17-264" aria-hidden="true" tabindex="-1"></a>because an instrument that is not subsample-specific would identify a single</span>
+<span id="cb17-265"><a href="#cb17-265" aria-hidden="true" tabindex="-1"></a>pooled first stage and defeat the purpose. And the number of instruments must</span>
+<span id="cb17-266"><a href="#cb17-266" aria-hidden="true" tabindex="-1"></a>still match the number of endogenous regressors: two of each here, so the system</span>
+<span id="cb17-267"><a href="#cb17-267" aria-hidden="true" tabindex="-1"></a>is exactly identified, as each subsample regression was on its own.</span>
+<span id="cb17-268"><a href="#cb17-268" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-269"><a href="#cb17-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-270"><a href="#cb17-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-273"><a href="#cb17-273" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb17-274"><a href="#cb17-274" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata4</span></span>
+<span id="cb17-275"><a href="#cb17-275" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb17-276"><a href="#cb17-276" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
 <span id="cb17-277"><a href="#cb17-277" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-278"><a href="#cb17-278" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if south, a(race) cluster(race)</span></span>
-<span id="cb17-279"><a href="#cb17-279" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if !south, a(race) cluster(race)</span></span>
-<span id="cb17-280"><a href="#cb17-280" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage south (hours1 hours2 = union1 union2) i.race1 i.race2, cluster(race)</span></span>
-<span id="cb17-281"><a href="#cb17-281" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-282"><a href="#cb17-282" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-283"><a href="#cb17-283" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-284"><a href="#cb17-284" aria-hidden="true" tabindex="-1"></a>This reproduces the separate estimates exactly: 1.107099 and 0.7023322 in the pooled regression against 1.107099 and 0.7023322 separately. The approach builds explicit dummies from the interaction of the fixed-effect variable and the subsample indicator, which becomes impractical when the number of fixed-effect levels is large.</span>
+<span id="cb17-278"><a href="#cb17-278" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
+<span id="cb17-279"><a href="#cb17-279" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage (hours=union) if south</span></span>
+<span id="cb17-280"><a href="#cb17-280" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage (hours=union) if !south</span></span>
+<span id="cb17-281"><a href="#cb17-281" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
+<span id="cb17-282"><a href="#cb17-282" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
+<span id="cb17-283"><a href="#cb17-283" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
+<span id="cb17-284"><a href="#cb17-284" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
 <span id="cb17-285"><a href="#cb17-285" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-286"><a href="#cb17-286" aria-hidden="true" tabindex="-1"></a>One caution about how those dummies were built.  <span class="in">`race1 = race*(south==1)`</span> multiplies</span>
-<span id="cb17-287"><a href="#cb17-287" aria-hidden="true" tabindex="-1"></a>a *categorical code* by an indicator, so non-south observations are assigned</span>
-<span id="cb17-288"><a href="#cb17-288" aria-hidden="true" tabindex="-1"></a><span class="in">`race1 = 0`</span> and then <span class="in">`i.race1`</span> treats 0 as its own category.  That is safe here only</span>
-<span id="cb17-289"><a href="#cb17-289" aria-hidden="true" tabindex="-1"></a>because <span class="in">`race`</span> has no zero level (it is coded 1/2/3).  If the absorbed variable did</span>
-<span id="cb17-290"><a href="#cb17-290" aria-hidden="true" tabindex="-1"></a>have a 0 category, those observations and all the non-south ones would be silently</span>
-<span id="cb17-291"><a href="#cb17-291" aria-hidden="true" tabindex="-1"></a>collapsed into the same dummy.  For a general recipe, build the interactions from the</span>
-<span id="cb17-292"><a href="#cb17-292" aria-hidden="true" tabindex="-1"></a>category dummies directly (<span class="in">`i.race#i.south`</span>) rather than from the code.</span>
-<span id="cb17-293"><a href="#cb17-293" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-294"><a href="#cb17-294" aria-hidden="true" tabindex="-1"></a>Alternatively, pass the two interaction variables to <span class="in">`reghdfe`</span>'s absorb option as a two-way fixed effect:</span>
-<span id="cb17-295"><a href="#cb17-295" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-298"><a href="#cb17-298" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb17-299"><a href="#cb17-299" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata7</span></span>
-<span id="cb17-300"><a href="#cb17-300" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb17-301"><a href="#cb17-301" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb17-302"><a href="#cb17-302" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-303"><a href="#cb17-303" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-304"><a href="#cb17-304" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
-<span id="cb17-305"><a href="#cb17-305" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
-<span id="cb17-306"><a href="#cb17-306" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
-<span id="cb17-307"><a href="#cb17-307" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
-<span id="cb17-308"><a href="#cb17-308" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
-<span id="cb17-309"><a href="#cb17-309" aria-hidden="true" tabindex="-1"></a><span class="in">gen race1=race*(south==1)</span></span>
-<span id="cb17-310"><a href="#cb17-310" aria-hidden="true" tabindex="-1"></a><span class="in">gen race2=race*(south==0)</span></span>
-<span id="cb17-311"><a href="#cb17-311" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-312"><a href="#cb17-312" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race1 race2) cluster(race)</span></span>
-<span id="cb17-313"><a href="#cb17-313" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[hours1]-_b[hours2]=0</span></span>
-<span id="cb17-314"><a href="#cb17-314" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-315"><a href="#cb17-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-316"><a href="#cb17-316" aria-hidden="true" tabindex="-1"></a>Absorbing <span class="in">`race1`</span> and <span class="in">`race2`</span> as a two-way fixed effect gives the same 1.107099</span>
-<span id="cb17-317"><a href="#cb17-317" aria-hidden="true" tabindex="-1"></a>and 0.7023322 without building the dummies by hand, and scales to many</span>
-<span id="cb17-318"><a href="#cb17-318" aria-hidden="true" tabindex="-1"></a>fixed-effect levels. The Chow test is $F(1,2) = 0.31$ with $p = 0.6325$ — but</span>
-<span id="cb17-319"><a href="#cb17-319" aria-hidden="true" tabindex="-1"></a>read that denominator: 2 degrees of freedom, because the standard errors are</span>
-<span id="cb17-320"><a href="#cb17-320" aria-hidden="true" tabindex="-1"></a>clustered on <span class="in">`race`</span>, which has three categories. This is the problem the callout</span>
-<span id="cb17-321"><a href="#cb17-321" aria-hidden="true" tabindex="-1"></a>above flags, and it is why these IV/FE numbers illustrate mechanics rather than</span>
-<span id="cb17-322"><a href="#cb17-322" aria-hidden="true" tabindex="-1"></a>support any conclusion about the South.</span>
+<span id="cb17-286"><a href="#cb17-286" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage south (hours1 hours2 = union1 union2)</span></span>
+<span id="cb17-287"><a href="#cb17-287" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[hours1]-_b[hours2]=0</span></span>
+<span id="cb17-288"><a href="#cb17-288" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-289"><a href="#cb17-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-290"><a href="#cb17-290" aria-hidden="true" tabindex="-1"></a>The IV estimates are 0.978 in the South and 0.626 elsewhere, against OLS values</span>
+<span id="cb17-291"><a href="#cb17-291" aria-hidden="true" tabindex="-1"></a>of 0.062 and 0.111 — an order of magnitude larger, with standard errors to</span>
+<span id="cb17-292"><a href="#cb17-292" aria-hidden="true" tabindex="-1"></a>match (0.519 and 0.297). And the Chow test now gives $\chi^2(1) = 0.35$ with</span>
+<span id="cb17-293"><a href="#cb17-293" aria-hidden="true" tabindex="-1"></a>$p = 0.5554$, where the OLS version rejected at $p = 0.0405$. Instrumenting has</span>
+<span id="cb17-294"><a href="#cb17-294" aria-hidden="true" tabindex="-1"></a>not overturned the difference between regions; it has made the data too</span>
+<span id="cb17-295"><a href="#cb17-295" aria-hidden="true" tabindex="-1"></a>imprecise to detect it. The lesson is about the test, not the subsamples: a</span>
+<span id="cb17-296"><a href="#cb17-296" aria-hidden="true" tabindex="-1"></a>Chow test inherits the precision of whatever estimator it is built on.</span>
+<span id="cb17-297"><a href="#cb17-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-298"><a href="#cb17-298" aria-hidden="true" tabindex="-1"></a><span class="fu">## IV with fixed effects</span></span>
+<span id="cb17-299"><a href="#cb17-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-300"><a href="#cb17-300" aria-hidden="true" tabindex="-1"></a>With fixed effects the pooled regression needs the fixed effects themselves interacted with the subsample indicator. The first attempt below omits this and fails to reproduce the separate estimates:</span>
+<span id="cb17-301"><a href="#cb17-301" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-302"><a href="#cb17-302" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
+<span id="cb17-303"><a href="#cb17-303" aria-hidden="true" tabindex="-1"></a>The examples below cluster standard errors on <span class="in">`race`</span>, which in <span class="in">`nlsw88`</span> has only three categories (White, Black, Other). Cluster-robust standard errors rely on asymptotics in the number of clusters $G \to \infty$; with $G=3$ they are severely downward-biased, inflating t-statistics and false-positive rates. These chunks use <span class="in">`race`</span> purely to illustrate the fixed-effect/IV mechanics — in an actual analysis, cluster on a variable with many more categories (e.g., <span class="in">`industry`</span> or <span class="in">`occupation`</span>), or on the true level of treatment assignment/sampling design.</span>
+<span id="cb17-304"><a href="#cb17-304" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb17-305"><a href="#cb17-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-306"><a href="#cb17-306" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-309"><a href="#cb17-309" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb17-310"><a href="#cb17-310" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata5</span></span>
+<span id="cb17-311"><a href="#cb17-311" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb17-312"><a href="#cb17-312" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb17-313"><a href="#cb17-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-314"><a href="#cb17-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-315"><a href="#cb17-315" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
+<span id="cb17-316"><a href="#cb17-316" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
+<span id="cb17-317"><a href="#cb17-317" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
+<span id="cb17-318"><a href="#cb17-318" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
+<span id="cb17-319"><a href="#cb17-319" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
+<span id="cb17-320"><a href="#cb17-320" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if south, a(race) cluster(race)</span></span>
+<span id="cb17-321"><a href="#cb17-321" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if !south, a(race) cluster(race)</span></span>
+<span id="cb17-322"><a href="#cb17-322" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race) cluster(race)</span></span>
 <span id="cb17-323"><a href="#cb17-323" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-324"><a href="#cb17-324" aria-hidden="true" tabindex="-1"></a><span class="fu">## Chow test with different covariates</span></span>
+<span id="cb17-324"><a href="#cb17-324" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb17-325"><a href="#cb17-325" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-326"><a href="#cb17-326" aria-hidden="true" tabindex="-1"></a>The equations need not share the same covariates. If equation 1 includes $X_2$ and equation 2 does not,</span>
-<span id="cb17-327"><a href="#cb17-327" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-328"><a href="#cb17-328" aria-hidden="true" tabindex="-1"></a>$$ Y_1 = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon_1, \qquad Y_2 = \gamma_0 + \gamma_1 X_1 + \epsilon_2, $$ {#eq-chow-test-1}</span>
+<span id="cb17-326"><a href="#cb17-326" aria-hidden="true" tabindex="-1"></a>The separate regressions give 1.1071 and 0.7023. The pooled regression gives</span>
+<span id="cb17-327"><a href="#cb17-327" aria-hidden="true" tabindex="-1"></a>1.1420 and 0.6881 — close, but not equal, and that is the point. The pooled</span>
+<span id="cb17-328"><a href="#cb17-328" aria-hidden="true" tabindex="-1"></a>coefficients do not match the separate regressions because the fixed effects are shared: one set of race effects is estimated off both subsamples at once, so neither subsample gets the within-group demeaning its own regression used. Interacting them with the subsample indicator fixes it:</span>
 <span id="cb17-329"><a href="#cb17-329" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-330"><a href="#cb17-330" aria-hidden="true" tabindex="-1"></a>the second equation implicitly sets the coefficient on $X_2$ to zero. In the stacked regression, replace $X_2$ with a constant (e.g. 1) for the $Y_2$ subsample, so that its "coefficient" is absorbed into the intercept:</span>
+<span id="cb17-330"><a href="#cb17-330" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-331"><a href="#cb17-331" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-334"><a href="#cb17-334" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb17-335"><a href="#cb17-335" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata8</span></span>
+<span id="cb17-335"><a href="#cb17-335" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata6</span></span>
 <span id="cb17-336"><a href="#cb17-336" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
 <span id="cb17-337"><a href="#cb17-337" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
 <span id="cb17-338"><a href="#cb17-338" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-339"><a href="#cb17-339" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
-<span id="cb17-340"><a href="#cb17-340" aria-hidden="true" tabindex="-1"></a><span class="in">reg south wage hours tenure</span></span>
-<span id="cb17-341"><a href="#cb17-341" aria-hidden="true" tabindex="-1"></a><span class="in">est sto south</span></span>
-<span id="cb17-342"><a href="#cb17-342" aria-hidden="true" tabindex="-1"></a><span class="in">reg smsa wage hours</span></span>
-<span id="cb17-343"><a href="#cb17-343" aria-hidden="true" tabindex="-1"></a><span class="in">est sto smsa</span></span>
-<span id="cb17-344"><a href="#cb17-344" aria-hidden="true" tabindex="-1"></a><span class="in">suest south smsa</span></span>
-<span id="cb17-345"><a href="#cb17-345" aria-hidden="true" tabindex="-1"></a><span class="in">est sto suest</span></span>
-<span id="cb17-346"><a href="#cb17-346" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
-<span id="cb17-347"><a href="#cb17-347" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y1=south</span></span>
-<span id="cb17-348"><a href="#cb17-348" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y2=smsa</span></span>
-<span id="cb17-349"><a href="#cb17-349" aria-hidden="true" tabindex="-1"></a><span class="in">gen id=_n</span></span>
-<span id="cb17-350"><a href="#cb17-350" aria-hidden="true" tabindex="-1"></a><span class="in">reshape long Y, i(id) j(subsample)</span></span>
-<span id="cb17-351"><a href="#cb17-351" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage1=wage*(subsample==1)</span></span>
-<span id="cb17-352"><a href="#cb17-352" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage2=wage*(subsample==2)</span></span>
-<span id="cb17-353"><a href="#cb17-353" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(subsample==1)</span></span>
-<span id="cb17-354"><a href="#cb17-354" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(subsample==2)</span></span>
-<span id="cb17-355"><a href="#cb17-355" aria-hidden="true" tabindex="-1"></a><span class="in">replace tenure=1 if subsample==2</span></span>
-<span id="cb17-356"><a href="#cb17-356" aria-hidden="true" tabindex="-1"></a><span class="in">gen tenure1= tenure*(subsample==1)</span></span>
-<span id="cb17-357"><a href="#cb17-357" aria-hidden="true" tabindex="-1"></a><span class="in">gen tenure2= tenure*(subsample==2)</span></span>
-<span id="cb17-358"><a href="#cb17-358" aria-hidden="true" tabindex="-1"></a><span class="in">reg Y wage? hours? tenure? subsample, cluster(id)</span></span>
-<span id="cb17-359"><a href="#cb17-359" aria-hidden="true" tabindex="-1"></a><span class="in">est sto chow</span></span>
-<span id="cb17-360"><a href="#cb17-360" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[hours1]-_b[hours2]=0</span></span>
-<span id="cb17-361"><a href="#cb17-361" aria-hidden="true" tabindex="-1"></a><span class="in">esttab  suest chow, nogaps mti</span></span>
-<span id="cb17-362"><a href="#cb17-362" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-363"><a href="#cb17-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-364"><a href="#cb17-364" aria-hidden="true" tabindex="-1"></a>The stacked model reproduces <span class="in">`suest`</span>'s point estimates exactly: the hours</span>
-<span id="cb17-365"><a href="#cb17-365" aria-hidden="true" tabindex="-1"></a>coefficient is 0.004828 in the <span class="in">`south`</span> equation and 0.0003663 in the <span class="in">`smsa`</span> one,</span>
-<span id="cb17-366"><a href="#cb17-366" aria-hidden="true" tabindex="-1"></a>in both. Here the covariates differ — <span class="in">`tenure`</span> appears in the first equation</span>
-<span id="cb17-367"><a href="#cb17-367" aria-hidden="true" tabindex="-1"></a>only — and the trick of setting <span class="in">`tenure = 1`</span> for the second subsample lets its</span>
-<span id="cb17-368"><a href="#cb17-368" aria-hidden="true" tabindex="-1"></a>coefficient be absorbed by that equation's intercept. The Chow test on the hours</span>
-<span id="cb17-369"><a href="#cb17-369" aria-hidden="true" tabindex="-1"></a>coefficient gives $F(1, 2241) = 10.03$ with $p = 0.0016$: hours predicts living</span>
-<span id="cb17-370"><a href="#cb17-370" aria-hidden="true" tabindex="-1"></a>in the South quite differently from how it predicts living in an SMSA. (The</span>
-<span id="cb17-371"><a href="#cb17-371" aria-hidden="true" tabindex="-1"></a><span class="in">`esttab`</span> columns do not line up because <span class="in">`suest`</span> stores equation-qualified names like <span class="in">`south:wage`</span> while the stacked model stores plain <span class="in">`wage`</span>.)</span>
-<span id="cb17-372"><a href="#cb17-372" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-373"><a href="#cb17-373" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conclusion</span></span>
+<span id="cb17-339"><a href="#cb17-339" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-340"><a href="#cb17-340" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
+<span id="cb17-341"><a href="#cb17-341" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
+<span id="cb17-342"><a href="#cb17-342" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
+<span id="cb17-343"><a href="#cb17-343" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
+<span id="cb17-344"><a href="#cb17-344" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
+<span id="cb17-345"><a href="#cb17-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-346"><a href="#cb17-346" aria-hidden="true" tabindex="-1"></a><span class="in">gen race1=race*(south==1)</span></span>
+<span id="cb17-347"><a href="#cb17-347" aria-hidden="true" tabindex="-1"></a><span class="in">gen race2=race*(south==0)</span></span>
+<span id="cb17-348"><a href="#cb17-348" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-349"><a href="#cb17-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-350"><a href="#cb17-350" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if south, a(race) cluster(race)</span></span>
+<span id="cb17-351"><a href="#cb17-351" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage (hours=union) if !south, a(race) cluster(race)</span></span>
+<span id="cb17-352"><a href="#cb17-352" aria-hidden="true" tabindex="-1"></a><span class="in">ivregress 2sls wage south (hours1 hours2 = union1 union2) i.race1 i.race2, cluster(race)</span></span>
+<span id="cb17-353"><a href="#cb17-353" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-354"><a href="#cb17-354" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-355"><a href="#cb17-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-356"><a href="#cb17-356" aria-hidden="true" tabindex="-1"></a>This reproduces the separate estimates exactly: 1.107099 and 0.7023322 in the pooled regression against 1.107099 and 0.7023322 separately. The approach builds explicit dummies from the interaction of the fixed-effect variable and the subsample indicator, which becomes impractical when the number of fixed-effect levels is large.</span>
+<span id="cb17-357"><a href="#cb17-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-358"><a href="#cb17-358" aria-hidden="true" tabindex="-1"></a>One caution about how those dummies were built.  <span class="in">`race1 = race*(south==1)`</span> multiplies</span>
+<span id="cb17-359"><a href="#cb17-359" aria-hidden="true" tabindex="-1"></a>a *categorical code* by an indicator, so non-south observations are assigned</span>
+<span id="cb17-360"><a href="#cb17-360" aria-hidden="true" tabindex="-1"></a><span class="in">`race1 = 0`</span> and then <span class="in">`i.race1`</span> treats 0 as its own category.  That is safe here only</span>
+<span id="cb17-361"><a href="#cb17-361" aria-hidden="true" tabindex="-1"></a>because <span class="in">`race`</span> has no zero level (it is coded 1/2/3).  If the absorbed variable did</span>
+<span id="cb17-362"><a href="#cb17-362" aria-hidden="true" tabindex="-1"></a>have a 0 category, those observations and all the non-south ones would be silently</span>
+<span id="cb17-363"><a href="#cb17-363" aria-hidden="true" tabindex="-1"></a>collapsed into the same dummy.  For a general recipe, build the interactions from the</span>
+<span id="cb17-364"><a href="#cb17-364" aria-hidden="true" tabindex="-1"></a>category dummies directly (<span class="in">`i.race#i.south`</span>) rather than from the code.</span>
+<span id="cb17-365"><a href="#cb17-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-366"><a href="#cb17-366" aria-hidden="true" tabindex="-1"></a>Alternatively, pass the two interaction variables to <span class="in">`reghdfe`</span>'s absorb option as a two-way fixed effect:</span>
+<span id="cb17-367"><a href="#cb17-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-370"><a href="#cb17-370" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb17-371"><a href="#cb17-371" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata7</span></span>
+<span id="cb17-372"><a href="#cb17-372" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb17-373"><a href="#cb17-373" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
 <span id="cb17-374"><a href="#cb17-374" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-375"><a href="#cb17-375" aria-hidden="true" tabindex="-1"></a><span class="in">`suest`</span> and the stacking method both test cross-equation hypotheses with robust standard errors. <span class="in">`sureg`</span> does the same under a GLS framework, but it assumes homoscedastic errors across equations; under misspecification it remains consistent but its standard errors are invalid. When the equations share covariates <span class="in">`sureg`</span> and OLS give the same point estimates; with different covariates they diverge.</span>
-<span id="cb17-376"><a href="#cb17-376" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-377"><a href="#cb17-377" aria-hidden="true" tabindex="-1"></a>The stacking approach is the most portable. It works in any language, extends to IV and fixed-effect models, and requires only that the single-equation estimator works — no special post-estimation infrastructure.</span>
+<span id="cb17-375"><a href="#cb17-375" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-376"><a href="#cb17-376" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
+<span id="cb17-377"><a href="#cb17-377" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(south==1)</span></span>
+<span id="cb17-378"><a href="#cb17-378" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(south==0)</span></span>
+<span id="cb17-379"><a href="#cb17-379" aria-hidden="true" tabindex="-1"></a><span class="in">gen union1=union*(south==1)</span></span>
+<span id="cb17-380"><a href="#cb17-380" aria-hidden="true" tabindex="-1"></a><span class="in">gen union2=union*(south==0)</span></span>
+<span id="cb17-381"><a href="#cb17-381" aria-hidden="true" tabindex="-1"></a><span class="in">gen race1=race*(south==1)</span></span>
+<span id="cb17-382"><a href="#cb17-382" aria-hidden="true" tabindex="-1"></a><span class="in">gen race2=race*(south==0)</span></span>
+<span id="cb17-383"><a href="#cb17-383" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-384"><a href="#cb17-384" aria-hidden="true" tabindex="-1"></a><span class="in">ivreghdfe wage south (hours1 hours2 = union1 union2) , a(race1 race2) cluster(race)</span></span>
+<span id="cb17-385"><a href="#cb17-385" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[hours1]-_b[hours2]=0</span></span>
+<span id="cb17-386"><a href="#cb17-386" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-387"><a href="#cb17-387" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-388"><a href="#cb17-388" aria-hidden="true" tabindex="-1"></a>Absorbing <span class="in">`race1`</span> and <span class="in">`race2`</span> as a two-way fixed effect gives the same 1.107099</span>
+<span id="cb17-389"><a href="#cb17-389" aria-hidden="true" tabindex="-1"></a>and 0.7023322 without building the dummies by hand, and scales to many</span>
+<span id="cb17-390"><a href="#cb17-390" aria-hidden="true" tabindex="-1"></a>fixed-effect levels. The Chow test is $F(1,2) = 0.31$ with $p = 0.6325$ — but</span>
+<span id="cb17-391"><a href="#cb17-391" aria-hidden="true" tabindex="-1"></a>read that denominator: 2 degrees of freedom, because the standard errors are</span>
+<span id="cb17-392"><a href="#cb17-392" aria-hidden="true" tabindex="-1"></a>clustered on <span class="in">`race`</span>, which has three categories. This is the problem the callout</span>
+<span id="cb17-393"><a href="#cb17-393" aria-hidden="true" tabindex="-1"></a>above flags, and it is why these IV/FE numbers illustrate mechanics rather than</span>
+<span id="cb17-394"><a href="#cb17-394" aria-hidden="true" tabindex="-1"></a>support any conclusion about the South.</span>
+<span id="cb17-395"><a href="#cb17-395" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-396"><a href="#cb17-396" aria-hidden="true" tabindex="-1"></a><span class="fu">## Chow test with different covariates</span></span>
+<span id="cb17-397"><a href="#cb17-397" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-398"><a href="#cb17-398" aria-hidden="true" tabindex="-1"></a>The equations need not share the same covariates. If equation 1 includes $X_2$ and equation 2 does not,</span>
+<span id="cb17-399"><a href="#cb17-399" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-400"><a href="#cb17-400" aria-hidden="true" tabindex="-1"></a>$$ Y_1 = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon_1, \qquad Y_2 = \gamma_0 + \gamma_1 X_1 + \epsilon_2, $$ {#eq-chow-test-1}</span>
+<span id="cb17-401"><a href="#cb17-401" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-402"><a href="#cb17-402" aria-hidden="true" tabindex="-1"></a>the second equation implicitly sets the coefficient on $X_2$ to zero. In the stacked regression, replace $X_2$ with a constant (e.g. 1) for the $Y_2$ subsample, so that its "coefficient" is absorbed into the intercept:</span>
+<span id="cb17-403"><a href="#cb17-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-406"><a href="#cb17-406" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb17-407"><a href="#cb17-407" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: stata8</span></span>
+<span id="cb17-408"><a href="#cb17-408" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb17-409"><a href="#cb17-409" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb17-410"><a href="#cb17-410" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-411"><a href="#cb17-411" aria-hidden="true" tabindex="-1"></a><span class="in">sysuse nlsw88, clear</span></span>
+<span id="cb17-412"><a href="#cb17-412" aria-hidden="true" tabindex="-1"></a><span class="in">reg south wage hours tenure</span></span>
+<span id="cb17-413"><a href="#cb17-413" aria-hidden="true" tabindex="-1"></a><span class="in">est sto south</span></span>
+<span id="cb17-414"><a href="#cb17-414" aria-hidden="true" tabindex="-1"></a><span class="in">reg smsa wage hours</span></span>
+<span id="cb17-415"><a href="#cb17-415" aria-hidden="true" tabindex="-1"></a><span class="in">est sto smsa</span></span>
+<span id="cb17-416"><a href="#cb17-416" aria-hidden="true" tabindex="-1"></a><span class="in">suest south smsa</span></span>
+<span id="cb17-417"><a href="#cb17-417" aria-hidden="true" tabindex="-1"></a><span class="in">est sto suest</span></span>
+<span id="cb17-418"><a href="#cb17-418" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
+<span id="cb17-419"><a href="#cb17-419" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y1=south</span></span>
+<span id="cb17-420"><a href="#cb17-420" aria-hidden="true" tabindex="-1"></a><span class="in">gen Y2=smsa</span></span>
+<span id="cb17-421"><a href="#cb17-421" aria-hidden="true" tabindex="-1"></a><span class="in">gen id=_n</span></span>
+<span id="cb17-422"><a href="#cb17-422" aria-hidden="true" tabindex="-1"></a><span class="in">reshape long Y, i(id) j(subsample)</span></span>
+<span id="cb17-423"><a href="#cb17-423" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage1=wage*(subsample==1)</span></span>
+<span id="cb17-424"><a href="#cb17-424" aria-hidden="true" tabindex="-1"></a><span class="in">gen wage2=wage*(subsample==2)</span></span>
+<span id="cb17-425"><a href="#cb17-425" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours1=hours*(subsample==1)</span></span>
+<span id="cb17-426"><a href="#cb17-426" aria-hidden="true" tabindex="-1"></a><span class="in">gen hours2=hours*(subsample==2)</span></span>
+<span id="cb17-427"><a href="#cb17-427" aria-hidden="true" tabindex="-1"></a><span class="in">replace tenure=1 if subsample==2</span></span>
+<span id="cb17-428"><a href="#cb17-428" aria-hidden="true" tabindex="-1"></a><span class="in">gen tenure1= tenure*(subsample==1)</span></span>
+<span id="cb17-429"><a href="#cb17-429" aria-hidden="true" tabindex="-1"></a><span class="in">gen tenure2= tenure*(subsample==2)</span></span>
+<span id="cb17-430"><a href="#cb17-430" aria-hidden="true" tabindex="-1"></a><span class="in">reg Y wage? hours? tenure? subsample, cluster(id)</span></span>
+<span id="cb17-431"><a href="#cb17-431" aria-hidden="true" tabindex="-1"></a><span class="in">est sto chow</span></span>
+<span id="cb17-432"><a href="#cb17-432" aria-hidden="true" tabindex="-1"></a><span class="in">test _b[hours1]-_b[hours2]=0</span></span>
+<span id="cb17-433"><a href="#cb17-433" aria-hidden="true" tabindex="-1"></a><span class="in">esttab  suest chow, nogaps mti</span></span>
+<span id="cb17-434"><a href="#cb17-434" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
+<span id="cb17-435"><a href="#cb17-435" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-436"><a href="#cb17-436" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-437"><a href="#cb17-437" aria-hidden="true" tabindex="-1"></a>The stacked model reproduces <span class="in">`suest`</span>'s point estimates exactly: the hours</span>
+<span id="cb17-438"><a href="#cb17-438" aria-hidden="true" tabindex="-1"></a>coefficient is 0.004828 in the <span class="in">`south`</span> equation and 0.0003663 in the <span class="in">`smsa`</span> one,</span>
+<span id="cb17-439"><a href="#cb17-439" aria-hidden="true" tabindex="-1"></a>in both. Here the covariates differ — <span class="in">`tenure`</span> appears in the first equation</span>
+<span id="cb17-440"><a href="#cb17-440" aria-hidden="true" tabindex="-1"></a>only — and the trick of setting <span class="in">`tenure = 1`</span> for the second subsample lets its</span>
+<span id="cb17-441"><a href="#cb17-441" aria-hidden="true" tabindex="-1"></a>coefficient be absorbed by that equation's intercept. The Chow test on the hours</span>
+<span id="cb17-442"><a href="#cb17-442" aria-hidden="true" tabindex="-1"></a>coefficient gives $F(1, 2241) = 10.03$ with $p = 0.0016$: hours predicts living</span>
+<span id="cb17-443"><a href="#cb17-443" aria-hidden="true" tabindex="-1"></a>in the South quite differently from how it predicts living in an SMSA. (The</span>
+<span id="cb17-444"><a href="#cb17-444" aria-hidden="true" tabindex="-1"></a><span class="in">`esttab`</span> columns do not line up because <span class="in">`suest`</span> stores equation-qualified names like <span class="in">`south:wage`</span> while the stacked model stores plain <span class="in">`wage`</span>.)</span>
+<span id="cb17-445"><a href="#cb17-445" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-446"><a href="#cb17-446" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conclusion</span></span>
+<span id="cb17-447"><a href="#cb17-447" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-448"><a href="#cb17-448" aria-hidden="true" tabindex="-1"></a><span class="in">`suest`</span> and the stacking method both test cross-equation hypotheses with robust standard errors. <span class="in">`sureg`</span> does the same under a GLS framework, but it assumes homoscedastic errors across equations; under misspecification it remains consistent but its standard errors are invalid. When the equations share covariates <span class="in">`sureg`</span> and OLS give the same point estimates; with different covariates they diverge.</span>
+<span id="cb17-449"><a href="#cb17-449" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-450"><a href="#cb17-450" aria-hidden="true" tabindex="-1"></a>The stacking approach is the most portable. It works in any language, extends to IV and fixed-effect models, and requires only that the single-equation estimator works — no special post-estimation infrastructure.</span>
+<span id="cb17-451"><a href="#cb17-451" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-452"><a href="#cb17-452" aria-hidden="true" tabindex="-1"></a>One pattern runs through every example in this chapter, and it is worth stating</span>
+<span id="cb17-453"><a href="#cb17-453" aria-hidden="true" tabindex="-1"></a>once on its own. A Chow test is a hypothesis about two coefficients that live in</span>
+<span id="cb17-454"><a href="#cb17-454" aria-hidden="true" tabindex="-1"></a>two different regressions. Stata's <span class="in">`test`</span> can only reach coefficients inside a</span>
+<span id="cb17-455"><a href="#cb17-455" aria-hidden="true" tabindex="-1"></a>single stored estimation result, and, more importantly, testing a difference</span>
+<span id="cb17-456"><a href="#cb17-456" aria-hidden="true" tabindex="-1"></a>requires the covariance between the two estimates, which separate regressions</span>
+<span id="cb17-457"><a href="#cb17-457" aria-hidden="true" tabindex="-1"></a>never produce. Every construction here — the reshape for two outcomes, the</span>
+<span id="cb17-458"><a href="#cb17-458" aria-hidden="true" tabindex="-1"></a><span class="in">`expand`</span> for overlapping samples, the split instruments under IV, the absorbed</span>
+<span id="cb17-459"><a href="#cb17-459" aria-hidden="true" tabindex="-1"></a>fixed effects — exists to move both coefficients into one estimation so that the</span>
+<span id="cb17-460"><a href="#cb17-460" aria-hidden="true" tabindex="-1"></a>covariance exists and <span class="in">`test`</span> can use it. <span class="in">`suest`</span> does the</span>
+<span id="cb17-461"><a href="#cb17-461" aria-hidden="true" tabindex="-1"></a>same thing by a different route, refitting the stored estimates jointly with a</span>
+<span id="cb17-462"><a href="#cb17-462" aria-hidden="true" tabindex="-1"></a>robust cross-equation covariance matrix.</span>
+<span id="cb17-463"><a href="#cb17-463" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-464"><a href="#cb17-464" aria-hidden="true" tabindex="-1"></a>So the choice among them is practical rather than statistical. Use <span class="in">`suest`</span> when</span>
+<span id="cb17-465"><a href="#cb17-465" aria-hidden="true" tabindex="-1"></a>the estimator supports it and the samples are the same. Stack when the samples</span>
+<span id="cb17-466"><a href="#cb17-466" aria-hidden="true" tabindex="-1"></a>overlap, when the covariates differ across equations, or when the estimator is</span>
+<span id="cb17-467"><a href="#cb17-467" aria-hidden="true" tabindex="-1"></a>one <span class="in">`suest`</span> will not take — which, in practice, means most fixed-effect and IV</span>
+<span id="cb17-468"><a href="#cb17-468" aria-hidden="true" tabindex="-1"></a>commands.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

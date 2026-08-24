@@ -592,11 +592,95 @@ window.Quarto = {
 <p><span id="eq-fixed-random-effect-4"><span class="math display">\[ y_{it} = \beta_0  + \beta_1 x_{it}  + \beta_2 \bar x_i + c_i  + \gamma z_i+ \epsilon_{it}  \tag{7.4}\]</span></span></p>
 <p>This is the same model reparametrized. <span class="math inline">\(\beta_1\)</span> is unchanged, and <span class="math inline">\(\beta_2\)</span> is now the between-minus-within difference (substitute <span class="math inline">\(\beta_1(x_{it}-\bar x_i) + \beta_2 \bar x_i = \beta_1 x_{it} + (\beta_2-\beta_1)\bar x_i\)</span> to see this). This is the “contextual model”; <span class="math inline">\(\beta_2\)</span> is the contextual effect and acts as an embedded Hausman test.</p>
 <p>The BW model has two advantages. It recovers the fixed-effect coefficient while estimating time-invariant covariates. And it extends naturally to cross-level interactions, random slopes, and other multilevel structures. Implementation is straightforward: run a random-effects model on either equation above.</p>
-</section><section id="bw-model-in-r" class="level2" data-number="7.4"><h2 data-number="7.4" class="anchored" data-anchor-id="bw-model-in-r">
+<section id="is-this-just-mundlak" class="level3" data-number="7.3.1"><h3 data-number="7.3.1" class="anchored" data-anchor-id="is-this-just-mundlak">
+<span class="header-section-number">7.3.1</span> Is this just Mundlak?</h3>
+<p>Yes. <a href="#eq-fixed-random-effect-4" class="quarto-xref">Equation&nbsp;<span>7.4</span></a> <em>is</em> the Mundlak device: Mundlak’s regression puts <span class="math inline">\(x_{it}\)</span> and <span class="math inline">\(\bar x_i\)</span> on the right-hand side of a random-effects model, which is exactly what that equation does. So the between-within model and the Mundlak device are one model in two parameterisations, fitted by the same random-effects command. It is worth doing the algebra, because the identity is easy to state loosely and easy to get wrong on the inference side.</p>
+<p>Write <span class="math inline">\(d_{it} = x_{it} - \bar x_i\)</span> for the within deviation, and label the two specifications by their coefficients: <span class="math inline">\(b_1, b_2\)</span> for the hybrid form <a href="#eq-fixed-random-effect-3" class="quarto-xref">Equation&nbsp;<span>7.3</span></a> and <span class="math inline">\(p_1, p_2\)</span> for the contextual form <a href="#eq-fixed-random-effect-4" class="quarto-xref">Equation&nbsp;<span>7.4</span></a>. Expanding the hybrid regressor block,</p>
+<p><span id="eq-fixed-random-effect-5"><span class="math display">\[
+b_1 (x_{it} - \bar x_i) + b_2 \bar x_i = b_1 x_{it} + (b_2 - b_1)\bar x_i ,
+\tag{7.5}\]</span></span></p>
+<p>so <span class="math inline">\(p_1 = b_1\)</span> and <span class="math inline">\(p_2 = b_2 - b_1\)</span>. Substitution shows the map, but the reason behind it is worth stating more strongly: the two regressor matrices are related by an invertible linear transformation. With <span class="math inline">\(X = [\,x_{it}, \bar x_i\,]\)</span> and <span class="math inline">\(W = [\,d_{it}, \bar x_i\,]\)</span>,</p>
+<p><span id="eq-fixed-random-effect-6"><span class="math display">\[
+W = XA, \qquad
+A = \begin{pmatrix} 1 &amp; 0 \\ -1 &amp; 1 \end{pmatrix}, \qquad
+A^{-1} = \begin{pmatrix} 1 &amp; 0 \\ 1 &amp; 1 \end{pmatrix},
+\tag{7.6}\]</span></span></p>
+<p>and <span class="math inline">\(\det A = 1\)</span>, so the two designs span the same column space. Everything that depends only on that space is numerically identical: fitted values, residuals, the likelihood, the estimated variance components, and the GLS quasi-demeaning weight <span class="math inline">\(\theta\)</span>. Only the coordinates change, by <span class="math inline">\(b = A^{-1}p\)</span>, and the covariance matrix by <span class="math inline">\(\text{Var}(b) = A^{-1}\text{Var}(p)A^{-1\prime}\)</span>. Componentwise that is</p>
+<p><span id="eq-fixed-random-effect-7"><span class="math display">\[
+\text{Var}(p_1) = \text{Var}(b_1), \qquad
+\text{Var}(p_2) = \text{Var}(b_1) + \text{Var}(b_2) + 2\,\text{Cov}(b_1,b_2),
+\tag{7.7}\]</span></span></p>
+<p>which already says something useful: the standard error printed next to the between effect is not the standard error you want for the contextual effect.</p>
+<section id="why-the-within-coefficient-is-the-fixed-effect-estimator" class="level4" data-number="7.3.1.1"><h4 data-number="7.3.1.1" class="anchored" data-anchor-id="why-the-within-coefficient-is-the-fixed-effect-estimator">
+<span class="header-section-number">7.3.1.1</span> Why the within coefficient is the fixed-effect estimator</h4>
+<p>This part needs a proof rather than a substitution. The relevant fact is that <span class="math inline">\(\sum_t d_{it} = 0\)</span> within every unit by construction, so <span class="math inline">\(d\)</span> is orthogonal to any group-invariant column: for <span class="math inline">\(v_i\)</span> constant within <span class="math inline">\(i\)</span>,</p>
+<p><span id="eq-fixed-random-effect-8"><span class="math display">\[
+\sum_{i,t} d_{it} v_i = \sum_i v_i \sum_t d_{it} = 0 ,
+\tag{7.8}\]</span></span></p>
+<p>which covers the intercept, <span class="math inline">\(\bar x_i\)</span> and <span class="math inline">\(z_i\)</span> alike.</p>
+<p>Random effects is OLS after quasi-demeaning, <span class="math inline">\(\tilde w_{it} = w_{it} - \theta \bar w_i\)</span> with <span class="math inline">\(\theta = 1 - \sqrt{\sigma^2_\epsilon / (\sigma^2_\epsilon + T\sigma^2_c)}\)</span>. Apply it to the hybrid regressors. Because <span class="math inline">\(\bar d_i = 0\)</span> we get <span class="math inline">\(\tilde d_{it} = d_{it}\)</span>: the within-deviation regressor passes through the GLS transform untouched, whatever <span class="math inline">\(\theta\)</span> is. The remaining regressors are group-invariant and stay so after scaling by <span class="math inline">\(1-\theta\)</span>. Orthogonality therefore survives the transform, and by Frisch-Waugh-Lovell</p>
+<p><span id="eq-fixed-random-effect-9"><span class="math display">\[
+b_1 = \frac{\sum d_{it}\tilde y_{it}}{\sum d_{it}^2}
+    = \frac{\sum d_{it} y_{it}}{\sum d_{it}^2}
+    = \frac{\sum (x_{it}-\bar x_i)(y_{it}-\bar y_i)}{\sum (x_{it}-\bar x_i)^2},
+\tag{7.9}\]</span></span></p>
+<p>the second and third equalities both by <a href="#eq-fixed-random-effect-8" class="quarto-xref">Equation&nbsp;<span>7.8</span></a>. That last expression is the within estimator. Note that <span class="math inline">\(\theta\)</span> has dropped out, so the identity holds for <em>any</em> <span class="math inline">\(\theta\)</span> — for random effects, for pooled OLS (<span class="math inline">\(\theta = 0\)</span>) and for fixed effects (<span class="math inline">\(\theta = 1\)</span>). That is why running a random-effects model on either equation returns the fixed-effect coefficient. It also gives <span class="math inline">\(\text{Cov}(b_1,b_2) = 0\)</span> exactly, which combined with <a href="#eq-fixed-random-effect-7" class="quarto-xref">Equation&nbsp;<span>7.7</span></a> yields <span class="math inline">\(\text{Var}(p_2) = \text{Var}(b_1) + \text{Var}(b_2)\)</span> and <span class="math inline">\(\text{Cov}(p_1,p_2) = -\text{Var}(b_1)\)</span>.</p>
+<p>All of this is checkable on the chapter’s own data. We take a single regressor, weeks worked, fit both parameterisations by <code>plm</code>, and compare against the within estimator and against the variance map:</p>
+<div class="cell">
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://cran.r-project.org/package=plm">plm</a></span><span class="op">)</span>; <span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://panelr.jacob-long.com">panelr</a></span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span><span class="op">(</span><span class="st">"WageData"</span><span class="op">)</span></span>
+<span><span class="va">d</span> <span class="op">&lt;-</span> <span class="va">WageData</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">xbar</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/ave.html">ave</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">wks</span>, <span class="va">d</span><span class="op">$</span><span class="va">id</span><span class="op">)</span>          <span class="co"># unit mean</span></span>
+<span><span class="va">d</span><span class="op">$</span><span class="va">xdev</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">$</span><span class="va">wks</span> <span class="op">-</span> <span class="va">d</span><span class="op">$</span><span class="va">xbar</span>            <span class="co"># within deviation</span></span>
+<span></span>
+<span><span class="va">fe</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/plm/man/plm.html">plm</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">wks</span>,          data <span class="op">=</span> <span class="va">d</span>, index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"id"</span>, <span class="st">"t"</span><span class="op">)</span>, model <span class="op">=</span> <span class="st">"within"</span><span class="op">)</span></span>
+<span><span class="va">hyb</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/plm/man/plm.html">plm</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">xdev</span> <span class="op">+</span> <span class="va">xbar</span>,  data <span class="op">=</span> <span class="va">d</span>, index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"id"</span>, <span class="st">"t"</span><span class="op">)</span>, model <span class="op">=</span> <span class="st">"random"</span><span class="op">)</span></span>
+<span><span class="va">mun</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/plm/man/plm.html">plm</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">wks</span>  <span class="op">+</span> <span class="va">xbar</span>,  data <span class="op">=</span> <span class="va">d</span>, index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"id"</span>, <span class="st">"t"</span><span class="op">)</span>, model <span class="op">=</span> <span class="st">"random"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">b</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="va">hyb</span><span class="op">)</span>; <span class="va">p</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="va">mun</span><span class="op">)</span>; <span class="va">Vh</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/vcov.html">vcov</a></span><span class="op">(</span><span class="va">hyb</span><span class="op">)</span>; <span class="va">Vm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/vcov.html">vcov</a></span><span class="op">(</span><span class="va">mun</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html">data.frame</a></span><span class="op">(</span></span>
+<span>  check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"p1 - b1"</span>, <span class="st">"p2 - (b2 - b1)"</span>, <span class="st">"b1 - FE within"</span>,</span>
+<span>            <span class="st">"sum(xdev * xbar)"</span>, <span class="st">"Cov(b1, b2)"</span>,</span>
+<span>            <span class="st">"Var(p2) - [Var(b1) + Var(b2)]"</span>, <span class="st">"Cov(p1, p2) + Var(b1)"</span>,</span>
+<span>            <span class="st">"theta(hybrid) - theta(Mundlak)"</span><span class="op">)</span>,</span>
+<span>  value <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="va">p</span><span class="op">[</span><span class="st">"wks"</span><span class="op">]</span> <span class="op">-</span> <span class="va">b</span><span class="op">[</span><span class="st">"xdev"</span><span class="op">]</span>,</span>
+<span>            <span class="va">p</span><span class="op">[</span><span class="st">"xbar"</span><span class="op">]</span> <span class="op">-</span> <span class="op">(</span><span class="va">b</span><span class="op">[</span><span class="st">"xbar"</span><span class="op">]</span> <span class="op">-</span> <span class="va">b</span><span class="op">[</span><span class="st">"xdev"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>            <span class="va">b</span><span class="op">[</span><span class="st">"xdev"</span><span class="op">]</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="va">fe</span><span class="op">)</span><span class="op">[</span><span class="st">"wks"</span><span class="op">]</span>,</span>
+<span>            <span class="fu"><a href="https://rdrr.io/r/base/sum.html">sum</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">xdev</span> <span class="op">*</span> <span class="va">d</span><span class="op">$</span><span class="va">xbar</span><span class="op">)</span>,</span>
+<span>            <span class="va">Vh</span><span class="op">[</span><span class="st">"xdev"</span>, <span class="st">"xbar"</span><span class="op">]</span>,</span>
+<span>            <span class="va">Vm</span><span class="op">[</span><span class="st">"xbar"</span>, <span class="st">"xbar"</span><span class="op">]</span> <span class="op">-</span> <span class="op">(</span><span class="va">Vh</span><span class="op">[</span><span class="st">"xdev"</span>, <span class="st">"xdev"</span><span class="op">]</span> <span class="op">+</span> <span class="va">Vh</span><span class="op">[</span><span class="st">"xbar"</span>, <span class="st">"xbar"</span><span class="op">]</span><span class="op">)</span>,</span>
+<span>            <span class="va">Vm</span><span class="op">[</span><span class="st">"wks"</span>, <span class="st">"xbar"</span><span class="op">]</span> <span class="op">+</span> <span class="va">Vh</span><span class="op">[</span><span class="st">"xdev"</span>, <span class="st">"xdev"</span><span class="op">]</span>,</span>
+<span>            <span class="va">hyb</span><span class="op">$</span><span class="va">ercomp</span><span class="op">$</span><span class="va">theta</span> <span class="op">-</span> <span class="va">mun</span><span class="op">$</span><span class="va">ercomp</span><span class="op">$</span><span class="va">theta</span><span class="op">)</span>,</span>
+<span>  row.names <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details><div class="cell-output cell-output-stdout">
+<pre><code>                           check         value
+1                        p1 - b1  2.385245e-18
+2                 p2 - (b2 - b1)  7.459311e-17
+3                 b1 - FE within  1.886512e-17
+4               sum(xdev * xbar)  3.534950e-12
+5                    Cov(b1, b2) -5.676184e-21
+6  Var(p2) - [Var(b1) + Var(b2)] -4.404571e-20
+7          Cov(p1, p2) + Var(b1)  2.117582e-21
+8 theta(hybrid) - theta(Mundlak)  1.110223e-16</code></pre>
+</div>
+</div>
+<p>Every entry is zero to machine precision. The two parameterisations are the same fit, the within coefficient is the fixed-effect estimate, the hybrid regressors are orthogonal, and the variance map holds as derived.</p>
+</section><section id="so-why-keep-both" class="level4" data-number="7.3.1.2"><h4 data-number="7.3.1.2" class="anchored" data-anchor-id="so-why-keep-both">
+<span class="header-section-number">7.3.1.2</span> So why keep both</h4>
+<p>The fit is one object, but the parameterisation settles three practical things.</p>
+<p><em>Which quantity is printed.</em> <span class="math inline">\(b_2\)</span> is the between effect and <span class="math inline">\(p_2\)</span> is between minus within. They are different parameters with non-interchangeable standard errors, and whichever form you fit, the other costs a <code>lincom</code>.</p>
+<p><em>Which hypothesis is one line.</em> <span class="math inline">\(p_2 = 0\)</span> says between equals within, which is exactly the random-effects assumption that the regressors are uncorrelated with <span class="math inline">\(c_i\)</span>. The Mundlak form prints that as a single <span class="math inline">\(t\)</span>; in hybrid form it is the contrast <span class="math inline">\(b_1 = b_2\)</span>. The two tests agree numerically, but only one is printed. This is the Mundlak form of the Hausman test, asymptotically equivalent to the classical version and with the practical advantage of working directly with cluster-robust standard errors. The <a href="./mundlak-device.html">next chapter</a> develops it and its two-way extension for difference-in-differences.</p>
+<p><em>What the second coefficient is for.</em> In multilevel work <span class="math inline">\(p_2\)</span> is not a diagnostic but the estimand: holding a pupil’s own status fixed, what does the school mean do? The hybrid’s <span class="math inline">\(b_2\)</span> answers a different question, the total between-unit association. Two literatures ask two questions of one regression, and each named the parameterisation that printed its answer. That is the honest reason both names survive.</p>
+<p>There is also a reason to prefer the hybrid form in extensions. Its two regressors are exactly orthogonal, where <span class="math inline">\(x_{it}\)</span> and <span class="math inline">\(\bar x_i\)</span> are correlated. That does not change the fit, but if you want a random slope on the within component you need the deviation as its own column; a random slope on <span class="math inline">\(x_{it}\)</span> would mix within and between variation.</p>
+</section><section id="where-the-equivalence-stops" class="level4" data-number="7.3.1.3"><h4 data-number="7.3.1.3" class="anchored" data-anchor-id="where-the-equivalence-stops">
+<span class="header-section-number">7.3.1.3</span> Where the equivalence stops</h4>
+<p>The reparameterisation is exact for anything with a linear index, logit and Poisson mixed models included, since <span class="math inline">\(XA\)</span> spans the same space and the index is unchanged. The two names stay interchangeable there.</p>
+<p>The fixed-effect identity does not carry over. The proof above used two linear-model facts: that random effects is OLS on quasi-demeaned data, and that <span class="math inline">\(d\)</span> is orthogonal to group constants. A logit or Poisson mixed model has no such transform, the unit effects do not sweep out, and the hybrid within coefficient is not the conditional-logit estimate but an approximation to it. Keep the two claims separate: the parameterisations are always the same model, while “within coefficient equals fixed effects” is a linear-model result. The last section of this chapter returns to that point.</p>
+</section></section></section><section id="bw-model-in-r" class="level2" data-number="7.4"><h2 data-number="7.4" class="anchored" data-anchor-id="bw-model-in-r">
 <span class="header-section-number">7.4</span> BW model in R</h2>
 <p>R’s <a href="https://panelr.jacob-long.com/articles/wbm.html"><code>panelr</code></a> package implements BW models directly. The data are <code>WageData</code>, a balanced panel of 595 men observed over 7 years. We model log wage on weeks worked, union membership, marital status and occupation, all time-varying, plus two time-invariant covariates — black and female — that a fixed-effect model could not touch.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://panelr.jacob-long.com">panelr</a></span><span class="op">)</span></span>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://panelr.jacob-long.com">panelr</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span><span class="op">(</span><span class="st">"WageData"</span><span class="op">)</span></span>
 <span><span class="va">wages</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://panelr.jacob-long.com/reference/panel_data.html">panel_data</a></span><span class="op">(</span><span class="va">WageData</span>, id <span class="op">=</span> <span class="va">id</span>, wave <span class="op">=</span> <span class="va">t</span><span class="op">)</span></span>
 <span><span class="va">model1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://panelr.jacob-long.com/reference/wbm.html">wbm</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">wks</span> <span class="op">+</span> <span class="va">union</span> <span class="op">+</span> <span class="va">ms</span> <span class="op">+</span> <span class="va">occ</span> <span class="op">|</span> <span class="va">blk</span> <span class="op">+</span> <span class="va">fem</span>, data <span class="op">=</span> <span class="va">wages</span><span class="op">)</span></span>
@@ -652,7 +736,7 @@ RANDOM EFFECTS:
 <p>The within estimates are 0.00 for weeks, 0.06 for union, <span class="math inline">\(-0.08\)</span> for married and <span class="math inline">\(-0.08\)</span> for occupation. The between estimates for the same four variables are 0.01, 0.15, 0.17 and <span class="math inline">\(-0.41\)</span> — two to five times larger, and for <code>ms</code> the opposite sign. That gap is the reason the fixed-versus-random choice matters here: a random-effects model without the decomposition would blend the two and report neither. The time-invariant covariates come out at <span class="math inline">\(-0.15\)</span> for black and <span class="math inline">\(-0.32\)</span> for female, quantities a fixed-effect model cannot produce at all.</p>
 <p>Compare with <code>lfe</code>.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/r-econometrics/lfe">lfe</a></span><span class="op">)</span></span>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/r-econometrics/lfe">lfe</a></span><span class="op">)</span></span>
 <span><span class="va">model2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/lfe/man/felm.html">felm</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">wks</span> <span class="op">+</span> <span class="va">union</span> <span class="op">+</span> <span class="va">ms</span> <span class="op">+</span> <span class="va">occ</span> <span class="op">|</span> <span class="va">id</span>, data <span class="op">=</span> <span class="va">wages</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">model2</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
@@ -682,7 +766,7 @@ F-statistic(proj model): 5.841 on 4 and 3566 DF, p-value: 0.0001106 </code></pre
 </div>
 <p><code>felm</code> gives 0.001083, 0.064320, <span class="math inline">\(-0.082905\)</span> and <span class="math inline">\(-0.077507\)</span> — the same four numbers <code>panelr</code> reported as within effects, identical to machine precision (<code>WageData</code> is a balanced panel: 7 waves, 595 individuals). That is the BW model’s selling point: it reproduces the fixed-effect estimates exactly while also estimating the time-invariant covariates <code>blk</code> and <code>fem</code>, which <code>felm</code> cannot. <code>lfe</code> supports clustered standard errors, which <code>panelr</code> does not.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">model3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/lfe/man/felm.html">felm</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">wks</span> <span class="op">+</span> <span class="va">union</span> <span class="op">+</span> <span class="va">ms</span> <span class="op">+</span> <span class="va">occ</span> <span class="op">|</span> <span class="va">id</span> <span class="op">|</span> <span class="fl">0</span> <span class="op">|</span> <span class="va">id</span>, data <span class="op">=</span> <span class="va">wages</span><span class="op">)</span></span>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">model3</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/lfe/man/felm.html">felm</a></span><span class="op">(</span><span class="va">lwage</span> <span class="op">~</span> <span class="va">wks</span> <span class="op">+</span> <span class="va">union</span> <span class="op">+</span> <span class="va">ms</span> <span class="op">+</span> <span class="va">occ</span> <span class="op">|</span> <span class="va">id</span> <span class="op">|</span> <span class="fl">0</span> <span class="op">|</span> <span class="va">id</span>, data <span class="op">=</span> <span class="va">wages</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">model3</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
 <pre><code>
@@ -714,9 +798,9 @@ F-statistic(proj model): 3.456 on 4 and 594 DF, p-value: 0.008358 </code></pre>
 <span class="header-section-number">7.5</span> BW model in Stata</h2>
 <p>Stata has no dedicated BW command, but <code>xtreg</code> suffices. We switch to <code>nlswork</code>, an unbalanced panel of 4,710 women over 28,510 person-years, and regress log wage on age.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nlswork</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>xtset idcode</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">xtreg</span> ln_w age, <span class="kw">fe</span> <span class="kw">cluster</span>(idcode)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nlswork</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>xtset idcode</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">xtreg</span> ln_w age, <span class="kw">fe</span> <span class="kw">cluster</span>(idcode)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
 <pre><code>(National Longitudinal Survey of Young Women, 14-24 years old in 1968)
 
@@ -752,10 +836,10 @@ corr(u_i, Xb) = 0.0314                          Prob &gt; F          =     0.000
 <p>The fixed-effect estimate is <span class="math inline">\(.0181349\)</span> with a clustered standard error of <span class="math inline">\(.0006099\)</span>: within a woman, each additional year of age raises log wage by about 1.8%. Keep that number in view — the BW model has to reproduce it.</p>
 <p>Generate the group mean and run the BW estimation.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nlswork</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>xtset idcode</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">bysort</span> idcode: <span class="bn">center</span> age, <span class="kw">prefix</span>(<span class="kw">d</span>) <span class="kw">mean</span>(<span class="fu">m</span>)</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">xtreg</span> ln_w dage mage i.race, re <span class="kw">cluster</span>(idcode)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> nlswork</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>xtset idcode</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">bysort</span> idcode: <span class="bn">center</span> age, <span class="kw">prefix</span>(<span class="kw">d</span>) <span class="kw">mean</span>(<span class="fu">m</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">xtreg</span> ln_w dage mage i.race, re <span class="kw">cluster</span>(idcode)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
 <pre><code>(National Longitudinal Survey of Young Women, 14-24 years old in 1968)
 
@@ -1266,151 +1350,317 @@ corr(u_i, X) = 0 (assumed)                      Prob &gt; chi2       =     0.000
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Fixed or Random Effect, or Both?"</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2019-05-23"</span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="fu">## Panel data</span></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>With panel data — repeated observations over time or observations clustered at a higher level — the standard choice is between fixed and random effects. Consider</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0 + \beta_1 x_{it} + c_i + \epsilon_{it} $$ {#eq-fixed-random-effect-1}</span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>for individuals $i = 1, \ldots, n$ measured at $t = 1, \ldots, T$, where $c_i$ is an unobserved time-invariant individual effect. The two approaches differ in how they handle $c_i$.</span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>Fixed effects eliminate $c_i$ by demeaning or by including individual dummies (the two are equivalent in a linear model). In nonlinear models only Poisson avoids the incidental-parameter problem; the standard solution for other models is conditional likelihood (conditional logit, for example), which absorbs the fixed effects in the likelihood. When no conditional likelihood exists, the incidental-parameter bias shrinks with panel depth but does not vanish.</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>Random effects treat $c_i$ as part of the error term. This is more efficient but requires $x_{it}$ to be uncorrelated with $c_i$ — an assumption economists are generally skeptical of.</span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="fu">## Time-invariant variables</span></span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>Sometimes we want the effect of a time-invariant variable, so the model becomes</span>
-<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0  + \beta_1 x_{it} + c_i  + \gamma z_i+ \epsilon_{it} $$ {#eq-fixed-random-effect-2}</span>
-<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>Fixed effects cannot identify $\gamma$ because $z_i$ is perfectly collinear with $c_i$. Random effects can still estimate both, treating $z_i$ as another covariate.</span>
-<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a><span class="fu">## Between-within model</span></span>
-<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>The textbook advice is a Hausman test: random effects are more efficient when the uncorrelatedness assumption holds; if not, fixed effects are still consistent. The between-within model (BW) sidesteps the choice. <span class="co">[</span><span class="ot">Neuhaus and Kalbfleisch (1998)</span><span class="co">](https://www.ncbi.nlm.nih.gov/pubmed/9629647)</span> introduced the BW estimator,</span>
-<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0  + \beta_1 (x_{it} - \bar x_i) + \beta_2 \bar x_i + c_i  + \gamma z_i+ \epsilon_{it} $$ {#eq-fixed-random-effect-3}</span>
-<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>Here $\beta_1$ is the within effect — identical to the fixed-effect coefficient. $\beta_2$ is the between effect (mean of $x$ on mean of $y$). $\gamma$ is the effect of the time-invariant variable.</span>
-<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>The other specification of BW estimator is</span>
-<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0  + \beta_1 x_{it}  + \beta_2 \bar x_i + c_i  + \gamma z_i+ \epsilon_{it} $$ {#eq-fixed-random-effect-4}</span>
-<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a>This is the same model reparametrized. $\beta_1$ is unchanged, and $\beta_2$ is now the between-minus-within difference (substitute $\beta_1(x_{it}-\bar x_i) + \beta_2 \bar x_i = \beta_1 x_{it} + (\beta_2-\beta_1)\bar x_i$ to see this). This is the "contextual model"; $\beta_2$ is the contextual effect and acts as an embedded Hausman test.</span>
-<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>The BW model has two advantages. It recovers the fixed-effect coefficient while estimating time-invariant covariates. And it extends naturally to cross-level interactions, random slopes, and other multilevel structures. Implementation is straightforward: run a random-effects model on either equation above.</span>
-<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a><span class="fu">## BW model in R</span></span>
-<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>R's <span class="co">[</span><span class="ot">`panelr`</span><span class="co">](https://panelr.jacob-long.com/articles/wbm.html)</span> package implements BW models directly. The data are <span class="in">`WageData`</span>, a balanced panel of 595 men observed over 7 years. We model log wage on weeks worked, union membership, marital status and occupation, all time-varying, plus two time-invariant covariates — black and female — that a fixed-effect model could not touch.</span>
-<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(panelr)</span>
-<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"WageData"</span>)</span>
-<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a>wages <span class="ot">&lt;-</span> <span class="fu">panel_data</span>(WageData, <span class="at">id =</span> id, <span class="at">wave =</span> t)</span>
-<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a>model1 <span class="ot">&lt;-</span> <span class="fu">wbm</span>(lwage <span class="sc">~</span> wks <span class="sc">+</span> union <span class="sc">+</span> ms <span class="sc">+</span> occ <span class="sc">|</span> blk <span class="sc">+</span> fem, <span class="at">data =</span> wages)</span>
-<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model1)</span>
-<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>The within estimates are 0.00 for weeks, 0.06 for union, $-0.08$ for married</span>
-<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>and $-0.08$ for occupation. The between estimates for the same four variables</span>
-<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a>are 0.01, 0.15, 0.17 and $-0.41$ — two to five times larger, and for <span class="in">`ms`</span> the</span>
-<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>opposite sign. That gap is the reason the fixed-versus-random choice matters</span>
-<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a>here: a random-effects model without the decomposition would blend the two and</span>
-<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a>report neither. The time-invariant covariates come out at $-0.15$ for black and</span>
-<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a>$-0.32$ for female, quantities a fixed-effect model cannot produce at all.</span>
-<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a>Compare with <span class="in">`lfe`</span>.</span>
-<span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-74"><a href="#cb11-74" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lfe)</span>
-<span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a>model2 <span class="ot">&lt;-</span> <span class="fu">felm</span>(lwage <span class="sc">~</span> wks <span class="sc">+</span> union <span class="sc">+</span> ms <span class="sc">+</span> occ <span class="sc">|</span> id, <span class="at">data =</span> wages)</span>
-<span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model2)</span>
-<span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a><span class="in">`felm`</span> gives 0.001083, 0.064320, $-0.082905$ and $-0.077507$ — the same four</span>
-<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a>numbers <span class="in">`panelr`</span> reported as within effects, identical to machine precision</span>
-<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a>(<span class="in">`WageData`</span> is a balanced panel: 7 waves, 595 individuals). That is the BW</span>
-<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a>model's selling point: it reproduces the fixed-effect estimates exactly while</span>
-<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a>also estimating the time-invariant covariates <span class="in">`blk`</span> and <span class="in">`fem`</span>, which <span class="in">`felm`</span></span>
-<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a>cannot. <span class="in">`lfe`</span> supports clustered standard errors, which <span class="in">`panelr`</span> does not.</span>
-<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a>model3 <span class="ot">&lt;-</span> <span class="fu">felm</span>(lwage <span class="sc">~</span> wks <span class="sc">+</span> union <span class="sc">+</span> ms <span class="sc">+</span> occ <span class="sc">|</span> id <span class="sc">|</span> <span class="dv">0</span> <span class="sc">|</span> id, <span class="at">data =</span> wages)</span>
-<span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model3)</span>
-<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a>Clustering on <span class="in">`id`</span> leaves every coefficient untouched and changes the standard</span>
-<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a>errors substantially: <span class="in">`union`</span> goes from 0.0254 to 0.0409, <span class="in">`ms`</span> from 0.0322 to</span>
-<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a>0.0474, <span class="in">`wks`</span> from 0.00102 to 0.00133. Two of the four results do not survive.</span>
-<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a><span class="in">`union`</span> falls from $p = 0.011$ to $p = 0.117$ and <span class="in">`ms`</span> from $0.010$ to $0.081$;</span>
-<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a>only <span class="in">`occ`</span> stays significant at 5%. With 7 observations per man the residuals</span>
-<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a>are serially correlated, and the unclustered standard errors were treating 4,165</span>
-<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a>observations as though they were independent draws.</span>
-<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a><span class="fu">## BW model in Stata</span></span>
-<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a>Stata has no dedicated BW command, but <span class="in">`xtreg`</span> suffices. We switch to <span class="in">`nlswork`</span>,</span>
-<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a>an unbalanced panel of 4,710 women over 28,510 person-years, and regress log</span>
-<span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a>wage on age.</span>
-<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
-<span id="cb11-117"><a href="#cb11-117" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb11-118"><a href="#cb11-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-119"><a href="#cb11-119" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
-<span id="cb11-120"><a href="#cb11-120" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-121"><a href="#cb11-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-124"><a href="#cb11-124" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb11-125"><a href="#cb11-125" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb11-126"><a href="#cb11-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-127"><a href="#cb11-127" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
-<span id="cb11-128"><a href="#cb11-128" aria-hidden="true" tabindex="-1"></a><span class="in">xtset idcode</span></span>
-<span id="cb11-129"><a href="#cb11-129" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_w age, fe cluster(idcode)</span></span>
-<span id="cb11-130"><a href="#cb11-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-131"><a href="#cb11-131" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-132"><a href="#cb11-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-133"><a href="#cb11-133" aria-hidden="true" tabindex="-1"></a>The fixed-effect estimate is $.0181349$ with a clustered standard error of</span>
-<span id="cb11-134"><a href="#cb11-134" aria-hidden="true" tabindex="-1"></a>$.0006099$: within a woman, each additional year of age raises log wage by about</span>
-<span id="cb11-135"><a href="#cb11-135" aria-hidden="true" tabindex="-1"></a>1.8%. Keep that number in view — the BW model has to reproduce it.</span>
-<span id="cb11-136"><a href="#cb11-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-137"><a href="#cb11-137" aria-hidden="true" tabindex="-1"></a>Generate the group mean and run the BW estimation.</span>
-<span id="cb11-140"><a href="#cb11-140" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb11-141"><a href="#cb11-141" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
-<span id="cb11-142"><a href="#cb11-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-143"><a href="#cb11-143" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
-<span id="cb11-144"><a href="#cb11-144" aria-hidden="true" tabindex="-1"></a><span class="in">xtset idcode</span></span>
-<span id="cb11-145"><a href="#cb11-145" aria-hidden="true" tabindex="-1"></a><span class="in">bysort idcode: center age, prefix(d) mean(m)</span></span>
-<span id="cb11-146"><a href="#cb11-146" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_w dage mage i.race, re cluster(idcode)</span></span>
-<span id="cb11-147"><a href="#cb11-147" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-148"><a href="#cb11-148" aria-hidden="true" tabindex="-1"></a>In this BW model, we use the centered (within-group-demeaned) <span class="in">`dage`</span> together with the group mean <span class="in">`mage`</span>, which gives the standard within-between (Mundlak) decomposition: the coefficient on <span class="in">`dage`</span>, .0181349, is exactly the fixed-effect ("within") coefficient on age reported above — the same seven digits, with a standard error of .00061 against .0006099 — and the coefficient on <span class="in">`mage`</span>, .022558, is directly the between effect. Women who are older on average earn about 2.3% more per year of average age, against a within-woman return of 1.8%; the between effect is larger because it also carries cohort and selection differences that the within estimate sweeps out. And we have the effect of time-invariant covariate race estimated: Black women earn 11.9% less ($-.1190246$, SE .0127), while the "Other" category is not distinguishable from white ($.0975$, $p = 0.114$).  The advantage of using xtreg is that we have clustered standard errors implemented.</span>
-<span id="cb11-149"><a href="#cb11-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-150"><a href="#cb11-150" aria-hidden="true" tabindex="-1"></a>Note: if we instead ran <span class="in">`xtreg ln_w age mage i.race, re cluster(idcode)`</span> — using the raw (uncentered) <span class="in">`age`</span> together with <span class="in">`mage`</span> — we would get the *contextual model* instead: the coefficient on `age` stays .0181, but the coefficient on `mage` becomes .0044, the "contextual effect" (the *additional* between-effect on top of the within effect). The two models are algebraically related: contextual-model mage = Mundlak-model mage − Mundlak-model dage (here, .0226 − .0181 ≈ .0044).</span>
-<span id="cb11-151"><a href="#cb11-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-152"><a href="#cb11-152" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-153"><a href="#cb11-153" aria-hidden="true" tabindex="-1"></a><span class="fu">## BW model in non-linear models</span></span>
-<span id="cb11-154"><a href="#cb11-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-155"><a href="#cb11-155" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">Allison</span><span class="co">](https://statisticalhorizons.com/between-within-contextual-effects)</span> applies the BW model to binary outcomes. The bias relative to conditional logit is an open question, but if the linear probability model is a reasonable approximation the BW approach should perform similarly for binary panel data.</span>
-<span id="cb11-156"><a href="#cb11-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-157"><a href="#cb11-157" aria-hidden="true" tabindex="-1"></a></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Fixed or Random Effect, or Both?"</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2019-05-23"</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="fu">## Panel data</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>With panel data — repeated observations over time or observations clustered at a higher level — the standard choice is between fixed and random effects. Consider</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0 + \beta_1 x_{it} + c_i + \epsilon_{it} $$ {#eq-fixed-random-effect-1}</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>for individuals $i = 1, \ldots, n$ measured at $t = 1, \ldots, T$, where $c_i$ is an unobserved time-invariant individual effect. The two approaches differ in how they handle $c_i$.</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>Fixed effects eliminate $c_i$ by demeaning or by including individual dummies (the two are equivalent in a linear model). In nonlinear models only Poisson avoids the incidental-parameter problem; the standard solution for other models is conditional likelihood (conditional logit, for example), which absorbs the fixed effects in the likelihood. When no conditional likelihood exists, the incidental-parameter bias shrinks with panel depth but does not vanish.</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>Random effects treat $c_i$ as part of the error term. This is more efficient but requires $x_{it}$ to be uncorrelated with $c_i$ — an assumption economists are generally skeptical of.</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a><span class="fu">## Time-invariant variables</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>Sometimes we want the effect of a time-invariant variable, so the model becomes</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0  + \beta_1 x_{it} + c_i  + \gamma z_i+ \epsilon_{it} $$ {#eq-fixed-random-effect-2}</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>Fixed effects cannot identify $\gamma$ because $z_i$ is perfectly collinear with $c_i$. Random effects can still estimate both, treating $z_i$ as another covariate.</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a><span class="fu">## Between-within model</span></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>The textbook advice is a Hausman test: random effects are more efficient when the uncorrelatedness assumption holds; if not, fixed effects are still consistent. The between-within model (BW) sidesteps the choice. <span class="co">[</span><span class="ot">Neuhaus and Kalbfleisch (1998)</span><span class="co">](https://www.ncbi.nlm.nih.gov/pubmed/9629647)</span> introduced the BW estimator,</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0  + \beta_1 (x_{it} - \bar x_i) + \beta_2 \bar x_i + c_i  + \gamma z_i+ \epsilon_{it} $$ {#eq-fixed-random-effect-3}</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>Here $\beta_1$ is the within effect — identical to the fixed-effect coefficient. $\beta_2$ is the between effect (mean of $x$ on mean of $y$). $\gamma$ is the effect of the time-invariant variable.</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>The other specification of BW estimator is</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>$$ y_{it} = \beta_0  + \beta_1 x_{it}  + \beta_2 \bar x_i + c_i  + \gamma z_i+ \epsilon_{it} $$ {#eq-fixed-random-effect-4}</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>This is the same model reparametrized. $\beta_1$ is unchanged, and $\beta_2$ is now the between-minus-within difference (substitute $\beta_1(x_{it}-\bar x_i) + \beta_2 \bar x_i = \beta_1 x_{it} + (\beta_2-\beta_1)\bar x_i$ to see this). This is the "contextual model"; $\beta_2$ is the contextual effect and acts as an embedded Hausman test.</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>The BW model has two advantages. It recovers the fixed-effect coefficient while estimating time-invariant covariates. And it extends naturally to cross-level interactions, random slopes, and other multilevel structures. Implementation is straightforward: run a random-effects model on either equation above.</span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a><span class="fu">### Is this just Mundlak?</span></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>Yes. @eq-fixed-random-effect-4 *is* the Mundlak device: Mundlak's regression puts</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>$x_{it}$ and $\bar x_i$ on the right-hand side of a random-effects model, which is</span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>exactly what that equation does. So the between-within model and the Mundlak</span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>device are one model in two parameterisations, fitted by the same random-effects</span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>command. It is worth doing the algebra, because the identity is easy to state</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>loosely and easy to get wrong on the inference side.</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>Write $d_{it} = x_{it} - \bar x_i$ for the within deviation, and label the two</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>specifications by their coefficients: $b_1, b_2$ for the hybrid form</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>@eq-fixed-random-effect-3 and $p_1, p_2$ for the contextual form</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>@eq-fixed-random-effect-4. Expanding the hybrid regressor block,</span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>b_1 (x_{it} - \bar x_i) + b_2 \bar x_i = b_1 x_{it} + (b_2 - b_1)\bar x_i ,</span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>$$ {#eq-fixed-random-effect-5}</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>so $p_1 = b_1$ and $p_2 = b_2 - b_1$. Substitution shows the map, but the reason</span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a>behind it is worth stating more strongly: the two regressor matrices are related</span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a>by an invertible linear transformation. With $X = <span class="co">[</span><span class="ot">\,x_{it}, \bar x_i\,</span><span class="co">]</span>$ and</span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a>$W = <span class="co">[</span><span class="ot">\,d_{it}, \bar x_i\,</span><span class="co">]</span>$,</span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-67"><a href="#cb13-67" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb13-68"><a href="#cb13-68" aria-hidden="true" tabindex="-1"></a>W = XA, \qquad</span>
+<span id="cb13-69"><a href="#cb13-69" aria-hidden="true" tabindex="-1"></a>A = \begin{pmatrix} 1 &amp; 0 <span class="sc">\\</span> -1 &amp; 1 \end{pmatrix}, \qquad</span>
+<span id="cb13-70"><a href="#cb13-70" aria-hidden="true" tabindex="-1"></a>A^{-1} = \begin{pmatrix} 1 &amp; 0 <span class="sc">\\</span> 1 &amp; 1 \end{pmatrix},</span>
+<span id="cb13-71"><a href="#cb13-71" aria-hidden="true" tabindex="-1"></a>$$ {#eq-fixed-random-effect-6}</span>
+<span id="cb13-72"><a href="#cb13-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-73"><a href="#cb13-73" aria-hidden="true" tabindex="-1"></a>and $\det A = 1$, so the two designs span the same column space. Everything that</span>
+<span id="cb13-74"><a href="#cb13-74" aria-hidden="true" tabindex="-1"></a>depends only on that space is numerically identical: fitted values, residuals,</span>
+<span id="cb13-75"><a href="#cb13-75" aria-hidden="true" tabindex="-1"></a>the likelihood, the estimated variance components, and the GLS quasi-demeaning</span>
+<span id="cb13-76"><a href="#cb13-76" aria-hidden="true" tabindex="-1"></a>weight $\theta$. Only the coordinates change, by</span>
+<span id="cb13-77"><a href="#cb13-77" aria-hidden="true" tabindex="-1"></a>$b = A^{-1}p$, and the covariance matrix by $\text{Var}(b) = A^{-1}\text{Var}(p)A^{-1\prime}$.</span>
+<span id="cb13-78"><a href="#cb13-78" aria-hidden="true" tabindex="-1"></a>Componentwise that is</span>
+<span id="cb13-79"><a href="#cb13-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-80"><a href="#cb13-80" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb13-81"><a href="#cb13-81" aria-hidden="true" tabindex="-1"></a>\text{Var}(p_1) = \text{Var}(b_1), \qquad</span>
+<span id="cb13-82"><a href="#cb13-82" aria-hidden="true" tabindex="-1"></a>\text{Var}(p_2) = \text{Var}(b_1) + \text{Var}(b_2) + 2\,\text{Cov}(b_1,b_2),</span>
+<span id="cb13-83"><a href="#cb13-83" aria-hidden="true" tabindex="-1"></a>$$ {#eq-fixed-random-effect-7}</span>
+<span id="cb13-84"><a href="#cb13-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-85"><a href="#cb13-85" aria-hidden="true" tabindex="-1"></a>which already says something useful: the standard error printed next to the</span>
+<span id="cb13-86"><a href="#cb13-86" aria-hidden="true" tabindex="-1"></a>between effect is not the standard error you want for the contextual effect.</span>
+<span id="cb13-87"><a href="#cb13-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-88"><a href="#cb13-88" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Why the within coefficient is the fixed-effect estimator</span></span>
+<span id="cb13-89"><a href="#cb13-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-90"><a href="#cb13-90" aria-hidden="true" tabindex="-1"></a>This part needs a proof rather than a substitution. The relevant fact is that</span>
+<span id="cb13-91"><a href="#cb13-91" aria-hidden="true" tabindex="-1"></a>$\sum_t d_{it} = 0$ within every unit by construction, so $d$ is orthogonal to</span>
+<span id="cb13-92"><a href="#cb13-92" aria-hidden="true" tabindex="-1"></a>any group-invariant column: for $v_i$ constant within $i$,</span>
+<span id="cb13-93"><a href="#cb13-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-94"><a href="#cb13-94" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb13-95"><a href="#cb13-95" aria-hidden="true" tabindex="-1"></a>\sum_{i,t} d_{it} v_i = \sum_i v_i \sum_t d_{it} = 0 ,</span>
+<span id="cb13-96"><a href="#cb13-96" aria-hidden="true" tabindex="-1"></a>$$ {#eq-fixed-random-effect-8}</span>
+<span id="cb13-97"><a href="#cb13-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-98"><a href="#cb13-98" aria-hidden="true" tabindex="-1"></a>which covers the intercept, $\bar x_i$ and $z_i$ alike.</span>
+<span id="cb13-99"><a href="#cb13-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-100"><a href="#cb13-100" aria-hidden="true" tabindex="-1"></a>Random effects is OLS after quasi-demeaning, $\tilde w_{it} = w_{it} - \theta \bar w_i$</span>
+<span id="cb13-101"><a href="#cb13-101" aria-hidden="true" tabindex="-1"></a>with $\theta = 1 - \sqrt{\sigma^2_\epsilon / (\sigma^2_\epsilon + T\sigma^2_c)}$.</span>
+<span id="cb13-102"><a href="#cb13-102" aria-hidden="true" tabindex="-1"></a>Apply it to the hybrid regressors. Because $\bar d_i = 0$ we get</span>
+<span id="cb13-103"><a href="#cb13-103" aria-hidden="true" tabindex="-1"></a>$\tilde d_{it} = d_{it}$: the within-deviation regressor passes through the GLS</span>
+<span id="cb13-104"><a href="#cb13-104" aria-hidden="true" tabindex="-1"></a>transform untouched, whatever $\theta$ is. The remaining regressors are</span>
+<span id="cb13-105"><a href="#cb13-105" aria-hidden="true" tabindex="-1"></a>group-invariant and stay so after scaling by $1-\theta$. Orthogonality therefore</span>
+<span id="cb13-106"><a href="#cb13-106" aria-hidden="true" tabindex="-1"></a>survives the transform, and by Frisch-Waugh-Lovell</span>
+<span id="cb13-107"><a href="#cb13-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-108"><a href="#cb13-108" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb13-109"><a href="#cb13-109" aria-hidden="true" tabindex="-1"></a>b_1 = \frac{\sum d_{it}\tilde y_{it}}{\sum d_{it}^2}</span>
+<span id="cb13-110"><a href="#cb13-110" aria-hidden="true" tabindex="-1"></a>    = \frac{\sum d_{it} y_{it}}{\sum d_{it}^2}</span>
+<span id="cb13-111"><a href="#cb13-111" aria-hidden="true" tabindex="-1"></a>    = \frac{\sum (x_{it}-\bar x_i)(y_{it}-\bar y_i)}{\sum (x_{it}-\bar x_i)^2},</span>
+<span id="cb13-112"><a href="#cb13-112" aria-hidden="true" tabindex="-1"></a>$$ {#eq-fixed-random-effect-9}</span>
+<span id="cb13-113"><a href="#cb13-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-114"><a href="#cb13-114" aria-hidden="true" tabindex="-1"></a>the second and third equalities both by @eq-fixed-random-effect-8. That last</span>
+<span id="cb13-115"><a href="#cb13-115" aria-hidden="true" tabindex="-1"></a>expression is the within estimator. Note that $\theta$ has dropped out, so the</span>
+<span id="cb13-116"><a href="#cb13-116" aria-hidden="true" tabindex="-1"></a>identity holds for *any* $\theta$ — for random effects, for pooled OLS</span>
+<span id="cb13-117"><a href="#cb13-117" aria-hidden="true" tabindex="-1"></a>($\theta = 0$) and for fixed effects ($\theta = 1$). That is why running a</span>
+<span id="cb13-118"><a href="#cb13-118" aria-hidden="true" tabindex="-1"></a>random-effects model on either equation returns the fixed-effect coefficient. It</span>
+<span id="cb13-119"><a href="#cb13-119" aria-hidden="true" tabindex="-1"></a>also gives $\text{Cov}(b_1,b_2) = 0$ exactly, which combined with</span>
+<span id="cb13-120"><a href="#cb13-120" aria-hidden="true" tabindex="-1"></a>@eq-fixed-random-effect-7 yields</span>
+<span id="cb13-121"><a href="#cb13-121" aria-hidden="true" tabindex="-1"></a>$\text{Var}(p_2) = \text{Var}(b_1) + \text{Var}(b_2)$ and</span>
+<span id="cb13-122"><a href="#cb13-122" aria-hidden="true" tabindex="-1"></a>$\text{Cov}(p_1,p_2) = -\text{Var}(b_1)$.</span>
+<span id="cb13-123"><a href="#cb13-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-124"><a href="#cb13-124" aria-hidden="true" tabindex="-1"></a>All of this is checkable on the chapter's own data. We take a single regressor,</span>
+<span id="cb13-125"><a href="#cb13-125" aria-hidden="true" tabindex="-1"></a>weeks worked, fit both parameterisations by <span class="in">`plm`</span>, and compare against the</span>
+<span id="cb13-126"><a href="#cb13-126" aria-hidden="true" tabindex="-1"></a>within estimator and against the variance map:</span>
+<span id="cb13-127"><a href="#cb13-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-130"><a href="#cb13-130" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-131"><a href="#cb13-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: bw-mundlak-identity</span></span>
+<span id="cb13-132"><a href="#cb13-132" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb13-133"><a href="#cb13-133" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb13-134"><a href="#cb13-134" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb13-135"><a href="#cb13-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-136"><a href="#cb13-136" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(plm); <span class="fu">library</span>(panelr); <span class="fu">data</span>(<span class="st">"WageData"</span>)</span>
+<span id="cb13-137"><a href="#cb13-137" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> WageData</span>
+<span id="cb13-138"><a href="#cb13-138" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>xbar <span class="ot">&lt;-</span> <span class="fu">ave</span>(d<span class="sc">$</span>wks, d<span class="sc">$</span>id)          <span class="co"># unit mean</span></span>
+<span id="cb13-139"><a href="#cb13-139" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>xdev <span class="ot">&lt;-</span> d<span class="sc">$</span>wks <span class="sc">-</span> d<span class="sc">$</span>xbar            <span class="co"># within deviation</span></span>
+<span id="cb13-140"><a href="#cb13-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-141"><a href="#cb13-141" aria-hidden="true" tabindex="-1"></a>fe  <span class="ot">&lt;-</span> <span class="fu">plm</span>(lwage <span class="sc">~</span> wks,          <span class="at">data =</span> d, <span class="at">index =</span> <span class="fu">c</span>(<span class="st">"id"</span>, <span class="st">"t"</span>), <span class="at">model =</span> <span class="st">"within"</span>)</span>
+<span id="cb13-142"><a href="#cb13-142" aria-hidden="true" tabindex="-1"></a>hyb <span class="ot">&lt;-</span> <span class="fu">plm</span>(lwage <span class="sc">~</span> xdev <span class="sc">+</span> xbar,  <span class="at">data =</span> d, <span class="at">index =</span> <span class="fu">c</span>(<span class="st">"id"</span>, <span class="st">"t"</span>), <span class="at">model =</span> <span class="st">"random"</span>)</span>
+<span id="cb13-143"><a href="#cb13-143" aria-hidden="true" tabindex="-1"></a>mun <span class="ot">&lt;-</span> <span class="fu">plm</span>(lwage <span class="sc">~</span> wks  <span class="sc">+</span> xbar,  <span class="at">data =</span> d, <span class="at">index =</span> <span class="fu">c</span>(<span class="st">"id"</span>, <span class="st">"t"</span>), <span class="at">model =</span> <span class="st">"random"</span>)</span>
+<span id="cb13-144"><a href="#cb13-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-145"><a href="#cb13-145" aria-hidden="true" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">coef</span>(hyb); p <span class="ot">&lt;-</span> <span class="fu">coef</span>(mun); Vh <span class="ot">&lt;-</span> <span class="fu">vcov</span>(hyb); Vm <span class="ot">&lt;-</span> <span class="fu">vcov</span>(mun)</span>
+<span id="cb13-146"><a href="#cb13-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-147"><a href="#cb13-147" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb13-148"><a href="#cb13-148" aria-hidden="true" tabindex="-1"></a>  <span class="at">check =</span> <span class="fu">c</span>(<span class="st">"p1 - b1"</span>, <span class="st">"p2 - (b2 - b1)"</span>, <span class="st">"b1 - FE within"</span>,</span>
+<span id="cb13-149"><a href="#cb13-149" aria-hidden="true" tabindex="-1"></a>            <span class="st">"sum(xdev * xbar)"</span>, <span class="st">"Cov(b1, b2)"</span>,</span>
+<span id="cb13-150"><a href="#cb13-150" aria-hidden="true" tabindex="-1"></a>            <span class="st">"Var(p2) - [Var(b1) + Var(b2)]"</span>, <span class="st">"Cov(p1, p2) + Var(b1)"</span>,</span>
+<span id="cb13-151"><a href="#cb13-151" aria-hidden="true" tabindex="-1"></a>            <span class="st">"theta(hybrid) - theta(Mundlak)"</span>),</span>
+<span id="cb13-152"><a href="#cb13-152" aria-hidden="true" tabindex="-1"></a>  <span class="at">value =</span> <span class="fu">c</span>(p[<span class="st">"wks"</span>] <span class="sc">-</span> b[<span class="st">"xdev"</span>],</span>
+<span id="cb13-153"><a href="#cb13-153" aria-hidden="true" tabindex="-1"></a>            p[<span class="st">"xbar"</span>] <span class="sc">-</span> (b[<span class="st">"xbar"</span>] <span class="sc">-</span> b[<span class="st">"xdev"</span>]),</span>
+<span id="cb13-154"><a href="#cb13-154" aria-hidden="true" tabindex="-1"></a>            b[<span class="st">"xdev"</span>] <span class="sc">-</span> <span class="fu">coef</span>(fe)[<span class="st">"wks"</span>],</span>
+<span id="cb13-155"><a href="#cb13-155" aria-hidden="true" tabindex="-1"></a>            <span class="fu">sum</span>(d<span class="sc">$</span>xdev <span class="sc">*</span> d<span class="sc">$</span>xbar),</span>
+<span id="cb13-156"><a href="#cb13-156" aria-hidden="true" tabindex="-1"></a>            Vh[<span class="st">"xdev"</span>, <span class="st">"xbar"</span>],</span>
+<span id="cb13-157"><a href="#cb13-157" aria-hidden="true" tabindex="-1"></a>            Vm[<span class="st">"xbar"</span>, <span class="st">"xbar"</span>] <span class="sc">-</span> (Vh[<span class="st">"xdev"</span>, <span class="st">"xdev"</span>] <span class="sc">+</span> Vh[<span class="st">"xbar"</span>, <span class="st">"xbar"</span>]),</span>
+<span id="cb13-158"><a href="#cb13-158" aria-hidden="true" tabindex="-1"></a>            Vm[<span class="st">"wks"</span>, <span class="st">"xbar"</span>] <span class="sc">+</span> Vh[<span class="st">"xdev"</span>, <span class="st">"xdev"</span>],</span>
+<span id="cb13-159"><a href="#cb13-159" aria-hidden="true" tabindex="-1"></a>            hyb<span class="sc">$</span>ercomp<span class="sc">$</span>theta <span class="sc">-</span> mun<span class="sc">$</span>ercomp<span class="sc">$</span>theta),</span>
+<span id="cb13-160"><a href="#cb13-160" aria-hidden="true" tabindex="-1"></a>  <span class="at">row.names =</span> <span class="cn">NULL</span>)</span>
+<span id="cb13-161"><a href="#cb13-161" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-162"><a href="#cb13-162" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-163"><a href="#cb13-163" aria-hidden="true" tabindex="-1"></a>Every entry is zero to machine precision. The two parameterisations are the same</span>
+<span id="cb13-164"><a href="#cb13-164" aria-hidden="true" tabindex="-1"></a>fit, the within coefficient is the fixed-effect estimate, the hybrid regressors</span>
+<span id="cb13-165"><a href="#cb13-165" aria-hidden="true" tabindex="-1"></a>are orthogonal, and the variance map holds as derived.</span>
+<span id="cb13-166"><a href="#cb13-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-167"><a href="#cb13-167" aria-hidden="true" tabindex="-1"></a><span class="fu">#### So why keep both</span></span>
+<span id="cb13-168"><a href="#cb13-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-169"><a href="#cb13-169" aria-hidden="true" tabindex="-1"></a>The fit is one object, but the parameterisation settles three practical things.</span>
+<span id="cb13-170"><a href="#cb13-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-171"><a href="#cb13-171" aria-hidden="true" tabindex="-1"></a>*Which quantity is printed.* $b_2$ is the between effect and $p_2$ is between</span>
+<span id="cb13-172"><a href="#cb13-172" aria-hidden="true" tabindex="-1"></a>minus within. They are different parameters with non-interchangeable standard</span>
+<span id="cb13-173"><a href="#cb13-173" aria-hidden="true" tabindex="-1"></a>errors, and whichever form you fit, the other costs a <span class="in">`lincom`</span>.</span>
+<span id="cb13-174"><a href="#cb13-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-175"><a href="#cb13-175" aria-hidden="true" tabindex="-1"></a>*Which hypothesis is one line.* $p_2 = 0$ says between equals within, which is</span>
+<span id="cb13-176"><a href="#cb13-176" aria-hidden="true" tabindex="-1"></a>exactly the random-effects assumption that the regressors are uncorrelated with</span>
+<span id="cb13-177"><a href="#cb13-177" aria-hidden="true" tabindex="-1"></a>$c_i$. The Mundlak form prints that as a single $t$; in hybrid form it is the</span>
+<span id="cb13-178"><a href="#cb13-178" aria-hidden="true" tabindex="-1"></a>contrast $b_1 = b_2$. The two tests agree numerically, but only one is printed.</span>
+<span id="cb13-179"><a href="#cb13-179" aria-hidden="true" tabindex="-1"></a>This is the Mundlak form of the Hausman test, asymptotically equivalent to the</span>
+<span id="cb13-180"><a href="#cb13-180" aria-hidden="true" tabindex="-1"></a>classical version and with the practical advantage of working directly with</span>
+<span id="cb13-181"><a href="#cb13-181" aria-hidden="true" tabindex="-1"></a>cluster-robust standard errors. The <span class="co">[</span><span class="ot">next chapter</span><span class="co">](mundlak-device.qmd)</span> develops</span>
+<span id="cb13-182"><a href="#cb13-182" aria-hidden="true" tabindex="-1"></a>it and its two-way extension for difference-in-differences.</span>
+<span id="cb13-183"><a href="#cb13-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-184"><a href="#cb13-184" aria-hidden="true" tabindex="-1"></a>*What the second coefficient is for.* In multilevel work $p_2$ is not a</span>
+<span id="cb13-185"><a href="#cb13-185" aria-hidden="true" tabindex="-1"></a>diagnostic but the estimand: holding a pupil's own status fixed, what does the</span>
+<span id="cb13-186"><a href="#cb13-186" aria-hidden="true" tabindex="-1"></a>school mean do? The hybrid's $b_2$ answers a different question, the total</span>
+<span id="cb13-187"><a href="#cb13-187" aria-hidden="true" tabindex="-1"></a>between-unit association. Two literatures ask two questions of one regression,</span>
+<span id="cb13-188"><a href="#cb13-188" aria-hidden="true" tabindex="-1"></a>and each named the parameterisation that printed its answer. That is the honest</span>
+<span id="cb13-189"><a href="#cb13-189" aria-hidden="true" tabindex="-1"></a>reason both names survive.</span>
+<span id="cb13-190"><a href="#cb13-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-191"><a href="#cb13-191" aria-hidden="true" tabindex="-1"></a>There is also a reason to prefer the hybrid form in extensions. Its two</span>
+<span id="cb13-192"><a href="#cb13-192" aria-hidden="true" tabindex="-1"></a>regressors are exactly orthogonal, where $x_{it}$ and $\bar x_i$ are correlated.</span>
+<span id="cb13-193"><a href="#cb13-193" aria-hidden="true" tabindex="-1"></a>That does not change the fit, but if you want a random slope on the within</span>
+<span id="cb13-194"><a href="#cb13-194" aria-hidden="true" tabindex="-1"></a>component you need the deviation as its own column; a random slope on $x_{it}$</span>
+<span id="cb13-195"><a href="#cb13-195" aria-hidden="true" tabindex="-1"></a>would mix within and between variation.</span>
+<span id="cb13-196"><a href="#cb13-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-197"><a href="#cb13-197" aria-hidden="true" tabindex="-1"></a><span class="fu">#### Where the equivalence stops</span></span>
+<span id="cb13-198"><a href="#cb13-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-199"><a href="#cb13-199" aria-hidden="true" tabindex="-1"></a>The reparameterisation is exact for anything with a linear index, logit and</span>
+<span id="cb13-200"><a href="#cb13-200" aria-hidden="true" tabindex="-1"></a>Poisson mixed models included, since $XA$ spans the same space and the index is</span>
+<span id="cb13-201"><a href="#cb13-201" aria-hidden="true" tabindex="-1"></a>unchanged. The two names stay interchangeable there.</span>
+<span id="cb13-202"><a href="#cb13-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-203"><a href="#cb13-203" aria-hidden="true" tabindex="-1"></a>The fixed-effect identity does not carry over. The proof above used two</span>
+<span id="cb13-204"><a href="#cb13-204" aria-hidden="true" tabindex="-1"></a>linear-model facts: that random effects is OLS on quasi-demeaned data, and that</span>
+<span id="cb13-205"><a href="#cb13-205" aria-hidden="true" tabindex="-1"></a>$d$ is orthogonal to group constants. A logit or Poisson mixed model has no such</span>
+<span id="cb13-206"><a href="#cb13-206" aria-hidden="true" tabindex="-1"></a>transform, the unit effects do not sweep out, and the hybrid within coefficient</span>
+<span id="cb13-207"><a href="#cb13-207" aria-hidden="true" tabindex="-1"></a>is not the conditional-logit estimate but an approximation to it. Keep the two</span>
+<span id="cb13-208"><a href="#cb13-208" aria-hidden="true" tabindex="-1"></a>claims separate: the parameterisations are always the same model, while "within</span>
+<span id="cb13-209"><a href="#cb13-209" aria-hidden="true" tabindex="-1"></a>coefficient equals fixed effects" is a linear-model result. The last section of</span>
+<span id="cb13-210"><a href="#cb13-210" aria-hidden="true" tabindex="-1"></a>this chapter returns to that point.</span>
+<span id="cb13-211"><a href="#cb13-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-212"><a href="#cb13-212" aria-hidden="true" tabindex="-1"></a><span class="fu">## BW model in R</span></span>
+<span id="cb13-213"><a href="#cb13-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-214"><a href="#cb13-214" aria-hidden="true" tabindex="-1"></a>R's <span class="co">[</span><span class="ot">`panelr`</span><span class="co">](https://panelr.jacob-long.com/articles/wbm.html)</span> package implements BW models directly. The data are <span class="in">`WageData`</span>, a balanced panel of 595 men observed over 7 years. We model log wage on weeks worked, union membership, marital status and occupation, all time-varying, plus two time-invariant covariates — black and female — that a fixed-effect model could not touch.</span>
+<span id="cb13-215"><a href="#cb13-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-216"><a href="#cb13-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-219"><a href="#cb13-219" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-220"><a href="#cb13-220" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb13-221"><a href="#cb13-221" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb13-222"><a href="#cb13-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-223"><a href="#cb13-223" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(panelr)</span>
+<span id="cb13-224"><a href="#cb13-224" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">"WageData"</span>)</span>
+<span id="cb13-225"><a href="#cb13-225" aria-hidden="true" tabindex="-1"></a>wages <span class="ot">&lt;-</span> <span class="fu">panel_data</span>(WageData, <span class="at">id =</span> id, <span class="at">wave =</span> t)</span>
+<span id="cb13-226"><a href="#cb13-226" aria-hidden="true" tabindex="-1"></a>model1 <span class="ot">&lt;-</span> <span class="fu">wbm</span>(lwage <span class="sc">~</span> wks <span class="sc">+</span> union <span class="sc">+</span> ms <span class="sc">+</span> occ <span class="sc">|</span> blk <span class="sc">+</span> fem, <span class="at">data =</span> wages)</span>
+<span id="cb13-227"><a href="#cb13-227" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model1)</span>
+<span id="cb13-228"><a href="#cb13-228" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-229"><a href="#cb13-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-230"><a href="#cb13-230" aria-hidden="true" tabindex="-1"></a>The within estimates are 0.00 for weeks, 0.06 for union, $-0.08$ for married</span>
+<span id="cb13-231"><a href="#cb13-231" aria-hidden="true" tabindex="-1"></a>and $-0.08$ for occupation. The between estimates for the same four variables</span>
+<span id="cb13-232"><a href="#cb13-232" aria-hidden="true" tabindex="-1"></a>are 0.01, 0.15, 0.17 and $-0.41$ — two to five times larger, and for <span class="in">`ms`</span> the</span>
+<span id="cb13-233"><a href="#cb13-233" aria-hidden="true" tabindex="-1"></a>opposite sign. That gap is the reason the fixed-versus-random choice matters</span>
+<span id="cb13-234"><a href="#cb13-234" aria-hidden="true" tabindex="-1"></a>here: a random-effects model without the decomposition would blend the two and</span>
+<span id="cb13-235"><a href="#cb13-235" aria-hidden="true" tabindex="-1"></a>report neither. The time-invariant covariates come out at $-0.15$ for black and</span>
+<span id="cb13-236"><a href="#cb13-236" aria-hidden="true" tabindex="-1"></a>$-0.32$ for female, quantities a fixed-effect model cannot produce at all.</span>
+<span id="cb13-237"><a href="#cb13-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-238"><a href="#cb13-238" aria-hidden="true" tabindex="-1"></a>Compare with <span class="in">`lfe`</span>.</span>
+<span id="cb13-239"><a href="#cb13-239" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-242"><a href="#cb13-242" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-243"><a href="#cb13-243" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb13-244"><a href="#cb13-244" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb13-245"><a href="#cb13-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-246"><a href="#cb13-246" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lfe)</span>
+<span id="cb13-247"><a href="#cb13-247" aria-hidden="true" tabindex="-1"></a>model2 <span class="ot">&lt;-</span> <span class="fu">felm</span>(lwage <span class="sc">~</span> wks <span class="sc">+</span> union <span class="sc">+</span> ms <span class="sc">+</span> occ <span class="sc">|</span> id, <span class="at">data =</span> wages)</span>
+<span id="cb13-248"><a href="#cb13-248" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model2)</span>
+<span id="cb13-249"><a href="#cb13-249" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-250"><a href="#cb13-250" aria-hidden="true" tabindex="-1"></a><span class="in">`felm`</span> gives 0.001083, 0.064320, $-0.082905$ and $-0.077507$ — the same four</span>
+<span id="cb13-251"><a href="#cb13-251" aria-hidden="true" tabindex="-1"></a>numbers <span class="in">`panelr`</span> reported as within effects, identical to machine precision</span>
+<span id="cb13-252"><a href="#cb13-252" aria-hidden="true" tabindex="-1"></a>(<span class="in">`WageData`</span> is a balanced panel: 7 waves, 595 individuals). That is the BW</span>
+<span id="cb13-253"><a href="#cb13-253" aria-hidden="true" tabindex="-1"></a>model's selling point: it reproduces the fixed-effect estimates exactly while</span>
+<span id="cb13-254"><a href="#cb13-254" aria-hidden="true" tabindex="-1"></a>also estimating the time-invariant covariates <span class="in">`blk`</span> and <span class="in">`fem`</span>, which <span class="in">`felm`</span></span>
+<span id="cb13-255"><a href="#cb13-255" aria-hidden="true" tabindex="-1"></a>cannot. <span class="in">`lfe`</span> supports clustered standard errors, which <span class="in">`panelr`</span> does not.</span>
+<span id="cb13-256"><a href="#cb13-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-259"><a href="#cb13-259" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-260"><a href="#cb13-260" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb13-261"><a href="#cb13-261" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb13-262"><a href="#cb13-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-263"><a href="#cb13-263" aria-hidden="true" tabindex="-1"></a>model3 <span class="ot">&lt;-</span> <span class="fu">felm</span>(lwage <span class="sc">~</span> wks <span class="sc">+</span> union <span class="sc">+</span> ms <span class="sc">+</span> occ <span class="sc">|</span> id <span class="sc">|</span> <span class="dv">0</span> <span class="sc">|</span> id, <span class="at">data =</span> wages)</span>
+<span id="cb13-264"><a href="#cb13-264" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model3)</span>
+<span id="cb13-265"><a href="#cb13-265" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-266"><a href="#cb13-266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-267"><a href="#cb13-267" aria-hidden="true" tabindex="-1"></a>Clustering on <span class="in">`id`</span> leaves every coefficient untouched and changes the standard</span>
+<span id="cb13-268"><a href="#cb13-268" aria-hidden="true" tabindex="-1"></a>errors substantially: <span class="in">`union`</span> goes from 0.0254 to 0.0409, <span class="in">`ms`</span> from 0.0322 to</span>
+<span id="cb13-269"><a href="#cb13-269" aria-hidden="true" tabindex="-1"></a>0.0474, <span class="in">`wks`</span> from 0.00102 to 0.00133. Two of the four results do not survive.</span>
+<span id="cb13-270"><a href="#cb13-270" aria-hidden="true" tabindex="-1"></a><span class="in">`union`</span> falls from $p = 0.011$ to $p = 0.117$ and <span class="in">`ms`</span> from $0.010$ to $0.081$;</span>
+<span id="cb13-271"><a href="#cb13-271" aria-hidden="true" tabindex="-1"></a>only <span class="in">`occ`</span> stays significant at 5%. With 7 observations per man the residuals</span>
+<span id="cb13-272"><a href="#cb13-272" aria-hidden="true" tabindex="-1"></a>are serially correlated, and the unclustered standard errors were treating 4,165</span>
+<span id="cb13-273"><a href="#cb13-273" aria-hidden="true" tabindex="-1"></a>observations as though they were independent draws.</span>
+<span id="cb13-274"><a href="#cb13-274" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-275"><a href="#cb13-275" aria-hidden="true" tabindex="-1"></a><span class="fu">## BW model in Stata</span></span>
+<span id="cb13-276"><a href="#cb13-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-277"><a href="#cb13-277" aria-hidden="true" tabindex="-1"></a>Stata has no dedicated BW command, but <span class="in">`xtreg`</span> suffices. We switch to <span class="in">`nlswork`</span>,</span>
+<span id="cb13-278"><a href="#cb13-278" aria-hidden="true" tabindex="-1"></a>an unbalanced panel of 4,710 women over 28,510 person-years, and regress log</span>
+<span id="cb13-279"><a href="#cb13-279" aria-hidden="true" tabindex="-1"></a>wage on age.</span>
+<span id="cb13-280"><a href="#cb13-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-283"><a href="#cb13-283" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb13-284"><a href="#cb13-284" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: false</span></span>
+<span id="cb13-285"><a href="#cb13-285" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb13-286"><a href="#cb13-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-287"><a href="#cb13-287" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(Statamarkdown)</span>
+<span id="cb13-288"><a href="#cb13-288" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-289"><a href="#cb13-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-292"><a href="#cb13-292" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb13-293"><a href="#cb13-293" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb13-294"><a href="#cb13-294" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-295"><a href="#cb13-295" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
+<span id="cb13-296"><a href="#cb13-296" aria-hidden="true" tabindex="-1"></a><span class="in">xtset idcode</span></span>
+<span id="cb13-297"><a href="#cb13-297" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_w age, fe cluster(idcode)</span></span>
+<span id="cb13-298"><a href="#cb13-298" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-299"><a href="#cb13-299" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-300"><a href="#cb13-300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-301"><a href="#cb13-301" aria-hidden="true" tabindex="-1"></a>The fixed-effect estimate is $.0181349$ with a clustered standard error of</span>
+<span id="cb13-302"><a href="#cb13-302" aria-hidden="true" tabindex="-1"></a>$.0006099$: within a woman, each additional year of age raises log wage by about</span>
+<span id="cb13-303"><a href="#cb13-303" aria-hidden="true" tabindex="-1"></a>1.8%. Keep that number in view — the BW model has to reproduce it.</span>
+<span id="cb13-304"><a href="#cb13-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-305"><a href="#cb13-305" aria-hidden="true" tabindex="-1"></a>Generate the group mean and run the BW estimation.</span>
+<span id="cb13-308"><a href="#cb13-308" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb13-309"><a href="#cb13-309" aria-hidden="true" tabindex="-1"></a><span class="in">*| cache: true</span></span>
+<span id="cb13-310"><a href="#cb13-310" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-311"><a href="#cb13-311" aria-hidden="true" tabindex="-1"></a><span class="in">webuse nlswork</span></span>
+<span id="cb13-312"><a href="#cb13-312" aria-hidden="true" tabindex="-1"></a><span class="in">xtset idcode</span></span>
+<span id="cb13-313"><a href="#cb13-313" aria-hidden="true" tabindex="-1"></a><span class="in">bysort idcode: center age, prefix(d) mean(m)</span></span>
+<span id="cb13-314"><a href="#cb13-314" aria-hidden="true" tabindex="-1"></a><span class="in">xtreg ln_w dage mage i.race, re cluster(idcode)</span></span>
+<span id="cb13-315"><a href="#cb13-315" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb13-316"><a href="#cb13-316" aria-hidden="true" tabindex="-1"></a>In this BW model, we use the centered (within-group-demeaned) <span class="in">`dage`</span> together with the group mean <span class="in">`mage`</span>, which gives the standard within-between (Mundlak) decomposition: the coefficient on <span class="in">`dage`</span>, .0181349, is exactly the fixed-effect ("within") coefficient on age reported above — the same seven digits, with a standard error of .00061 against .0006099 — and the coefficient on <span class="in">`mage`</span>, .022558, is directly the between effect. Women who are older on average earn about 2.3% more per year of average age, against a within-woman return of 1.8%; the between effect is larger because it also carries cohort and selection differences that the within estimate sweeps out. And we have the effect of time-invariant covariate race estimated: Black women earn 11.9% less ($-.1190246$, SE .0127), while the "Other" category is not distinguishable from white ($.0975$, $p = 0.114$).  The advantage of using xtreg is that we have clustered standard errors implemented.</span>
+<span id="cb13-317"><a href="#cb13-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-318"><a href="#cb13-318" aria-hidden="true" tabindex="-1"></a>Note: if we instead ran <span class="in">`xtreg ln_w age mage i.race, re cluster(idcode)`</span> — using the raw (uncentered) <span class="in">`age`</span> together with <span class="in">`mage`</span> — we would get the *contextual model* instead: the coefficient on `age` stays .0181, but the coefficient on `mage` becomes .0044, the "contextual effect" (the *additional* between-effect on top of the within effect). The two models are algebraically related: contextual-model mage = Mundlak-model mage − Mundlak-model dage (here, .0226 − .0181 ≈ .0044).</span>
+<span id="cb13-319"><a href="#cb13-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-320"><a href="#cb13-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-321"><a href="#cb13-321" aria-hidden="true" tabindex="-1"></a><span class="fu">## BW model in non-linear models</span></span>
+<span id="cb13-322"><a href="#cb13-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-323"><a href="#cb13-323" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">Allison</span><span class="co">](https://statisticalhorizons.com/between-within-contextual-effects)</span> applies the BW model to binary outcomes. The bias relative to conditional logit is an open question, but if the linear probability model is a reasonable approximation the BW approach should perform similarly for binary panel data.</span>
+<span id="cb13-324"><a href="#cb13-324" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-325"><a href="#cb13-325" aria-hidden="true" tabindex="-1"></a></span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

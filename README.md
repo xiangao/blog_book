@@ -60,3 +60,43 @@ Xiang Ao
 > **2026-08-12:** Prose tightening pass across 25 chapters — removed informal patterns, compressed wordy openings, switched to "we" voice, tightened explanations into shorter paratactic prose (189 insertions, 467 deletions). No code or results changes.
 
 > **2026-07-30 (selection simulation):** `gwg.qmd` — put numbers on the selection argument, which had been entirely graph-theoretic. Because the non-workers are absent from the extract by construction, the section now simulates a population where the truth is known ($\tau=-0.10$), applies the selection, and reports what survives: the naive selected-sample estimate comes out at **−0.039, wrong by a factor of about 2.5** and attenuated toward zero exactly as the graph predicted (mean $U$ among employed women +0.33 against +0.21 for men). Crucially it also shows that **balancing does not help**: reweighting the sex ratio to exactly 50/50 leaves the estimate unchanged to four decimals, and randomly discarding men until the counts match leaves it unchanged too — stated as the general rule that no random sampling operation can remove a bias, since bias is a property of a distribution and random sampling preserves distributions. Only inverse-probability-of-selection weighting recovers the truth, and it needs $U$. Second chunk adds **Lee (2009) bounds** across five degrees of differential selection: the bounds cover the truth in every row, but width scales almost proportionally with the trim fraction $q$, and the effect can only be signed once employment rates differ by a couple of points — at a 19-point gap the interval is [−0.34, +0.26] and contains zero. Text draws the inversion: the naive estimate degrades in lockstep with the widening, so Lee bounds are tight exactly when unnecessary and wide exactly when needed, which makes their value here diagnostic rather than inferential. Caveats stated: monotonicity is individual-level, the target becomes the always-employed subgroup, and the procedure needs both selection rates so it cannot be run on this extract at all — real US rates imply $q \approx 0.2$, so the honest conclusion from doing it properly is an interval containing zero.
+
+> **2026-08-24:** Handwritten-markup pass, partial. The annotated copy covers only
+> chapters 1, 3, 4, 6 and 7 and stops mid-chapter-7 (15 marked pages out of 578),
+> so everything from chapter 8 onward is still unreviewed.
+>
+> One genuine bug: chapter 3 printed the Stata error `already preserved / r(621)`
+> five times, because a `preserve` with no matching `restore` sat in a chunk that
+> every later chunk replays under `collectcode`. Two chapters called `marginsplot`
+> and then discussed a plot that was never exported into the book; both now export
+> and include the figure.
+>
+> On content, chapter 3 gains step-by-step walk-throughs of its reshape, `expand`
+> and split-instrument constructions, plus a closing paragraph naming the single
+> idea behind all of them — a Chow test needs the covariance between two
+> coefficients, which separate regressions never produce. Chapter 4's citation is
+> completed to Hazlett and Shinkre (2024), and an over-claim is corrected: its
+> worked example has a constant treatment effect, so it cannot demonstrate the
+> weighting problem it was said to demonstrate. A new section supplies a discrete
+> design where the problem does bite — OLS returns 2.08 where the ATE is 2.80,
+> matching Angrist's variance-weighted formula to sampling noise, while
+> g-computation and Lin's interaction estimator both recover the ATE. Chapter 6
+> gains the summary it lacked, and chapter 7 now answers directly whether the
+> between-within model is just the Mundlak device.
+>
+> It is, and the chapter now derives it rather than asserting it: the two designs
+> are related by an invertible linear map, so they span the same column space and
+> agree on the fit, the likelihood, the variance components and the GLS weight,
+> differing only in coordinates. The separate result that the within coefficient
+> equals the fixed-effect estimate is proved from the fact that the within
+> deviation has zero mean inside every unit, which makes it orthogonal to
+> everything group-invariant and leaves it untouched by quasi-demeaning — so the
+> GLS weight drops out of the algebra entirely, and the identity holds for random
+> effects, pooled OLS and fixed effects alike. A chunk checks all eight
+> identities on the chapter's own data; every one is zero to machine precision.
+> The section also says why both parameterisations survive when the fit is the
+> same — they print different parameters with non-interchangeable standard
+> errors, only one makes the Hausman test a single line, and only one leaves the
+> within component available for a random slope — and where the equivalence
+> stops, since the fixed-effect identity is a linear-model result that does not
+> carry over to logit or Poisson mixed models.

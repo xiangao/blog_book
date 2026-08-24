@@ -76,6 +76,32 @@ interaction approach is more flexible since it works with any estimator.
 
 The same idea compares a coefficient across two different outcomes. Stack the two outcome variables into a long format, interact the covariates with the stacking indicator, and run one regression.
 
+The chunk below does that in seven steps, and it is worth reading them in order
+because the payoff is the last two columns of the table agreeing.
+
+1. `reg south wage hours` and `reg smsa wage hours`, each stored with `est sto`.
+   These are the two equations we want to compare, fitted separately.
+2. `suest south smsa` refits them jointly and stacks the two coefficient
+   vectors into one, with a robust covariance matrix across equations. This is
+   the benchmark: it is the standard way to test a cross-equation hypothesis.
+3. `preserve`, because the next steps reshape the data and we want it back.
+4. `gen Y1=south`, `gen Y2=smsa`, `gen id=_n`. Copy the two outcomes into a
+   numbered pair and give every woman an id.
+5. `reshape long Y, i(id) j(subsample)` turns each woman's one row into two:
+   one carrying `Y = south` with `subsample == 1`, one carrying `Y = smsa` with
+   `subsample == 2`. The stacked outcome is now a single variable `Y`.
+6. `gen wage1=wage*(subsample==1)` and its three siblings. Each covariate is
+   split into the part that acts in equation 1 and the part that acts in
+   equation 2. A single regression on `wage1 wage2 hours1 hours2` therefore
+   estimates a separate slope per equation, which is what the two separate
+   regressions did.
+7. `reg Y wage? hours? subsample, cluster(id)` fits it, and
+   `test _b[wage1]-_b[wage2]=0` is the cross-equation test. The `?` is a Stata
+   wildcard, so `wage?` expands to `wage1 wage2`.
+
+The whole construction exists so that a hypothesis *across* two equations
+becomes a hypothesis *within* one, where `test` can reach both coefficients.
+
 
 ```{stata}
 *| label: stata2
@@ -107,6 +133,8 @@ gen hours2=hours*(subsample==2)
 reg Y wage? hours? subsample, cluster(id)
 test _b[wage1]-_b[wage2]=0
 est sto stacked
+* Match the preserve above, so the reshape does not leak into later chunks.
+restore
 * Note: suest stores coefficients under equation-qualified names (e.g.
 * south:hours), while the single-sample models store the same
 * coefficient simply as "hours"; esttab matches by exact coefficient
@@ -117,7 +145,13 @@ esttab south smsa suest stacked, nogaps mti
 
 ```
 
-The two outcomes (`south` and `smsa`) are stacked as `Y`, the covariates are interacted with the stacking indicator, and the pooled regression returns the separate coefficients.
+Read the table by columns. The first two are the separate regressions, the
+third is `suest`, and the fourth is the stacked regression. The `wage1`
+coefficient in column four equals the `wage` coefficient in column one, and
+`wage2` equals the `wage` coefficient in column two: stacking has reproduced
+both single-equation fits exactly, in one regression, with both coefficients now
+addressable by `test`. Note the sample size, 4,484 in the stacked column against
+2,242 in the others — the reshape doubled the rows, which is the next point.
 
 One detail matters a great deal here, and it is easy to skip.  Stacking puts **two
 rows per person** in the data, so the two error terms belonging to the same person
@@ -139,7 +173,27 @@ the $F$-versus-$\chi^2$ finite-sample adjustment.  Note that `robust` alone will
 
 ## Overlapping samples
 
-The same method extends to overlapping subsamples. Here south and smsa overlap — some observations belong to both — so a simple split is not possible:
+The same method extends to overlapping subsamples. Here south and smsa overlap
+— some observations belong to both — so a simple split is not possible.
+
+The reshape trick from the previous section will not work here, because a woman
+who is both southern and in an SMSA has to appear in both subsamples rather than
+be assigned to one. `expand` handles that instead:
+
+1. `ta south smsa` shows the overlap, which is the reason for what follows.
+2. `preserve`, then `expand 2` duplicates every row, so each woman now has two
+   copies.
+3. `bys idcode: g n=_n` numbers a woman's two copies 1 and 2.
+4. `keep if (n==1&south)|(n==2&smsa)` keeps copy 1 only if she is southern and
+   copy 2 only if she is in an SMSA. A woman in both keeps both copies; a woman
+   in neither drops out; a woman in exactly one keeps one. Each surviving row
+   now represents one woman's membership in one subsample.
+5. `g hours1=hours*(n==1)` and `g hours2=hours*(n==2)` split the covariate by
+   subsample, as before. Within this restricted sample `n==1` means southern and
+   `n==2` means SMSA, so the copy number *is* the subsample indicator.
+6. `reg wage hours? n, cl(idcode)` fits both slopes at once, clustering on the
+   woman rather than on a stacking id, since a woman can now contribute one row
+   or two.
 
 
 ```{stata}
@@ -184,7 +238,25 @@ subsample. The `n` indicator is 0.341 with $p = 0.578$.
 
 ## IV regression
 
-The interaction approach works with IV. Interact both the endogenous variable and the instrument with the subsample indicator. Here `hours` is instrumented by `union` within each region:
+The interaction approach works with IV. Interact both the endogenous variable and
+the instrument with the subsample indicator. Here `hours` is instrumented by
+`union` within each region.
+
+The point is not to get a different estimate. The two interacted 2SLS
+coefficients reproduce the two subsample IV regressions exactly, just as they did
+for OLS. The point is that running them separately leaves the two estimates in
+different `ivregress` results with no joint covariance between them, so there is
+nothing to test the difference *with*. Interacting puts both in one estimation,
+so `test _b[hours1]-_b[hours2]=0` can reach both coefficients and their
+covariance. That is the whole reason for the construction, and it is the same
+reason as in the OLS case.
+
+Two details specific to IV. The instrument must be split alongside the
+endogenous variable — `union1` and `union2`, not just `hours1` and `hours2` —
+because an instrument that is not subsample-specific would identify a single
+pooled first stage and defeat the purpose. And the number of instruments must
+still match the number of endogenous regressors: two of each here, so the system
+is exactly identified, as each subsample regression was on its own.
 
 
 
@@ -341,6 +413,7 @@ reg Y wage? hours? tenure? subsample, cluster(id)
 est sto chow
 test _b[hours1]-_b[hours2]=0
 esttab  suest chow, nogaps mti
+restore
 ```
 
 The stacked model reproduces `suest`'s point estimates exactly: the hours
@@ -357,4 +430,22 @@ in the South quite differently from how it predicts living in an SMSA. (The
 `suest` and the stacking method both test cross-equation hypotheses with robust standard errors. `sureg` does the same under a GLS framework, but it assumes homoscedastic errors across equations; under misspecification it remains consistent but its standard errors are invalid. When the equations share covariates `sureg` and OLS give the same point estimates; with different covariates they diverge.
 
 The stacking approach is the most portable. It works in any language, extends to IV and fixed-effect models, and requires only that the single-equation estimator works — no special post-estimation infrastructure.
+
+One pattern runs through every example in this chapter, and it is worth stating
+once on its own. A Chow test is a hypothesis about two coefficients that live in
+two different regressions. Stata's `test` can only reach coefficients inside a
+single stored estimation result, and, more importantly, testing a difference
+requires the covariance between the two estimates, which separate regressions
+never produce. Every construction here — the reshape for two outcomes, the
+`expand` for overlapping samples, the split instruments under IV, the absorbed
+fixed effects — exists to move both coefficients into one estimation so that the
+covariance exists and `test` can use it. `suest` does the
+same thing by a different route, refitting the stored estimates jointly with a
+robust cross-equation covariance matrix.
+
+So the choice among them is practical rather than statistical. Use `suest` when
+the estimator supports it and the samples are the same. Stack when the samples
+overlap, when the covariates differ across equations, or when the estimator is
+one `suest` will not take — which, in practice, means most fixed-effect and IV
+commands.
 
