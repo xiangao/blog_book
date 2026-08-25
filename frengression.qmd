@@ -155,6 +155,9 @@ Training has two stages: first the outcome model (`model_y` + `model_eta`), then
 #| warning: false
 #| cache: false
 #| message: false
+# torch keeps its own generator; R's set.seed() does not reach it.
+torch::torch_manual_seed(1)
+
 x_mat <- matrix(A, ncol = 1)
 z_mat <- as.matrix(data.frame(w1, w2, w3, w4))
 y_mat <- matrix(Y, ncol = 1)
@@ -178,6 +181,8 @@ For interventional prediction, `eta` is sampled from $N(0,1)$ instead of being g
 #| warning: false
 #| cache: false
 #| message: false
+torch::torch_manual_seed(1)
+
 y1 <- predict(model, matrix(1, ncol = 1), type = "mean", nsample = 2000)
 y0 <- predict(model, matrix(0, ncol = 1), type = "mean", nsample = 2000)
 
@@ -187,10 +192,13 @@ cat("True ATE:", round(true_ate, 4), "\n")
 
 The realized ATE is 0.1935 and frengression lands a few hundredths below it.
 
-Note that the training chunks here carry `cache: false` and torch's random
-number generator is not fixed by R's `set.seed()`, so this particular figure
-moves by a percentage point or two between renders. The cached comparison table
-below is the number to quote.
+The training chunks carry `cache: false`, so they re-run on every render, and
+torch keeps a generator of its own that R's `set.seed()` does not reach. Seeding
+it with `torch_manual_seed()` fixes the weight initialisation, the training
+draws, and the sampling inside `predict()`, so the figure above is reproducible
+from one render to the next. On a CUDA device some nondeterminism can survive
+the seed, from cuDNN algorithm selection and atomic accumulation in the backward
+pass.
 
 ## Frengression as DGP
 
