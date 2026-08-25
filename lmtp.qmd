@@ -3,6 +3,25 @@ title: "longitudinal modified treatment policy (LMTP)"
 date: "2025-08-23"
 ---
 
+```{r}
+#| include: false
+
+# lmtp's print methods indent every line of their output. knitr then indents the
+# opening ::: cell-output container, and Pandoc renders that marker as literal
+# text rather than as a div, so ":::" appears in the published page and PDF.
+# Dedenting the captured output keeps the container flush left.
+show_lmtp <- function(x) {
+  out  <- capture.output(print(x))
+  keep <- nzchar(trimws(out))
+  if (any(keep)) {
+    pad <- min(nchar(sub("[^[:space:]].*$", "", out[keep])))
+    if (pad > 0) out <- sub(sprintf("^[[:space:]]{1,%d}", pad), "", out)
+  }
+  cat(out, sep = "\n")
+}
+```
+
+
 
 The longitudinal modified treatment policy (LMTP) framework, developed in epidemiology and biostatistics, handles settings where the standard ATE is poorly defined: continuous or multivalued treatments, time-varying exposures, or hypothetical interventions that would violate positivity. This chapter follows [Nicholas Williams](https://beyondtheate.com/).
 
@@ -45,9 +64,15 @@ We have multiple time points, and the treatment $A$ is time-varying.  We are int
 
 ### Assumptions
 
-1. Positivity.  Basically if there is a unit with $a_t$ and $h_t$, then there is a unit with $d(a_t, h_t)$ and $h_t$.
+1. Consistency.  The observed outcome under the treatment actually received equals the corresponding potential outcome, and the shifted intervention is well defined --- no hidden versions of it.
 
-2. Sequential unconfoundedness.  There is no unmeasured confounders.
+2. Sequential unconfoundedness.  There are no unmeasured confounders of treatment at any time point given the history.  The stronger *sequential randomization* condition conditions on the full history including past natural values of treatment; some estimators need that version and others do not, so it is worth knowing which one a given result assumes.
+
+3. Positivity, in the form the shift requires.  Roughly: if a unit with history $h_t$ can receive $a_t$, then the shifted value $d(a_t, h_t)$ must also have support given $h_t$.  This is where modified treatment policies earn their keep.  A static always-treat or never-treat rule can demand support the data does not have, while a bounded shift of the observed treatment stays inside it.
+
+4. For continuous treatments, a smoothness condition.  The influence-function estimators below assume the shift function is piecewise smooth and invertible in $a_t$, which is what lets the density of the shifted treatment be written in terms of the observed one.
+
+The always-treat and never-treat demonstration below is, on that reading, an unusual lead example for this framework: it is the easiest case to follow, and also the case whose positivity is most likely to fail.  A bounded continuous shift is the canonical LMTP application.  Díaz et al., <https://arxiv.org/abs/2006.01366>, state the assumptions precisely.
 
 ### dynamic treatment regime
 
@@ -151,7 +176,7 @@ mean(simulated_data1$Yd) - mean(simulated_data2$Yd)
 Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is from $N(0.25 L_1 + 0.4 A_1,\ 0.5)$ -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability 0.5, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.1 L_1)$.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (`simulated_data1`) and the second sets it to 0 in every period (`simulated_data2`); the reported difference $E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]$ is the effect of the always-treat versus never-treat static regimes.
 
 
-The always-treat regime gives $E[Y^d] = 2.029$, always-never gives 0.129, and
+The always-treat regime gives $E[Y^d] = 2.029$, never-treat gives 0.129, and
 their difference is 1.900 — and that 1.9 decomposes exactly into the three
 routes the DGP contains: 1 from $A_2$ direct, 0.5 from $A_1$ direct, and 0.4
 through the $A_1 \to L_2 \to Y$ path, since $L_2$ shifts by 0.4 and enters $Y$
@@ -290,7 +315,7 @@ treat <- lmtp_tmle(
   learners_outcome = "SL.glm"
 )
 
-print(treat)
+show_lmtp(treat)
 ```
 
 ```{r}
@@ -322,9 +347,9 @@ control <- lmtp_tmle(
   learners_outcome = "SL.glm"
 )
 
-print(control)
+show_lmtp(control)
 
-lmtp_contrast(treat, ref = control)
+show_lmtp(lmtp_contrast(treat, ref = control))
 ```
 
 Note that `folds = 1` turns off cross-fitting (sample splitting). That is
@@ -385,7 +410,7 @@ fit_dtr <- lmtp_sdr(
   learners_outcome = c("SL.mean", "SL.glm", "SL.gam")
 )
 
-fit_dtr
+show_lmtp(fit_dtr)
 ```
 
 ### shift function 2
@@ -415,7 +440,7 @@ fit_MR <- lmtp_sdr(
   learners_outcome = c("SL.mean", "SL.glm", "SL.gam")
 )
 
-fit_MR
+show_lmtp(fit_MR)
 ```
 Let’s also estimate the effect of an intervention where all patients receive a calorie deficit diet at both time points.
 
@@ -440,7 +465,7 @@ fit_CD <- lmtp_sdr(
   learners_outcome = c("SL.mean", "SL.glm", "SL.gam")
 )
 
-fit_CD
+show_lmtp(fit_CD)
 ```
 
 Finally, we can compare the three treatment regimes using the `lmtp_contrast` function.
@@ -453,7 +478,7 @@ Finally, we can compare the three treatment regimes using the `lmtp_contrast` fu
 #| message: false
 #| echo: true
 
-lmtp_contrast(fit_dtr, fit_MR, ref = fit_CD)
+show_lmtp(lmtp_contrast(fit_dtr, fit_MR, ref = fit_CD))
 
 ```
 

@@ -13,7 +13,13 @@ Here we are following a zero-inflated model's thinking:  model the data with two
 We'd like to see, in this simulation exercise, how different models perform with changes of sample size and percentage of zeros (we expect the less zero, the better a plain Poisson model would perform).  Therefore we vary sample size $n$ and an indicator of how much percentage of zeros in the data $\theta$.
 
 For the count data process ($y_c$):
-$$ log(y_c) = 2 x + u $$ {#eq-count-data-1}
+$$ y_c = \lfloor \exp(2 x + u) \rfloor, \qquad u \sim N(0, \sigma^2) $$ {#eq-count-data-1}
+
+Note what that is and is not. It is a floored lognormal variable, not a draw from
+a Poisson distribution, and not normal either. The flooring matters: it makes the
+conditional mean only approximately $\exp(2x + \sigma^2/2)$, so the log-linear
+index is not exactly $2x$ and "bias relative to 2" is not a clean common target
+across the models compared below.
 
 For the Bernoulli process ($y_b$):
 
@@ -100,7 +106,7 @@ write.csv(forshiny, "results.csv", row.names = FALSE)
 ```
 
         
-Count data models can be used even if data is not "counts"; for example, some non-negative non-integer numbers.  In fact, Poisson model is consistent even if data is not Poisson-distributed, if the model specification is correct on modeling the log of expected counts.  We simulate both scenarios:  Case 1, data is generated from a Poisson process.  Case 2, data is generated from a Normal distribution, but we use count data models to model it.  The above code is for case 2.
+Count data models can be used even if data is not "counts"; for example, some non-negative non-integer numbers.  In fact, Poisson model is consistent even if data is not Poisson-distributed, if the model specification is correct on modeling the log of expected counts.  We simulate both scenarios:  Case 1, data is generated from a Poisson process.  Case 2, data is a floored lognormal -- $\lfloor \exp(2x+u) \rfloor$ with $u$ normal -- so it is non-negative and integer-valued without being a count from any count distribution, and we use count data models on it anyway.  (Earlier versions of this text called case 2 "Normal"; the variable being modelled is not normal, only the $u$ inside the exponential is.)  The above code is for case 2.
 
 We simulate 100 times with $\theta$ ranging from -4 to 4, lower number means higher percentage of zeros; number of observations from $e^4$ to $e^9$ (roughly from 50 to 8000).
 
@@ -108,7 +114,21 @@ Since there are many simulations, we use base R's `parallel` library to speed th
 
 For raw code, please visit [case1: poisson](https://github.com/xiangao/poisson) and [case2: normal](https://github.com/xiangao/poisson2). The code above updates the original `snowfall`-based version to use base R `parallel`.
 
-**Summary of simulation findings:** With large samples, plain Poisson outperforms NB and log-linear even with extra zeros. Zero-inflated Poisson with correct specification of the zero process is best, but that relies on knowing what drives the zeros. Hurdle and ZIP without correct zero-model specification are similar and not much worse than Poisson. Log-linear (`log(y+1)`) is consistently the worst.
+**Status of these simulation findings.** The grid above is retained for its code
+rather than as current evidence, and the ranking it once carried should not be
+read as verified. Two things undercut it. The metric for the log-linear row was
+wrong in the original run -- see the note below -- and the case-2 data-generating
+process is a floored lognormal whose log-linear index is not exactly $2x$, so
+subtracting 2 from each model's slope does not compare like with like. The chunk
+is marked `eval: false`, so nothing here regenerates it.
+
+What the run suggested, and what remains plausible on grounds independent of it:
+plain Poisson QMLE holds up well in large samples even with unmodelled excess
+zeros *when the conditional mean is correctly specified*; zero-inflated Poisson
+does better when the zero process is known; and log-linear regression on
+$\log(y+1)$ targets a different quantity altogether. For evidence rather than
+recollection, the worked example in the next section is the part of this chapter
+that actually runs.
 
 (Note: the `log.linear` bias line above previously read `exp(coef(m3)["x"]) - 2` instead of `coef(m3)["x"] - 2`, which — since the log-linear coefficient is already on the log scale — manufactured a spurious ≈5.4 apparent bias regardless of the model's actual performance. That has been corrected here to match the other rows. Log-linear regression on `log(y+1)` is still expected to be biased relative to Poisson-family models in a zero-inflated count setting, for real reasons (the log transform's nonlinearity near zero, and the fact that $E[\log(y+1)] \neq \log(E[y]+1)$), but the *magnitude* of "consistently the worst" above reflects the original (buggy) run and has not been re-verified against a corrected simulation.)
 
@@ -208,8 +228,7 @@ targets $E[\log(y+1) \mid x]$, and $E[\log(y+1)] \neq \log(E[y]+1)$ by Jensen's
 inequality. The $+1$ offset makes the discrepancy worst exactly where the mass of
 zeros is. So comparing its coefficient to 0.8 is an apples-to-oranges comparison,
 and the honest statement is that log-linear answers a different question --- not
-that it answers this one badly by some measured amount
-coefficient. A misspecified zero process biases the count *slope* only when
+that it answers this one badly by some measured amount. A misspecified zero process biases the count *slope* only when
 the zero process is correlated with the count covariates — which is not the case
 here. (Change `z` to depend on `x` and the omitted-zero-process slope bias
 appears.)

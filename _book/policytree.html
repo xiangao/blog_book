@@ -582,7 +582,7 @@ window.Quarto = {
 \tag{31.1}\]</span></span> This policy is to assign treatment or control based on <span class="math inline">\(X\)</span>.</p>
 <p>The natural objective function is a value function <span class="math inline">\(V(\pi) = E[Y_i(\pi(X_i))]\)</span>, which is the expected value of outcome with this policy. We’d like to maximize this function.</p>
 <p><span id="eq-policytree-2"><span class="math display">\[
-V(\pi) = E[Y_i(\pi(X_i))] = E[Y_i(0)]  + E[\tau(X) \pi(X))]
+V(\pi) = E[Y_i(\pi(X_i))] = E[Y_i(0)]  + E[\tau(X) \pi(X)]
 \tag{31.2}\]</span></span> Since <span class="math inline">\(\pi\)</span> only enters through <span class="math inline">\(E[\tau(X)\pi(X)]\)</span>, the maximizer is exactly <span class="math inline">\(\pi(X) = 1\{\tau(X) &gt; 0\}\)</span> — treat everyone with a positive effect. A threshold <span class="math inline">\(c \neq 0\)</span> is not a free choice here: it appears once treatment is costly, where maximizing <span class="math inline">\(E[(\tau(X) - c)\pi(X)]\)</span> gives the rule <span class="math inline">\(\tau(X) &gt; c\)</span> with <span class="math inline">\(c\)</span> the per-unit cost. However, estimating <span class="math inline">\(\tau(X)\)</span> is different from maximizing <span class="math inline">\(V\)</span>.</p>
 <p>First, we don’t have the true <span class="math inline">\(\tau\)</span>. The loss function in estimating <span class="math inline">\(\tau(X)\)</span> is different from the loss function in maximizing <span class="math inline">\(V\)</span>. The loss function in estimating <span class="math inline">\(\tau(X)\)</span> is the squared error loss. We’ll see maximizing <span class="math inline">\(V\)</span> is a different problem.</p>
 <p>Second, the <span class="math inline">\(X\)</span> we use to estimate <span class="math inline">\(\tau\)</span> is different from the ones we can use for policy. For example, we have some variables used in CATE estimation that we cannot use for policy, like gender, or age, for discrimination reasons. Or there are variables we have after the experiment that we cannot use for CATE estimation, but we’d like to use for policy learning.</p>
@@ -606,7 +606,9 @@ V(\pi) = E[Y_i(\pi(X_i))] = E[Y_i(0)]  + E[\tau(X) \pi(X))]
 \tag{31.6}\]</span></span> <span id="eq-policytree-7"><span class="math display">\[
 \Gamma_i = \hat \mu(1)(X_i) - \hat \mu(0)(X_i) + \frac{W_i}{\hat e(X_i)}(Y_i - \hat \mu(1) (X_i)) - \frac{1-W_i}{1-\hat e(X_i)}(Y_i - \hat \mu(0) (X_i))
 \tag{31.7}\]</span></span></p>
-<p>Note the <span class="math inline">\(\Gamma_i\)</span> is the score from the AIPW estimator. It’s basically the efficient influence function we learned from the nonparametric estimation of ATE. The value function <span class="math inline">\(\hat V(\pi)\)</span> is the score if treated, minus the score if control for each observation. We’d like to maximize this value function.</p>
+<p>Note the <span class="math inline">\(\Gamma_i\)</span> is the score from the AIPW estimator. It’s basically the efficient influence function we learned from the nonparametric estimation of ATE.</p>
+<p>One clarification about <a href="#eq-policytree-6" class="quarto-xref">Equation&nbsp;<span>31.6</span></a>, because the name is easy to over-read. With scalar doubly robust effect scores <span class="math inline">\(\hat\Gamma_i\)</span>, that quantity is a <em>centered empirical welfare objective</em>, not an estimate of the outcome-level policy value <span class="math inline">\(E[Y(\pi(X))]\)</span>. It has the same maximizer, up to an additive constant and a factor of two, which is all the optimization needs. An estimator of the value itself uses action-specific scores, or adds a control-outcome score to <span class="math inline">\(\pi(X_i)\hat\Gamma_i\)</span>. So maximize <a href="#eq-policytree-6" class="quarto-xref">Equation&nbsp;<span>31.6</span></a>, but do not report its value as the welfare of the learned rule.</p>
+<p>We’d like to maximize this objective.</p>
 <p>The basic idea is for each policy, calculate the score from AIPW estimator. Then calculate the value function. Then search over the policy space for the policy that maximizes the value function.</p>
 <p>This is very computationally intensive task. Right now seems it would work for “shallow” trees. That is, we allow 2 or 3 levels of trees. Otherwise, the search space could be too large to search.</p>
 </section><section id="policytree" class="level2" data-number="31.4"><h2 data-number="31.4" class="anchored" data-anchor-id="policytree">
@@ -647,13 +649,13 @@ V(\pi) = E[Y_i(\pi(X_i))] = E[Y_i(0)]  + E[\tau(X) \pi(X))]
 Tree depth:  2 
 Actions:  1: control 2: treated 
 Variable splits: 
-(1) split_variable: X9  split_value: -0.391603 
-  (2) split_variable: X4  split_value: 0.544361 
-    (4) * action: 1 
-    (5) * action: 2 
-  (3) split_variable: X2  split_value: -0.709637 
-    (6) * action: 2 
-    (7) * action: 1 </code></pre>
+(1) split_variable: X1  split_value: 0.651731 
+  (2) split_variable: X5  split_value: 0.417106 
+    (4) * action: 2 
+    (5) * action: 1 
+  (3) split_variable: X5  split_value: 0.246506 
+    (6) * action: 1 
+    (7) * action: 2 </code></pre>
 </div>
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">pp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/predict.html">predict</a></span><span class="op">(</span><span class="va">tree</span>, <span class="va">X</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/boxplot.html">boxplot</a></span><span class="op">(</span><span class="va">tt</span> <span class="op">~</span> <span class="va">pp</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -665,8 +667,8 @@ Variable splits:
 </div>
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">tree</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output-display">
-<div class="grViz html-widget html-fill-item" id="htmlwidget-a71c67e61fdbdff4ce38" style="width:100%;height:464px;"></div>
-<script type="application/json" data-for="htmlwidget-a71c67e61fdbdff4ce38">{"x":{"diagram":"digraph nodes { \n node [shape=box] ;\n0 [label=\" X9 <= -0.39 \"] ;\n0 -> 1 [labeldistance=2.5, labelangle=45, headlabel=\"True\"];\n0 -> 2 [labeldistance=2.5, labelangle=-45, headlabel=\"False\"]\n1 [label=\" X4 <= 0.54 \"] ;\n1 -> 3  ;\n1 -> 4  ;\n3  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n4  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n2 [label=\" X2 <= -0.71 \"] ;\n2 -> 5  ;\n2 -> 6  ;\n5  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n6  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<div class="grViz html-widget html-fill-item" id="htmlwidget-6022b5ddcc6caa93c5c2" style="width:100%;height:464px;"></div>
+<script type="application/json" data-for="htmlwidget-6022b5ddcc6caa93c5c2">{"x":{"diagram":"digraph nodes { \n node [shape=box] ;\n0 [label=\" X1 <= 0.65 \"] ;\n0 -> 1 [labeldistance=2.5, labelangle=45, headlabel=\"True\"];\n0 -> 2 [labeldistance=2.5, labelangle=-45, headlabel=\"False\"]\n1 [label=\" X5 <= 0.42 \"] ;\n1 -> 3  ;\n1 -> 4  ;\n3  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n4  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n2 [label=\" X5 <= 0.25 \"] ;\n2 -> 5  ;\n2 -> 6  ;\n5  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 1 \"];\n6  [shape=box,style=filled,color=\".7 .3 1.0\" , label=\" leaf node\n action = 2 \"];\n}","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
 </div>
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">X</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span>, <span class="va">X</span><span class="op">[</span>, <span class="fl">2</span><span class="op">]</span>, col <span class="op">=</span> <span class="va">pp</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/abline.html">abline</a></span><span class="op">(</span><span class="fl">0</span>, <span class="op">-</span><span class="fl">1</span>, lwd <span class="op">=</span> <span class="fl">4</span>, col <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1169,7 +1171,7 @@ Variable splits:
 <span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>The natural objective function is a value function $V(\pi) = E<span class="co">[</span><span class="ot">Y_i(\pi(X_i))</span><span class="co">]</span>$, which is the expected value of outcome with this policy.  We'd like to maximize this function.</span>
 <span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>V(\pi) = E<span class="co">[</span><span class="ot">Y_i(\pi(X_i))</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">Y_i(0)</span><span class="co">]</span>  + E<span class="co">[</span><span class="ot">\tau(X) \pi(X))</span><span class="co">]</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>V(\pi) = E<span class="co">[</span><span class="ot">Y_i(\pi(X_i))</span><span class="co">]</span> = E<span class="co">[</span><span class="ot">Y_i(0)</span><span class="co">]</span>  + E<span class="co">[</span><span class="ot">\tau(X) \pi(X)</span><span class="co">]</span></span>
 <span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-2}</span>
 <span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>Since $\pi$ only enters through $E<span class="co">[</span><span class="ot">\tau(X)\pi(X)</span><span class="co">]</span>$, the maximizer is exactly</span>
 <span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>$\pi(X) = 1<span class="sc">\{</span>\tau(X) &gt; 0<span class="sc">\}</span>$ --- treat everyone with a positive effect.  A</span>
@@ -1210,87 +1212,91 @@ Variable splits:
 <span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a> \Gamma_i = \hat \mu(1)(X_i) - \hat \mu(0)(X_i) + \frac{W_i}{\hat e(X_i)}(Y_i - \hat \mu(1) (X_i)) - \frac{1-W_i}{1-\hat e(X_i)}(Y_i - \hat \mu(0) (X_i))</span>
 <span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-7}</span>
 <span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>Note the $\Gamma_i$ is the score from the AIPW estimator. It's basically the efficient influence function we learned from the nonparametric estimation of ATE.  The value function $\hat V(\pi)$ is the score if treated, minus the score if control for each observation.  We'd like to maximize this value function.</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>Note the $\Gamma_i$ is the score from the AIPW estimator. It's basically the efficient influence function we learned from the nonparametric estimation of ATE.</span>
 <span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>The basic idea is for each policy, calculate the score from AIPW estimator.  Then calculate the value function.  Then search over the policy space for the policy that maximizes the value function.</span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>One clarification about @eq-policytree-6, because the name is easy to over-read. With scalar doubly robust effect scores $\hat\Gamma_i$, that quantity is a *centered empirical welfare objective*, not an estimate of the outcome-level policy value $E<span class="co">[</span><span class="ot">Y(\pi(X))</span><span class="co">]</span>$. It has the same maximizer, up to an additive constant and a factor of two, which is all the optimization needs. An estimator of the value itself uses action-specific scores, or adds a control-outcome score to $\pi(X_i)\hat\Gamma_i$. So maximize @eq-policytree-6, but do not report its value as the welfare of the learned rule.</span>
 <span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>This is very computationally intensive task.  Right now seems it would work for "shallow" trees.  That is, we allow 2 or 3 levels of trees.  Otherwise, the search space could be too large to search.</span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>We'd like to maximize this objective.</span>
 <span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a><span class="fu">## Policytree</span></span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>The basic idea is for each policy, calculate the score from AIPW estimator.  Then calculate the value function.  Then search over the policy space for the policy that maximizes the value function.</span>
 <span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>The simulation is built so that the optimal policy is known. We draw $n = 1000$</span>
-<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>observations with ten independent standard normal covariates. The propensity is</span>
-<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>$e(X) = 1/(1+e^{X_3})$, so treatment depends on $X_3$ alone. The true CATE is</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>This is very computationally intensive task.  Right now seems it would work for "shallow" trees.  That is, we allow 2 or 3 levels of trees.  Otherwise, the search space could be too large to search.</span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a><span class="fu">## Policytree</span></span>
 <span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>$$</span>
-<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>\tau(X) = \frac{1}{1 + e^{(X_1+X_2)/2}} - \tfrac12,</span>
-<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-8}</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>The simulation is built so that the optimal policy is known. We draw $n = 1000$</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>observations with ten independent standard normal covariates. The propensity is</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>$e(X) = 1/(1+e^{X_3})$, so treatment depends on $X_3$ alone. The true CATE is</span>
 <span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>and the outcome is $Y = X_3 + W\tau(X) + N(0,1)$.</span>
-<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a>Because $\tau(X) &gt; 0$ exactly when $X_1 + X_2 &lt; 0$, the optimal policy is the</span>
-<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>half-plane below the line $X_1 + X_2 = 0$ — which is the diagonal drawn on the</span>
-<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a>last plot. Note that only $X_1$ and $X_2$ matter for the policy, $X_3$ matters</span>
-<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>only for selection, and $X_4$ through $X_{10}$ are pure noise.</span>
-<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(grf)</span>
-<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(policytree)</span>
-<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DiagrammeR)</span>
-<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
-<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
-<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> p), n, p)</span>
-<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>ee <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(X[, <span class="dv">3</span>]))</span>
-<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a>tt <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>((X[, <span class="dv">1</span>] <span class="sc">+</span> X[, <span class="dv">2</span>]) <span class="sc">/</span> <span class="dv">2</span>)) <span class="sc">-</span> <span class="fl">0.5</span></span>
-<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, ee)</span>
-<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> X[, <span class="dv">3</span>] <span class="sc">+</span> W <span class="sc">*</span> tt <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
-<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>cf <span class="ot">&lt;-</span> <span class="fu">causal_forest</span>(X, Y, W)</span>
-<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tt, <span class="fu">predict</span>(cf)<span class="sc">$</span>predictions)</span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a>\tau(X) = \frac{1}{1 + e^{(X_1+X_2)/2}} - \tfrac12,</span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a>$$ {#eq-policytree-8}</span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a>and the outcome is $Y = X_3 + W\tau(X) + N(0,1)$.</span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a>Because $\tau(X) &gt; 0$ exactly when $X_1 + X_2 &lt; 0$, the optimal policy is the</span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>half-plane below the line $X_1 + X_2 = 0$ — which is the diagonal drawn on the</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>last plot. Note that only $X_1$ and $X_2$ matter for the policy, $X_3$ matters</span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a>only for selection, and $X_4$ through $X_{10}$ are pure noise.</span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(grf)</span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(policytree)</span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DiagrammeR)</span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> p), n, p)</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>ee <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(X[, <span class="dv">3</span>]))</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>tt <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>((X[, <span class="dv">1</span>] <span class="sc">+</span> X[, <span class="dv">2</span>]) <span class="sc">/</span> <span class="dv">2</span>)) <span class="sc">-</span> <span class="fl">0.5</span></span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, ee)</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> X[, <span class="dv">3</span>] <span class="sc">+</span> W <span class="sc">*</span> tt <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
 <span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a>dr <span class="ot">&lt;-</span> <span class="fu">double_robust_scores</span>(cf)</span>
-<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>tree <span class="ot">&lt;-</span> <span class="fu">policy_tree</span>(X, dr, <span class="dv">2</span>)</span>
-<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a>tree</span>
-<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a>pp <span class="ot">&lt;-</span> <span class="fu">predict</span>(tree, X)</span>
-<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a><span class="fu">boxplot</span>(tt <span class="sc">~</span> pp)</span>
-<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tree)</span>
-<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(X[, <span class="dv">1</span>], X[, <span class="dv">2</span>], <span class="at">col =</span> pp)</span>
-<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="dv">0</span>, <span class="sc">-</span><span class="dv">1</span>, <span class="at">lwd =</span> <span class="dv">4</span>, <span class="at">col =</span> <span class="dv">4</span>)</span>
-<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a>cf <span class="ot">&lt;-</span> <span class="fu">causal_forest</span>(X, Y, W)</span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tt, <span class="fu">predict</span>(cf)<span class="sc">$</span>predictions)</span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a>dr <span class="ot">&lt;-</span> <span class="fu">double_robust_scores</span>(cf)</span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>tree <span class="ot">&lt;-</span> <span class="fu">policy_tree</span>(X, dr, <span class="dv">2</span>)</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a>tree</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>pp <span class="ot">&lt;-</span> <span class="fu">predict</span>(tree, X)</span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a><span class="fu">boxplot</span>(tt <span class="sc">~</span> pp)</span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(tree)</span>
 <span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>In the example, first "causal_forest" is used to estimate the CATE.  "double_robust_scores" is used to calculate the AIPW score.  Then "policy_tree" is used to estimate the policy tree. The level of tree is set to 2.</span>
-<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>Read the fitted tree against the truth rather than on its own terms. The optimal</span>
-<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>rule is a *diagonal* boundary, $X_1 + X_2 &lt; 0$, and a depth-2 axis-aligned tree</span>
-<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>cannot represent a diagonal at all — the best it can do is approximate it with</span>
-<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>at most three perpendicular cuts. The tree therefore splits on whichever variables happen to reduce the loss most,</span>
-<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>and because the true signal is spread across a diagonal it may not select $X_1$</span>
-<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>or $X_2$ at all — runs of this chunk routinely split entirely on noise</span>
-<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>covariates such as $X_8$ and $X_{10}$. That is worth seeing rather than</span>
-<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a>explaining away: when the policy class cannot express the optimal rule, the</span>
-<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>fitted splits carry little information about which variables matter. The last plot makes this visible: the coloured regions are</span>
-<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a>rectangles, the true boundary is the drawn line, and the mismatch between them</span>
-<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a>is the approximation error of the policy class, not an estimation failure.</span>
-<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a>The <span class="in">`boxplot(tt ~ pp)`</span> is the honest summary: it shows the distribution of the</span>
-<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a>*true* effect within each recommended action. A good rule puts most of the</span>
-<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a>positive-$\tau$ mass in the "treat" box.</span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(X[, <span class="dv">1</span>], X[, <span class="dv">2</span>], <span class="at">col =</span> pp)</span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="dv">0</span>, <span class="sc">-</span><span class="dv">1</span>, <span class="at">lwd =</span> <span class="dv">4</span>, <span class="at">col =</span> <span class="dv">4</span>)</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>In the example, first "causal_forest" is used to estimate the CATE.  "double_robust_scores" is used to calculate the AIPW score.  Then "policy_tree" is used to estimate the policy tree. The level of tree is set to 2.</span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>Read the fitted tree against the truth rather than on its own terms. The optimal</span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>rule is a *diagonal* boundary, $X_1 + X_2 &lt; 0$, and a depth-2 axis-aligned tree</span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>cannot represent a diagonal at all — the best it can do is approximate it with</span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a>at most three perpendicular cuts. The tree therefore splits on whichever variables happen to reduce the loss most,</span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>and because the true signal is spread across a diagonal it may not select $X_1$</span>
+<span id="cb7-130"><a href="#cb7-130" aria-hidden="true" tabindex="-1"></a>or $X_2$ at all — runs of this chunk routinely split entirely on noise</span>
+<span id="cb7-131"><a href="#cb7-131" aria-hidden="true" tabindex="-1"></a>covariates such as $X_8$ and $X_{10}$. That is worth seeing rather than</span>
+<span id="cb7-132"><a href="#cb7-132" aria-hidden="true" tabindex="-1"></a>explaining away: when the policy class cannot express the optimal rule, the</span>
+<span id="cb7-133"><a href="#cb7-133" aria-hidden="true" tabindex="-1"></a>fitted splits carry little information about which variables matter. The last plot makes this visible: the coloured regions are</span>
+<span id="cb7-134"><a href="#cb7-134" aria-hidden="true" tabindex="-1"></a>rectangles, the true boundary is the drawn line, and the mismatch between them</span>
+<span id="cb7-135"><a href="#cb7-135" aria-hidden="true" tabindex="-1"></a>is the approximation error of the policy class, not an estimation failure.</span>
 <span id="cb7-136"><a href="#cb7-136" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a>Note that this chunk sets no seed, so the covariates, the forest and therefore</span>
-<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a>the fitted splits differ on every execution. The qualitative reading above is</span>
-<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a>stable; the particular variables and cut points printed are not.</span>
+<span id="cb7-137"><a href="#cb7-137" aria-hidden="true" tabindex="-1"></a>The <span class="in">`boxplot(tt ~ pp)`</span> is the honest summary: it shows the distribution of the</span>
+<span id="cb7-138"><a href="#cb7-138" aria-hidden="true" tabindex="-1"></a>*true* effect within each recommended action. A good rule puts most of the</span>
+<span id="cb7-139"><a href="#cb7-139" aria-hidden="true" tabindex="-1"></a>positive-$\tau$ mass in the "treat" box.</span>
 <span id="cb7-140"><a href="#cb7-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
+<span id="cb7-141"><a href="#cb7-141" aria-hidden="true" tabindex="-1"></a>Note that this chunk sets no seed, so the covariates, the forest and therefore</span>
+<span id="cb7-142"><a href="#cb7-142" aria-hidden="true" tabindex="-1"></a>the fitted splits differ on every execution. The qualitative reading above is</span>
+<span id="cb7-143"><a href="#cb7-143" aria-hidden="true" tabindex="-1"></a>stable; the particular variables and cut points printed are not.</span>
+<span id="cb7-144"><a href="#cb7-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-145"><a href="#cb7-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-146"><a href="#cb7-146" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb7-147"><a href="#cb7-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-148"><a href="#cb7-148" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb7-149"><a href="#cb7-149" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/heterogeneous-effects.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/heterogeneous-effects.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

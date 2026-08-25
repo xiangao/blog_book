@@ -3,6 +3,25 @@ title: "Causal simulation"
 date: "2025-09-13"
 ---
 
+```{r}
+#| include: false
+
+# lmtp's print methods indent every line of their output. knitr then indents the
+# opening ::: cell-output container, and Pandoc renders that marker as literal
+# text rather than as a div, so ":::" appears in the published page and PDF.
+# Dedenting the captured output keeps the container flush left.
+show_lmtp <- function(x) {
+  out  <- capture.output(print(x))
+  keep <- nzchar(trimws(out))
+  if (any(keep)) {
+    pad <- min(nchar(sub("[^[:space:]].*$", "", out[keep])))
+    if (pad > 0) out <- sub(sprintf("^[[:space:]]{1,%d}", pad), "", out)
+  }
+  cat(out, sep = "\n")
+}
+```
+
+
 
 
 Evans and Didelez (2024), "Parameterizing and simulating from causal models," address the inverse problem: given a causal model, what joint distribution does it imply? The usual direction is observational data to causal structure to parameter estimates; this paper starts from the structure and asks what data it would generate.
@@ -22,13 +41,13 @@ p(x,a,y) &= p(x,a)p(y|x,a) \\
 $$ {#eq-causal-simulation-1}
 
 
-The joint distribution factorizes into the joint of $(x,a)$, the interventional marginal $p_a(y) = p(y \mid do(a))$, and the copula $c(x,y \mid a)$. The derivation starts from $p(y \mid x,a)$ and absorbs the $x$-dependence into the copula, leaving only the marginal $p_a(y)$. Each piece can be specified separately: $(x,a)$ as the "past," $p_a(y)$ as the marginal structural model, and the copula as the dependence structure between $x$ and $y$ given $a$.
+The joint distribution factorizes into the joint of $(x,a)$, the interventional marginal $p_a(y) = p(y \mid do(a))$, and the copula $c(x,y \mid a)$. The second line is where the causal content enters, and it is not an algebraic identity: replacing the observational conditional $p(y \mid x,a)$ by the interventional $p_a(y \mid x)$ requires the causal model to make them agree -- consistency together with exchangeability given $x$, or the equivalent structural condition. For an arbitrary observed joint distribution the two differ, and the rest of the factorization inherits that assumption. The derivation starts from $p(y \mid x,a)$ and absorbs the $x$-dependence into the copula, leaving only the marginal $p_a(y)$. Each piece can be specified separately: $(x,a)$ as the "past," $p_a(y)$ as the marginal structural model, and the copula as the dependence structure between $x$ and $y$ given $a$.
 
 A copula links a joint distribution to its marginals:
 
 $$ p(x,y) = f(x)g(y)c(F(x),G(y)) $$ {#eq-causal-simulation-2}
 
-where $F(x)$ and $G(y)$ are the marginal distributions of $x$ and $y$, respectively, and $c$ is the copula function that captures the dependence between $x$ and $y$.  The copula function is a multivariate distribution with uniform marginals.  It can be used to generate joint distributions from marginal distributions.
+where $F(x)$ and $G(y)$ are the marginal distribution functions of $x$ and $y$. Keep the two objects apart: the copula $C$ is a distribution function on $[0,1]^2$ with uniform marginals, and $c$ in @eq-causal-simulation-2 is its *density*, which is what multiplies $f(x)g(y)$.  It can be used to generate joint distributions from marginal distributions.
 
 Here $x$, $a$ and $y$ can all be vectors.
 
@@ -159,7 +178,7 @@ happen when the model is correctly specified.
 
 ### Plasmode simulation
 
-In reality, we have a data set and we have a causal model.  We want to simulate data from the causal model, but we want the simulated data to have the same distribution as the original data.  This is called "plasmode simulation".  For example, we don't want to use the real outcome variable.  In stead, we simulate X's from the original data, Then simulate Y and A from the causal model.  We can then test which method works better in estimating the causal effect of $A$ on $Y$.
+In reality, we have a data set and we have a causal model.  We want to simulate data from the causal model, but we want the simulated data to have the same distribution as the original data.  This is called "plasmode simulation".  For example, we don't want to use the real outcome variable.  Instead, we simulate X's from the original data, Then simulate Y and A from the causal model.  We can then test which method works better in estimating the causal effect of $A$ on $Y$.
 
 ```{r}
 #| label: plasmode
@@ -334,7 +353,7 @@ treat <- lmtp_tmle(
   learners_outcome = "SL.glm"
 )
 
-print(treat)
+show_lmtp(treat)
 
 d2 <- function(data, trt) {
   rep(0, nrow(data))
@@ -351,9 +370,9 @@ control <- lmtp_tmle(
   learners_outcome = "SL.glm"
 )
 
-print(control)
+show_lmtp(control)
 
-lmtp_contrast(treat, ref = control)
+show_lmtp(lmtp_contrast(treat, ref = control))
 
 ```
 

@@ -648,7 +648,7 @@ $dimensions
              -27.34911              -19.61966              -15.60383 </code></pre>
 </div>
 </div>
-<p>Plain DiD gives <span class="math inline">\(-27.35\)</span>, synthetic control <span class="math inline">\(-19.62\)</span>, and synthetic DiD <span class="math inline">\(-15.60\)</span>. The spread across the three is nearly twelve packs per capita, on the same data with the same identification assumptions. DiD moves furthest because it weights all 38 donors and all 19 pre-periods equally: states unlike California, and years unlike the late 1980s, all count in full.</p>
+<p>Plain DiD gives <span class="math inline">\(-27.35\)</span>, synthetic control <span class="math inline">\(-19.62\)</span>, and synthetic DiD <span class="math inline">\(-15.60\)</span>. The spread across the three is nearly twelve packs per capita, on the same data. Not, though, on the same identification assumptions: the three differ in what they require of the donor pool and the pre-period, which is part of why they disagree. DiD moves furthest because it weights all 38 donors and all 19 pre-periods equally: states unlike California, and years unlike the late 1980s, all count in full.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">plot</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/synthdid/man/synthdid_plot.html">synthdid_plot</a></span><span class="op">(</span><span class="va">estimates</span>, facet.vertical<span class="op">=</span><span class="cn">FALSE</span>,</span>
 <span>              control.name<span class="op">=</span><span class="st">'control'</span>, treated.name<span class="op">=</span><span class="st">'california'</span>,</span>
@@ -670,7 +670,7 @@ $dimensions
 <p>Each panel shows California’s path against its weighted control, with the estimated effect as the post-1989 gap. Note: <span class="math inline">\(\lambda_t\)</span> is plotted at the bottom, so the pre-periods that actually enter each comparison are visible — for synthetic DiD they pile up on 1986–1988, while for DiD the weight is flat across all nineteen years.</p>
 </section><section id="summary" class="level2" data-number="22.5"><h2 data-number="22.5" class="anchored" data-anchor-id="summary">
 <span class="header-section-number">22.5</span> Summary</h2>
-<p>To me, “DDDiD” is saying DiD is too simple. Even if all the identification assumptions are correct for DiD, namely parallel trend and no anticipation, there are still better ways to do it, in the sense of putting weights on units and time periods, such as synthetic DiD.</p>
+<p>To me, “DDDiD” is saying DiD is often too simple. That is not the same as saying a weighted estimator dominates. If parallel trends and no anticipation genuinely hold, DiD is identified, and synthetic DiD is not then a strictly better estimator – it buys robustness to a different failure mode, at the price of its own assumptions: a donor pool whose weighted pre-period path tracks the treated unit, and the low-rank or fixed-effects structure that justifies regularized unit and time weights. Nor does a closer pre-treatment fit by itself establish smaller post-treatment bias. The useful reading is that the three estimators lean on different structures, so agreement between them is informative and disagreement tells you which structure is doing the work.</p>
 <hr>
 <!-- see-also-footer --><p><em>Systematic treatment: <a href="https://xiangao.github.io/causal_econometrics_guide/g-methods.html">R</a> · <a href="https://xiangao.github.io/causal_econometrics_julia/g-methods.html">Julia</a>.</em></p>
 
@@ -1228,47 +1228,49 @@ $dimensions
 <span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>Plain DiD gives $-27.35$, synthetic control $-19.62$, and synthetic DiD</span>
 <span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>$-15.60$. The spread across the three is nearly twelve packs per capita, on the</span>
-<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>same data with the same identification assumptions. DiD moves furthest because it</span>
-<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a>weights all 38 donors and all 19 pre-periods equally: states unlike California,</span>
-<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>and years unlike the late 1980s, all count in full.</span>
-<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did16</span></span>
-<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> <span class="fu">synthdid_plot</span>(estimates, <span class="at">facet.vertical=</span><span class="cn">FALSE</span>,</span>
-<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a>              <span class="at">control.name=</span><span class="st">'control'</span>, <span class="at">treated.name=</span><span class="st">'california'</span>,</span>
-<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>              <span class="at">lambda.comparable=</span><span class="cn">TRUE</span>, <span class="at">se.method =</span> <span class="st">'none'</span>,</span>
-<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.linetype =</span> <span class="dv">1</span>, <span class="at">line.width=</span>.<span class="dv">75</span>, <span class="at">effect.curvature=</span><span class="sc">-</span>.<span class="dv">4</span>,</span>
-<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.alpha=</span>.<span class="dv">7</span>, <span class="at">effect.alpha=</span>.<span class="dv">7</span>,</span>
-<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>              <span class="at">diagram.alpha=</span><span class="dv">1</span>, <span class="at">onset.alpha=</span>.<span class="dv">7</span>) <span class="sc">+</span></span>
-<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position=</span><span class="fu">c</span>(.<span class="dv">26</span>,.<span class="dv">07</span>), <span class="at">legend.direction=</span><span class="st">'horizontal'</span>,</span>
-<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.key=</span><span class="fu">element_blank</span>(), <span class="at">legend.background=</span><span class="fu">element_blank</span>(),</span>
-<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.background=</span><span class="fu">element_blank</span>(), <span class="at">strip.text.x =</span> <span class="fu">element_blank</span>())</span>
-<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>plot</span>
-<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>same data. Not, though, on the same identification assumptions: the three differ</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a>in what they require of the donor pool and the pre-period, which is part of why</span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>they disagree. DiD moves furthest because it</span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a>weights all 38 donors and all 19 pre-periods equally: states unlike California,</span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a>and years unlike the late 1980s, all count in full.</span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: did16</span></span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> <span class="fu">synthdid_plot</span>(estimates, <span class="at">facet.vertical=</span><span class="cn">FALSE</span>,</span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>              <span class="at">control.name=</span><span class="st">'control'</span>, <span class="at">treated.name=</span><span class="st">'california'</span>,</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>              <span class="at">lambda.comparable=</span><span class="cn">TRUE</span>, <span class="at">se.method =</span> <span class="st">'none'</span>,</span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.linetype =</span> <span class="dv">1</span>, <span class="at">line.width=</span>.<span class="dv">75</span>, <span class="at">effect.curvature=</span><span class="sc">-</span>.<span class="dv">4</span>,</span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a>              <span class="at">trajectory.alpha=</span>.<span class="dv">7</span>, <span class="at">effect.alpha=</span>.<span class="dv">7</span>,</span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>              <span class="at">diagram.alpha=</span><span class="dv">1</span>, <span class="at">onset.alpha=</span>.<span class="dv">7</span>) <span class="sc">+</span></span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position=</span><span class="fu">c</span>(.<span class="dv">26</span>,.<span class="dv">07</span>), <span class="at">legend.direction=</span><span class="st">'horizontal'</span>,</span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.key=</span><span class="fu">element_blank</span>(), <span class="at">legend.background=</span><span class="fu">element_blank</span>(),</span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a>          <span class="at">strip.background=</span><span class="fu">element_blank</span>(), <span class="at">strip.text.x =</span> <span class="fu">element_blank</span>())</span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a>plot</span>
 <span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a>Each panel shows California's path against its weighted control, with the</span>
-<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a>estimated effect as the post-1989 gap. Note: $\lambda_t$ is plotted at the</span>
-<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a>bottom, so the pre-periods that actually enter each comparison are visible —</span>
-<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a>for synthetic DiD they pile up on 1986–1988, while for DiD the weight is flat</span>
-<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a>across all nineteen years.</span>
-<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a>Each panel shows California's path against its weighted control, with the</span>
+<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a>estimated effect as the post-1989 gap. Note: $\lambda_t$ is plotted at the</span>
+<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a>bottom, so the pre-periods that actually enter each comparison are visible —</span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a>for synthetic DiD they pile up on 1986–1988, while for DiD the weight is flat</span>
+<span id="cb6-130"><a href="#cb6-130" aria-hidden="true" tabindex="-1"></a>across all nineteen years.</span>
 <span id="cb6-131"><a href="#cb6-131" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a>To me, "DDDiD" is saying DiD is too simple.  Even if all the identification assumptions are correct for DiD, namely parallel trend and no anticipation, there are still better ways to do it, in the sense of putting weights on units and time periods, such as synthetic DiD.</span>
+<span id="cb6-132"><a href="#cb6-132" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
 <span id="cb6-133"><a href="#cb6-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-134"><a href="#cb6-134" aria-hidden="true" tabindex="-1"></a>To me, "DDDiD" is saying DiD is often too simple. That is not the same as saying a weighted estimator dominates. If parallel trends and no anticipation genuinely hold, DiD is identified, and synthetic DiD is not then a strictly better estimator -- it buys robustness to a different failure mode, at the price of its own assumptions: a donor pool whose weighted pre-period path tracks the treated unit, and the low-rank or fixed-effects structure that justifies regularized unit and time weights. Nor does a closer pre-treatment fit by itself establish smaller post-treatment bias. The useful reading is that the three estimators lean on different structures, so agreement between them is informative and disagreement tells you which structure is doing the work.</span>
 <span id="cb6-135"><a href="#cb6-135" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/g-methods.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/g-methods.html).*</span>
+<span id="cb6-136"><a href="#cb6-136" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb6-137"><a href="#cb6-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-138"><a href="#cb6-138" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb6-139"><a href="#cb6-139" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/g-methods.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/g-methods.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

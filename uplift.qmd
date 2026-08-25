@@ -171,8 +171,13 @@ cat("True mean CATE:     ", round(mean(tau_true), 3), "\n")
 threshold <- quantile(cate, 0.70)
 targeted  <- cate >= threshold
 
-cat("Average CATE in targeted group:", round(mean(cate[targeted]), 3), "\n")
-cat("Average CATE in non-targeted:  ", round(mean(cate[!targeted]), 3), "\n")
+# Report the estimated and the simulated-true subgroup averages side by side.
+# The first pair is what the forest predicts; the second is the truth under the
+# same targeting rule, available here only because this is a simulation.
+cat("Estimated CATE, targeted group:", round(mean(cate[targeted]), 3), "\n")
+cat("Estimated CATE, non-targeted:  ", round(mean(cate[!targeted]), 3), "\n")
+cat("True CATE,      targeted group:", round(mean(tau_true[targeted]), 3), "\n")
+cat("True CATE,      non-targeted:  ", round(mean(tau_true[!targeted]), 3), "\n")
 
 # Variable importance: which covariates drive heterogeneity?
 # variable_importance() returns a one-column matrix, so drop() it to a vector --
@@ -194,9 +199,13 @@ test_calibration(cf)
 ```
 
 The forest gives a mean estimated CATE of 0.307 against the true 0.300. Sorting
-on the estimate, the targeted group averages a true CATE of 0.858 and the
-non-targeted group 0.071 — a twelvefold separation, which is what makes the
-targeting worth doing rather than treating everyone.
+on the estimate, the targeted group averages an *estimated* CATE of 0.858 against
+0.071 for the rest. Because this is a simulation we can also look at the truth
+under that same rule: 0.872 and 0.054, a roughly sixteenfold gap where the
+estimates implied twelve. Either way the separation is wide, which is what makes
+the targeting worth doing rather than treating everyone. The estimated pair is
+what a practitioner would actually have; the true pair is available here only to
+audit the exercise.
 
 The `test_calibration()` output is a useful diagnostic. It checks whether units
 with higher predicted CATEs also appear to have higher treatment effects.

@@ -84,6 +84,10 @@ gen.sim <- function(df){
 
   # generate binary data
   p <- df['p']
+  # NB: alpha = qlogis(p) makes p the event probability at x = 0, not the
+  # marginal event probability. Because the slope on x is 2 and x ~ N(0,1),
+  # the marginal rate is much higher than p: integrating plogis(alpha + 2x)
+  # over x gives 0.044, 0.134 and 0.203 for p = 0.01, 0.05 and 0.10.
   alpha <- -log((1-p)/p)
   z = alpha + 2*x
   pr = 1/(1+exp(-z))
@@ -145,6 +149,20 @@ Since there are many simulations, we used the `snowfall` library to speed things
 
 (The original post plotted bias and MSE by sample size and event probability from the `results.csv` output above; those figures are not reproduced here — the findings are summarized in prose below.)
 
-In the case of small sample and rare event (for example, any situation that the product of sample size and probability is less than 5), none of these three models perform well.  This is understandable, after all, the rarer of the two groups has only less than 5 observations.  When the product is more than 50, there is not much difference between these three models.  For the situations in between, that is, the product of sample size and probability is greater than 5 but less than 50, we found that Firth-type bias reduction --- whether computed by `brglm2` or by `logistf` --- performs better than plain logit.  Any apparent ranking *between* those two should be discounted, since as shown above they are the same estimator; differences at that level reflect numerical tolerance or differing standard-error conventions, not a substantive advantage.
+A caveat on how to read the grid before the findings. The parameter `p` is the
+event probability at $x=0$, not the marginal event probability: with a slope of 2
+on $x \sim N(0,1)$, the marginal rate is roughly 0.044, 0.134 and 0.203 for
+`p` = 0.01, 0.05 and 0.10. So the expected number of events in a cell is closer
+to $n$ times those numbers than to $n p$, by a factor of about four at the rare
+end. What follows is stated in terms of the realized event count, which is the
+quantity that actually governs the behaviour.
+
+When the rarer of the two outcomes has only a handful of observations -- fewer
+than about five events in the sample -- none of these three models performs well.
+This is understandable: there is almost nothing in the data to identify the slope.
+Once the rarer group has more than about fifty events, there is not much
+difference between the three. In between, we found that Firth-type bias reduction
+--- whether computed by `brglm2` or by `logistf` --- performs better than plain
+logit.  Any apparent ranking *between* those two should be discounted, since as shown above they are the same estimator; differences at that level reflect numerical tolerance or differing standard-error conventions, not a substantive advantage.
 
 In the small sample situation, maybe it's better to use the exact logistic regression.

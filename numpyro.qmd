@@ -133,6 +133,10 @@ def hierarchical_fvc(pat, weeks, fvc=None):
     with numpyro.plate("patients", n_patients):
         re = numpyro.sample("re", dist.MultivariateNormal(mu_re, scale_tril=L_cov))
     alpha, beta = re[:, 0], re[:, 1]
+    # Record these as sites, or they are only local variables and
+    # mcmc.get_samples() will not contain "alpha" or "beta".
+    numpyro.deterministic("alpha", alpha)
+    numpyro.deterministic("beta", beta)
 
     # Likelihood
     mu = alpha[pat] + beta[pat] * weeks
@@ -145,17 +149,18 @@ mcmc.run(jax.random.PRNGKey(0), pat, weeks, fvc)
 mcmc.print_summary()
 ```
 
-The `mcmc.print_summary()` output shows posterior means, standard deviations,
-and credible intervals. Approximate output looks like this:
+`mcmc.print_summary()` reports posterior means, standard deviations and credible
+intervals for each site: `mu_alpha`, `mu_beta`, the two-vector `sigma_re`,
+`L_corr`, and `sigma_obs`.
 
-```
-                mean       std    median      5.0%     95.0%     n_eff     r_hat
-mu_alpha     2678.4      12.3    2678.2    2657.8    2699.3    1842.1      1.00
-mu_beta        -2.34      0.18    -2.34     -2.64     -2.05    2103.4      1.00
-sigma_alpha   368.2      11.1    367.4     349.9     386.8     1654.3      1.00
-sigma_beta      2.89      0.14     2.89      2.66      3.12    2234.5      1.00
-sigma_obs     208.1       2.9    208.1     203.5     212.8     2891.2      1.00
-```
+No output is shown here, and that is deliberate. This chapter's Python is not
+executed during the render, so any table printed at this point would be written
+by hand rather than produced by the model. An earlier version of this section did
+exactly that, and the invented numbers drifted away from the model in two visible
+ways: they reported `sigma_alpha` and `sigma_beta`, which this parameterization
+does not create -- it has the vector site `sigma_re` -- and they disagreed with
+the `lme4` fixed effects fitted above. Treat the code below as a sketch of the
+comparison, not as a record of one that was run.
 
 ```{python}
 #| eval: false
@@ -167,9 +172,9 @@ samples = mcmc.get_samples()
 print("Numpyro posterior mean mu_alpha:", jnp.mean(samples["mu_alpha"]).item())
 print("Numpyro posterior mean mu_beta: ", jnp.mean(samples["mu_beta"]).item())
 print()
-print("lme4 fixed effects:")
-print("  Intercept:", 2678.3)   # from R summary(reg1)
-print("  Weeks:    ", -2.34)
+print("lme4 fixed effects (from summary(reg1) above):")
+print("  Intercept:", 2810.3)
+print("  Weeks:    ", -4.263)
 
 # Posterior predictive for a single patient
 p0_alpha = samples["alpha"][:, 0]   # patient 0 intercept samples
@@ -190,7 +195,7 @@ print(f"  90% CI: [{jnp.quantile(fvc_pred, 0.05):.1f}, {jnp.quantile(fvc_pred, 0
 |---|---|---|
 | Estimation | REML (restricted maximum likelihood) | MCMC (full posterior) |
 | Output | Point estimates + SE | Full posterior distributions |
-| Uncertainty | Approximate (Wald-type CI) | Exact posterior credible intervals |
+| Uncertainty | Approximate (Wald-type CI) | Simulation-based posterior credible intervals |
 | Computation | Fast (seconds) | Slower (minutes for 1000 samples) |
 | Prediction | `predict()` gives point estimates | Posterior predictive — full distribution |
 
