@@ -72,7 +72,7 @@ ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
 
 In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the control-function residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.
 
-To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.
+To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent --- see [why the linear first stage stops working](#why-the-linear-first-stage-stops-working) below for exactly which assumption fails and why --- and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.
 
 
 ```{stata}
@@ -147,6 +147,60 @@ for the approximation, so it is the least settled material in this chapter.  Bot
 otherwise: Procedure 3's first stage is *linear*, and the companion probit procedure in the same
 paper states outright that the endogenous variable is assumed continuous.  The binary case appears only
 in that paper's final section, on extensions and future directions.
+
+### Why the linear first stage stops working
+
+It is worth being precise about what fails, because the linear first stage does not simply become
+*less accurate* for a binary endogenous variable --- the assumption behind it cannot hold at all.
+
+The control function rests on writing $y_{it2} = z_{it}\pi_2 + v_{it2}$ with $v_{it2}$
+**independent** of $z_{it}$.  That is an assumption about the reduced form, not something OLS
+delivers.  The linear projection always produces a residual *uncorrelated* with $z$; independence is
+much stronger, and independence is what the argument needs.  Wooldridge flags the gap where he states
+the assumption (2010, p. 743): "We could relax the independence assumptions to some degree, but we
+cannot just assume that $v_2$ is uncorrelated with $\mathbf z$ and that $e_1$ is uncorrelated with
+$v_2$."
+
+Why the stronger condition?  Because of the exponential.  Writing the heterogeneity as
+$c_1 = \rho_1 v_2 + e_1$ and substituting into the exponential mean leaves a factor
+$E[\exp(e_1)\mid z, y_2, v_2]$, and the control-function mean holds only if that factor is a
+*constant* --- which is why Wooldridge normalises $E[\exp(e_1)] = 1$ rather than $E(e_1) = 0$.  That
+is a condition on the moment generating function, hence on every moment at once.  The linear model
+needs only $E[z'\varepsilon] = 0$, a single moment, which the projection supplies for free.  This is
+the same fact as "control function $=$ 2SLS in a linear model but not in Poisson", seen from the
+assumption side rather than the algebra: $\exp(\cdot)$ turns a moment condition into a distributional
+one.
+
+For a binary $y_{it2}$ the stronger condition then fails by construction.  Conditional on $z$, the
+residual $v_2 = y_2 - z\pi_2$ takes exactly two values, $1 - z\pi_2$ and $-z\pi_2$, and **both slide
+as $z$ changes**, as do the probabilities of landing on them.  A distribution whose support moves
+with $z$ cannot be independent of $z$ --- unless $\pi_2 = 0$, in which case there is no first stage.
+Wooldridge (2010, p. 746) states the conclusion: the independence assumption "rules out most cases
+where $y_2$ has some discreteness, such as with binary, count, or corner responses… it would be very
+unusual for a discrete variable to be expressible as a linear equation with additive error
+independent of $\mathbf z$."
+
+One caution about *why* it fails, because the obvious version of the argument proves too much.  The
+problem is not that the residual is discrete --- the generalized residual below is two-valued given
+$z$ as well.  What differs is *which object* independence is asserted about.  The linear route
+asserts it of the observed $v_2$, whose support moves with $z$; the probit route asserts it of the
+continuous latent error, $v_2 \mid z \sim N(0,1)$, which is the assumption every probit already makes.
+The fix is not to find a continuous control function but to relocate the assumption to a latent
+variable where it is plausible.
+
+**What survives is the test, not the correction.**  This is worth keeping, because the linear first
+stage remains genuinely useful.  Wooldridge (2010, p. 744): "under the null hypothesis none of the
+assumptions we made about $(c_1, v_2)$ need to hold… Therefore, as a test, this procedure is very
+robust, and it can be applied when $y_2$ contains binary, count, or other discrete variables.
+Unfortunately, if $y_2$ is endogenous, the correction does not work without something like the
+assumptions made previously."  Under $H_0: \rho = 0$ there is no endogeneity left to approximate, so
+no reduced-form assumption is needed.  Use the linear residual to *test* for endogeneity; do not use
+it to *correct* for it.
+
+A fuller treatment --- Terza's exact correction, the Taylor expansion that makes the generalized
+residual its first-order approximation, and simulations comparing the three estimators --- is in the
+[Poisson IV chapter](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) of the
+*Causal Econometrics Guide*.
 
 What is offered there is the **generalized residual** from a reduced-form probit in
 $w_{it} = (1, z_{it}, \bar z_i)$ --- the instrument, the time-varying exogenous controls, and their unit

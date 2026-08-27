@@ -683,7 +683,7 @@ Absorbed degrees of freedom:
 </div>
 </div>
 <p>In this example, “time” is the endogenous variable, and “phone” is the instrument. We first run the first stage regression with “reghdfe”, and get the control-function residual “u2h_fe”. Then we include “time” and “u2h_fe” in the second stage regression with “ppmlhdfe”. “ad” and “female” are two fixed effects. The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.</p>
-<p>To verify our control function approach, we do the same with a linear model. A word of caution on “it just works”: for the <em>linear</em> model, inserting the first-stage residual is the standard 2SLS-equivalent control function. For the <em>Poisson</em> model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch.&nbsp;18) assumes: a <strong>continuous</strong> endogenous variable, a <strong>linear</strong> first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption). Outside that structure (e.g.&nbsp;a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above). There is a package “ivreghdfe” we use to verify our two step process.</p>
+<p>To verify our control function approach, we do the same with a linear model. A word of caution on “it just works”: for the <em>linear</em> model, inserting the first-stage residual is the standard 2SLS-equivalent control function. For the <em>Poisson</em> model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch.&nbsp;18) assumes: a <strong>continuous</strong> endogenous variable, a <strong>linear</strong> first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption). Outside that structure (e.g.&nbsp;a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent — see <a href="#why-the-linear-first-stage-stops-working">why the linear first stage stops working</a> below for exactly which assumption fails and why — and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above). There is a package “ivreghdfe” we use to verify our two step process.</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">clear</span> <span class="ot">all</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">webuse</span> website</span>
@@ -866,6 +866,15 @@ Bootstrap results                                          Number of obs = 499
 </section><section id="what-if-the-endogenous-variable-is-binary" class="level2" data-number="26.6"><h2 data-number="26.6" class="anchored" data-anchor-id="what-if-the-endogenous-variable-is-binary">
 <span class="header-section-number">26.6</span> What if the endogenous variable is binary?</h2>
 <p>Wooldridge treats this case only in a section on extensions and future directions, and declines to vouch for the approximation, so it is the least settled material in this chapter. Both procedures above assume otherwise: Procedure 3’s first stage is <em>linear</em>, and the companion probit procedure in the same paper states outright that the endogenous variable is assumed continuous. The binary case appears only in that paper’s final section, on extensions and future directions.</p>
+<section id="why-the-linear-first-stage-stops-working" class="level3" data-number="26.6.1"><h3 data-number="26.6.1" class="anchored" data-anchor-id="why-the-linear-first-stage-stops-working">
+<span class="header-section-number">26.6.1</span> Why the linear first stage stops working</h3>
+<p>It is worth being precise about what fails, because the linear first stage does not simply become <em>less accurate</em> for a binary endogenous variable — the assumption behind it cannot hold at all.</p>
+<p>The control function rests on writing <span class="math inline">\(y_{it2} = z_{it}\pi_2 + v_{it2}\)</span> with <span class="math inline">\(v_{it2}\)</span> <strong>independent</strong> of <span class="math inline">\(z_{it}\)</span>. That is an assumption about the reduced form, not something OLS delivers. The linear projection always produces a residual <em>uncorrelated</em> with <span class="math inline">\(z\)</span>; independence is much stronger, and independence is what the argument needs. Wooldridge flags the gap where he states the assumption (2010, p.&nbsp;743): “We could relax the independence assumptions to some degree, but we cannot just assume that <span class="math inline">\(v_2\)</span> is uncorrelated with <span class="math inline">\(\mathbf z\)</span> and that <span class="math inline">\(e_1\)</span> is uncorrelated with <span class="math inline">\(v_2\)</span>.”</p>
+<p>Why the stronger condition? Because of the exponential. Writing the heterogeneity as <span class="math inline">\(c_1 = \rho_1 v_2 + e_1\)</span> and substituting into the exponential mean leaves a factor <span class="math inline">\(E[\exp(e_1)\mid z, y_2, v_2]\)</span>, and the control-function mean holds only if that factor is a <em>constant</em> — which is why Wooldridge normalises <span class="math inline">\(E[\exp(e_1)] = 1\)</span> rather than <span class="math inline">\(E(e_1) = 0\)</span>. That is a condition on the moment generating function, hence on every moment at once. The linear model needs only <span class="math inline">\(E[z'\varepsilon] = 0\)</span>, a single moment, which the projection supplies for free. This is the same fact as “control function <span class="math inline">\(=\)</span> 2SLS in a linear model but not in Poisson”, seen from the assumption side rather than the algebra: <span class="math inline">\(\exp(\cdot)\)</span> turns a moment condition into a distributional one.</p>
+<p>For a binary <span class="math inline">\(y_{it2}\)</span> the stronger condition then fails by construction. Conditional on <span class="math inline">\(z\)</span>, the residual <span class="math inline">\(v_2 = y_2 - z\pi_2\)</span> takes exactly two values, <span class="math inline">\(1 - z\pi_2\)</span> and <span class="math inline">\(-z\pi_2\)</span>, and <strong>both slide as <span class="math inline">\(z\)</span> changes</strong>, as do the probabilities of landing on them. A distribution whose support moves with <span class="math inline">\(z\)</span> cannot be independent of <span class="math inline">\(z\)</span> — unless <span class="math inline">\(\pi_2 = 0\)</span>, in which case there is no first stage. Wooldridge (2010, p.&nbsp;746) states the conclusion: the independence assumption “rules out most cases where <span class="math inline">\(y_2\)</span> has some discreteness, such as with binary, count, or corner responses… it would be very unusual for a discrete variable to be expressible as a linear equation with additive error independent of <span class="math inline">\(\mathbf z\)</span>.”</p>
+<p>One caution about <em>why</em> it fails, because the obvious version of the argument proves too much. The problem is not that the residual is discrete — the generalized residual below is two-valued given <span class="math inline">\(z\)</span> as well. What differs is <em>which object</em> independence is asserted about. The linear route asserts it of the observed <span class="math inline">\(v_2\)</span>, whose support moves with <span class="math inline">\(z\)</span>; the probit route asserts it of the continuous latent error, <span class="math inline">\(v_2 \mid z \sim N(0,1)\)</span>, which is the assumption every probit already makes. The fix is not to find a continuous control function but to relocate the assumption to a latent variable where it is plausible.</p>
+<p><strong>What survives is the test, not the correction.</strong> This is worth keeping, because the linear first stage remains genuinely useful. Wooldridge (2010, p.&nbsp;744): “under the null hypothesis none of the assumptions we made about <span class="math inline">\((c_1, v_2)\)</span> need to hold… Therefore, as a test, this procedure is very robust, and it can be applied when <span class="math inline">\(y_2\)</span> contains binary, count, or other discrete variables. Unfortunately, if <span class="math inline">\(y_2\)</span> is endogenous, the correction does not work without something like the assumptions made previously.” Under <span class="math inline">\(H_0: \rho = 0\)</span> there is no endogeneity left to approximate, so no reduced-form assumption is needed. Use the linear residual to <em>test</em> for endogeneity; do not use it to <em>correct</em> for it.</p>
+<p>A fuller treatment — Terza’s exact correction, the Taylor expansion that makes the generalized residual its first-order approximation, and simulations comparing the three estimators — is in the <a href="https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html">Poisson IV chapter</a> of the <em>Causal Econometrics Guide</em>.</p>
 <p>What is offered there is the <strong>generalized residual</strong> from a reduced-form probit in <span class="math inline">\(w_{it} = (1, z_{it}, \bar z_i)\)</span> — the instrument, the time-varying exogenous controls, and their unit means:</p>
 <p><span id="eq-poisson-iv-fe-1"><span class="math display">\[ \widehat{gr}_{it2} = y_{it2}\,\lambda(w_{it}\hat\theta_2) - (1-y_{it2})\,\lambda(-w_{it}\hat\theta_2)  \tag{26.1}\]</span></span></p>
 <p>where <span class="math inline">\(\lambda\)</span> is the inverse Mills ratio. For a <strong>logit</strong> first stage the generalized residual collapses algebraically to the plain response residual <span class="math inline">\(y_{it2} - \hat p_{it2}\)</span>, so the familiar “predicted probability, then subtract” recipe is the generalized residual, not an approximation to it.</p>
@@ -873,15 +882,15 @@ Bootstrap results                                          Number of obs = 499
 <p>One practical warning follows. What you want is the <strong>response</strong> residual — predict the probability, then subtract — and <code>predict</code> on its own returns a probability, not a residual. The other residuals on offer after a binary model are not the generalized residual either: Pearson residuals divide through by <span class="math inline">\(\sqrt{\hat p (1-\hat p)}\)</span>, and deviance residuals are a different transformation again. In the same simulation those correlate with the response residual at 0.991 and 0.995 — close enough to look correct if you glance at them, and the wrong variable to put in the second stage.</p>
 <p>A note on the name, because it misleads. This construction is usually filed under <strong>correlated random effects</strong> (CRE), and that is how to find it in the literature — see the <a href="./more-cre.html">CRE chapter</a>. The name describes the <em>assumption</em>: heterogeneity is modelled as a function of the group means and allowed to correlate with the regressors, instead of being treated as a free parameter. It does not describe the estimator. The first stage below is a <strong>pooled logit</strong> with the group means added as regressors. No random effect is estimated, no variance component appears, and nothing is integrated out. Below it is labelled “CRE (Mundlak device)” so that both names stay visible: the first tells you where to look it up, the second tells you what is actually computed.</p>
 <p>Two caveats should be stated plainly. The construction is introduced as “a simple example”, and is immediately followed by: “The Mundlak device, or Chamberlain’s version of it, might work reasonably well, but neither might be flexible enough. We leave investigations into the quality of CF approximations in discrete cases to future research.” So this is the construction to use, but it is not a settled result. If you are worried the specification is too rigid, the same paper suggests adding nonlinear functions of the conditioning set — in particular interactions of the covariates with the unit means, and with the control function itself — or letting the variance depend on the unit means via a heteroskedastic probit.</p>
-<section id="several-fixed-effects-in-the-first-stage" class="level3" data-number="26.6.1"><h3 data-number="26.6.1" class="anchored" data-anchor-id="several-fixed-effects-in-the-first-stage">
-<span class="header-section-number">26.6.1</span> Several fixed effects in the first stage</h3>
+</section><section id="several-fixed-effects-in-the-first-stage" class="level3" data-number="26.6.2"><h3 data-number="26.6.2" class="anchored" data-anchor-id="several-fixed-effects-in-the-first-stage">
+<span class="header-section-number">26.6.2</span> Several fixed effects in the first stage</h3>
 <p>The expression <span class="math inline">\(w_{it} = (1, z_{it}, \bar z_i)\)</span> above is written for a single unobserved effect. If the second stage absorbs more than one set of fixed effects — units, years, and something else — the first stage needs the treatment set out in the <a href="./mundlak-device.html">Mundlak chapter</a>, where the CRE construction is the Mundlak device: take means over the <em>one</em> dimension you are eliminating, of everything else in the model, retained dummies included. In practice that means unit means of the instrument and the time-varying controls, plus unit means of the year and other dummies, with those dummies themselves kept in levels. You do not want one set of means per dimension; that construction is exact only for orthogonal designs, which observational panels do not have.</p>
-</section><section id="why-not-just-put-the-dummies-in-the-first-stage" class="level3" data-number="26.6.2"><h3 data-number="26.6.2" class="anchored" data-anchor-id="why-not-just-put-the-dummies-in-the-first-stage">
-<span class="header-section-number">26.6.2</span> Why not just put the dummies in the first stage?</h3>
+</section><section id="why-not-just-put-the-dummies-in-the-first-stage" class="level3" data-number="26.6.3"><h3 data-number="26.6.3" class="anchored" data-anchor-id="why-not-just-put-the-dummies-in-the-first-stage">
+<span class="header-section-number">26.6.3</span> Why not just put the dummies in the first stage?</h3>
 <p>Because a logit with many thin groups is badly biased, and this is the whole reason the Mundlak route is needed. The size of the problem depends on observations per group, not on the number of groups. In a simulation with the total sample held near 12,000 and a true slope of 1, a logit with group dummies returns about 2.0 at two observations per group — matching the known result that the fixed-effects logit slope is inflated by a factor of two in that case — about 1.37 at four observations per group, 1.15 at six, 1.04 at twenty-five, and essentially the truth by a hundred. A panel with a few thousand units and four or five observations each therefore sits in the worst part of that range, while year effects with hundreds of observations apiece are harmless and can simply be estimated.</p>
 <p>The CRE (Mundlak device) first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at small group sizes, because integrating a logit over normal heterogeneity does not give a logit. That is the same approximation error the previous section’s caveat refers to, arriving from a different direction.</p>
-</section><section id="a-worked-example" class="level3" data-number="26.6.3"><h3 data-number="26.6.3" class="anchored" data-anchor-id="a-worked-example">
-<span class="header-section-number">26.6.3</span> A worked example</h3>
+</section><section id="a-worked-example" class="level3" data-number="26.6.4"><h3 data-number="26.6.4" class="anchored" data-anchor-id="a-worked-example">
+<span class="header-section-number">26.6.4</span> A worked example</h3>
 <p>The <code>website</code> data used earlier does not have the shape that causes trouble — its fixed effects have 13 and 2 levels, with roughly 90 observations each, so a logit with dummies would be perfectly well behaved there. This simulates something more awkward instead: a count outcome, a binary endogenous regressor, an instrument, and two thousand units with between two and six observations each.</p>
 <div class="cell" data-collectcode="true">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode stata code-with-copy"><code class="sourceCode stata"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">preserve</span></span>
@@ -1506,7 +1515,7 @@ CF, linear FE first stage       = 0.277644</code></pre>
 <span id="cb9-78"><a href="#cb9-78" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a>In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the control-function residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.</span>
 <span id="cb9-80"><a href="#cb9-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-81"><a href="#cb9-81" aria-hidden="true" tabindex="-1"></a>To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent, and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.</span>
+<span id="cb9-81"><a href="#cb9-81" aria-hidden="true" tabindex="-1"></a>To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent --- see <span class="co">[</span><span class="ot">why the linear first stage stops working</span><span class="co">](#why-the-linear-first-stage-stops-working)</span> below for exactly which assumption fails and why --- and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.</span>
 <span id="cb9-82"><a href="#cb9-82" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-83"><a href="#cb9-83" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-86"><a href="#cb9-86" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
@@ -1582,149 +1591,203 @@ CF, linear FE first stage       = 0.277644</code></pre>
 <span id="cb9-158"><a href="#cb9-158" aria-hidden="true" tabindex="-1"></a>paper states outright that the endogenous variable is assumed continuous.  The binary case appears only</span>
 <span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a>in that paper's final section, on extensions and future directions.</span>
 <span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a>What is offered there is the **generalized residual** from a reduced-form probit in</span>
-<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a>$w_{it} = (1, z_{it}, \bar z_i)$ --- the instrument, the time-varying exogenous controls, and their unit</span>
-<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a>means:</span>
-<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a>$$ \widehat{gr}_{it2} = y_{it2}\,\lambda(w_{it}\hat\theta_2) - (1-y_{it2})\,\lambda(-w_{it}\hat\theta_2) $$ {#eq-poisson-iv-fe-1}</span>
-<span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a>where $\lambda$ is the inverse Mills ratio.  For a **logit** first stage the generalized residual</span>
-<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a>collapses algebraically to the plain response residual $y_{it2} - \hat p_{it2}$, so the familiar</span>
-<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a>"predicted probability, then subtract" recipe is the generalized residual, not an approximation to it.</span>
-<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a>The reason for that collapse is worth knowing, because it tells you when the shortcut stops working.  The</span>
-<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>generalized residual is the score of the log-likelihood with respect to the index.  For a logit that score</span>
-<span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a>*is* $y_{it2} - \hat p_{it2}$.  For a probit it is the inverse Mills expression above, which is a</span>
-<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a>genuinely different variable: in a simulated sample of 5,000 the two differ by as much as 1.59, while</span>
-<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>correlating at 0.999.  So the subtraction recipe is exact for a logit and simply wrong for a probit, and</span>
-<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a>the high correlation means the mistake will not announce itself.</span>
-<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a>One practical warning follows.  What you want is the **response** residual --- predict the probability,</span>
-<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a>then subtract --- and <span class="in">`predict`</span> on its own returns a probability, not a residual.  The other residuals on</span>
-<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a>offer after a binary model are not the generalized residual either: Pearson residuals divide through by</span>
-<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a>$\sqrt{\hat p (1-\hat p)}$, and deviance residuals are a different transformation again.  In the same</span>
-<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a>simulation those correlate with the response residual at 0.991 and 0.995 --- close enough to look correct</span>
-<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a>if you glance at them, and the wrong variable to put in the second stage.</span>
-<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a>A note on the name, because it misleads.  This construction is usually filed under **correlated random</span>
-<span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a>effects** (CRE), and that is how to find it in the literature --- see the <span class="co">[</span><span class="ot">CRE chapter</span><span class="co">](more-cre.qmd)</span>.</span>
-<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a>The name describes the *assumption*: heterogeneity is modelled as a function of the group means and</span>
-<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a>allowed to correlate with the regressors, instead of being treated as a free parameter.  It does not</span>
-<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a>describe the estimator.  The first stage below is a **pooled logit** with the group means added as</span>
-<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a>regressors.  No random effect is estimated, no variance component appears, and nothing is integrated</span>
-<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a>out.  Below it is labelled "CRE (Mundlak device)" so that both names stay visible: the first tells you</span>
-<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a>where to look it up, the second tells you what is actually computed.</span>
-<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a>Two caveats should be stated plainly.  The construction is introduced as "a simple example", and is immediately followed</span>
-<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a>by: "The Mundlak device, or Chamberlain's version of it, might work reasonably well, but neither might be</span>
-<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a>flexible enough.  We leave investigations into the quality of CF approximations in discrete cases to</span>
-<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a>future research."  So this is the construction to use, but it is not a settled result.  If you are worried</span>
-<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a>the specification is too rigid, the same paper suggests adding nonlinear functions of the conditioning</span>
-<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a>set --- in particular interactions of the covariates with the unit means, and with the control function</span>
-<span id="cb9-200"><a href="#cb9-200" aria-hidden="true" tabindex="-1"></a>itself --- or letting the variance depend on the unit means via a heteroskedastic probit.</span>
-<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a><span class="fu">### Several fixed effects in the first stage</span></span>
-<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a>The expression $w_{it} = (1, z_{it}, \bar z_i)$ above is written for a single unobserved effect.  If the</span>
-<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a>second stage absorbs more than one set of fixed effects --- units, years, and something else --- the</span>
-<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a>first stage needs the treatment set out in the <span class="co">[</span><span class="ot">Mundlak chapter</span><span class="co">](mundlak-device.qmd)</span>, where the CRE</span>
-<span id="cb9-207"><a href="#cb9-207" aria-hidden="true" tabindex="-1"></a>construction is the Mundlak device: take means over the</span>
-<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a>*one* dimension you are eliminating, of everything else in the model, retained dummies included.  In</span>
-<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a>practice that means unit means of the instrument and the time-varying controls, plus unit means of the</span>
-<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a>year and other dummies, with those dummies themselves kept in levels.  You do not want one set of means</span>
-<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a>per dimension; that construction is exact only for orthogonal designs, which observational panels do not</span>
-<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a>have.</span>
-<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-214"><a href="#cb9-214" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why not just put the dummies in the first stage?</span></span>
-<span id="cb9-215"><a href="#cb9-215" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a>Because a logit with many thin groups is badly biased, and this is the whole reason the Mundlak route is</span>
-<span id="cb9-217"><a href="#cb9-217" aria-hidden="true" tabindex="-1"></a>needed.  The size of the problem depends on observations per group, not on the number of groups.  In a</span>
-<span id="cb9-218"><a href="#cb9-218" aria-hidden="true" tabindex="-1"></a>simulation with the total sample held near 12,000 and a true slope of 1, a logit with group dummies</span>
-<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a>returns about 2.0 at two observations per group --- matching the known result that the fixed-effects</span>
-<span id="cb9-220"><a href="#cb9-220" aria-hidden="true" tabindex="-1"></a>logit slope is inflated by a factor of two in that case --- about 1.37 at four observations per group,</span>
-<span id="cb9-221"><a href="#cb9-221" aria-hidden="true" tabindex="-1"></a>1.15 at six, 1.04 at twenty-five, and essentially the truth by a hundred.  A panel with a few thousand</span>
-<span id="cb9-222"><a href="#cb9-222" aria-hidden="true" tabindex="-1"></a>units and four or five observations each therefore sits in the worst part of that range, while year</span>
-<span id="cb9-223"><a href="#cb9-223" aria-hidden="true" tabindex="-1"></a>effects with hundreds of observations apiece are harmless and can simply be estimated.</span>
+<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why the linear first stage stops working</span></span>
+<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a>It is worth being precise about what fails, because the linear first stage does not simply become</span>
+<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a>*less accurate* for a binary endogenous variable --- the assumption behind it cannot hold at all.</span>
+<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a>The control function rests on writing $y_{it2} = z_{it}\pi_2 + v_{it2}$ with $v_{it2}$</span>
+<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a>**independent** of $z_{it}$.  That is an assumption about the reduced form, not something OLS</span>
+<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a>delivers.  The linear projection always produces a residual *uncorrelated* with $z$; independence is</span>
+<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a>much stronger, and independence is what the argument needs.  Wooldridge flags the gap where he states</span>
+<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a>the assumption (2010, p. 743): "We could relax the independence assumptions to some degree, but we</span>
+<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a>cannot just assume that $v_2$ is uncorrelated with $\mathbf z$ and that $e_1$ is uncorrelated with</span>
+<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>$v_2$."</span>
+<span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a>Why the stronger condition?  Because of the exponential.  Writing the heterogeneity as</span>
+<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>$c_1 = \rho_1 v_2 + e_1$ and substituting into the exponential mean leaves a factor</span>
+<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a>$E<span class="co">[</span><span class="ot">\exp(e_1)\mid z, y_2, v_2</span><span class="co">]</span>$, and the control-function mean holds only if that factor is a</span>
+<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a>*constant* --- which is why Wooldridge normalises $E<span class="co">[</span><span class="ot">\exp(e_1)</span><span class="co">]</span> = 1$ rather than $E(e_1) = 0$.  That</span>
+<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a>is a condition on the moment generating function, hence on every moment at once.  The linear model</span>
+<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a>needs only $E<span class="co">[</span><span class="ot">z'\varepsilon</span><span class="co">]</span> = 0$, a single moment, which the projection supplies for free.  This is</span>
+<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a>the same fact as "control function $=$ 2SLS in a linear model but not in Poisson", seen from the</span>
+<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a>assumption side rather than the algebra: $\exp(\cdot)$ turns a moment condition into a distributional</span>
+<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a>one.</span>
+<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a>For a binary $y_{it2}$ the stronger condition then fails by construction.  Conditional on $z$, the</span>
+<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a>residual $v_2 = y_2 - z\pi_2$ takes exactly two values, $1 - z\pi_2$ and $-z\pi_2$, and **both slide</span>
+<span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a>as $z$ changes**, as do the probabilities of landing on them.  A distribution whose support moves</span>
+<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a>with $z$ cannot be independent of $z$ --- unless $\pi_2 = 0$, in which case there is no first stage.</span>
+<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a>Wooldridge (2010, p. 746) states the conclusion: the independence assumption "rules out most cases</span>
+<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a>where $y_2$ has some discreteness, such as with binary, count, or corner responses… it would be very</span>
+<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a>unusual for a discrete variable to be expressible as a linear equation with additive error</span>
+<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a>independent of $\mathbf z$."</span>
+<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a>One caution about *why* it fails, because the obvious version of the argument proves too much.  The</span>
+<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a>problem is not that the residual is discrete --- the generalized residual below is two-valued given</span>
+<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a>$z$ as well.  What differs is *which object* independence is asserted about.  The linear route</span>
+<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a>asserts it of the observed $v_2$, whose support moves with $z$; the probit route asserts it of the</span>
+<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a>continuous latent error, $v_2 \mid z \sim N(0,1)$, which is the assumption every probit already makes.</span>
+<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a>The fix is not to find a continuous control function but to relocate the assumption to a latent</span>
+<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a>variable where it is plausible.</span>
+<span id="cb9-200"><a href="#cb9-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a>**What survives is the test, not the correction.**  This is worth keeping, because the linear first</span>
+<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a>stage remains genuinely useful.  Wooldridge (2010, p. 744): "under the null hypothesis none of the</span>
+<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a>assumptions we made about $(c_1, v_2)$ need to hold… Therefore, as a test, this procedure is very</span>
+<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a>robust, and it can be applied when $y_2$ contains binary, count, or other discrete variables.</span>
+<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a>Unfortunately, if $y_2$ is endogenous, the correction does not work without something like the</span>
+<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a>assumptions made previously."  Under $H_0: \rho = 0$ there is no endogeneity left to approximate, so</span>
+<span id="cb9-207"><a href="#cb9-207" aria-hidden="true" tabindex="-1"></a>no reduced-form assumption is needed.  Use the linear residual to *test* for endogeneity; do not use</span>
+<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a>it to *correct* for it.</span>
+<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a>A fuller treatment --- Terza's exact correction, the Taylor expansion that makes the generalized</span>
+<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a>residual its first-order approximation, and simulations comparing the three estimators --- is in the</span>
+<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">Poisson IV chapter</span><span class="co">](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html)</span> of the</span>
+<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a>*Causal Econometrics Guide*.</span>
+<span id="cb9-214"><a href="#cb9-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-215"><a href="#cb9-215" aria-hidden="true" tabindex="-1"></a>What is offered there is the **generalized residual** from a reduced-form probit in</span>
+<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a>$w_{it} = (1, z_{it}, \bar z_i)$ --- the instrument, the time-varying exogenous controls, and their unit</span>
+<span id="cb9-217"><a href="#cb9-217" aria-hidden="true" tabindex="-1"></a>means:</span>
+<span id="cb9-218"><a href="#cb9-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a>$$ \widehat{gr}_{it2} = y_{it2}\,\lambda(w_{it}\hat\theta_2) - (1-y_{it2})\,\lambda(-w_{it}\hat\theta_2) $$ {#eq-poisson-iv-fe-1}</span>
+<span id="cb9-220"><a href="#cb9-220" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-221"><a href="#cb9-221" aria-hidden="true" tabindex="-1"></a>where $\lambda$ is the inverse Mills ratio.  For a **logit** first stage the generalized residual</span>
+<span id="cb9-222"><a href="#cb9-222" aria-hidden="true" tabindex="-1"></a>collapses algebraically to the plain response residual $y_{it2} - \hat p_{it2}$, so the familiar</span>
+<span id="cb9-223"><a href="#cb9-223" aria-hidden="true" tabindex="-1"></a>"predicted probability, then subtract" recipe is the generalized residual, not an approximation to it.</span>
 <span id="cb9-224"><a href="#cb9-224" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-225"><a href="#cb9-225" aria-hidden="true" tabindex="-1"></a>The CRE (Mundlak device) first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at</span>
-<span id="cb9-226"><a href="#cb9-226" aria-hidden="true" tabindex="-1"></a>small group sizes, because integrating a logit over normal heterogeneity does not give a logit.  That is</span>
-<span id="cb9-227"><a href="#cb9-227" aria-hidden="true" tabindex="-1"></a>the same approximation error the previous section's caveat refers to, arriving from a different</span>
-<span id="cb9-228"><a href="#cb9-228" aria-hidden="true" tabindex="-1"></a>direction.</span>
-<span id="cb9-229"><a href="#cb9-229" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-230"><a href="#cb9-230" aria-hidden="true" tabindex="-1"></a><span class="fu">### A worked example</span></span>
+<span id="cb9-225"><a href="#cb9-225" aria-hidden="true" tabindex="-1"></a>The reason for that collapse is worth knowing, because it tells you when the shortcut stops working.  The</span>
+<span id="cb9-226"><a href="#cb9-226" aria-hidden="true" tabindex="-1"></a>generalized residual is the score of the log-likelihood with respect to the index.  For a logit that score</span>
+<span id="cb9-227"><a href="#cb9-227" aria-hidden="true" tabindex="-1"></a>*is* $y_{it2} - \hat p_{it2}$.  For a probit it is the inverse Mills expression above, which is a</span>
+<span id="cb9-228"><a href="#cb9-228" aria-hidden="true" tabindex="-1"></a>genuinely different variable: in a simulated sample of 5,000 the two differ by as much as 1.59, while</span>
+<span id="cb9-229"><a href="#cb9-229" aria-hidden="true" tabindex="-1"></a>correlating at 0.999.  So the subtraction recipe is exact for a logit and simply wrong for a probit, and</span>
+<span id="cb9-230"><a href="#cb9-230" aria-hidden="true" tabindex="-1"></a>the high correlation means the mistake will not announce itself.</span>
 <span id="cb9-231"><a href="#cb9-231" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-232"><a href="#cb9-232" aria-hidden="true" tabindex="-1"></a>The <span class="in">`website`</span> data used earlier does not have the shape that causes trouble --- its fixed effects have 13</span>
-<span id="cb9-233"><a href="#cb9-233" aria-hidden="true" tabindex="-1"></a>and 2 levels, with roughly 90 observations each, so a logit with dummies would be perfectly well behaved</span>
-<span id="cb9-234"><a href="#cb9-234" aria-hidden="true" tabindex="-1"></a>there.  This simulates something more awkward instead: a count outcome, a binary endogenous regressor, an</span>
-<span id="cb9-235"><a href="#cb9-235" aria-hidden="true" tabindex="-1"></a>instrument, and two thousand units with between two and six observations each.</span>
-<span id="cb9-236"><a href="#cb9-236" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-239"><a href="#cb9-239" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
-<span id="cb9-240"><a href="#cb9-240" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: binary_cf</span></span>
-<span id="cb9-241"><a href="#cb9-241" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
-<span id="cb9-242"><a href="#cb9-242" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
-<span id="cb9-243"><a href="#cb9-243" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-244"><a href="#cb9-244" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
-<span id="cb9-245"><a href="#cb9-245" aria-hidden="true" tabindex="-1"></a><span class="in">clear</span></span>
-<span id="cb9-246"><a href="#cb9-246" aria-hidden="true" tabindex="-1"></a><span class="in">set seed 20260731</span></span>
-<span id="cb9-247"><a href="#cb9-247" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 2000</span></span>
-<span id="cb9-248"><a href="#cb9-248" aria-hidden="true" tabindex="-1"></a><span class="in">gen i = _n</span></span>
-<span id="cb9-249"><a href="#cb9-249" aria-hidden="true" tabindex="-1"></a><span class="in">gen double ci = rnormal()*0.5</span></span>
-<span id="cb9-250"><a href="#cb9-250" aria-hidden="true" tabindex="-1"></a><span class="in">gen T = 2 + int(runiform()*5)        /* unbalanced: 2-6 observations per unit */</span></span>
-<span id="cb9-251"><a href="#cb9-251" aria-hidden="true" tabindex="-1"></a><span class="in">expand T</span></span>
-<span id="cb9-252"><a href="#cb9-252" aria-hidden="true" tabindex="-1"></a><span class="in">bysort i: gen t = _n</span></span>
-<span id="cb9-253"><a href="#cb9-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-254"><a href="#cb9-254" aria-hidden="true" tabindex="-1"></a><span class="in">gen double z = rnormal()             /* the instrument */</span></span>
-<span id="cb9-255"><a href="#cb9-255" aria-hidden="true" tabindex="-1"></a><span class="in">gen double e = rnormal()</span></span>
-<span id="cb9-256"><a href="#cb9-256" aria-hidden="true" tabindex="-1"></a><span class="in">gen double u = 0.8*e + rnormal()*0.6 /* correlated with e, hence the endogeneity */</span></span>
-<span id="cb9-257"><a href="#cb9-257" aria-hidden="true" tabindex="-1"></a><span class="in">gen byte   d = (-0.2 + 0.9*z + ci + e &gt; 0)</span></span>
-<span id="cb9-258"><a href="#cb9-258" aria-hidden="true" tabindex="-1"></a><span class="in">gen double mu = exp(0.3*d + ci + 0.5*u)</span></span>
-<span id="cb9-259"><a href="#cb9-259" aria-hidden="true" tabindex="-1"></a><span class="in">gen y = rpoisson(mu)                 /* true coefficient on d is 0.3 */</span></span>
-<span id="cb9-260"><a href="#cb9-260" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-261"><a href="#cb9-261" aria-hidden="true" tabindex="-1"></a><span class="in">* 1. naive FE Poisson, ignoring the endogeneity</span></span>
-<span id="cb9-262"><a href="#cb9-262" aria-hidden="true" tabindex="-1"></a><span class="in">quietly ppmlhdfe y d, absorb(i)</span></span>
-<span id="cb9-263"><a href="#cb9-263" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_naive = _b[d]</span></span>
-<span id="cb9-264"><a href="#cb9-264" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-265"><a href="#cb9-265" aria-hidden="true" tabindex="-1"></a><span class="in">* 2. control function with a CRE (Mundlak device) logit first stage: a POOLED</span></span>
-<span id="cb9-266"><a href="#cb9-266" aria-hidden="true" tabindex="-1"></a><span class="in">*    logit with the group mean of the instrument added.  No random effect is</span></span>
-<span id="cb9-267"><a href="#cb9-267" aria-hidden="true" tabindex="-1"></a><span class="in">*    estimated.  For a logit the generalized residual is just d - phat.</span></span>
-<span id="cb9-268"><a href="#cb9-268" aria-hidden="true" tabindex="-1"></a><span class="in">bysort i: egen double z_i = mean(z)</span></span>
-<span id="cb9-269"><a href="#cb9-269" aria-hidden="true" tabindex="-1"></a><span class="in">quietly logit d z z_i</span></span>
-<span id="cb9-270"><a href="#cb9-270" aria-hidden="true" tabindex="-1"></a><span class="in">predict double phat, pr</span></span>
-<span id="cb9-271"><a href="#cb9-271" aria-hidden="true" tabindex="-1"></a><span class="in">gen double gr = d - phat</span></span>
-<span id="cb9-272"><a href="#cb9-272" aria-hidden="true" tabindex="-1"></a><span class="in">quietly ppmlhdfe y d gr, absorb(i)</span></span>
-<span id="cb9-273"><a href="#cb9-273" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_cre = _b[d]</span></span>
-<span id="cb9-274"><a href="#cb9-274" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-275"><a href="#cb9-275" aria-hidden="true" tabindex="-1"></a><span class="in">* 3. control function with a linear first stage, unit FE absorbed exactly</span></span>
-<span id="cb9-276"><a href="#cb9-276" aria-hidden="true" tabindex="-1"></a><span class="in">quietly reghdfe d z, absorb(i) resid</span></span>
-<span id="cb9-277"><a href="#cb9-277" aria-hidden="true" tabindex="-1"></a><span class="in">predict double v_lin, resid</span></span>
-<span id="cb9-278"><a href="#cb9-278" aria-hidden="true" tabindex="-1"></a><span class="in">quietly ppmlhdfe y d v_lin, absorb(i)</span></span>
-<span id="cb9-279"><a href="#cb9-279" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_lin = _b[d]</span></span>
-<span id="cb9-280"><a href="#cb9-280" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-281"><a href="#cb9-281" aria-hidden="true" tabindex="-1"></a><span class="in">di "true coefficient on d           = 0.300000"</span></span>
-<span id="cb9-282"><a href="#cb9-282" aria-hidden="true" tabindex="-1"></a><span class="in">di "naive FE Poisson                = " %8.6f b_naive</span></span>
-<span id="cb9-283"><a href="#cb9-283" aria-hidden="true" tabindex="-1"></a><span class="in">di "CF, CRE (Mundlak) logit         = " %8.6f b_cre</span></span>
-<span id="cb9-284"><a href="#cb9-284" aria-hidden="true" tabindex="-1"></a><span class="in">di "CF, linear FE first stage       = " %8.6f b_lin</span></span>
-<span id="cb9-285"><a href="#cb9-285" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
-<span id="cb9-286"><a href="#cb9-286" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-287"><a href="#cb9-287" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-288"><a href="#cb9-288" aria-hidden="true" tabindex="-1"></a>Against a true coefficient of 0.300000, the naive FE Poisson gives 0.747206,</span>
-<span id="cb9-289"><a href="#cb9-289" aria-hidden="true" tabindex="-1"></a>the CRE/Mundlak logit first stage gives 0.293829, and the linear FE first stage</span>
-<span id="cb9-290"><a href="#cb9-290" aria-hidden="true" tabindex="-1"></a>gives 0.277644.</span>
-<span id="cb9-291"><a href="#cb9-291" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-292"><a href="#cb9-292" aria-hidden="true" tabindex="-1"></a>The naive estimate is inflated by a factor of about two and a half; both control-function versions</span>
-<span id="cb9-293"><a href="#cb9-293" aria-hidden="true" tabindex="-1"></a>recover something close to the truth, and they agree with each other — within 0.016 of one another, and both within 0.023 of the truth.  That agreement is the point.  When</span>
-<span id="cb9-294"><a href="#cb9-294" aria-hidden="true" tabindex="-1"></a>the endogenous variable is binary I would report both: the linear first stage rests on the exact result</span>
-<span id="cb9-295"><a href="#cb9-295" aria-hidden="true" tabindex="-1"></a>in point 2 above and drops no observations, while the logit version is better specified for a binary</span>
-<span id="cb9-296"><a href="#cb9-296" aria-hidden="true" tabindex="-1"></a>variable but rests on the unsettled argument in this section.  If they diverge materially, that is the</span>
-<span id="cb9-297"><a href="#cb9-297" aria-hidden="true" tabindex="-1"></a>most important thing you have learned, and it belongs in the write-up.</span>
-<span id="cb9-298"><a href="#cb9-298" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-299"><a href="#cb9-299" aria-hidden="true" tabindex="-1"></a>The standard errors in the chunk above are wrong, for the reason given earlier --- the residual is</span>
-<span id="cb9-300"><a href="#cb9-300" aria-hidden="true" tabindex="-1"></a>generated.  Bootstrap both stages together, as in the earlier section.</span>
-<span id="cb9-301"><a href="#cb9-301" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-302"><a href="#cb9-302" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb9-303"><a href="#cb9-303" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-304"><a href="#cb9-304" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
-<span id="cb9-305"><a href="#cb9-305" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*</span>
+<span id="cb9-232"><a href="#cb9-232" aria-hidden="true" tabindex="-1"></a>One practical warning follows.  What you want is the **response** residual --- predict the probability,</span>
+<span id="cb9-233"><a href="#cb9-233" aria-hidden="true" tabindex="-1"></a>then subtract --- and <span class="in">`predict`</span> on its own returns a probability, not a residual.  The other residuals on</span>
+<span id="cb9-234"><a href="#cb9-234" aria-hidden="true" tabindex="-1"></a>offer after a binary model are not the generalized residual either: Pearson residuals divide through by</span>
+<span id="cb9-235"><a href="#cb9-235" aria-hidden="true" tabindex="-1"></a>$\sqrt{\hat p (1-\hat p)}$, and deviance residuals are a different transformation again.  In the same</span>
+<span id="cb9-236"><a href="#cb9-236" aria-hidden="true" tabindex="-1"></a>simulation those correlate with the response residual at 0.991 and 0.995 --- close enough to look correct</span>
+<span id="cb9-237"><a href="#cb9-237" aria-hidden="true" tabindex="-1"></a>if you glance at them, and the wrong variable to put in the second stage.</span>
+<span id="cb9-238"><a href="#cb9-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-239"><a href="#cb9-239" aria-hidden="true" tabindex="-1"></a>A note on the name, because it misleads.  This construction is usually filed under **correlated random</span>
+<span id="cb9-240"><a href="#cb9-240" aria-hidden="true" tabindex="-1"></a>effects** (CRE), and that is how to find it in the literature --- see the <span class="co">[</span><span class="ot">CRE chapter</span><span class="co">](more-cre.qmd)</span>.</span>
+<span id="cb9-241"><a href="#cb9-241" aria-hidden="true" tabindex="-1"></a>The name describes the *assumption*: heterogeneity is modelled as a function of the group means and</span>
+<span id="cb9-242"><a href="#cb9-242" aria-hidden="true" tabindex="-1"></a>allowed to correlate with the regressors, instead of being treated as a free parameter.  It does not</span>
+<span id="cb9-243"><a href="#cb9-243" aria-hidden="true" tabindex="-1"></a>describe the estimator.  The first stage below is a **pooled logit** with the group means added as</span>
+<span id="cb9-244"><a href="#cb9-244" aria-hidden="true" tabindex="-1"></a>regressors.  No random effect is estimated, no variance component appears, and nothing is integrated</span>
+<span id="cb9-245"><a href="#cb9-245" aria-hidden="true" tabindex="-1"></a>out.  Below it is labelled "CRE (Mundlak device)" so that both names stay visible: the first tells you</span>
+<span id="cb9-246"><a href="#cb9-246" aria-hidden="true" tabindex="-1"></a>where to look it up, the second tells you what is actually computed.</span>
+<span id="cb9-247"><a href="#cb9-247" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-248"><a href="#cb9-248" aria-hidden="true" tabindex="-1"></a>Two caveats should be stated plainly.  The construction is introduced as "a simple example", and is immediately followed</span>
+<span id="cb9-249"><a href="#cb9-249" aria-hidden="true" tabindex="-1"></a>by: "The Mundlak device, or Chamberlain's version of it, might work reasonably well, but neither might be</span>
+<span id="cb9-250"><a href="#cb9-250" aria-hidden="true" tabindex="-1"></a>flexible enough.  We leave investigations into the quality of CF approximations in discrete cases to</span>
+<span id="cb9-251"><a href="#cb9-251" aria-hidden="true" tabindex="-1"></a>future research."  So this is the construction to use, but it is not a settled result.  If you are worried</span>
+<span id="cb9-252"><a href="#cb9-252" aria-hidden="true" tabindex="-1"></a>the specification is too rigid, the same paper suggests adding nonlinear functions of the conditioning</span>
+<span id="cb9-253"><a href="#cb9-253" aria-hidden="true" tabindex="-1"></a>set --- in particular interactions of the covariates with the unit means, and with the control function</span>
+<span id="cb9-254"><a href="#cb9-254" aria-hidden="true" tabindex="-1"></a>itself --- or letting the variance depend on the unit means via a heteroskedastic probit.</span>
+<span id="cb9-255"><a href="#cb9-255" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-256"><a href="#cb9-256" aria-hidden="true" tabindex="-1"></a><span class="fu">### Several fixed effects in the first stage</span></span>
+<span id="cb9-257"><a href="#cb9-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-258"><a href="#cb9-258" aria-hidden="true" tabindex="-1"></a>The expression $w_{it} = (1, z_{it}, \bar z_i)$ above is written for a single unobserved effect.  If the</span>
+<span id="cb9-259"><a href="#cb9-259" aria-hidden="true" tabindex="-1"></a>second stage absorbs more than one set of fixed effects --- units, years, and something else --- the</span>
+<span id="cb9-260"><a href="#cb9-260" aria-hidden="true" tabindex="-1"></a>first stage needs the treatment set out in the <span class="co">[</span><span class="ot">Mundlak chapter</span><span class="co">](mundlak-device.qmd)</span>, where the CRE</span>
+<span id="cb9-261"><a href="#cb9-261" aria-hidden="true" tabindex="-1"></a>construction is the Mundlak device: take means over the</span>
+<span id="cb9-262"><a href="#cb9-262" aria-hidden="true" tabindex="-1"></a>*one* dimension you are eliminating, of everything else in the model, retained dummies included.  In</span>
+<span id="cb9-263"><a href="#cb9-263" aria-hidden="true" tabindex="-1"></a>practice that means unit means of the instrument and the time-varying controls, plus unit means of the</span>
+<span id="cb9-264"><a href="#cb9-264" aria-hidden="true" tabindex="-1"></a>year and other dummies, with those dummies themselves kept in levels.  You do not want one set of means</span>
+<span id="cb9-265"><a href="#cb9-265" aria-hidden="true" tabindex="-1"></a>per dimension; that construction is exact only for orthogonal designs, which observational panels do not</span>
+<span id="cb9-266"><a href="#cb9-266" aria-hidden="true" tabindex="-1"></a>have.</span>
+<span id="cb9-267"><a href="#cb9-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-268"><a href="#cb9-268" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why not just put the dummies in the first stage?</span></span>
+<span id="cb9-269"><a href="#cb9-269" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-270"><a href="#cb9-270" aria-hidden="true" tabindex="-1"></a>Because a logit with many thin groups is badly biased, and this is the whole reason the Mundlak route is</span>
+<span id="cb9-271"><a href="#cb9-271" aria-hidden="true" tabindex="-1"></a>needed.  The size of the problem depends on observations per group, not on the number of groups.  In a</span>
+<span id="cb9-272"><a href="#cb9-272" aria-hidden="true" tabindex="-1"></a>simulation with the total sample held near 12,000 and a true slope of 1, a logit with group dummies</span>
+<span id="cb9-273"><a href="#cb9-273" aria-hidden="true" tabindex="-1"></a>returns about 2.0 at two observations per group --- matching the known result that the fixed-effects</span>
+<span id="cb9-274"><a href="#cb9-274" aria-hidden="true" tabindex="-1"></a>logit slope is inflated by a factor of two in that case --- about 1.37 at four observations per group,</span>
+<span id="cb9-275"><a href="#cb9-275" aria-hidden="true" tabindex="-1"></a>1.15 at six, 1.04 at twenty-five, and essentially the truth by a hundred.  A panel with a few thousand</span>
+<span id="cb9-276"><a href="#cb9-276" aria-hidden="true" tabindex="-1"></a>units and four or five observations each therefore sits in the worst part of that range, while year</span>
+<span id="cb9-277"><a href="#cb9-277" aria-hidden="true" tabindex="-1"></a>effects with hundreds of observations apiece are harmless and can simply be estimated.</span>
+<span id="cb9-278"><a href="#cb9-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-279"><a href="#cb9-279" aria-hidden="true" tabindex="-1"></a>The CRE (Mundlak device) first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at</span>
+<span id="cb9-280"><a href="#cb9-280" aria-hidden="true" tabindex="-1"></a>small group sizes, because integrating a logit over normal heterogeneity does not give a logit.  That is</span>
+<span id="cb9-281"><a href="#cb9-281" aria-hidden="true" tabindex="-1"></a>the same approximation error the previous section's caveat refers to, arriving from a different</span>
+<span id="cb9-282"><a href="#cb9-282" aria-hidden="true" tabindex="-1"></a>direction.</span>
+<span id="cb9-283"><a href="#cb9-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-284"><a href="#cb9-284" aria-hidden="true" tabindex="-1"></a><span class="fu">### A worked example</span></span>
+<span id="cb9-285"><a href="#cb9-285" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-286"><a href="#cb9-286" aria-hidden="true" tabindex="-1"></a>The <span class="in">`website`</span> data used earlier does not have the shape that causes trouble --- its fixed effects have 13</span>
+<span id="cb9-287"><a href="#cb9-287" aria-hidden="true" tabindex="-1"></a>and 2 levels, with roughly 90 observations each, so a logit with dummies would be perfectly well behaved</span>
+<span id="cb9-288"><a href="#cb9-288" aria-hidden="true" tabindex="-1"></a>there.  This simulates something more awkward instead: a count outcome, a binary endogenous regressor, an</span>
+<span id="cb9-289"><a href="#cb9-289" aria-hidden="true" tabindex="-1"></a>instrument, and two thousand units with between two and six observations each.</span>
+<span id="cb9-290"><a href="#cb9-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-293"><a href="#cb9-293" aria-hidden="true" tabindex="-1"></a><span class="in">```{stata}</span></span>
+<span id="cb9-294"><a href="#cb9-294" aria-hidden="true" tabindex="-1"></a><span class="in">*| label: binary_cf</span></span>
+<span id="cb9-295"><a href="#cb9-295" aria-hidden="true" tabindex="-1"></a><span class="in">*| echo: true</span></span>
+<span id="cb9-296"><a href="#cb9-296" aria-hidden="true" tabindex="-1"></a><span class="in">*| collectcode: true</span></span>
+<span id="cb9-297"><a href="#cb9-297" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-298"><a href="#cb9-298" aria-hidden="true" tabindex="-1"></a><span class="in">preserve</span></span>
+<span id="cb9-299"><a href="#cb9-299" aria-hidden="true" tabindex="-1"></a><span class="in">clear</span></span>
+<span id="cb9-300"><a href="#cb9-300" aria-hidden="true" tabindex="-1"></a><span class="in">set seed 20260731</span></span>
+<span id="cb9-301"><a href="#cb9-301" aria-hidden="true" tabindex="-1"></a><span class="in">set obs 2000</span></span>
+<span id="cb9-302"><a href="#cb9-302" aria-hidden="true" tabindex="-1"></a><span class="in">gen i = _n</span></span>
+<span id="cb9-303"><a href="#cb9-303" aria-hidden="true" tabindex="-1"></a><span class="in">gen double ci = rnormal()*0.5</span></span>
+<span id="cb9-304"><a href="#cb9-304" aria-hidden="true" tabindex="-1"></a><span class="in">gen T = 2 + int(runiform()*5)        /* unbalanced: 2-6 observations per unit */</span></span>
+<span id="cb9-305"><a href="#cb9-305" aria-hidden="true" tabindex="-1"></a><span class="in">expand T</span></span>
+<span id="cb9-306"><a href="#cb9-306" aria-hidden="true" tabindex="-1"></a><span class="in">bysort i: gen t = _n</span></span>
+<span id="cb9-307"><a href="#cb9-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-308"><a href="#cb9-308" aria-hidden="true" tabindex="-1"></a><span class="in">gen double z = rnormal()             /* the instrument */</span></span>
+<span id="cb9-309"><a href="#cb9-309" aria-hidden="true" tabindex="-1"></a><span class="in">gen double e = rnormal()</span></span>
+<span id="cb9-310"><a href="#cb9-310" aria-hidden="true" tabindex="-1"></a><span class="in">gen double u = 0.8*e + rnormal()*0.6 /* correlated with e, hence the endogeneity */</span></span>
+<span id="cb9-311"><a href="#cb9-311" aria-hidden="true" tabindex="-1"></a><span class="in">gen byte   d = (-0.2 + 0.9*z + ci + e &gt; 0)</span></span>
+<span id="cb9-312"><a href="#cb9-312" aria-hidden="true" tabindex="-1"></a><span class="in">gen double mu = exp(0.3*d + ci + 0.5*u)</span></span>
+<span id="cb9-313"><a href="#cb9-313" aria-hidden="true" tabindex="-1"></a><span class="in">gen y = rpoisson(mu)                 /* true coefficient on d is 0.3 */</span></span>
+<span id="cb9-314"><a href="#cb9-314" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-315"><a href="#cb9-315" aria-hidden="true" tabindex="-1"></a><span class="in">* 1. naive FE Poisson, ignoring the endogeneity</span></span>
+<span id="cb9-316"><a href="#cb9-316" aria-hidden="true" tabindex="-1"></a><span class="in">quietly ppmlhdfe y d, absorb(i)</span></span>
+<span id="cb9-317"><a href="#cb9-317" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_naive = _b[d]</span></span>
+<span id="cb9-318"><a href="#cb9-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-319"><a href="#cb9-319" aria-hidden="true" tabindex="-1"></a><span class="in">* 2. control function with a CRE (Mundlak device) logit first stage: a POOLED</span></span>
+<span id="cb9-320"><a href="#cb9-320" aria-hidden="true" tabindex="-1"></a><span class="in">*    logit with the group mean of the instrument added.  No random effect is</span></span>
+<span id="cb9-321"><a href="#cb9-321" aria-hidden="true" tabindex="-1"></a><span class="in">*    estimated.  For a logit the generalized residual is just d - phat.</span></span>
+<span id="cb9-322"><a href="#cb9-322" aria-hidden="true" tabindex="-1"></a><span class="in">bysort i: egen double z_i = mean(z)</span></span>
+<span id="cb9-323"><a href="#cb9-323" aria-hidden="true" tabindex="-1"></a><span class="in">quietly logit d z z_i</span></span>
+<span id="cb9-324"><a href="#cb9-324" aria-hidden="true" tabindex="-1"></a><span class="in">predict double phat, pr</span></span>
+<span id="cb9-325"><a href="#cb9-325" aria-hidden="true" tabindex="-1"></a><span class="in">gen double gr = d - phat</span></span>
+<span id="cb9-326"><a href="#cb9-326" aria-hidden="true" tabindex="-1"></a><span class="in">quietly ppmlhdfe y d gr, absorb(i)</span></span>
+<span id="cb9-327"><a href="#cb9-327" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_cre = _b[d]</span></span>
+<span id="cb9-328"><a href="#cb9-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-329"><a href="#cb9-329" aria-hidden="true" tabindex="-1"></a><span class="in">* 3. control function with a linear first stage, unit FE absorbed exactly</span></span>
+<span id="cb9-330"><a href="#cb9-330" aria-hidden="true" tabindex="-1"></a><span class="in">quietly reghdfe d z, absorb(i) resid</span></span>
+<span id="cb9-331"><a href="#cb9-331" aria-hidden="true" tabindex="-1"></a><span class="in">predict double v_lin, resid</span></span>
+<span id="cb9-332"><a href="#cb9-332" aria-hidden="true" tabindex="-1"></a><span class="in">quietly ppmlhdfe y d v_lin, absorb(i)</span></span>
+<span id="cb9-333"><a href="#cb9-333" aria-hidden="true" tabindex="-1"></a><span class="in">scalar b_lin = _b[d]</span></span>
+<span id="cb9-334"><a href="#cb9-334" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-335"><a href="#cb9-335" aria-hidden="true" tabindex="-1"></a><span class="in">di "true coefficient on d           = 0.300000"</span></span>
+<span id="cb9-336"><a href="#cb9-336" aria-hidden="true" tabindex="-1"></a><span class="in">di "naive FE Poisson                = " %8.6f b_naive</span></span>
+<span id="cb9-337"><a href="#cb9-337" aria-hidden="true" tabindex="-1"></a><span class="in">di "CF, CRE (Mundlak) logit         = " %8.6f b_cre</span></span>
+<span id="cb9-338"><a href="#cb9-338" aria-hidden="true" tabindex="-1"></a><span class="in">di "CF, linear FE first stage       = " %8.6f b_lin</span></span>
+<span id="cb9-339"><a href="#cb9-339" aria-hidden="true" tabindex="-1"></a><span class="in">restore</span></span>
+<span id="cb9-340"><a href="#cb9-340" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-341"><a href="#cb9-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-342"><a href="#cb9-342" aria-hidden="true" tabindex="-1"></a>Against a true coefficient of 0.300000, the naive FE Poisson gives 0.747206,</span>
+<span id="cb9-343"><a href="#cb9-343" aria-hidden="true" tabindex="-1"></a>the CRE/Mundlak logit first stage gives 0.293829, and the linear FE first stage</span>
+<span id="cb9-344"><a href="#cb9-344" aria-hidden="true" tabindex="-1"></a>gives 0.277644.</span>
+<span id="cb9-345"><a href="#cb9-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-346"><a href="#cb9-346" aria-hidden="true" tabindex="-1"></a>The naive estimate is inflated by a factor of about two and a half; both control-function versions</span>
+<span id="cb9-347"><a href="#cb9-347" aria-hidden="true" tabindex="-1"></a>recover something close to the truth, and they agree with each other — within 0.016 of one another, and both within 0.023 of the truth.  That agreement is the point.  When</span>
+<span id="cb9-348"><a href="#cb9-348" aria-hidden="true" tabindex="-1"></a>the endogenous variable is binary I would report both: the linear first stage rests on the exact result</span>
+<span id="cb9-349"><a href="#cb9-349" aria-hidden="true" tabindex="-1"></a>in point 2 above and drops no observations, while the logit version is better specified for a binary</span>
+<span id="cb9-350"><a href="#cb9-350" aria-hidden="true" tabindex="-1"></a>variable but rests on the unsettled argument in this section.  If they diverge materially, that is the</span>
+<span id="cb9-351"><a href="#cb9-351" aria-hidden="true" tabindex="-1"></a>most important thing you have learned, and it belongs in the write-up.</span>
+<span id="cb9-352"><a href="#cb9-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-353"><a href="#cb9-353" aria-hidden="true" tabindex="-1"></a>The standard errors in the chunk above are wrong, for the reason given earlier --- the residual is</span>
+<span id="cb9-354"><a href="#cb9-354" aria-hidden="true" tabindex="-1"></a>generated.  Bootstrap both stages together, as in the earlier section.</span>
+<span id="cb9-355"><a href="#cb9-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-356"><a href="#cb9-356" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb9-357"><a href="#cb9-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-358"><a href="#cb9-358" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- see-also-footer --&gt;</span></span>
+<span id="cb9-359"><a href="#cb9-359" aria-hidden="true" tabindex="-1"></a>*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
