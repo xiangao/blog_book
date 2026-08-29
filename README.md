@@ -100,3 +100,18 @@ Xiang Ao
 > within component available for a random slope — and where the equivalence
 > stops, since the fixed-effect identity is a linear-model result that does not
 > carry over to logit or Poisson mixed models.
+
+> **2026-08-29:** `poisson-iv-fe.qmd` is now the empirical companion to the
+> `causal_econometrics_guide` Poisson-IV chapter rather than a second theory
+> chapter. The theory the two shared lives in the guide and is linked, not
+> restated; what stays here is applied — the `website.dta` worked example, the
+> bootstrap mechanics, the binary simulation, and the practical warnings
+> (generalized residual versus Pearson and deviance, `idcluster`, `xtset, clear`,
+> Mundlak means with several fixed effects). Two fixes: the R chunks had never
+> run, because `feols` drops a singleton observation and the residual vector was
+> shorter than the data; and the claim that the `website` fixed effects have
+> "roughly 90 observations each" was wrong (mean 38, five cells under 10). One
+> open item is recorded rather than hidden — the Stata and R cluster bootstraps
+> disagree (0.0477 against 0.0450) by more than Monte Carlo error, though on an
+> identical resample the two estimators agree to eight decimals.
+

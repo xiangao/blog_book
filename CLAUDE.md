@@ -460,3 +460,55 @@ up with only one format. This bit both books this session.
 
 Rendered clean to HTML and PDF (584 pages, was 578). Pre-existing `:::` fenced-div
 warnings from `lmtp.qmd` onward are unrelated to this pass. Not committed.
+
+## 2026-08-29 — `poisson-iv-fe.qmd` is now the empirical companion, not a second theory chapter
+
+The chapter had converged on `causal_econometrics_guide/poisson-iv.qmd`. agy's
+`poisson-iv-fe-revised.qmd` made that worse rather than better: it restated the
+guide's §2 and §3.2/3.4 nearly verbatim while dropping most of what was original
+here, and every one of its `@cite` keys rendered as literal `[@wooldridge-...]`
+because **this book has no bibliography** — no `.bib` file, no `bibliography:` key
+in `_quarto.yml`. That file is deleted. Cite in plain text here.
+
+`poisson-iv-fe.qmd` keeps its filename and slug and is now explicitly the applied
+companion: which commands to type, the `website.dta` worked example, the
+bootstrap mechanics, and the binary simulation. Theory (why CF ≠ 2SLS under an
+exponential mean, why a linear first stage fails for discrete y₂, Terza, the
+Taylor expansion) is linked to the guide, not restated. Retained from the old
+chapter and worth keeping: the Mundlak-device / CF-residual / "Mundlak residual"
+terminology note, the several-fixed-effects guidance, the thin-groups logit
+simulation figures, the generalized-residual-vs-Pearson/deviance warning, the
+CRE naming note, the `idcluster` comment, and the `xtset, clear` note.
+
+Two things that were wrong and are fixed:
+
+- **The R chunks did not run.** `feols` drops one observation (`ad == 10` is a
+  singleton), so `residuals(fs)` is length 499 against 500 rows and
+  `df$u2h_fe <- residuals(fs)` errors on a tibble. Now converts to a data frame
+  and aligns with `d <- df[obs(fs), ]`. R then reproduces Stata to seven digits
+  (0.1187612 naive, 0.0448103 CF, 0.0765144 on the residual).
+
+- **"13 and 2 levels, with roughly 90 observations each"** was wrong. `ad` has 13
+  levels of sizes 128, 122, 90, 51, 44, 19, 16, 13, 8, 4, 2, 2, 1 — mean 38, with
+  five cells under 10. The conclusion it supported still holds (most observations
+  sit in large cells) but the stated fact did not.
+
+### Open: the two cluster bootstraps disagree
+
+Stata's gives SE 0.0477 for `time`, R's gives 0.0450, against an analytic 0.0449.
+At 1,000 replications that is past Monte Carlo error. Ruled out: the estimators
+(on one identical resample both return 0.05226498 / 0.06030401, agreeing to eight
+decimals); Stata's `bootstrap` prefix (a hand-written Stata cluster bootstrap
+gives 0.0498); the cluster pool (both draw 12); the resample size distribution
+(both average ~501). What differs is the tails — Stata's replicates span
+[-0.238, 0.224], R's only [-0.173, 0.168] — which points at how `ppmlhdfe` and
+`fepois` handle degenerate resamples (singleton groups, all-zero outcomes within
+a group). **Not confirmed.** The chapter says so rather than papering over it.
+With twelve clusters neither number deserves three digits.
+
+Note the Stata bootstrap chunk is now `reps(1000)`; `freeze: auto` means it
+executes once.
+
+Rendered clean to HTML and PDF (592 pages, was 588). The `maximum number of runs (9)`
+LaTeX warning is pre-existing float-placement oscillation, not from this chapter —
+it has no cross-references, and the PDF has zero unresolved `??`.

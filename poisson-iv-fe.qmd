@@ -1,79 +1,74 @@
 ---
-title: "IV in Fixed effect Poisson with many fixed effects"
+title: "IV in fixed-effect Poisson with many fixed effects: worked examples"
 date: "2024-08-29"
 ---
 
+This is the applied companion to the [Poisson IV chapter](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) of the *Causal Econometrics Guide*.  Everything here is code and output: which commands to type, what the estimates look like on real and simulated data, and the places the mechanics bite.  The derivations behind it --- why the control function is not 2SLS once the mean is exponential, why a linear first stage stops being valid for a discrete endogenous variable, Terza's exact correction and the Taylor expansion that makes the generalized residual its first-order approximation --- are in the guide chapter, and are not repeated below.  A Julia version of the same material is [here](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).
 
-## Poisson regression with many fixed effects
+## Which commands
 
-I have a few posts about Poisson regression for non-negative outcomes, including continuous variable, count variable, or corner solution (such as non-negative outcome with many zeros).  The benefits include that we can use QMLE Poisson, which means we only need to have the mean of outcome specified correctly, as an exponentiated function of covariates.  There is no assumption that the distribution needs to be a Poisson distribution.  When we want to model non-negative outcome with fixed effects, fixed effect Poisson should be our first choice also, because fixed effect Poisson is shown to be consistent without the assumption of the distribution of the error term, and it does not have the "incidental parameter" problem.
+Stata's `xtpoisson, fe` fits fixed-effect Poisson, but `ppmlhdfe` is the better choice: it absorbs several dimensions of fixed effects at once, it is faster, and it reports predicted values with the fixed effects put back in.  That last point is the one that catches people --- after `xtpoisson, fe` or `xtreg, fe` the effects are absorbed rather than estimated, so predicted values come back without them.  The same author's `reghdfe` replaces `areg` and `xtreg, fe` for the linear first stage, with the same advantages.
 
-Stata has "xtpoisson" to do fixed effect Poisson. However, we would recommend "ppmlhdfe".  "ppmlhdfe is a Stata package that implements Poisson pseudo-maximum likelihood regressions (PPML) with multi-way fixed effects".  It is faster than xtpoisson.  More importantly, it does report the predicted value correctly.  I mentioned in past post that we need to be cautious when we need to use predicted values after "xtpoisson, fe", or "xtreg, fe".  The reason is that these are models estimated after "absorbing" the fixed effects, meaning fixed effects are not actually estimated.  Therefore the predicted values are without fixed effects.  But in "ppmlhdfe" we get the correct predicted values with fixed effect.
+`ivpoisson` handles endogenous regressors in a Poisson model but has no option for fixed effects, which is why the route below is a two-step control function rather than a packaged IV command.
 
-On a side note, the same author has "reghdfe" as a replacement for "areg" in Stata.  "reghdfe" is faster than "areg", or "xtreg, fe".  It also allows for many levels of fixed effects.  As "ppmlhdfe", it also provides correct predicted values with fixed effects.
+In R, `fixest::fepois()` and `fixest::feols()` do the same jobs.
 
+## The recipe
 
-## IV poisson with many fixed effects
+For a continuous endogenous variable this is Procedure 3 of Lin and Wooldridge (2019):
 
-Stata has a "ivpoisson" function with handles IV in a Poisson regression setting.  However, it does not have the option to include fixed effects.
+1. Run the reduced form for the endogenous variable and keep the residual.  All fixed effects that appear in the second stage go into this regression too.  In Stata, `reghdfe ..., resid`.
 
-This estimator has a published treatment.  Lin and Wooldridge (2019), "Testing and correcting for endogeneity in nonlinear unobserved effects models," treats exactly this setup: their **Procedure 3** is a reduced-form residual added to an FE Poisson, with a robust Wald test on the residual's coefficient serving as a test of endogeneity.  Several points below come from it.
+2. Put the endogenous variable and that residual into the second-stage Poisson, absorbing the same fixed effects.  In Stata, `ppmlhdfe`.
 
-One warning about that test, since it is easy to misuse.  It is tempting to run it and then decide which model to report: if the residual's coefficient is insignificant, fall back on the plain fixed-effects estimate.  Do not do this.  Guggenberger (2010) studies exactly this two-stage procedure and finds that its asymptotic size **equals one** --- the two-stage test rejects with probability approaching one --- because the pretest lacks power against correlations local to zero, so you frequently fail to reject when the regressor is in fact endogenous and then report the non-robust estimate.  He examines both the linear IV version, where the pretest is a test of exogeneity of a regressor, and the random-versus-fixed-effects panel version, and recommends against the two-stage procedure in both.  Both of his results are for linear models, so the transfer to a nonlinear control function is an analogy rather than a theorem, but the mechanism does not depend on linearity.  Report the coefficient on the residual as an estimate of the degree of endogeneity, and report both models side by side; do not let the test choose for you.
+3. Bootstrap.  The second-stage standard errors are wrong as reported, because the residual is generated.  Lin and Wooldridge (2019, p. 30) recommend a panel bootstrap that redoes both steps within each replication.  With clustered errors, resample the clusters.
 
-In the case that the endogenous variable is continuous and we can use a linear model for the first stage, Wooldridge 2010 textbook (chapter 18) suggested using control function approach, which is very simple:
+The $t$-statistic on the residual is a test of endogeneity.  It is not a model-selection device: do not run it and then drop the residual if it comes back insignificant.  Guggenberger (2010) shows that this two-stage procedure has asymptotic size one.  Report both columns.  The reasoning is in the [guide chapter](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html).
 
-1. Run the first stage regression (the reduced form for the endogenous variable), and get the residual.  This is the first-stage **control-function** residual.  Note in the many fixed effects case, we need to include all fixed effects in the first stage regression.  In the case of stata, we would use "reghdfe" here.
+### A terminology note
 
-    A terminology note, because two different objects are easy to conflate.  The **Mundlak device** means adding group *means* of covariates as regressors, as in the [Mundlak chapter](mundlak-device.qmd).  The **control-function residual** here is the residual from a reduced form.  They are different constructions.  But a third object borrows the name, and it matters below: Lin and Wooldridge (2019) call the residual from a reduced form *that itself includes the Mundlak means* --- from regressing $y_{it2}$ on $z_{it}$ and $\bar z_i$ --- the **Mundlak residual**, as against the **FE residual** obtained by within-transforming.  So in that paper "Mundlak residual" denotes a control-function residual, not the device itself.
+Three things carry similar names and are easy to conflate.
 
-2. There is a useful result about which of those two residuals to use.  Lin and Wooldridge (2019, appendices A.1 and A.2) show that in FE Poisson they give **numerically identical** estimates of both the structural coefficient and the coefficient on the control function.  The reason is that the two residuals differ only by a term constant within unit, and the FE Poisson score is unaffected by adding anything unit-constant.
+The **Mundlak device** means adding group *means* of covariates as regressors --- see the [Mundlak chapter](mundlak-device.qmd).  The **control-function residual** is the residual from a reduced form.  Those are different constructions.  But Lin and Wooldridge (2019) call the residual from a reduced form *that itself includes the Mundlak means* --- from regressing $y_{it2}$ on $z_{it}$ and $\bar z_i$ --- the **Mundlak residual**, as against the **FE residual** from within-transforming.  So in that paper "Mundlak residual" denotes a control-function residual, not the device.
 
-    This has a practical consequence.  It means the first stage does not need the thousands of unit dummies: the unit means will do, at no cost in the estimate.  That is what makes a **nonlinear** first stage practical --- you cannot put 2,000 dummies into a logit without an incidental-parameters problem, but you can put in 2,000 unit means.  Note the result as stated is for a *linear* reduced form; see the caveat on discrete endogenous variables below.
+Which of those two residuals you use does not matter: they give numerically identical estimates of the structural coefficient and of the coefficient on the control function (Lin and Wooldridge 2019, appendices A.1 and A.2), because they differ only by a term that is constant within unit and the second-stage fixed effects absorb it.
 
-3. Include both the endogenous variable and the control-function residual as additional regressors in the second stage, the original Poisson regression.  Use "ppmlhdfe" here.
+That result has a practical consequence, and it is the reason it is worth knowing.  The first stage does not need thousands of unit dummies; the unit means will do, at no cost in the estimate.  That is what makes a **nonlinear** first stage practical --- you cannot put 2,000 dummies into a logit without an incidental-parameters problem, but you can put in 2,000 unit means.  The result as stated is for a *linear* reduced form.
 
-Note that the standard errors would be incorrect if we use the standard errors from the second stage regression.  We need to use the bootstrap method to get the correct standard errors.  This is not merely a precaution: Lin and Wooldridge (2019, p. 30) recommend exactly this, namely a panel bootstrap in which both estimating steps are done with each bootstrap sample.  The reason is that the control-function residual is generated from the first stage, so we need to bootstrap the whole process to get the correct standard errors.  In the case of clustered standard errors, we need to bootstrap the clusters.
-
-
-
-## Example
-
+## Continuous endogenous variable: the `website` data
 
 ```{r}
 #| label: setup
 #| include: false
 
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-
-```{r}
-#| include: false
-
 library(Statamarkdown)
 stataexe <- find_stata()
-#stataexe <- "/usr/local/bin/stata"
-knitr::opts_chunk$set(engine.path=list(stata=stataexe))
+knitr::opts_chunk$set(engine.path = list(stata = stataexe))
 ```
+
+Stata's `website.dta` has 500 observations.  `visits` is the count outcome, `time` (minutes on the site) is the endogenous regressor, `phone` (support calls) is the excluded instrument, and `frfam` (referrals from friends and family) is an exogenous control.  `ad` and `female` are the two fixed-effect dimensions.
 
 ```{stata}
 *| label: stata1
 *| echo: true
 *| collectcode: true
 
-* control function approach
-webuse website
+webuse website, clear
+
+* step 1: linear first stage, absorbing both sets of fixed effects
 reghdfe time phone frfam, absorb(ad female) resid
 predict double u2h_fe, resid
-ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
 
+* step 2: FE Poisson with the control-function residual added
+ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
 ```
 
-In this example, "time" is the endogenous variable, and "phone" is the instrument.  We first run the first stage regression with "reghdfe", and get the control-function residual "u2h_fe".  Then we include "time" and "u2h_fe" in the second stage regression with "ppmlhdfe".  "ad" and "female" are two fixed effects.  The standard errors are incorrect, we need to use bootstrap to get the correct standard errors.
+`time` comes out at 0.0448 with $p = 0.318$.  The residual `u2h_fe` gets 0.0765 with $p = 0.096$, so what endogeneity the data can detect is positive and weakly signalled.  Both standard errors are wrong; see the bootstrap section below.
 
-To verify our control function approach, we do the same with a linear model.  A word of caution on "it just works": for the *linear* model, inserting the first-stage residual is the standard 2SLS-equivalent control function.  For the *Poisson* model it is not automatic — residual inclusion is valid here under the specific structure Wooldridge (2010, ch. 18) assumes: a **continuous** endogenous variable, a **linear** first stage, and an exponential conditional mean with the control-function residual entering the index (an additive-error / Mundlak-type assumption).  Outside that structure (e.g. a discrete endogenous regressor, or a different error structure) plugging in a linear residual is not generally consistent --- see [why the linear first stage stops working](#why-the-linear-first-stage-stops-working) below for exactly which assumption fails and why --- and even when it is, the second-stage standard errors must be bootstrapped because the residual is generated (as noted above).  There is a package "ivreghdfe" we use to verify our two step process.
+### Checking the mechanics against a linear model
 
+The control function is exactly 2SLS in a linear model, so running the linear version both ways is a check that the two steps are wired up correctly.  It is a check on the code, not evidence that the Poisson version is valid --- that rests on assumptions the linear case does not need.
 
 ```{stata}
 *| label: stata2
@@ -81,202 +76,180 @@ To verify our control function approach, we do the same with a linear model.  A 
 *| collectcode: true
 
 clear all
-webuse website
-ivreghdfe visits frfam (time=phone), absorb(ad female)
-* now the control function apparoach
-reghdfe time phone frfam , absorb(ad female) resid
-predict u2h_fe, resid
-reghdfe visits time u2h_fe frfam , absorb(ad female)
+webuse website, clear
 
+* 1. linear 2SLS
+ivreghdfe visits frfam (time=phone), absorb(ad female)
+
+* 2. the same thing as a manual two-step control function
+reghdfe time phone frfam, absorb(ad female) resid
+predict double u2h_fe, resid
+reghdfe visits time u2h_fe frfam, absorb(ad female)
+
+* 3. naive models, ignoring the endogeneity
+reghdfe visits time frfam, absorb(ad female)
+ppmlhdfe visits time frfam, absorb(ad female)
 ```
 
-The two-step control-function estimate of the `time` coefficient is 0.5643 with
-a standard error of 0.2124, against a naive FE Poisson value of 0.0448 that is
-not even significant ($p = 0.32$). We can see that "ivreghdfe" gives the same result as our two step process.  The standard errors are wrong.  Now we do bootstrapping.
+| Model | Command | Coefficient on `time` | Std. err. | $p$ |
+|:---|:---|:---:|:---:|:---:|
+| Naive linear FE | `reghdfe` | 0.7402 | 0.0401 | $<0.001$ |
+| Linear 2SLS | `ivreghdfe` | 0.5643 | 0.2124 | 0.008 |
+| Linear control function | two-step `reghdfe` | 0.5643 | 0.2083 | 0.007 |
+| Naive FE Poisson | `ppmlhdfe`, no residual | 0.1188 | 0.0096 | $<0.001$ |
+| Control-function FE Poisson | `ppmlhdfe`, with `u2h_fe` | 0.0448 | 0.0449 | 0.318 |
 
-## Bootstrapping standard errors
+The two linear rows agree on the coefficient to seven digits, which is the check working.  Their standard errors do not agree, and that is the generated-regressor problem in miniature: `ivreghdfe` accounts for the first stage, the manual two-step does not, and the gap here happens to be small only because the design is favourable.
 
-Suppose we need clustered standard errors on "ad".
+In the Poisson rows the naive estimate is 0.1188 and the control-function estimate is 0.0448.  The correction is large and in the direction the sign of `u2h_fe` predicts.
 
+## Bootstrapping the standard errors
+
+Suppose we want errors clustered on `ad`.
 
 ```{stata}
 *| label: stata3
 *| echo: true
 *| collectcode: true
 
-* bootstrap, suppose we need to cluster by "ad"
-* Note: bootstrap's idcluster(newid) below gives each resampled COPY of a
-* cluster its own unique id -- necessary because a cluster can be drawn more
-* than once within a replicate, and those duplicates must be treated as
-* distinct groups. The regressions inside this program must absorb "newid",
-* not the original "ad": absorbing "ad" would pool resampled duplicates of
-* the same cluster back into a single fixed effect, which violates the
-* cluster-bootstrap logic (verified empirically: within a replicate, the
-* number of distinct "ad" values is consistently below the true cluster
-* count, while "newid" always has exactly that many distinct values).
+* Note on idcluster(newid): it gives each resampled COPY of a cluster its own
+* unique id.  A cluster can be drawn more than once within a replication, and
+* the duplicates must be treated as distinct groups.  The regressions inside
+* the program must therefore absorb "newid", not the original "ad" --- absorbing
+* "ad" would pool the duplicates back into a single fixed effect, which breaks
+* the cluster-bootstrap logic.  Verified empirically: within a replication the
+* number of distinct "ad" values is consistently below the true cluster count,
+* while "newid" always has exactly that many.
 clear all
 capture program drop ppmlhdfe_cf
- program ppmlhdfe_cf, rclass
-  reghdfe time phone frfam , absorb(newid female) resid
+program ppmlhdfe_cf, rclass
+  reghdfe time phone frfam, absorb(newid female) resid
   predict double u2h_fe, resid
-  ppmlhdfe visits time u2h_fe frfam , absorb(newid female)
+  ppmlhdfe visits time u2h_fe frfam, absorb(newid female)
   return scalar b_time = _b[time]
+  return scalar b_u2h  = _b[u2h_fe]
   drop u2h_fe
   xtset, clear
- end
+end
 
-webuse website
-
+webuse website, clear
 xtset, clear
-bootstrap r(b_time) , reps(100) seed(123) cluster(ad) idcluster(newid) : ppmlhdfe_cf
-
+bootstrap r(b_time) r(b_u2h), reps(1000) seed(123) cluster(ad) idcluster(newid) nodots: ppmlhdfe_cf
 ```
 
-A troubleshooting note: we need to run `xtset, clear` before each regression inside the bootstrap. The reason is that Stata's cluster bootstrap generates a new id variable for the resampled clusters and leaves the panel `xtset` to that id; if it is not cleared, a later regression can pick up the stale panel setting even when it does not use the id. Clearing it each iteration avoids this.
+The bootstrap standard error on `time` comes out at 0.0477 against the 0.0449 reported analytically.  Before reading anything into that six per cent, see the comparison with the R bootstrap below --- the two do not agree, and the reason matters more than either number.
 
-## How to do it with R
+A troubleshooting note: `xtset, clear` is needed before each regression inside the bootstrap.  Stata's cluster bootstrap creates a new id variable for the resampled clusters and leaves the panel `xtset` to it; if that is not cleared, a later regression can pick up the stale panel setting even when it does not use the id.
 
-R has similar packages https://cran.r-project.org/web/packages/fixest/vignettes/fixest_walkthrough.html.
+## The same thing in R
 
-We can use "fixest" and "fepois" to do the same thing as "reghdfe" and "ppmlhdfe".  Again, at the moment, we need to manually bootstrap the two stages for correct standard errors.
+```{r}
+#| label: r-demo
+#| echo: true
+#| message: false
+#| warning: false
+
+library(fixest)
+library(haven)
+
+df <- as.data.frame(read_dta("https://www.stata-press.com/data/r18/website.dta"))
+df$ad     <- as.factor(df$ad)
+df$female <- as.factor(df$female)
+
+# step 1: linear first stage, absorbing both sets of fixed effects
+fs <- feols(time ~ phone + frfam | ad + female, data = df)
+
+# feols drops a singleton (ad == 10 has one observation), exactly as reghdfe
+# does, so the residual is shorter than the data.  obs() gives the rows that
+# were kept; align on those rather than assuming the lengths match.
+d <- df[obs(fs), ]
+d$u2h_fe <- residuals(fs)
+
+# step 2: FE Poisson, without and with the control function
+m_naive <- fepois(visits ~ time + frfam          | ad + female, data = d, notes = FALSE)
+m_cf    <- fepois(visits ~ time + u2h_fe + frfam | ad + female, data = d, notes = FALSE)
+
+etable(m_naive, m_cf,
+       headers = c("Naive FE Poisson", "Control function"),
+       se.below = TRUE)
+```
+
+These reproduce the Stata estimates to seven digits: 0.1187612 naive, 0.0448103 with the control function, and 0.0765144 on the residual.  That is worth checking whenever a two-step procedure is assembled by hand in two languages, because the two steps give a lot of scope for a silent misalignment --- the singleton above being the obvious one.
+
+### Bootstrapping in R
+
+```{r}
+#| label: r-bootstrap
+#| echo: true
+#| message: false
+#| warning: false
+
+set.seed(123)
+B <- 1000
+clusters   <- unique(d$ad)
+boot_coefs <- matrix(NA_real_, nrow = B, ncol = 2,
+                     dimnames = list(NULL, c("time", "resid")))
+
+for (b in seq_len(B)) {
+  # resample clusters with replacement; each drawn copy gets its own id, for
+  # the same reason idcluster() is needed in Stata
+  drawn <- sample(clusters, length(clusters), replace = TRUE)
+  boot_data <- do.call(rbind, lapply(seq_along(drawn), function(k) {
+    sub <- d[d$ad == drawn[k], ]
+    sub$boot_id <- k
+    sub
+  }))
+  boot_data$boot_id <- as.factor(boot_data$boot_id)
+
+  fs_b <- feols(time ~ phone + frfam | boot_id + female, data = boot_data, notes = FALSE)
+  bb   <- boot_data[obs(fs_b), ]
+  bb$u_b <- residuals(fs_b)
+
+  m_b <- try(fepois(visits ~ time + u_b + frfam | boot_id + female,
+                    data = bb, notes = FALSE), silent = TRUE)
+  if (!inherits(m_b, "try-error")) boot_coefs[b, ] <- coef(m_b)[c("time", "u_b")]
+}
+
+cat("completed replications :", sum(complete.cases(boot_coefs)), "\n")
+cat("bootstrap SE, time     :", round(sd(boot_coefs[, "time"],  na.rm = TRUE), 4), "\n")
+cat("bootstrap SE, residual :", round(sd(boot_coefs[, "resid"], na.rm = TRUE), 4), "\n")
+```
+
+### The two bootstraps do not agree, and that is the lesson
+
+Stata returns 0.0477 for `time`; R returns 0.0450, against an analytic 0.0449.  At 1,000 replications that gap is larger than Monte Carlo error, so it is not noise in the replication count.
+
+It is not a difference in the estimator.  Handed one identical resampled dataset, `reghdfe` + `ppmlhdfe` and `feols` + `fepois` return 0.05226498 and 0.06030401 for the two coefficients --- the same to eight decimal places.  Nor is it Stata's `bootstrap` prefix doing something unexpected: a hand-written cluster bootstrap in Stata, drawing the twelve clusters directly, gives 0.0498.  Two Stata routes agree with each other and disagree with R.
+
+The replication sample sizes match across the two, averaging about 501.  What does not match is the tails of the replicate distribution: the Stata replicates run from $-0.238$ to $0.224$, the R ones only from $-0.173$ to $0.168$.  That points at the draws where the resample degenerates --- a cluster drawn several times, groups left with one or two observations, outcomes that are all zero within a group --- which is exactly where `ppmlhdfe` and `fepois` make their own decisions about dropping singletons and separated observations.  Those decisions agree on a well-behaved sample, as the identical draw above shows, and there is no reason to expect them to agree on a degenerate one.  I have not confirmed this is the whole of it.
+
+The conclusion does not depend on settling it.  `ad` supplies twelve usable clusters.  A cluster bootstrap on twelve clusters is not something to lean on, and two competent implementations disagreeing by ten per cent is a fair reflection of how much information twelve clusters carry.  Bootstrap because the analytic standard error is wrong in a known direction; do not report the result to three digits as though it were settled.
 
 ## What if the endogenous variable is binary?
 
-Wooldridge treats this case only in a section on extensions and future directions, and declines to vouch
-for the approximation, so it is the least settled material in this chapter.  Both procedures above assume
-otherwise: Procedure 3's first stage is *linear*, and the companion probit procedure in the same
-paper states outright that the endogenous variable is assumed continuous.  The binary case appears only
-in that paper's final section, on extensions and future directions.
+The linear first stage is no longer valid --- the independence condition it needs cannot hold for a discrete endogenous variable.  The [guide chapter](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) works through why, and derives the replacement: a **generalized residual** from a reduced-form probit or logit in $w_{it} = (1, z_{it}, \bar z_i)$.  What follows is the part that matters when you sit down to compute it.
 
-### Why the linear first stage stops working
+**For a logit the generalized residual is just $y_{it2} - \hat p_{it2}$.**  The generalized residual is the score of the log-likelihood with respect to the index, and for a logit that score is exactly the response residual.  So the familiar "predict the probability, then subtract" recipe *is* the generalized residual, not an approximation to it.  For a probit it is not: there the generalized residual is the inverse-Mills expression, a genuinely different variable.  In a simulated sample of 5,000 the two differ by as much as 1.59 while correlating at 0.999 --- so the subtraction recipe is exact for a logit and simply wrong for a probit, and the high correlation means the mistake will not announce itself.
 
-It is worth being precise about what fails, because the linear first stage does not simply become
-*less accurate* for a binary endogenous variable --- the assumption behind it cannot hold at all.
+**Get the right residual out of the software.**  `predict` on its own after a binary model returns a probability, not a residual.  The residuals it will give you are not the generalized residual either: Pearson residuals divide through by $\sqrt{\hat p(1-\hat p)}$, and deviance residuals are a different transformation again.  In the same simulation those correlate with the response residual at 0.991 and 0.995 --- close enough to look right at a glance, and the wrong variable to put in the second stage.  Compute $d - \hat p$ by hand.
 
-The control function rests on writing $y_{it2} = z_{it}\pi_2 + v_{it2}$ with $v_{it2}$
-**independent** of $z_{it}$.  That is an assumption about the reduced form, not something OLS
-delivers.  The linear projection always produces a residual *uncorrelated* with $z$; independence is
-much stronger, and independence is what the argument needs.  Wooldridge flags the gap where he states
-the assumption (2010, p. 743): "We could relax the independence assumptions to some degree, but we
-cannot just assume that $v_2$ is uncorrelated with $\mathbf z$ and that $e_1$ is uncorrelated with
-$v_2$."
-
-Why the stronger condition?  Because of the exponential.  Writing the heterogeneity as
-$c_1 = \rho_1 v_2 + e_1$ and substituting into the exponential mean leaves a factor
-$E[\exp(e_1)\mid z, y_2, v_2]$, and the control-function mean holds only if that factor is a
-*constant* --- which is why Wooldridge normalises $E[\exp(e_1)] = 1$ rather than $E(e_1) = 0$.  That
-is a condition on the moment generating function, hence on every moment at once.  The linear model
-needs only $E[z'\varepsilon] = 0$, a single moment, which the projection supplies for free.  This is
-the same fact as "control function $=$ 2SLS in a linear model but not in Poisson", seen from the
-assumption side rather than the algebra: $\exp(\cdot)$ turns a moment condition into a distributional
-one.
-
-For a binary $y_{it2}$ the stronger condition then fails by construction.  Conditional on $z$, the
-residual $v_2 = y_2 - z\pi_2$ takes exactly two values, $1 - z\pi_2$ and $-z\pi_2$, and **both slide
-as $z$ changes**, as do the probabilities of landing on them.  A distribution whose support moves
-with $z$ cannot be independent of $z$ --- unless $\pi_2 = 0$, in which case there is no first stage.
-Wooldridge (2010, p. 746) states the conclusion: the independence assumption "rules out most cases
-where $y_2$ has some discreteness, such as with binary, count, or corner responses… it would be very
-unusual for a discrete variable to be expressible as a linear equation with additive error
-independent of $\mathbf z$."
-
-One caution about *why* it fails, because the obvious version of the argument proves too much.  The
-problem is not that the residual is discrete --- the generalized residual below is two-valued given
-$z$ as well.  What differs is *which object* independence is asserted about.  The linear route
-asserts it of the observed $v_2$, whose support moves with $z$; the probit route asserts it of the
-continuous latent error, $v_2 \mid z \sim N(0,1)$, which is the assumption every probit already makes.
-The fix is not to find a continuous control function but to relocate the assumption to a latent
-variable where it is plausible.
-
-**What survives is the test, not the correction.**  This is worth keeping, because the linear first
-stage remains genuinely useful.  Wooldridge (2010, p. 744): "under the null hypothesis none of the
-assumptions we made about $(c_1, v_2)$ need to hold… Therefore, as a test, this procedure is very
-robust, and it can be applied when $y_2$ contains binary, count, or other discrete variables.
-Unfortunately, if $y_2$ is endogenous, the correction does not work without something like the
-assumptions made previously."  Under $H_0: \rho = 0$ there is no endogeneity left to approximate, so
-no reduced-form assumption is needed.  Use the linear residual to *test* for endogeneity; do not use
-it to *correct* for it.
-
-A fuller treatment --- Terza's exact correction, the Taylor expansion that makes the generalized
-residual its first-order approximation, and simulations comparing the three estimators --- is in the
-[Poisson IV chapter](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) of the
-*Causal Econometrics Guide*.
-
-What is offered there is the **generalized residual** from a reduced-form probit in
-$w_{it} = (1, z_{it}, \bar z_i)$ --- the instrument, the time-varying exogenous controls, and their unit
-means:
-
-$$ \widehat{gr}_{it2} = y_{it2}\,\lambda(w_{it}\hat\theta_2) - (1-y_{it2})\,\lambda(-w_{it}\hat\theta_2) $$ {#eq-poisson-iv-fe-1}
-
-where $\lambda$ is the inverse Mills ratio.  For a **logit** first stage the generalized residual
-collapses algebraically to the plain response residual $y_{it2} - \hat p_{it2}$, so the familiar
-"predicted probability, then subtract" recipe is the generalized residual, not an approximation to it.
-
-The reason for that collapse is worth knowing, because it tells you when the shortcut stops working.  The
-generalized residual is the score of the log-likelihood with respect to the index.  For a logit that score
-*is* $y_{it2} - \hat p_{it2}$.  For a probit it is the inverse Mills expression above, which is a
-genuinely different variable: in a simulated sample of 5,000 the two differ by as much as 1.59, while
-correlating at 0.999.  So the subtraction recipe is exact for a logit and simply wrong for a probit, and
-the high correlation means the mistake will not announce itself.
-
-One practical warning follows.  What you want is the **response** residual --- predict the probability,
-then subtract --- and `predict` on its own returns a probability, not a residual.  The other residuals on
-offer after a binary model are not the generalized residual either: Pearson residuals divide through by
-$\sqrt{\hat p (1-\hat p)}$, and deviance residuals are a different transformation again.  In the same
-simulation those correlate with the response residual at 0.991 and 0.995 --- close enough to look correct
-if you glance at them, and the wrong variable to put in the second stage.
-
-A note on the name, because it misleads.  This construction is usually filed under **correlated random
-effects** (CRE), and that is how to find it in the literature --- see the [CRE chapter](more-cre.qmd).
-The name describes the *assumption*: heterogeneity is modelled as a function of the group means and
-allowed to correlate with the regressors, instead of being treated as a free parameter.  It does not
-describe the estimator.  The first stage below is a **pooled logit** with the group means added as
-regressors.  No random effect is estimated, no variance component appears, and nothing is integrated
-out.  Below it is labelled "CRE (Mundlak device)" so that both names stay visible: the first tells you
-where to look it up, the second tells you what is actually computed.
-
-Two caveats should be stated plainly.  The construction is introduced as "a simple example", and is immediately followed
-by: "The Mundlak device, or Chamberlain's version of it, might work reasonably well, but neither might be
-flexible enough.  We leave investigations into the quality of CF approximations in discrete cases to
-future research."  So this is the construction to use, but it is not a settled result.  If you are worried
-the specification is too rigid, the same paper suggests adding nonlinear functions of the conditioning
-set --- in particular interactions of the covariates with the unit means, and with the control function
-itself --- or letting the variance depend on the unit means via a heteroskedastic probit.
+**On the name.**  This construction is filed in the literature under **correlated random effects** (CRE) --- see the [CRE chapter](more-cre.qmd) --- and that is how to find it.  The name describes the assumption, not the estimator.  What is actually computed below is a **pooled logit** with group means added as regressors.  No random effect is estimated, no variance component appears, nothing is integrated out.  It is labelled "CRE (Mundlak device)" so both names stay visible: the first tells you where to look it up, the second tells you what runs.
 
 ### Several fixed effects in the first stage
 
-The expression $w_{it} = (1, z_{it}, \bar z_i)$ above is written for a single unobserved effect.  If the
-second stage absorbs more than one set of fixed effects --- units, years, and something else --- the
-first stage needs the treatment set out in the [Mundlak chapter](mundlak-device.qmd), where the CRE
-construction is the Mundlak device: take means over the
-*one* dimension you are eliminating, of everything else in the model, retained dummies included.  In
-practice that means unit means of the instrument and the time-varying controls, plus unit means of the
-year and other dummies, with those dummies themselves kept in levels.  You do not want one set of means
-per dimension; that construction is exact only for orthogonal designs, which observational panels do not
-have.
+$w_{it} = (1, z_{it}, \bar z_i)$ is written for a single unobserved effect.  If the second stage absorbs more than one set of fixed effects --- units, years, something else --- the first stage needs the treatment in the [Mundlak chapter](mundlak-device.qmd): take means over the *one* dimension you are eliminating, of everything else in the model, retained dummies included.  In practice that means unit means of the instrument and the time-varying controls, plus unit means of the year and other dummies, with those dummies themselves kept in levels.  Not one set of means per dimension --- that construction is exact only for orthogonal designs, which observational panels are not.
 
-### Why not just put the dummies in the first stage?
+### Why not put the dummies in the first stage?
 
-Because a logit with many thin groups is badly biased, and this is the whole reason the Mundlak route is
-needed.  The size of the problem depends on observations per group, not on the number of groups.  In a
-simulation with the total sample held near 12,000 and a true slope of 1, a logit with group dummies
-returns about 2.0 at two observations per group --- matching the known result that the fixed-effects
-logit slope is inflated by a factor of two in that case --- about 1.37 at four observations per group,
-1.15 at six, 1.04 at twenty-five, and essentially the truth by a hundred.  A panel with a few thousand
-units and four or five observations each therefore sits in the worst part of that range, while year
-effects with hundreds of observations apiece are harmless and can simply be estimated.
+Because a logit with many thin groups is badly biased, and that is the whole reason for the Mundlak route.  The size of the problem depends on observations per group, not on the number of groups.  In a simulation with the total sample held near 12,000 and a true slope of 1, a logit with group dummies returns about 2.0 at two observations per group --- matching the known result that the fixed-effects logit slope is inflated by a factor of two in that case --- about 1.37 at four per group, 1.15 at six, 1.04 at twenty-five, and essentially the truth by a hundred.  A panel with a few thousand units and four or five observations each sits in the worst part of that range.  Year effects with hundreds of observations apiece are harmless and can simply be estimated.
 
-The CRE (Mundlak device) first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at
-small group sizes, because integrating a logit over normal heterogeneity does not give a logit.  That is
-the same approximation error the previous section's caveat refers to, arriving from a different
-direction.
+The CRE (Mundlak device) first stage is better but not unbiased: in the same simulation it ran roughly ten per cent low at small group sizes, because integrating a logit over normal heterogeneity does not give a logit.
 
 ### A worked example
 
-The `website` data used earlier does not have the shape that causes trouble --- its fixed effects have 13
-and 2 levels, with roughly 90 observations each, so a logit with dummies would be perfectly well behaved
-there.  This simulates something more awkward instead: a count outcome, a binary endogenous regressor, an
-instrument, and two thousand units with between two and six observations each.
+The `website` data does not have the shape that causes trouble.  `ad` has 13 levels, but they are very uneven --- 128, 122, 90, 51, 44, 19, 16, 13, 8, 4, 2, 2, 1 observations --- and `female` has 2 levels of about 250 each.  Most of the sample therefore sits in cells large enough that a logit with dummies would be fine, even though a handful of `ad` cells are tiny.
+
+So this simulates something more awkward instead: a count outcome, a binary endogenous regressor, an instrument, and two thousand units with between two and six observations each.
 
 ```{stata}
 *| label: binary_cf
@@ -327,21 +300,13 @@ di "CF, linear FE first stage       = " %8.6f b_lin
 restore
 ```
 
-Against a true coefficient of 0.300000, the naive FE Poisson gives 0.747206,
-the CRE/Mundlak logit first stage gives 0.293829, and the linear FE first stage
-gives 0.277644.
+Against a true coefficient of 0.300000, the naive FE Poisson gives 0.747206, the CRE/Mundlak logit first stage gives 0.293829, and the linear FE first stage gives 0.277644.
 
-The naive estimate is inflated by a factor of about two and a half; both control-function versions
-recover something close to the truth, and they agree with each other — within 0.016 of one another, and both within 0.023 of the truth.  That agreement is the point.  When
-the endogenous variable is binary I would report both: the linear first stage rests on the exact result
-in point 2 above and drops no observations, while the logit version is better specified for a binary
-variable but rests on the unsettled argument in this section.  If they diverge materially, that is the
-most important thing you have learned, and it belongs in the write-up.
+The naive estimate is inflated by about two and a half times.  Both control-function versions land close to the truth, and they agree with each other --- within 0.016 of one another, both within 0.023 of the truth.  That agreement is the point.  With a binary endogenous variable I would report both: the linear first stage rests on the numerical-equivalence result above and drops no observations, while the logit version is better specified for a binary variable but rests on an approximation the literature has not settled.  If they diverge materially, that is the most important thing you have learned, and it belongs in the write-up.
 
-The standard errors in the chunk above are wrong, for the reason given earlier --- the residual is
-generated.  Bootstrap both stages together, as in the earlier section.
+The standard errors in that chunk are wrong, for the reason given earlier.  Bootstrap both stages together, as above.
 
 ---
 
 <!-- see-also-footer -->
-*Systematic treatment: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*
+*Theory and derivations: [R](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) · [Julia](https://xiangao.github.io/causal_econometrics_julia/poisson-iv.html).*
