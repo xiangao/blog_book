@@ -1,0 +1,216 @@
+---
+title: "More on Correlated Random Effect (CRE)"
+author: "Xiang Ao"
+date: "2025-11-11"
+---
+
+Jeff Wooldridge suggested using Correlated Random Effect (CRE) for binary outcomes in this twitter post:  https://x.com/jmwooldridge/status/1986100627454206220
+
+One word on the name before we start, since it invites a misreading.  "Correlated random effects"
+describes an *assumption*, not an estimator: the unobserved effect $v_i$ is modelled as a function of the
+group means and is allowed to correlate with the regressors, rather than being treated as a free
+parameter to estimate.  Whether you then estimate by pooled OLS, pooled probit, or an actual
+random-effects routine is a separate choice.  Most of what follows uses **pooled** estimation with group
+means added, in which no random effect is estimated at all.
+
+
+## Linear model
+
+The standard panel setup is:
+
+$$y_{it} = \alpha + X_{it} \beta + v_i + \epsilon_{it} $$ {#eq-more-cre-1}
+
+Wooldridge (2021) shows that these are equivalent:
+
+1. Two-way fixed-effect OLS (or the dummy-variable approach).
+2. Mundlak's CRE approach (pooled OLS with group means, or CRE with random effects).
+
+Two qualifications on that second item, both of which matter in practice.
+
+**What "the Mundlak device" has to include.**  For a *one-way* model it is the unit means of the
+time-varying regressors, and nothing else.  That much holds whatever the panel looks like, because
+$\sum_t (x_{it} - \bar x_i) = 0$ within each unit by construction.  A *two-way* model needs the time
+dimension handled as well, and the two usual ways of doing it --- adding the time means of the
+regressors, or keeping a full set of time dummies --- reproduce the two-way fixed effect estimate
+**only when the unit and time factors are orthogonal**, which for a two-way panel means every unit
+appearing in every period.  The `castle` data used below is balanced, so both routes are exact there;
+the example takes the second one (unit means plus `factor(year)`), which is why it reproduces the
+*two-way* estimate and not the *one-way* one.  Unit means alone would give the one-way estimate.
+
+**That orthogonality condition is binding, not decorative.**  On an unbalanced panel it fails, and
+the discrepancy can be substantial: in the `nlswork` example in [the Mundlak
+chapter](mundlak-device.qmd#an-important-qualification-twm-needs-a-balanced-panel) the coefficient on
+`age` differs by more than a factor of two.  What restores the equivalence there is adding the **unit
+means of the time dummies**.  In a balanced panel those means are the constant $1/T$ and have no
+variance, which is precisely why the shortcut above reads as though it were unconditional.  With
+**three or more** fixed effects the shortcut is weaker still --- one set of means per dimension is
+exact only under a fully orthogonal design, and the construction that survives without one is to pick
+the dimension being eliminated and project it onto the within-unit means of everything else retained
+in the model, dummies included.  See [More than two fixed
+effects](mundlak-device.qmd#more-than-two-fixed-effects-one-set-of-means-not-one-per-dimension).
+
+The idea of Chamberlain's device is that since we don't observe $v_i$, we project $v_i$ onto the history of $X_i$: $v_i = \psi + \bar X_i \xi + a_i$, and replace $v_i$ with that projection.  Mundlak's device is a special case, where we put equal weight on all $X_{it}$, so the projection of $v_i$ onto $X_i$ reduces to the mean $\bar X_i = \frac{1}{T}\sum_t X_{it}$.  Replace $v_i$ with that projection, and what is left ($a_i$) is by construction uncorrelated with $X_{it}$.
+
+
+Here is an example:
+
+
+### example 1
+
+
+```{r}
+#| label: fix1
+#| cache: true
+#| warning: false
+#| message: false
+library(dplyr)
+library(fixest)
+library(bacondecomp)
+data("castle")
+
+# Fixed-effects model with individual and time fixed effects
+fe_model_twoway <- feols(l_homicide ~ poverty + l_police | state + year, data = castle)
+summary(fe_model_twoway)
+
+# random effect
+library(lme4)
+re_model <- lmer(l_homicide ~ poverty + l_police +  factor(year) +  (1 | state), data = castle)
+summary(re_model)
+
+# Mundlak
+castle2 <- castle |>
+  group_by(state) |>
+  mutate(poverty_mean = mean(poverty, na.rm = TRUE), l_police_mean= mean(l_police, na.rm = TRUE))
+cre_model <- feols(l_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year), data = castle2)
+summary(cre_model)
+
+# Mundlak
+cre_model2 <- lmer(l_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year) +  (1 | state), data = castle2)
+summary(cre_model2)
+```
+
+The data are `castle`: 550 state-years, 50 states over 11 years, balanced. The
+outcome is log homicide rate, the regressors are the poverty rate and log police
+employment.
+
+In this example, fixed effect model, CRE1 (pooled OLS with the Mundlak device) and CRE2 (random effects with the Mundlak device) all give the same coefficient on poverty: $-0.027068$ in the two-way fixed-effect model, $-0.027068$ in pooled OLS with the means, and $-0.02707$ in the mixed model. Log police is 0.066033 in all three. The group-mean coefficients, 0.125283 for poverty and 1.318037 for police, are what absorb the between-state variation.
+
+The plain random-effects model is the one that does not belong. Without the
+group means it gives a poverty coefficient of $-0.0007991$ — essentially zero,
+against $-0.027$ from every other specification, and with the opposite
+substantive reading. That is what happens when $v_i$ is correlated with the
+regressors and the model assumes it is not. As we know, RE model assumes $v_i$ is uncorrelated with $X_{it}$, while CRE and FE allow for correlation between $v_i$ and $X_{it}$.
+
+One detail on standard errors. The three point estimates agree, but pooled OLS
+reports 0.030004 on poverty while the fixed-effect model reports 0.013306 and
+the mixed model 0.01331. Pooled OLS is ignoring the within-state correlation;
+cluster it on state and the discrepancy closes. Point-estimate equivalence does
+not carry over to inference for free.
+
+## nonlinear model
+
+What I did not realize before is that this is only valid for the linear case.  In the linear model the
+algebra above is an identity: adding the group means reparameterizes the regression so that the
+coefficient on $x_{it}$ *is* the within estimator, and no distributional assumption is involved.  In a
+nonlinear model --- logit, probit, Poisson --- there is no such identity.  Substituting a projection
+for $v_i$ becomes a genuine modelling assumption about $D(v_i \mid X_i)$, and the likelihood you end up
+maximizing is not the one you started from.
+
+### Binary outcome
+
+For binary outcomes, the model is:
+
+$$\Pr(y_{it}=1 \mid X_{it}, v_i) = \Phi(\alpha + X_{it} \beta + v_i) $$ {#eq-more-cre-2}
+I used to think it's the best to use conditional logit.  However, it needs "conditional independence" (serial independence could be a better name) to be consistent.  That is, we have to assume the series of $y_{it}$ is conditionally independent of each other given $X_{it}$ and $v_i$.  This is a strong assumption.  If we think we have serial correlation in the error term, then this would not hold.  The other disadvantage of conditional logit (also called fixed effect logit) is that $v_i$'s are not estimated, it is just a nuisance parameter.  Any partial effects cannot be calculated, because any partial effects are functions of $v_i$'s.
+
+Instead, Wooldridge suggests using CRE probit --- that is, the Mundlak device inside a probit.  Basically adding Mundlak device (group means of $X$'s) to the model, and then use pooled probit.  Note that we do not use RE probit or logit, since that would need conditional independence too.  Lin and Wooldridge (2019, sec. 5.2) put this plainly: "None of random effects probit, RE logit, RE Tobit, RE Poisson, and so on has robustness properties in the presence of serial correlation of the innovations."  Pooled methods with cluster-robust inference are robust to serial dependence of arbitrary form, which is the reason to prefer them here.
+
+For nonlinear panel data with unobserved heterogeneity (meaning there is $v_i$ that we don't observe), we have a few assumptions.
+
+First, strict exogeneity,
+$$ D(y_{it} | X_{i1}, ..., X_{iT}, v_i) = D(y_{it} | X_{it}, v_i) $$ {#eq-more-cre-3}
+This means that the distribution of $y_{it}$ only depends on $X_{it}$, given $v_i$.
+
+Second, conditional independence,
+$$ D(y_{i1}, y_{i2}, ..., y_{iT} | X_i, v_i) = \prod_{t=1}^T D(y_{it} | X_i, v_i) $$ {#eq-more-cre-4}
+
+This means that the distribution of joint distribution of $y_{it}$'s can be modeled by each $y_{it}$ independently, given $X_i$ and $v_i$.  We need this in most nonlinear cases, but not in linear case.
+
+Then we need to specify $D(v_i) | X_i$.  The random effect assumption is saying $$ D(v_i | X_i) = D(v_i) $$ {#eq-more-cre-5}, that is, $v_i$ is independent of $X_i$.  This is a strong assumption.  We should try to avoid this assumption.
+
+Now, most nonlinear models make the second assumption, in the panel setting, when we have $v_i$.  That includes RE model, conditional logit.  However, that does not include pooled probit/logit, or CRE with pooled logit/probit.  That is why Wooldridge recommend using CRE with pooled probit.
+
+
+### Example 2
+
+```{r}
+#| label: fix2
+#| cache: true
+#| warning: false
+#| message: false
+# generate a binary outcome, high_homocide
+
+castle2 <- castle2 |>
+  mutate(high_homicide = ifelse(l_homicide > mean(l_homicide, na.rm = TRUE), 1, 0))
+
+# CRE pooled probit
+cre_probit <- glm(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year), data = castle2, family = binomial(link = "probit"))
+# Compute Average Marginal Effects (AMEs)
+library(marginaleffects)
+ame_cre_probit <- avg_slopes(cre_probit)
+ame_cre_probit
+
+
+# linear model
+cre_lm <- lm(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year), data = castle2)
+ame_lm <- avg_slopes(cre_lm)
+ame_lm
+
+# CRE RE probit
+cre_re_probit <- glmer(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year) +  (1 | state), data = castle2, family = binomial(link = "probit"))
+ame_cre_re_probit <- avg_slopes(cre_re_probit)
+ame_cre_re_probit
+```
+
+Two caveats about that third model, and the second one matters more than the first.
+
+First, on what `avg_slopes` is averaging. For a `merMod` object `marginaleffects`
+predicts with `re.form = NULL` by default, which *includes* the estimated random
+effects rather than setting them to zero; the package warns that its standard
+errors nevertheless reflect only the uncertainty in the fixed-effect parameters.
+If you want the AME for a "typical" ($v_i = 0$) unit you have to ask for it with
+`re.form = NA`, and neither of those is the *population-averaged* AME, which
+requires integrating the marginal effect over the estimated distribution of
+$v_i$. In a nonlinear model like probit those three quantities genuinely differ,
+because $\Phi(\cdot)$ is nonlinear in $v_i$.
+
+Second, and more to the point here: on this data set the random-effects probit is
+a **boundary (singular) fit**. `lme4` reports an estimated state-level standard
+deviation of about $5\times10^{-9}$ --- numerically zero --- and `isSingular()`
+returns `TRUE`. With no variance left in the random effect, this model *is* the
+pooled probit: its coefficients agree with the pooled fit to about $10^{-4}$
+(poverty $-0.17848$ either way). So the third specification is not really a third
+specification on this data, and the distinction between conditional and
+population-averaged effects has nothing to apply to. It is kept here because the
+comparison is the one you would want to run in general --- but do not read the
+agreement between models two and three as evidence about random effects; check
+`VarCorr()` before drawing that conclusion.
+
+Ultimately we are interested in the partial effect, therefore we can compare across models.  In this case, we should prefer average marginal effect by CRE pooled probit.
+
+The three sets of average marginal effects bear that out. Pooled probit with the
+Mundlak device gives $-0.06477$ on poverty, the mixed-model version $-0.06406$,
+and the singular random-effects fit $-0.06477$ again — all within 0.0008 of each
+other, all with standard errors around 0.034, and all marginally insignificant
+($p \approx 0.052$). The agreement is unsurprising given the singularity noted
+above, and the reason to prefer the pooled version is robustness to serial
+dependence rather than any difference in the numbers here.
+
+## References
+
+- Chamberlain, G. (1982). Multivariate regression models for panel data. *Journal of Econometrics* 18, 5--46.
+- Lin, W., and J. M. Wooldridge (2019). Testing and correcting for endogeneity in nonlinear unobserved effects models. Ch. 2 in *Panel Data Econometrics: Theory*, ed. M. Tsionas, Elsevier, 21--43.
+- Mundlak, Y. (1978). On the pooling of time series and cross section data. *Econometrica* 46, 69--85.
+- Papke, L. E., and J. M. Wooldridge (2008). Panel data methods for fractional response variables with an application to test pass rates. *Journal of Econometrics* 145, 121--133.
+- Wooldridge, J. M. (2010). *Econometric Analysis of Cross Section and Panel Data*, 2nd ed. MIT Press.  Ch. 15 covers the nonlinear panel and CRE material.
+- Wooldridge, J. M. (2019). Correlated random effects models with unbalanced panels. *Journal of Econometrics* 211, 137--150.
