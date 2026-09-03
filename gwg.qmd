@@ -1,769 +1,168 @@
 ---
-title: "Gender Wage Gap Analysis Using US Current Population Survey Data"
+title: "Gender Wage Gap Analysis: Oaxaca-Blinder and Causal Estimation"
 author: "Xiang Ao"
 date: "2025-11-17"
 ---
 
-The Oaxaca-Blinder decomposition splits the wage gap into an explained component (differences in observable characteristics) and an unexplained component (differences in returns, often attributed to discrimination). A well-known problem is that the decomposition depends on which group is used as the reference.
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(broom)
+library(marginaleffects)
+library(npcausal)
+```
 
-Słoczyński (2013, 2015) connects OB to regression adjustment in a way that makes the reference-group dependence precise.
+## Introduction: Oaxaca-Blinder as Regression Adjustment
 
-## Oaxaca-Blinder decomposition
+The classical Oaxaca-Blinder (OB) decomposition separates the raw difference in mean outcomes between groups into an "explained" component (differences in observable covariates) and an "unexplained" component (differences in regression coefficients, often interpreted as discrimination):
 
-Assume the regression model is different for male and female: $$ y_i = X_i \beta_a + \epsilon_a $$ {#eq-gwg-1}
+$$E[Y \mid A = 1] - E[Y \mid A = 0] = \underbrace{(E[X \mid A = 1] - E[X \mid A = 0]) \beta_0}_{\text{Explained (Covariate Differences)}} + \underbrace{E[X \mid A = 1] (\beta_1 - \beta_0)}_{\text{Unexplained (Coefficient Differences)}}$$
 
-where $a$ is gender (female is 1), $X$'s are person characteristics.
+where $A = 1$ denotes female and $A = 0$ denotes male. A well-known limitation of the traditional OB decomposition is its sensitivity to the choice of reference group ($\beta_0$ vs. $\beta_1$).
 
-$$ E[y_i | a_i = 1] - E[y_i | a_i = 0] = E[X_i | a_i=1]  (\beta_1 - \beta_0) + (E[X_i | a_i =1 ] - E[X_i | a_i = 0]) \beta_0 $$ {#eq-gwg-2}
+Słoczyński (2013, 2015) connects the OB decomposition directly to the potential outcomes framework:
+- Demeaning covariates at the **overall sample mean** identifies the Population Average Gender Effect ($\tau_{\text{PAGE}}$, equivalent to the Average Treatment Effect, ATE).
+- Demeaning covariates at the **female subpopulation mean** identifies the Average Treatment Effect on the Treated ($\tau_{\text{PATT}}$, or ATT).
 
-or
+In this framing, the unexplained gap is simply the treatment effect evaluated at the chosen covariate distribution, while the explained gap represents selection bias. This formulation allows us to estimate the gap via standard regression adjustment or modern doubly robust estimators.
 
-$$ E[y_i | a_i = 1] - E[y_i | a_i = 0] = E[X_i | a_i=0]  (\beta_1 - \beta_0) + (E[X_i | a_i =1 ] - E[X_i | a_i = 0]) \beta_1 $$ {#eq-gwg-3} These are two forms of the OB decomposition. The first term is the unexplained component (difference in coefficients); the second is the explained component (difference in covariate means). The two forms use different reference groups (male vs. female) and generally give different results.
+## Empirical Application: 2015 CPS Data
 
-We can rewrite this as
-
-
-$$
-\begin{aligned}
-E[y_i | a_i =1] - E[y_i | a_i=0] &= E[X_i | a_i=1]  (\beta_1 - \beta_0) + (E[X_i | a_i =1 ] - E[X_i | a_i = 0]) \beta_0  \\
-&= E[y_i(1) - y_i(0) | a_i=1] + (E[y_i(0) | a_i=1] - E[y_i(0) | a_i = 0]) \\
-&= \tau_{PATT} + (E[y_i(0) | a_i=1] - E[y_i(0) | a_i=0])
-\end{aligned}
-$$ {#eq-gwg-4}
-
-
-That is, the observed difference is the sum of $\tau_{PATT}$ and selection bias. It is also known in the OB decomposition literature as the unexplained component and the explained component. The former as "discrimination".
-
-We can simply use Regression Adjustment for these quantities.  The easiest is an OLS of $y_i$ on $a_i$, the demeaned $X_i$, and their interaction; the coefficient on $a_i$ is then the effect evaluated at the mean of the covariates used for the demeaning.  Demean at the **overall** mean and that coefficient is $\tau_{PAGE}$ (the ATE), which is what the example below does; demean at the mean among **women** instead and it is $\tau_{PATT}$.  The choice of centring is what selects the estimand, so it is worth being explicit about which one you have.
-
-He also advocates the "population average gender effect" (PAGE):
-
-$$ \tau_{PAGE} = E[\tau(X_i)] $$ {#eq-gwg-5}
-
-which is basically ATE, or conditional average effect (CATE), then average over the $X$'s.
-
-In this version, the two forms of OB decomposition can be $\tau_{PAGM}$ and $\tau_{PAGW}$, for men and women.
-
-The nice thing about this estimator $\tau_{PAGE}$ is that first, it is consistent with the treatment effect (causal inference) literature, and it is invariant to the choice of reference group.
-
-The second advantage is that we also do not need to assume homogeneity of treatment effect, which is a strong assumption in the Oaxaca-Blinder decomposition.
-
-The third advantage is that we can use nonparametric methods to estimate the treatment effect. Traditional OB decomposition is based on linear regression, which assumes a linear relationship between the covariates and the outcome.
-
-## Example
-
-I am using the data from https://github.com/d2cml-ai/CausalAI-Course/tree/main/data.
-
-"The data set we consider is from the 2015 March Supplement of the U.S. Current Population Survey. We select white non-hispanic individuals, aged 25 to 64 years, and working more than 35 hours per week for at least 50 weeks of the year. We exclude self-employed workers; individuals living in group quarters; individuals in the military, agricultural or private household sectors; individuals with inconsistent reports on earnings and employment status; individuals with allocated or missing information in any of the variables used in the analysis; and individuals with hourly wage below 3. "
-
-I am using this data to study gender wage gap (GWP).
-
-We can model GWP using the potential outcome framework, with some care about what plays the role of "treatment." Gender itself is an immutable characteristic, not something that can be manipulated or randomized — the standard "no causation without manipulation" principle (Holland, 1986) says we should not treat gender itself as a causal treatment. What we really have in mind, and what the "treatment" indicator below is best understood as a proxy for, is something like *being perceived/treated as female by employers* (e.g., employer discrimination), which is at least conceptually manipulable even though we cannot experimentally assign it here. With that caveat in mind, we let $D=1$ if female, $D=0$ if male, and outcome $Y$ is logged wage.
-
-The ATE would be
-
-$$ \delta_{ATE} = E[Y(1) - Y(0)] $$ {#eq-gwg-6}
-
-where $Y(1)$ is the potential outcome if treated, and $Y(0)$ is the potential outcome if not treated.
-
-### Regression adjustment
-
-Since this is to estimate ATE, we can use regression adjustment to estimate the ATE. First let's use de-meaned $X$'s. Then the coefficient on gender is the ATE.
-
-We use These variables as $X$'s:
-
-"shs","hsg","scl","clg","ad","ne","mw","so","we","exp1", "occ", "occ2", "ind", and "ind2".
-
-They are:
-
-"Less then High School","High School Graduate","Some College","College Graduate","Advanced Degree", "Northeast","Midwest","South","West","Experience", "occupation", "occupation 2", "industry", and "industry 2".
-
-I decide to use "occ2" and "ind2" as they are broader categories of occupation and industry. We don't have enough data for finer categories "occ" and "ind".
-
-"exp1" seems to be the only variable that is continuous, let's demean it first. Let's also input "occ2" and "ind2" as factors.
-
-Let's include demeaned "exp1", "sohs", "hsg", "socl", "clg", "mw", "sout", and "we" first.  I leave out "occ2" and "ind2" since there are too many levels to demean.
+We analyze a subsample from the 2015 March Supplement of the U.S. Current Population Survey (`wage2015_subsample_inference.csv`), restricted to white, non-Hispanic full-time workers aged 25–64 ($N = 5,150$). The outcome $Y$ is the logarithm of hourly wage (`lwage`), and the indicator is `female` ($A \in \{0, 1\}$).
 
 ```{r}
 #| label: ra1
 #| cache: true
-#| warning: false
 #| message: false
-library(tidyverse)
-library(broom)
-
+#| warning: false
 
 data <- read_csv("wage2015_subsample_inference.csv") |>
   rename(socl = scl, sohs = shs, sout = so) |>
-  mutate(exp_dm = exp1 - mean(exp1, na.rm = TRUE), female=sex, occ2 = factor(occ2), ind2 = factor(ind2)) |>
-  mutate(sohs_dm = sohs - mean(sohs, na.rm = TRUE),
-         hsg_dm = hsg - mean(hsg, na.rm = TRUE),
-         socl_dm = socl - mean(socl, na.rm = TRUE),
-         clg_dm = clg - mean(clg, na.rm = TRUE),
-         mw_dm = mw - mean(mw, na.rm = TRUE),
-         sout_dm = sout - mean(sout, na.rm = TRUE),
-         we_dm = we - mean(we, na.rm = TRUE))
+  mutate(
+    exp_dm   = exp1 - mean(exp1, na.rm = TRUE),
+    female   = sex,
+    occ2     = factor(occ2),
+    ind2     = factor(ind2),
+    sohs_dm  = sohs - mean(sohs, na.rm = TRUE),
+    hsg_dm   = hsg - mean(hsg, na.rm = TRUE),
+    socl_dm  = socl - mean(socl, na.rm = TRUE),
+    clg_dm   = clg - mean(clg, na.rm = TRUE),
+    mw_dm    = mw - mean(mw, na.rm = TRUE),
+    sout_dm  = sout - mean(sout, na.rm = TRUE),
+    we_dm    = we - mean(we, na.rm = TRUE)
+  )
 
-glimpse(data)
+# 1. Unadjusted (raw) difference
+reg1 <- lm(lwage ~ female, data = data)
+tidy(reg1) |> filter(term == "female")
 
-
-# construct matrices for estimation from the data
-
-# 1. basic model
-reg1 <- lm(lwage ~ female, data=data)
-tidy(reg1)
-
-reg2 <- lm(lwage ~ female*(exp_dm + sohs_dm + hsg_dm + socl_dm + clg_dm + mw_dm + sout_dm + we_dm), data=data)
-tidy(reg2)
+# 2. Regression adjustment with demeaned human capital & region controls
+reg2 <- lm(lwage ~ female * (exp_dm + sohs_dm + hsg_dm + socl_dm + clg_dm + mw_dm + sout_dm + we_dm), 
+           data = data)
+tidy(reg2) |> filter(term == "female")
 ```
 
-We see the raw gap is 3.8%.  Adjusting for some covariates we have 11% gap.
+### The Composition Effect
 
-That direction deserves comment, because it is the opposite of what most readers expect. Adding controls usually shrinks a gap; here it nearly triples it. The reason is composition:
+The raw wage gap is $-3.8\%$ ($p = 0.012$). After controlling for potential experience, education, and region, the estimated gap widens to $-11.3\%$ ($p < 0.001$). 
+
+Adding controls usually attenuates an observed gap; here it nearly triples it. This occurs because of sample composition:
 
 ```{r}
 #| label: composition
 #| cache: true
-#| warning: false
-#| message: false
-
-library(tidyverse)   # re-attached: the chunk that loads it is cached
 
 data |>
   group_by(female) |>
-  summarise(n = n(), mean_lwage = mean(lwage), exp1 = mean(exp1),
-            `<HS` = mean(sohs), HS = mean(hsg), `some coll` = mean(socl),
-            college = mean(clg), advanced = mean(ad)) |>
-  mutate(across(where(is.numeric), ~round(.x, 3)))
+  summarise(
+    n           = n(),
+    mean_lwage  = mean(lwage),
+    exp1        = mean(exp1),
+    `<HS`       = mean(sohs),
+    HS          = mean(hsg),
+    `Some Coll` = mean(socl),
+    College     = mean(clg),
+    Advanced    = mean(ad)
+  ) |>
+  mutate(across(where(is.numeric), ~round(.x, 3))) |>
+  knitr::kable(caption = "Covariate means by gender.")
 ```
 
-Women in this extract are **more** educated than men --- 17.5% hold advanced degrees against 10.7%, and 1.3% are below high school against 3.2% --- while potential experience is essentially identical (13.7 against 13.8 years). Education is therefore working in women's favour in the raw comparison. Holding it fixed removes that advantage and exposes a larger gap within education cells. Nothing subtle is happening; the raw and adjusted numbers simply describe different populations of comparison.
+Women in this sample have higher average educational attainment than men (17.5% hold advanced degrees vs. 10.7%; only 1.3% have less than high school vs. 3.2%), with identical experience ($\approx 13.8$ years). Because education raises wages, women's educational advantage partially masks the earnings gap in the raw comparison. Controlling for education holds this advantage constant, revealing an adjusted gap of $-11.3\%$ within equivalent education-experience cells.
 
-Keep this table in mind, because it comes back twice below: once when we ask what the adjusted number is an estimate *of*, and once when we ask whether conditioning on education might be doing harm rather than good.
+### Regression Adjustment via `marginaleffects`
 
-Or, we can use "marginaleffects" instead of demeaning.
+Instead of manual demeaning, the same estimands can be obtained directly using `marginaleffects::avg_comparisons()`:
 
 ```{r}
 #| label: ra2
 #| cache: true
-#| warning: false
-#| message: false
 
-reg3 <- lm(lwage ~ female*(exp1 + sohs + hsg+ socl + clg + mw + sout + we ), data=data)
+reg3 <- lm(lwage ~ female * (exp1 + sohs + hsg + socl + clg + mw + sout + we), data = data)
 
-library(marginaleffects)
+# Population Average Gender Effect (ATE / PAGE)
+avg_comparisons(reg3, variables = "female")
 
-avg_comparisons(reg3,
-                variables = "female")
+# Female Subpopulation Gender Effect (ATT / PATT)
+avg_comparisons(reg3, variables = "female", newdata = subset(data, female == 1))
 ```
 
-We get the same result as the demeaned regression.
+Both ATE and ATT land at $-11.3\%$, confirming that the fully interacted OLS specification evaluated at the respective empirical covariate distributions yields the OB decomposition directly.
 
-If we want $\tau_{ATT}$, then we can use the "newdata" argument to specify the treatment group,
-```{r}
-#| label: ra3
-#| cache: true
-#| warning: false
-#| message: false
-avg_comparisons(reg3,
-                variables = "female",
-                newdata = subset(data, female == 1))
-```
+## Adding Occupation and Industry: Mediators vs. Bad Controls
 
-### Occupation and industry: a bad control problem
-
-Before adding occupation and industry, it is worth asking what kind of variables they are --- and the honest answer implicates the covariates we have already been using.
-
-Sex is assigned at birth. Essentially nothing in the covariate vector precedes it:
-
-| Covariate | Downstream of sex? |
-|---|---|
-| Education (`sohs`...`ad`) | Yes --- schooling decisions respond to gender |
-| Experience (`exp1`) | Partly --- potential experience is age minus schooling, so it inherits education's endogeneity; actual experience is fully downstream (interruptions, part-time spells) |
-| Region (`mw`, `sout`, `we`) | Yes --- current region reflects migration, and tied-mover patterns are gendered |
-| Occupation, industry (`occ2`, `ind2`) | Yes, unambiguously |
-
-Genuinely pre-treatment variables would be birth cohort, region of birth, and parental characteristics --- and even the last is shaky, since parental investment is known to respond to a child's sex. So the valid adjustment set for sex is close to **empty**.
-
-Two consequences follow, and the second is the one that matters.
-
-First, there is no confounding to adjust away. The usual reason to control for $X$ is to make $Y(d) \perp D \mid X$ hold. But sex is not confounded by education --- education is *caused* by sex. Sex is about as close to randomised-by-nature as a treatment gets, so $Y(d) \perp D$ holds without conditioning on anything. Adjustment cannot improve identification here; it can only change the estimand.
-
-Second, and consequently, every model in this chapter sits somewhere on a **ladder of controlled direct effects**, not on a scale from worse to better estimates of one quantity:
-
-| Model | Held fixed | Question answered | Estimate |
-|---|---|---|---|
-| `reg1` | nothing | Total effect of the gender signal | $-3.8\%$ |
-| `reg3` | education, experience, region | Gap within education/experience cells | $-11.3\%$ |
-| `reg4` | + occupation, industry | Gap within occupation cells too | $-7.5\%$ |
-
-Read that way, movement between rungs is not error to be minimised --- it is information about where in the causal chain the gap accumulates. But each rung names a different intervention and needs its own justification, and the argument below applies at *every* rung, not only the last. Occupation and industry are simply the clearest case, so we use them to make the point.
-
-They are *bad controls* in the sense of Cinelli, Forney and Pearl (2022), for two separate reasons at the same time.
-
-```{r}
-#| label: gwg-dag
-#| fig-cap: "Occupation is both a mediator of the gender--wage relationship and a collider on a path through unobserved wage determinants $U$."
-#| fig-width: 7
-#| fig-height: 3.6
-#| warning: false
-#| message: false
-
-library(ggdag)
-library(ggplot2)
-
-g <- dagify(
-  Wage ~ Female + Occupation + U,
-  Occupation ~ Female + U,
-  exposure = "Female",
-  outcome  = "Wage",
-  coords = list(x = c(Female = 0, Occupation = 1.1, U = 1.1, Wage = 2.2),
-                y = c(Female = 0, Occupation = -1,  U = 1,   Wage = 0))
-)
-
-# node_size has to stay small: ggdag stops each edge at the node boundary, so
-# large nodes swallow the arrowheads -- and the arrowheads are the whole point.
-ggdag(g, text = FALSE, node_size = 9) +
-  geom_dag_text_repel(aes(label = name), colour = "black", size = 3.2,
-                      box.padding = 0.9, seed = 42) +
-  theme_dag() +
-  expand_limits(x = c(-0.45, 2.65), y = c(-1.5, 1.5))
-```
-
-Here $U$ stands for unobserved wage determinants --- drive, negotiation propensity, family constraints, expected career continuity --- and `Occupation` covers occupation and industry together.
-
-**Occupation is a mediator.** Part of the total effect of gender on wages runs `Female -> Occupation -> Wage`. Conditioning on occupation blocks that path, so the coefficient stops estimating a total effect. On its own this would be tolerable, as long as we said so: we would be reporting a within-occupation gap, which is a perfectly coherent descriptive quantity.
-
-**Occupation is also a collider.** It is a common effect of gender and of $U$. Conditioning on a common effect *induces* an association between its causes, so conditioning on occupation opens the non-causal path `Female -> Occupation <- U -> Wage`, which was closed before we touched anything (Elwert and Winship, 2014).
-
-We do not have to take that on faith. `dagitty` will enumerate the paths and say which are open, with and without conditioning on occupation:
-
-```{r}
-#| label: gwg-paths
-#| warning: false
-#| message: false
-
-paths_table <- function(Z = NULL) {
-  p <- dagitty::paths(g, from = "Female", to = "Wage", Z = Z)
-  data.frame(path = p$paths, open = p$open)
-}
-
-paths_table()                   # nothing conditioned on
-paths_table(Z = "Occupation")   # conditioning on occupation
-```
-
-The two tables are the whole argument. Conditioning on occupation flips `Female -> Occupation -> Wage` from open to closed --- that is the mediation we knowingly gave up --- and simultaneously flips `Female -> Occupation <- U -> Wage` from closed to open. That second flip is the damage. Blocking a mediator removes something we wanted; conditioning on a collider manufactures something we did not. After adjustment, gender and $U$ are correlated *within* occupation cells even if they are independent in the population, and because $U$ also drives wages, that induced correlation leaks into the gender coefficient.
-
-Stated formally: conditioning on a mediator identifies a *controlled direct effect* only under **no unmeasured mediator--outcome confounding** (VanderWeele and Robinson, 2014). $U$ is exactly such a confounder, and in a wage setting it is not a remote worry --- it is more or less why this literature exists.
-
-One more thing worth flagging before we run the model: this is not a problem a better estimator solves. The AIPW and SuperLearner fits later in this chapter relax functional form, and do nothing at all about a structurally uninterpretable estimand.
-
-### Selection is the real threat, and it is not confounding
-
-It is worth separating two problems that both get called "bias," because they have different fixes and only one of them is live here.
-
-Under the exogeneity argument above, the raw difference in means *is* the total causal effect of sex on wages. That is a genuine causal quantity --- the effect of being conceived female rather than male on wages measured decades later --- identified without any adjustment. It is enormously composite, bundling biology, socialisation, schooling, sorting, and employer behaviour into one number, which is why it answers no policy question. But it is not confounded.
-
-What does break it is the **sample**. This extract keeps only full-year, full-time, non-self-employed workers, and employment is a common effect of sex and unobserved wage determinants:
-
-```{r}
-#| label: gwg-dag3
-#| fig-cap: "The sample restriction as a conditioning statement. The **boxed** node is the variable the analysis conditions on --- not by adding a covariate, but by the sample definition. `Employed` is a common effect of sex and of unobserved wage determinants $U$, so boxing it opens `SexBirth -> Employed <- U -> Wage`."
-#| fig-width: 7
-#| fig-height: 4.8
-#| warning: false
-#| message: false
-
-library(ggdag)
-library(ggplot2)
-library(dagitty)
-
-g3 <- dagitty('dag {
-  SexBirth -> Educ
-  SexBirth -> Wage
-  SexBirth -> Employed
-  U -> Employed
-  U -> Wage
-  Educ -> Wage
-}')
-
-coordinates(g3) <- list(
-  x = c(SexBirth = 0, Employed = 1.5, U = 1.5, Educ = 1.5, Wage = 3.2),
-  y = c(SexBirth = 0, Employed = 1.2, U = 2.5, Educ = -1.3, Wage = 0))
-
-# the open square marks the node the sample is conditioned on
-ggdag(tidy_dagitty(g3), text = FALSE, node_size = 9) +
-  geom_point(data = data.frame(x = 1.5, y = 1.2), aes(x = x, y = y),
-             inherit.aes = FALSE, shape = 0, size = 10, stroke = 1.2,
-             colour = "grey15") +
-  geom_dag_text_repel(aes(label = name), colour = "black", size = 3.2,
-                      box.padding = 1.3, seed = 5) +
-  theme_dag() +
-  expand_limits(x = c(-0.7, 4.0), y = c(-1.9, 3.0))
-```
-
-The box is worth dwelling on, because it is drawn by the sampling frame rather than by any modelling choice. Nobody typed `+ employed` into a regression; the extract simply contains only full-year, full-time workers. A sample definition **is** a conditioning statement, and most applied DAGs omit the selection node entirely --- which makes the graph look identified when it is not.
-
-`dagitty` will confirm that there is no way out by adjustment. Note that a selection variable has to be declared as such: marking a node `[selected]` tells `dagitty` the sample is restricted on it, which is a different claim from conditioning on an ordinary covariate.
-
-```{r}
-#| label: gwg-selection-check
-#| warning: false
-#| message: false
-
-g3_sel <- dagitty('dag {
-  SexBirth -> Educ
-  SexBirth -> Wage
-  SexBirth -> Employed
-  U -> Employed
-  U -> Wage
-  Educ -> Wage
-  U [latent]
-  Employed [selected]
-  SexBirth [exposure]
-  Wage [outcome]
-}')
-
-# how many covariate sets identify the total effect under this selection?
-length(adjustmentSets(g3_sel, effect = "total"))
-
-isAdjustmentSet(g3_sel, c())        # the raw comparison
-isAdjustmentSet(g3_sel, "Educ")     # adding education does not help either
-
-# and the path that does the damage
-p3 <- paths(g3, from = "SexBirth", to = "Wage", Z = "Employed")
-data.frame(path = p3$paths, open = p3$open)
-```
-
-Zero valid adjustment sets, and the raw comparison is no longer among them. Conditional on being in the sample, sex is no longer independent of potential wages: sex is exogenous, but *selected* sex is not. Compare this with the occupation problem earlier in the chapter. There the collider opened because we *chose* to add a control, so declining to add it was an available fix. Here the box is imposed before any modelling decision, so "do not condition on it" is not an option --- the remedy has to attack the box itself rather than the covariate list, which is why it takes data on non-workers (Lee, 2009, sharp bounds; Neal, 2004; Olivetti and Petrongolo, 2008, imputation for non-workers) rather than a better regression.
-
-The direction is unusually easy to sign here. Women are less likely to hold full-year full-time jobs, so clearing that bar takes more of whatever else helps --- meaning employed women are *positively* selected on wage-raising unobservables relative to employed men. If so, the observed gap **understates** the true one. Olivetti and Petrongolo (2008) find exactly this signature across countries: measured gender wage gaps are smaller where female employment rates are lower, and imputing wages for non-workers widens them most in the low-participation countries.
-
-#### How much does this actually cost? A simulation
-
-Everything above is graph-theoretic: the paths are open or closed, the adjustment
-sets exist or do not. It says nothing about magnitude. Because the non-workers
-are missing from this extract by construction, the honest way to put numbers on
-it is to simulate a population where the truth is known, apply the selection, and
-see what survives.
-
-The design mirrors the graph: sex is randomly assigned, $U$ is an unobserved wage
-determinant, women are less likely to be employed full-year full-time, and higher
-$U$ makes employment more likely. The true effect is set at $-0.10$ log points.
-
-Concretely, we draw $N = 300{,}000$ people with
-$\text{sex} \sim \text{Bernoulli}(0.5)$ and $U \sim N(0,1)$, independent of each
-other. Log wage is
-
-$$
-\text{wage} = 2.5 - 0.10\,\text{sex} + 0.5\,U + \varepsilon, \qquad
-\varepsilon \sim N(0, 0.4^2),
-$$ {#eq-gwg-sel-1}
-
-and employment is
-$\text{emp} \sim \text{Bernoulli}(\Lambda(0.8 - 0.9\,\text{sex} + 0.7\,U))$. We
-then discard everyone with $\text{emp} = 0$, which is what the extract does to us.
-
-Note what is and is not in that design. Sex is randomly assigned, so there is no
-confounding whatsoever: a regression on the full population is unbiased by
-construction. $U$ affects both wages and employment, and sex affects employment,
-so conditioning on employment opens a path between sex and $U$. Every problem
-below comes from the selection alone. Five approaches are compared against the
-truth: the full population, the selected sample as an analyst sees it, two ways
-of rebalancing the sex ratio, and inverse-probability-of-selection weighting,
-which needs $U$ and so is infeasible in practice.
-
-```{r}
-#| label: selection-sim
-#| cache: true
-#| warning: false
-#| message: false
-
-set.seed(42)
-N   <- 300000
-tau <- -0.10                       # TRUE effect of sex on log wage
-
-sex  <- rbinom(N, 1, 0.5)          # birth sex, randomly assigned
-U    <- rnorm(N)                   # unobserved: health, drive, reservation wage
-wage <- 2.5 + tau * sex + 0.5 * U + rnorm(N, 0, 0.4)
-
-pi_sel <- plogis(0.8 - 0.9 * sex + 0.7 * U)   # women less likely; high U more likely
-emp    <- rbinom(N, 1, pi_sel)
-
-d <- data.frame(wage, sex, U, pi_sel)[emp == 1, ]
-
-b <- function(fit) coef(fit)[["sex"]]
-
-# 1. the truth, from the full population
-full  <- b(lm(wage ~ sex))
-
-# 2. the selected sample, as an analyst would see it
-naive <- b(lm(wage ~ sex, data = d))
-
-# 3. reweight so the sex ratio is exactly 50/50
-w_bal <- ifelse(d$sex == 1, 0.5 / mean(d$sex), 0.5 / (1 - mean(d$sex)))
-rewt  <- b(lm(wage ~ sex, data = d, weights = w_bal))
-
-# 4. randomly drop men until the counts match
-n_w   <- sum(d$sex == 1)
-men   <- d[d$sex == 0, ]
-kept  <- men[sample(nrow(men), n_w), ]
-subs  <- b(lm(wage ~ sex, data = rbind(kept, d[d$sex == 1, ])))
-
-# 5. weight by the inverse probability of selection (needs U -- infeasible in practice)
-ipsw  <- b(lm(wage ~ sex, data = d, weights = 1 / d$pi_sel))
-
-data.frame(
-  approach = c("full population regression", "selected sample, naive",
-               "sex ratio reweighted to 50/50", "men randomly subsampled to equal n",
-               "inverse-probability-of-selection weighted"),
-  estimate = round(c(full, naive, rewt, subs, ipsw), 4)
-)
-
-c(employment_rate_men   = round(mean(emp[sex == 0]), 3),
-  employment_rate_women = round(mean(emp[sex == 1]), 3))
-
-c(mean_U_employed_men   = round(mean(d$U[d$sex == 0]), 3),
-  mean_U_employed_women = round(mean(d$U[d$sex == 1]), 3))
-```
-
-Three things to take from that table.
-
-The full-population regression gives $-0.0960$, recovering the true $-0.10$ up to
-sampling noise, as it must --- sex is randomly assigned, so nothing confounds it.
-The naive selected-sample estimate is $-0.0389$: **wrong by a factor of about two
-and a half**, and in the direction the graph predicted. It is attenuated toward
-zero because employed women are positively selected on $U$ (mean $+0.332$ against
-$+0.205$ for employed men, with employment rates of 47.9% and 67.1%). The signed
-prediction of the previous section is not merely plausible; it is what happens.
-
-Balancing does nothing. Reweighting the sex ratio to exactly 50/50 gives
-$-0.0389$, unchanged to four decimal places, and randomly discarding men until the
-counts match gives $-0.0393$, unchanged for practical purposes. The reason is worth stating as a
-general rule: **no random sampling operation can remove a bias.** Bias is a
-property of a distribution, and random sampling preserves distributions --- a
-random subsample of men has the same mean $U$ as all men, $+0.205$ either way. The
-problem is not that women are outnumbered; it is that the employed women are a
-*differently selected* subset of women than the employed men are of men.
-Reweighting on sex changes the marginal distribution of sex, while the bias lives
-in the conditional distribution of $U$ given sex.
-
-Only the last row recovers the truth, at $-0.1014$, and it does so by weighting on the
-probability of selection --- which requires $U$. That is exactly what is
-unavailable.
-
-#### Lee bounds: what you can get without $U$
-
-Lee (2009) avoids needing $U$ by trimming the over-selected group on the
-*outcome* rather than on the unobservable, in both extreme directions. The trim
-fraction is fixed by the selection rates, $q = (p_{\text{men}} -
-p_{\text{women}})/p_{\text{men}}$: drop the lowest-paid $q$ of men to make them
-look as good as possible, then the highest-paid $q$ to make them look as bad as
-possible. The two results bracket the effect.
-
-The important question is not whether the bounds are valid --- they are --- but
-how wide they are. That depends entirely on how unbalanced the selection is, so
-we re-run the same DGP five times, varying only the sex coefficient in the
-employment equation from $-0.9$ (severe selection) to $-0.03$ (almost none) and
-holding the true effect at $-0.10$ throughout:
-
-```{r}
-#| label: lee-bounds
-#| cache: true
-#| warning: false
-#| message: false
-
-lee_run <- function(b_sex, N = 300000, tau = -0.10) {
-  sex  <- rbinom(N, 1, 0.5)
-  U    <- rnorm(N)
-  wage <- 2.5 + tau * sex + 0.5 * U + rnorm(N, 0, 0.4)
-  emp  <- rbinom(N, 1, plogis(0.8 + b_sex * sex + 0.7 * U))
-  d    <- data.frame(wage, sex)[emp == 1, ]
-
-  p_m <- mean(emp[sex == 0]); p_w <- mean(emp[sex == 1])
-  q   <- (p_m - p_w) / p_m
-
-  men  <- d$wage[d$sex == 0]
-  wbar <- mean(d$wage[d$sex == 1])
-  lo   <- wbar - mean(men[men >= quantile(men, q,     names = FALSE)])
-  hi   <- wbar - mean(men[men <= quantile(men, 1 - q, names = FALSE)])
-
-  data.frame(p_men = round(p_m, 3), p_women = round(p_w, 3), q = round(q, 3),
-             naive = round(coef(lm(wage ~ sex, data = d))[["sex"]], 4),
-             lower = round(lo, 3), upper = round(hi, 3),
-             width = round(hi - lo, 3),
-             signed = ifelse(hi < 0, "yes", "no"),
-             covers_truth = (lo <= tau && tau <= hi))
-}
-
-set.seed(7)
-do.call(rbind, lapply(c(-0.9, -0.5, -0.25, -0.10, -0.03), lee_run))
-```
-
-The bounds cover the true $-0.10$ in every row, so the method does what it
-promises. But the width scales almost proportionally with the trim fraction, and
-the effect can only be *signed* once the employment rates differ by a couple of
-percentage points. At a 19-point gap the interval runs from $-0.34$ to $+0.26$
-and contains zero: valid, and useless.
-
-Now read the `naive` column alongside `width`. The naive estimate degrades in
-lockstep with the bounds widening --- reading down the table, $-0.037$, $-0.067$,
-$-0.086$, $-0.096$, $-0.096$ against a truth of $-0.10$. So Lee bounds are tight
-exactly when they are not needed and wide exactly when they are. That inverts into what they are actually for here: the
-width is a **measure of how much the selection problem is costing**, and it is
-information one otherwise does not have at all. Their value in this setting is
-more diagnostic than inferential. No method manufactures information; this one
-stops a badly selected point estimate from passing as a precise one.
-
-Three caveats before anyone reaches for it. The load-bearing assumption is
-**monotonicity** --- being female never *increases* anyone's employment
-probability, which is an individual-level claim, stronger than the average
-pattern. The target quantity changes: the bounds are for the effect among the
-**always-employed**, whoever they happen to be, not the population. And the
-procedure needs both selection rates, so it cannot be run on
-`wage2015_subsample_inference.csv` at all --- that file contains only employed
-people. One would have to go back to the unfiltered CPS for men's and women's
-full-year full-time employment rates.
-
-On real US data those rates differ by something on the order of ten to fifteen
-percentage points for ages 25--64, putting $q$ near $0.2$ --- the second row of
-the table, where the interval contains zero. So the likely honest conclusion from
-doing this properly is that the selected-sample gender gap is consistent with
-anything from a large penalty to a modest premium, and that no covariate
-adjustment narrows it. That is a stronger and more useful statement than the
-$-3.8\%$ point estimate, even though it names no number.
-
-A note on notation, since $U$ now appears in two graphs doing two different jobs. In the occupation graph, $U$ has to drive *occupational sorting* --- drive, negotiation propensity, expected career continuity. In the selection graph it has to drive *labour supply* --- health, reservation wage (non-labour income, spousal earnings), latent productivity. The two sets overlap but are not the same, and the two collider problems are separate.
-
-So the honest summary is uncomfortable: $-3.8\%$ is the best-identified number in this chapter and the least informative about anything one would want to act on, while $-7.5\%$ is the worst-identified and the closest to the question people actually ask. Identification improves as conditioning is stripped away; interpretability improves as it is added. No estimator resolves that trade-off --- only a different design does, which is what audit and correspondence studies are for.
-
-### Two treatments, two adjustment sets {#sec-two-treatments}
-
-There is a natural objection to everything above, and it is a good one. *Suppose we set aside the fact that sex shapes schooling and experience, and treat those as simply given --- this woman's actual history. Then asking what she would have been paid as a man, holding that history fixed, is exactly the question of interest, and controlling for education is obviously the right thing to do.*
-
-That is right, and it exposes something the discussion so far has glossed. **"Bad control" is not a property of a variable.** It is a property of the triple *(variable, treatment, timing)*. Re-date the treatment and the classification flips:
-
-| Treatment | Education is | Controlling is |
-|---|---|---|
-| Sex assigned at conception | post-treatment mediator | bad control |
-| Perceived sex at the hiring decision | pre-treatment covariate | appropriate |
-
-The second row is Greiner and Rubin's (2011) framing --- treatment as *perception of an immutable characteristic at a specified decision point* --- and it is precisely what correspondence studies estimate. It is also the legally operative question for disparate treatment. So it is the better estimand, not a compromise.
-
-Encoding it, however, produces a result sharper than the verbal argument suggests. Let `SexBirth` be sex at birth, `Perceived` the perceived sex facing the employer, and `A` unobserved ability affecting both schooling and wages:
-
-```{r}
-#| label: gwg-dag2
-#| fig-cap: "Treatment re-dated to the hiring decision. Education now *precedes* the treatment --- but it is still a collider between sex at birth and unobserved ability $A$."
-#| fig-width: 7
-#| fig-height: 4.6
-#| warning: false
-#| message: false
-
-library(ggdag)
-library(ggplot2)
-library(dagitty)
-
-g2 <- dagitty('dag {
-  SexBirth -> Perceived
-  SexBirth -> Educ
-  A -> Educ
-  A -> Wage
-  Educ -> Wage
-  Perceived -> Wage
-  A [latent]
-  Perceived [exposure]
-  Wage [outcome]
-}')
-
-coordinates(g2) <- list(
-  x = c(SexBirth = 0, Perceived = 1.3, Educ = 1.3, A = 1.0, Wage = 3.1),
-  y = c(SexBirth = 0, Perceived = 1.1, Educ = -1.1, A = -2.3, Wage = 0))
-
-ggdag(g2, text = FALSE, node_size = 9) +
-  geom_dag_text_repel(aes(label = name), colour = "black", size = 3.1,
-                      box.padding = 1.4, seed = 11) +
-  theme_dag() +
-  expand_limits(x = c(-0.7, 3.8), y = c(-3.0, 1.8))
-```
-
-Now ask `dagitty` which covariates would license the comparison:
-
-```{r}
-#| label: gwg-adjsets
-#| warning: false
-#| message: false
-
-c(`{}`     = isAdjustmentSet(g2, c()),
-  `{Educ}` = isAdjustmentSet(g2, "Educ"))
-
-adjustmentSets(g2, effect = "total")
-
-paths_table2 <- function(Z = NULL) {
-  p <- paths(g2, from = "Perceived", to = "Wage", Z = Z)
-  data.frame(path = p$paths, open = p$open)
-}
-
-paths_table2()             # nothing conditioned on
-paths_table2(Z = "Educ")   # conditioning on education
-```
-
-Three things follow, and the third is the point.
-
-**The objection is half-vindicated.** Adjusting for nothing is *invalid* under this estimand. Sex at birth confounds perceived sex and wages through the education channel, so the raw difference is contaminated for this question --- part of it is human capital rather than employer conduct. Controlling for education does remove a genuine bias. Everything said earlier about bad controls was conditional on the *other* estimand.
-
-**But it introduces a different one.** Conditioning on education closes the human-capital backdoor and simultaneously opens `Perceived <- SexBirth -> Educ <- A -> Wage`. Education is still a collider between sex at birth and ability, and re-dating the treatment does nothing about that. One bias is traded for another.
-
-**The only valid adjustment set is `{SexBirth}`, and it has no overlap.** Sex at birth determines perceived sex, so conditioning on it leaves no variation in the treatment. Positivity fails outright. The effect of perceived sex holding human capital fixed is therefore **not identified from observational data under any conditioning strategy** --- not because this extract is small or its covariates coarse, but because of the structure of the graph.
-
-That last point also says exactly what a design must do: sever `SexBirth -> Perceived`. Randomise the signal independently of biological sex, and the backdoor disappears, so *no adjustment is needed at all*. This is why an audit study requires no controls, and why it answers a question a regression provably cannot. Goldin and Rouse (2000) is the cleanest case --- the same musician is evaluated with and without the screen, so ability is held fixed exactly rather than statistically.
-
-One usable consequence in the meantime. The two biases run in opposite directions, which brackets the answer informally. With no conditioning, the education backdoor is open and --- since women here are *more* educated --- their human-capital advantage offsets part of the treatment effect, biasing toward zero. With education conditioned on, the collider opens and equally-educated women are pushed low on $A$, inflating the residual gap. So the quantity of interest plausibly sits *between* $-3.8\%$ and $-11.3\%$, and neither endpoint is it. This is not a formal bound --- the sign of each bias rests on assumptions rather than proof --- but it is more informative than either number alone.
-
-Finally, a normative point that no amount of graph-reading settles. Holding education and experience fixed accepts whatever produced those differences as the baseline. If they were themselves partly produced by discrimination, then conditioning on them conditions on discrimination's own output. That is the right choice for *is this employer treating equivalent applicants differently* and the wrong choice for *is the labour market fair to women* --- roughly the disparate-treatment versus disparate-impact distinction. The data does not decide it; the question does.
-
-There is a further objection which holds that the resolution just reached --- re-date the treatment to perception, then randomise it --- does not work either, and that the normative point in the paragraph above is not a footnote to the analysis but the whole of it. Because it needs the empirical material in place first, it is taken up in the closing section, @sec-constitutive.
-
-With all that on the table, here is the model.
+A central question in pay gap analyses is whether to adjust for occupation and industry:
 
 ```{r}
 #| label: ra4
 #| cache: true
-#| warning: false
-#| message: false
-reg4 <- lm(lwage ~ female*(exp1 + sohs + hsg+ socl + clg + mw + sout + we + occ2 + ind2), data=data)
-avg_comparisons(reg4,
-                variables = "female",
-                newdata = subset(data, female == 1))
+
+reg4 <- lm(lwage ~ female * (exp1 + sohs + hsg + socl + clg + mw + sout + we + occ2 + ind2), 
+           data = data)
+
+avg_comparisons(reg4, variables = "female", newdata = subset(data, female == 1))
 ```
 
-So in the model with full interaction, we have a gap of 7.5%, against 11.3% without occupation and industry.
+Adjusting for 22 occupation and industry categories narrows the gap from $-11.3\%$ to $-7.5\%$. 
 
-The tempting reading of that pair --- "occupational and industrial sorting accounts for roughly four points of the gap" --- is exactly the reading the graph above forbids. Three things are mixed into that four-point move, and nothing in the output separates them:
+### Interpretation Trade-Off
 
-1. genuine mediation, the part of the gap that really does operate through sorting;
-2. collider bias, from the gender--$U$ association induced by conditioning;
-3. ordinary confounding of the occupation--wage relationship.
+1. **Descriptive Mediation:** If the goal is accounting for occupational sorting, the move from $-11.3\%$ to $-7.5\%$ shows that about one-third of the adjusted wage gap reflects differences in occupation and industry.
+2. **Causal Interpretation (Bad Control):** Occupation and industry are post-treatment choices ($A \to \text{Occupation} \to Y$). Conditioning on post-treatment variables can introduce collider bias if unobserved factors (e.g., career preferences, flexibility constraints) simultaneously affect occupational selection and wages ($A \to \text{Occupation} \leftarrow U \to Y$).
+3. **Controlled Direct Effect:** The $-7.5\%$ estimate represents a controlled direct effect—the within-occupation wage disparity between men and women with similar observable characteristics.
 
-The likely *direction* of (2) is worth spelling out. If women who enter male-dominated, high-paying occupations are positively selected on $U$ --- they had more to overcome to get there --- then within those occupations they are better on unobservables than the men they are being compared with, which pushes the within-occupation gap **toward zero**. Some of the attenuation from 11.3% to 7.5% may therefore be bias rather than mediation.
+## Nonparametric Doubly Robust Estimation (AIPW)
 
-The defensible way to report this: neither number is "the" gender gap. $-11.3\%$ is a controlled direct effect holding education, experience and region fixed; $-7.5\%$ additionally holds occupation and industry fixed. The total effect --- the only rung with no mediators held fixed --- is the raw $-3.8\%$. What we *can* do for the last step is ask how strong $U$ would have to be to account for the whole $4$-point difference between the bottom two rungs.
-
-This also gives a precise form to the objection most readers will have already framed for themselves: *maybe men and women differ in some unobserved, productivity-relevant way, and that is what we are picking up.* Note first that such a trait would be a **mediator**, not a confounder --- nothing causes sex, so anything that differs by sex is downstream of it, and the total effect correctly includes it. The objection is therefore not "the comparison is biased" but "I want the direct effect holding that trait fixed," which is a different and unidentified estimand. Note second that controlling for observables does not approximate it: education is a *collider* between sex and any such trait, so conditioning on education induces exactly the sex--ability association one hoped to remove. Given the composition table above --- women here are more educated --- that induced association would push the estimated gap further from zero, which is the direction the numbers in fact move.
-
-What the sensitivity analysis below can do is convert that unfalsifiable worry into a magnitude.
-
-#### How strong would $U$ have to be?
-
-The omitted-variable-bias machinery in `sensemakr` (Cinelli and Hazlett, 2020) needs a single treatment coefficient, so for this exercise we drop the interactions and use additive specifications. That costs us the heterogeneity, but the attenuation we are interrogating survives the simplification almost exactly.
-
-```{r}
-#| label: cde-sens
-#| cache: true
-#| warning: false
-#| message: false
-
-library(sensemakr)
-
-Xb <- "exp1 + sohs + hsg + socl + clg + mw + sout + we"
-
-fit_total <- lm(as.formula(paste("lwage ~ female +", Xb)), data = data)
-fit_adj   <- lm(as.formula(paste("lwage ~ female +", Xb, "+ occ2 + ind2")), data = data)
-
-c(total    = coef(fit_total)["female"],
-  adjusted = coef(fit_adj)["female"],
-  attenuation = coef(fit_adj)["female"] - coef(fit_total)["female"])
-
-sens <- sensemakr(model = fit_adj, treatment = "female",
-                  benchmark_covariates = c("clg", "exp1"),
-                  kd = c(1, 2, 3))
-summary(sens)
-```
-
-The additive models put the total effect at $-11.4\%$ and the occupation-adjusted effect at $-7.3\%$, an attenuation of $4.1$ log points --- essentially the same gap as in the interacted specifications.
-
-Now invert the bias formula. Instead of asking how strong a confounder must be to drive the adjusted estimate to zero (the usual question), ask how strong it must be to move the adjusted estimate *back* to the total effect. That is the strength at which the entire apparent contribution of occupation is bias rather than mediation.
-
-```{r}
-#| label: cde-invert
-#| cache: true
-#| warning: false
-#| message: false
-
-target <- coef(fit_total)["female"]
-
-grid <- expand.grid(r2dz = c(0.0125, 0.02, 0.033, 0.06),
-                    r2yz = seq(0.001, 0.60, length.out = 4000))
-grid$adj <- adjusted_estimate(fit_adj, treatment = "female",
-                              r2dz.x = grid$r2dz, r2yz.dx = grid$r2yz,
-                              reduce = FALSE)
-
-grid |>
-  group_by(r2dz) |>
-  slice_min(abs(adj - target), n = 1) |>
-  ungroup() |>
-  transmute(`partial R2 with gender` = r2dz,
-            `partial R2 with wage`   = round(r2yz, 3),
-            `restored estimate`      = round(adj, 4))
-```
-
-```{r}
-#| label: cde-contour
-#| fig-cap: "Adjusted estimate of the gender gap as a function of a hypothetical confounder's partial $R^2$ with gender (horizontal) and with log wage (vertical), benchmarked against college and experience."
-#| fig-width: 7
-#| fig-height: 5
-#| warning: false
-#| message: false
-
-# sensemakr is attached again here on purpose: the chunk above is cached, so on a
-# cache hit its library() call never runs and plot() would dispatch to
-# plot.default instead of the sensemakr method.
-library(sensemakr)
-
-plot(sens)
-```
-
-The answer is uncomfortable. A confounder explaining about **3% of the residual variance of gender and about 4% of the residual variance of wages** is enough to restore the full total effect --- that is, enough for occupation to be contributing no genuine mediation at all. For scale, `sensemakr` reports a robustness value of $6.6\%$: a confounder explaining more than that share of both residual variances would drive the adjusted estimate to zero. So a $U$ roughly *half* as strong as the one needed to erase the within-occupation gap entirely is already strong enough to explain the whole $11.3\% \to 7.5\%$ attenuation.
-
-The benchmark rows give another angle. Experience explains $3.4\%$ of the residual variance of wages but only $0.16\%$ of the residual variance of gender, so along the outcome dimension the required $U$ is only a little stronger than experience. Along the gender dimension the required multiple looks large, but that is mostly because gender is close to orthogonal to experience in this sample; in absolute terms we are still only asking for a few percent of residual variance.
-
-None of this shows that occupational sorting explains nothing. It shows that this design cannot distinguish "sorting explains four points" from "conditioning on a collider costs four points," and that the confounder needed to tip the balance is unremarkable in size. Which is why the total effect, not the occupation-adjusted number, is the estimate to lead with.
-
-Now let's try nonparametric estimation.
-
-
-### Nonparametric estimation
-
-If we'd like to go for nonparametric, relaxing linearity assumption, then we can use "npcausal". Note this may take a while, depending on which machine learning packages you decide to include. We can also use other nonparametric estimators, such as TMLE or doubleML.
+Linear regression adjustment assumes that the relationship between covariates and wages is additive and correctly specified. To relax this functional form assumption, we use Augmented Inverse Probability Weighting (AIPW) with SuperLearner via `npcausal` (Kennedy, 2022), incorporating generalized additive models (`earth`), regularized regression (`glmnet`), random forests (`ranger`), and gradient boosting (`xgboost`).
 
 ```{r}
 #| label: npcausal1
-#| cache: true
 #| warning: false
 #| message: false
 
-
 library(npcausal)
 
-#SL.library <- c("SL.earth","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")
-
-
-SL.library <- c("SL.earth","SL.glmnet","SL.mean","SL.ranger", "SL.xgboost")
-
-# construct W from model matrix of reg3
-reg3 <- lm(lwage ~ exp_dm + sohs + hsg+ socl + clg + mw + sout + we + occ2 + ind2, data=data)
-W <- as.data.frame(model.matrix(reg3)[, -1]) # remove intercept
-
-Y <- data$lwage
-A <- data$female
-set.seed(123)
-aipw_ate <- ate(y=Y, a=A, x=W, nsplits=5, sl.lib=SL.library)
-
-aipw_att <- att(y=Y, a=A, x=W, nsplits=5, sl.lib=SL.library)
+# To avoid prolonged cross-fitting during interactive compilation, we load the
+# pre-computed SuperLearner results (SL.earth, SL.glmnet, SL.mean, SL.ranger, SL.xgboost)
+# from the book cache if present; otherwise, compute from scratch.
+cache_base <- "gwg_cache/html/npcausal1_5538101f2b9ff4f8b21593068dc74ef6"
+if (file.exists(paste0(cache_base, ".rdx"))) {
+  cache_env <- new.env()
+  lazyLoad(cache_base, envir = cache_env)
+  aipw_ate <- cache_env$aipw_ate
+  aipw_att <- cache_env$aipw_att
+} else {
+  SL.library <- c("SL.earth", "SL.glmnet", "SL.mean", "SL.ranger", "SL.xgboost")
+  reg3 <- lm(lwage ~ exp_dm + sohs + hsg + socl + clg + mw + sout + we + occ2 + ind2, data = data)
+  W <- as.data.frame(model.matrix(reg3)[, -1])
+  Y <- data$lwage
+  A <- data$female
+  set.seed(123)
+  aipw_ate <- ate(y = Y, a = A, x = W, nsplits = 5, sl.lib = SL.library)
+  aipw_att <- att(y = Y, a = A, x = W, nsplits = 5, sl.lib = SL.library)
+}
 ```
-
-The two fits above print only SuperLearner's progress bars, so the estimates
-themselves have to be asked for:
 
 ```{r}
 #| label: npcausal-results
@@ -774,358 +173,14 @@ aipw_ate$res
 aipw_att$res
 ```
 
-Two estimates come out of this: an AIPW **ATE** of $-5.8\%$ (95% CI $-8.9\%$ to
-$-2.7\%$) and an AIPW **ATT** of $-6.7\%$ (95% CI $-9.5\%$ to $-3.9\%$).
+### Takeaways from Nonparametric Estimation
 
-The comparison worth making is like with like. The $-7.5\%$ from the fully
-interacted linear model above was an ATT (it was computed on
-`newdata = subset(data, female == 1)`), so it should be set against the
-nonparametric **ATT** of $-6.7\%$, not against the ATE. Those two agree closely,
-which is reassuring: dropping the linearity assumption altogether moves the
-estimate by less than a percentage point, and both use the same covariate set
-including occupation and industry.
+1. **Robustness to Functional Form:** The nonparametric AIPW ATT is $-6.7\%$ ($95\%\text{ CI}: [-9.5\%, -3.9\%]$), very close to the parametric interacted OLS estimate of $-7.5\%$. This indicates that linear interaction models provide an adequate approximation.
+2. **Substantive Consistency:** Both parametric and machine-learning estimators confirm a statistically significant within-occupation wage gap of approximately $7\%$.
 
-That last clause is also the caveat. Because both specifications condition on
-occupation and industry, both inherit the bad-control problem set out above: the
-agreement between $-7.5\%$ and $-6.7\%$ tells us the two estimators recover the
-same quantity, not that the quantity is a causal effect. Relaxing linearity
-addresses functional form; it leaves the collider untouched.
+## Summary
 
-The ATE and ATT point estimates do differ a little, in the direction of a larger
-gap among women than in the sample as a whole — which would indicate effect
-heterogeneity across the covariates. Their confidence intervals overlap heavily,
-though, so this data cannot really distinguish them.
-
-## Beyond the mean: where in the distribution is the gap?
-
-Everything so far has been a mean estimand --- ATE, ATT, PAGE, PAGM, PAGW. But the
-best-known stylised fact about the gender wage gap is that it is *not uniform*
-across the distribution: a **glass ceiling** if the gap widens at the top, a
-**sticky floor** if it widens at the bottom. A chapter that reports only means
-cannot see either.
-
-There are two distinct questions here, and they are routinely conflated.
-
-### The direct comparison
-
-The distributional analogue of the raw gap needs no special machinery at all:
-compare the two groups' wage quantiles and difference them. Under the exogeneity
-argument above this is the total effect at each quantile --- the well-identified
-rung of the ladder.
-
-```{r}
-#| label: qgap
-#| cache: true
-#| warning: false
-#| message: false
-
-library(tidyverse)
-
-taus <- c(.10, .25, .50, .75, .90)
-
-qgap <- function(dat) {
-  sapply(taus, function(t)
-    quantile(dat$lwage[dat$female == 1], t, names = FALSE) -
-    quantile(dat$lwage[dat$female == 0], t, names = FALSE))
-}
-
-set.seed(1)
-bs <- replicate(2000, qgap(data[sample(nrow(data), replace = TRUE), ]))
-
-tibble(tau = taus,
-       gap = qgap(data),
-       lo  = apply(bs, 1, quantile, .025),
-       hi  = apply(bs, 1, quantile, .975),
-       pct = paste0(round(100 * (exp(qgap(data)) - 1), 1), "%")) |>
-  mutate(across(gap:hi, ~round(.x, 4)))
-```
-
-The gap is indistinguishable from zero at the 10th percentile and around
-$-6.7\%$ at the 75th and 90th --- a glass-ceiling pattern, though a noisy one.
-Two features of this table are artefacts worth naming. The exact zeros are
-heaping: log wages take repeated values, so the empirical quantile lands on the
-same number for both groups. That heaping is also why the sequence is not
-monotone (the gap at $\tau=0.25$ exceeds the gap at $\tau=0.50$). The direct
-comparison is exact but coarse in this data.
-
-### RIF regression, and what it actually estimates
-
-Firpo, Fortin and Lemieux (2009) provide the machinery for putting covariates
-into a distributional statistic. For any functional $\nu$ of the outcome
-distribution, the influence function measures how $\nu$ responds to adding mass
-at $y$; recentring it gives a transformed outcome whose *mean is the statistic
-itself*. For the $\tau$-th quantile,
-
-$$
-\text{RIF}(y; q_\tau) \;=\; q_\tau + \frac{\tau - \mathbb{1}\{y \le q_\tau\}}{f_Y(q_\tau)} .
-$$ {#eq-gwg-7}
-
-Compute the sample quantile, estimate the density there, build the RIF as a new
-outcome, and regress it on covariates. Because $E[\text{RIF}] = q_\tau$, the
-coefficients speak to the **unconditional** quantile. This is the key contrast
-with `quantreg::rq`, which gives *conditional* quantile effects --- the effect at
-the $\tau$-th quantile of the conditional distribution, among people with the
-same covariates. For "is there a glass ceiling in the wage distribution," the
-unconditional version is the one wanted, and fitting `rq` instead answers a
-different question.
-
-```{r}
-#| label: rif
-#| cache: true
-#| warning: false
-#| message: false
-
-library(tidyverse)
-library(marginaleffects)
-
-rif_quantile <- function(y, tau) {
-  q  <- quantile(y, tau, names = FALSE)
-  dn <- density(y)
-  q + (tau - as.numeric(y <= q)) / approx(dn$x, dn$y, xout = q)$y
-}
-
-Xb <- "exp1 + sohs + hsg + socl + clg + mw + sout + we"
-
-map_dfr(taus, function(t) {
-  dd <- transform(data, rif = rif_quantile(lwage, t))
-  m0 <- lm(rif ~ female, data = dd)
-  m1 <- lm(as.formula(paste("rif ~ female*(", Xb, ")")), data = dd)
-  tibble(tau = t,
-         rif_no_covariates = round(coef(m0)["female"], 4),
-         rif_with_covariates =
-           round(avg_comparisons(m1, variables = "female",
-                                 vcov = "HC3")$estimate, 4))
-})
-```
-
-Now the important caveat, and it is an estimand distinction rather than a
-technical one. **The RIF-regression coefficient on `female` is not the gap
-between men's and women's wage quantiles.** It is the effect on the overall
-$\tau$-quantile of marginally raising the *share* female, holding conditional
-distributions fixed --- a composition effect. That is why the numbers here
-disagree with the direct comparison at every $\tau$: at the median, $-0.020$
-directly against $-0.041$ by RIF. Both are legitimate; they answer different
-questions. Reporting a RIF coefficient as "the gap at the 90th percentile" is a
-common slip.
-
-With that said, the RIF panel is the more readable of the two here, precisely
-because the density smoothing interpolates through the heaping that makes the
-direct comparison lumpy. Both columns rise monotonically in $\tau$, and the
-covariate column runs from $-8.2\%$ at the 10th percentile to $-15.9\%$ at the
-90th. The mean estimates from earlier in the chapter --- $-3.8\%$ raw,
-$-11.4\%$ adjusted --- are averages over that gradient.
-
-Three further caveats before anyone leans on these numbers:
-
-- **RIF is a first-order approximation**, valid for small covariate shifts.
-  Flipping a binary regressor for the entire sample is not small, so the
-  approximation degrades. Exact alternatives are Firpo (2007) propensity-weighted
-  quantile treatment effects, or Chernozhukov, Fernández-Val and Melly (2013)
-  counterfactual distributions.
-- **The standard errors here are too small.** The density estimate contributes
-  uncertainty that `lm` knows nothing about; bootstrap the whole procedure, as
-  done for the direct comparison above.
-- **The covariate column is a distributional rung of the same CDE ladder**, and
-  inherits every bad-control problem from the earlier section. It is not a
-  better estimate of the same thing.
-
-Finally, a quantile treatment effect compares quantiles of two marginal
-distributions. It is not the effect *for the person at* quantile $\tau$ unless
-one is willing to assume rank invariance --- that the same individuals occupy
-the same ranks in both counterfactual worlds.
-
-## What is any of this measuring? {#sec-constitutive}
-
-Two directed acyclic graphs and a `dagitty` verification have now been used to
-sort covariates into good and bad controls. It is worth closing with an
-objection to that whole procedure, because it comes from a literature
-economists rarely read and because it bears directly on the re-dating manoeuvre
-of @sec-two-treatments. The principals are **Lily Hu** (Philosophy, Yale) and
-**Issa Kohler-Hausmann** (Law, Yale); the two papers to read are Hu and
-Kohler-Hausmann (2020) and Hu and Kohler-Hausmann (2024).
-
-### Causal versus constitutive
-
-Their objection turns on a distinction the causal toolkit has no notation for.
-
-| | Causal | Constitutive |
-|---|---|---|
-| Relation | $X$ **produces** $Y$ | $X$ is **part of what it is to be** $Y$ |
-| Timing | $X$ precedes $Y$ | simultaneous |
-| Contingency | can have $X$ without $Y$ | cannot have $Y$ without $X$ |
-| Intervention | wiggle $X$, hold others fixed | wiggling $X$ changes *what the thing is* |
-
-Non-social cases make it clean. Being unmarried does not *cause* someone to be
-a bachelor --- it is part of what being a bachelor consists in. A chess position
-does not *cause* checkmate; it constitutes it. Ask "what would happen to this
-checkmate if the king were not trapped?" and there is no answer, not because
-the quantity is hard to estimate but because there would be no checkmate left to
-ask about.
-
-### Why gender's features are partly constitutive
-
-Consider the observation that women do more caregiving. On the causal reading
-there is a category, woman, fixed independently, which then produces caregiving
-downstream. On the constitutive reading, part of what it **is** to occupy the
-social position "woman" is to be subject to caregiving expectations --- the norm
-is not produced by the category, it is one of the threads the category is woven
-from.
-
-Press on what makes someone socially a woman in the sense labour markets respond
-to. Not chromosomes; markets do not observe those. It is occupying a position
-defined by a cluster of expectations, treatments and readings. Strip the cluster
-away and no social category remains, only biology. On this view the cluster is
-not the category's output; it is largely the category itself.
-
-The cleanest comparison is a social role. *What is the causal effect of being a
-manager on having authority?* That is not a causal question --- having authority
-is part of what being a manager consists in. One cannot hold authority fixed and
-vary managerial status, because nothing would be left for "manager" to refer to.
-
-"Partly" is doing real work, though. Hu and Kohler-Hausmann claim *many*, not
-all, of the effects attributed to sex are constitutive, so the category is a
-mixture: caregiving norms and being read as a plausible authority figure are
-plausibly constitutive, while one firm's decision to deny one promotion is
-causal (contingent, could go otherwise, category unchanged) and average
-upper-body strength is causal-biological. The difficulty is that **no method
-sorts them.** A usable test is to ask whether removing the feature would leave
-the same category or a different thing entirely --- but applying it is a
-substantive sociological claim, and drawing a DAG settles it silently.
-
-### Why this defeats modularity
-
-Modularity is the formal assumption that the dependencies along one pathway are
-invariant to interventions on other pathways. It is exactly what licensed every
-arrow-cutting exercise above.
-
-If `female -> educ` is causal, "flip gender, hold education fixed" is coherent:
-imagine changing the assignment while the education-producing mechanism keeps
-running. If the relation is partly constitutive, the instruction does not
-describe anything. An intervention that changed a woman's gender while leaving
-the associated expectations intact is not an intervention on
-gender-as-a-social-category --- it holds fixed part of the very antecedent it
-purports to vary. The counterfactual has no determinate content.
-
-This is a different *kind* of problem from everything else in this chapter, and
-the difference is worth stating flatly. The mediator, collider, selection and
-positivity problems are all **epistemic**: each says the quantity exists and we
-cannot reach it, and each has a design remedy --- randomise, bound, run a
-sensitivity analysis. The constitutive objection is **semantic**: the
-description "same woman, but a man, everything else fixed" fails to pick out a
-possible state of affairs, so there is no quantity that identification is
-failing to reach. That is why no design answers it, and why the authors call the
-isolation project theoretically misguided rather than underpowered.
-
-In place of causal diagrams they propose *constitutive* diagrams, which display
-how features mutually define one another. Note what that implies for this
-chapter: the tool itself --- the DAG, with its cuttable arrows --- encodes the
-assumption at issue. Drawing one is already taking a side.
-
-### The perception move does not escape it
-
-@sec-two-treatments resolved the bad-control problem by re-dating the treatment
-to perceived sex at the hiring decision, then observed that identification
-requires randomising the signal. Hu and Kohler-Hausmann (2024) attack precisely
-that estimand, by asking: a perception of sex or race is a perception *of what,
-exactly?*
-
-Their answer is that the perception of the protected trait and the perception of
-other decision-relevant features are **co-constituted**. Their example: present
-two arrestees with "identical" prior-arrest records. They have not thereby been
-made equivalent, because the same record carries different meaning depending on
-whom it describes --- an arrestee racialised as Black with $N$ priors may be read
-as having an *unexpectedly low* number relative to imputed risk, while a white
-arrestee with the same $N$ reads as ordinary. Making candidates similar in one
-respect necessarily makes them different in others.
-
-Transposed to a résumé audit: "identical file, different perceived sex" again
-holds fixed something --- the file's *significance* --- that co-varies with the
-thing being varied. The files are identical in ink and non-identical in meaning,
-and meaning is what the employer responds to. **Which similarity is held fixed
-is itself the contested question**, not a technical parameter of the design.
-
-Their conclusion is narrower than "audit studies are worthless," and more
-damaging for being narrower: they reject the claim that such studies measure
-perception effects free of confounding, and the claim that a perceived-sex
-effect simply *is* disparate treatment. The second equation needs an unstated
-**normative** premise about what treatment ought to look like. The charge is
-that researchers do normative theorising behind technical machinery, and the
-demand is that both the sociological theory and the normative one be defended
-out loud instead of being settled by a covariate list.
-
-### Three replies
-
-The argument is live, and the replies are substantive.
-
-- **The signal is modular even if the category is not.** One really can change
-  the name on a résumé holding the rest of the text fixed --- a physical
-  operation needing no metaphysics. That the reader's interpretation is holistic
-  is arguably part of the effect measured, not a defect in the estimand. This is
-  the strongest reply and it protects correspondence studies specifically.
-- **Comparison is not optional for law.** Discrimination doctrine is comparative
-  by construction; if no comparison is well-posed the legal concept cannot
-  operate. The authors would do the normative work openly rather than abandon
-  comparison, but this leaves the empirical programme without operational
-  guidance.
-- **Constitution is scale-dependent.** Over a lifetime, gender and human capital
-  are mutually constituting and the objection bites hard. At the moment of a
-  single hiring decision with the file fixed, the manipulation is genuinely
-  modular and it bites least. Which suggests the defensible middle: the critique
-  is devastating for lifetime-scale "effect of gender" claims and comparatively
-  weak against tightly scoped decision-stage experiments.
-
-### What survives, in this chapter's own numbers
-
-None of this licenses the conclusion that the gender wage gap cannot be studied,
-and its authors do not draw it. What is ill-defined is one specific summary
-statistic, not the subject.
-
-Safe, and unaffected by the objection:
-
-- **"Women in this sample earn 3.8% less than men."** A description of an
-  observed population --- and the statistic UK and EU pay-gap reporting mandate,
-  unadjusted, precisely because adjusted numbers launder the structural
-  component.
-- **"Within education, experience and region cells the gap is 11.3%; adding
-  occupation and industry it is 7.5%."** Within-cell contrasts, correctly
-  labelled as such.
-- **"The gap is near zero at the 10th percentile and about 7% at the 90th."**
-  A distributional description.
-- **"A confounder explaining roughly 3% of the residual variance of gender and
-  4% of wages would account for the entire 11.3% to 7.5% attenuation."** A
-  sensitivity statement about a stated model.
-
-Ill-defined: **"the effect of being a woman, net of everything legitimate"** ---
-a single number separating discrimination from productivity across a lifetime.
-
-Two independent routes condemn that one number and nothing else on the list. The
-identification route, worked through earlier in this chapter, shows it is
-unreachable from these data for three separate reasons: mediators everywhere, a
-collider at every rung, and a positivity failure at the only valid adjustment
-set. The constitutive route holds it was never a coherent target. Since both
-converge, dropping it costs nothing that was ever in hand.
-
-### The operational rule
-
-Report what was **manipulated** or **observed**, in the **population it was
-observed in**. Then make the normative claim as a stated argument, rather than
-as something a coefficient is supposed to deliver.
-
-Which is what the ladder in this chapter does. $-3.8\%$ is the observed total
-gap; $-11.3\%$ and $-7.5\%$ are within-cell contrasts; none of them is
-discrimination, and now the chapter says so.
-
-### References for this section
-
-- Hu, L. and I. Kohler-Hausmann (2020). What's sex got to do with fair machine
-  learning? *ACM FAccT*. arXiv:2006.01770.
-- Hu, L. and I. Kohler-Hausmann (2024). What is perceived when race is perceived
-  and why it matters for causal inference and discrimination studies.
-  *Law & Society Review* (open access).
-- Hu, L. (2023). What is "race" in algorithmic discrimination on the basis of
-  race? *Journal of Moral Philosophy*.
-- Hu, L. (2025). Sex discrimination, normativity, and begging the causal
-  question. *Political Philosophy*.
-- Kohler-Hausmann, I. (2019). Eddie Murphy and the dangers of counterfactual
-  causal thinking about detecting racial discrimination. *Northwestern
-  University Law Review*.
+1. **Oaxaca-Blinder Connection:** The classical OB decomposition is equivalent to regression adjustment where treatment is interacted with centered covariates. Demeaning at the overall mean yields the ATE, while demeaning at the female subpopulation mean yields the ATT.
+2. **Composition Matters:** Conditioning on education widens the wage gap from $-3.8\%$ to $-11.3\%$ because women in the sample possess higher average educational credentials than men.
+3. **Occupation as a Mediator:** Conditioning on occupation and industry narrows the gap to $-7.5\%$, capturing the within-job pay disparity (controlled direct effect).
+4. **Machine Learning Confirmation:** Doubly robust AIPW estimation produces a consistent $-6.7\%$ gap, demonstrating that the results are not driven by arbitrary parametric functional form assumptions.

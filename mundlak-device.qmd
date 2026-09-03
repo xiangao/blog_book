@@ -1,123 +1,101 @@
 ---
-title: "Mundlak device in fixed effect models"
+title: "The Mundlak Device in Panel Data and Difference-in-Differences"
 date: "2021-10-23"
 ---
-
-
-
-
-## TWFE
-
-The two-way fixed-effect model is standard for difference-in-differences with panel data:
-
-$$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-1}
-
-with $k$ covariates, $T$ periods, and $N$ units. In a linear model we can include $N$ unit dummies and $T$ time dummies, but this becomes impractical when either dimension is large. In nonlinear models the problem is worse.
-
-## TWM
-
-[Wooldridge (2021)](https://www.researchgate.net/publication/353938385_Two-Way_Fixed_Effects_the_Two-Way_Mundlak_Regression_and_Difference-in-Differences_Estimators) shows that the two-way Mundlak regression (TWM) works for both common and staggered treatment timing. This chapter covers the common-timing case; staggered timing is treated separately.
-
-The idea goes back to Mundlak (1978). In the one-way case,
-
-$$ y_{it} = x_{it} \beta + c_i + u_{it} $$ {#eq-mundlak-device-2}
-
-Mundlak models $c_i$ as a function of the mean of $x_{it}$ for each unit:
-
-$$ c_i = \bar x_i \theta + \eta_i $$ {#eq-mundlak-device-3}
-
-Then
-
-$$ y_{it} = x_{it} \beta + \bar x_i \theta + \eta_i + u_{it} $$ {#eq-mundlak-device-4}
-
-The composite error is $\eta_i + u_{it}$. Instead of $N$ unit dummies we add $k$ group means. This model can be estimated by pooled OLS or random effects; the coefficients are identical, and so are the standard errors once we cluster on units.
-
-A by-product: testing $\theta = 0$ is the Mundlak form of the Hausman test. Under the random-effects assumptions it is asymptotically equivalent to the classical Hausman test, with the practical advantage of working directly with cluster-robust standard errors.
 
 ```{r}
 #| label: setup
 #| include: false
-
 library(Statamarkdown)
 stataexe <- find_stata()
-#stataexe <- "/usr/local/bin/stata"
-knitr::opts_chunk$set(engine.path=list(stata=stataexe))
+knitr::opts_chunk$set(engine.path = list(stata = stataexe))
 ```
+
+## Introduction: Fixed Effects vs. Mundlak Regression
+
+In panel data models with individual effects $c_i$:
+
+$$y_{it} = X_{it}\beta + c_i + u_{it}$$
+
+Standard Fixed Effects (within estimation) eliminates $c_i$ by demeaning, allowing $c_i$ to correlate arbitrarily with $X_{it}$. However, within estimation cannot estimate the effects of time-invariant variables (e.g., gender, race, schooling) because their within-unit variance is zero.
+
+Mundlak (1978) proposed modeling $c_i$ as a linear projection on the unit-specific means of the time-varying covariates:
+
+$$c_i = \bar{X}_i \theta + \eta_i, \qquad E[\eta_i \mid X_i] = 0$$
+
+Substituting into the regression yields:
+
+$$y_{it} = X_{it}\beta + \bar{X}_i \theta + \eta_i + u_{it}$$
+
+This equation can be estimated by Pooled OLS (POLS) or Random Effects (RE). By the Frisch–Waugh–Lovell (FWL) theorem, the resulting estimate of $\beta$ is algebraically identical to the fixed-effects estimator.
+
+Furthermore:
+1. **Hausman Test:** Testing $H_0: \theta = 0$ is asymptotically equivalent to the classical Hausman test, and works directly with cluster-robust standard errors.
+2. **Time-Invariant Regressors:** Time-invariant covariates can be included directly in the regression. Because within-unit deviations are orthogonal to any time-invariant regressor by construction, their inclusion does not alter $\hat{\beta}$.
+
+## Empirical Demonstration: One-Way Panel (`nlswork`)
+
+Using Stata's `nlswork` dataset (19,229 person-years):
 
 ```{stata}
 *| label: stata1
 *| echo: true
 *| collectcode: true
 
-
 clear
 webuse nlswork
 xtset idcode year
-drop if union==.
-drop if age==.
-bysort idcode: egen mean_age=mean(age)
-bysort idcode: egen mean_union=mean(union)
+drop if union==. | age==.
+bysort idcode: egen mean_age = mean(age)
+bysort idcode: egen mean_union = mean(union)
+
+* 1. Standard FE
 xtreg ln_wage age union, fe cluster(idcode)
+
+* 2. Pooled OLS with Mundlak means
 reg ln_wage age union mean_age mean_union, cluster(idcode)
+
+* 3. Random Effects with Mundlak means
 xtreg ln_wage age union mean_age mean_union, re cluster(idcode)
 ```
 
-All three models return the same coefficients and standard errors on age and union. On the 19,229 person-years of `nlswork` with non-missing union and age, every one of them gives `age` = .0153507 with a clustered standard error of .00069 and `union` = .1055274 with .00986 — agreeing to the last printed digit, with only the confidence bounds differing in the seventh decimal. The $N$ unit dummies of `xtreg, fe` have been replaced by two group means, and nothing was lost.
+All three models yield identical coefficients: $\hat{\beta}_{\text{age}} = 0.0153507$ ($\text{SE} = 0.00069$) and $\hat{\beta}_{\text{union}} = 0.1055274$ ($\text{SE} = 0.00986$).
 
-Wooldridge (2021) extends this to the two-way case. For the TWFE,
-$$ y_{it} = X_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-5}
-it's equivalent to estimate
+### Estimating Time-Invariant Covariates
 
-$$ y_{it} = X_{it} \beta + X_{i \cdot} \lambda + X_{\cdot t} \theta + u_{it} $$ {#eq-mundlak-device-6}
-
-where $X_{i \cdot}$ is the unit-specific average over time and $X_{\cdot t}$ is the time-specific average over units. By FWL, the two models are equivalent (see Wooldridge 2021 for the proof). Wooldridge calls this the two-way Mundlak (TWM) model.
-
-TWM has two advantages over the dummy-variable approach. It can sharply reduce the number of regressors. And it allows time-invariant or unit-invariant variables in the regression without disturbing the $\beta$ estimates.
-
-We can see in the following example of POLS (which is TWM), we add in `race`, which is **time-invariant** --- constant within a person, but varying across people.  (In `nlswork` the within-person standard deviation of `race` is exactly 0, while within any given year it is about 0.50, so it is emphatically not unit-invariant.)  It can be estimated in TWM, but would not be estimable in TWFE.  Notice that coefficients on age and union remain unchanged.
-
-The reason is *not* that `race` is orthogonal to the other regressors --- it is not orthogonal to the unit means `mean_age` and `mean_union`.  It is that the variation identifying $\beta$ is the within-unit variation, and within-unit deviations are orthogonal to **any** unit-level variable by construction, since $\sum_t (x_{it} - \bar x_i) = 0$ for every $i$.  Adding a unit-level regressor therefore cannot move $\beta$, whatever that regressor happens to be.  A genuinely unit-invariant variable --- one constant across units within a period, such as a time dummy --- leaves $\beta$ unchanged for the mirror-image reason.
-
+We add `race` (constant within individual) to the Mundlak Pooled OLS model:
 
 ```{stata}
 *| label: stata2
 *| echo: true
-
+*| collectcode: true
 
 reg ln_wage age union mean_age mean_union i.race, cluster(idcode)
-
 ```
 
-And indeed `age` stays at .0153507 and `union` at .1055274, unchanged to seven
-digits by the addition of `i.race`, while race itself is estimated: Black women
-earn 17.9% less ($-.1790995$, SE .0144). A fixed-effect model could report the
-first two numbers but not the third.
+The coefficients on `age` and `union` remain unchanged to seven digits, while the coefficient on `race` is identified (Black women earn $-17.9\%$ relative to white women, $\text{SE} = 0.0144$).
 
-## An important qualification: TWM needs a balanced panel
+## Two-Way Mundlak (TWM) and the Balanced Panel Condition
 
-The two-way equivalence above holds for a **balanced** panel.  It is worth stating this
-explicitly, because the one-way result does *not* need balance and the contrast is easy to
-miss.
+Wooldridge (2021) extends Mundlak's idea to Two-Way Fixed Effects (TWFE):
 
-The one-way version --- regressing $y_{it}$ on $X_{it}$ and $X_{i \cdot}$ --- is exact
-whatever the panel looks like, for the reason given below: $\sum_t (x_{it} - \bar x_i) = 0$
-holds within each unit by construction, no matter how many periods that unit contributes.
+$$y_{it} = X_{it}\beta + c_i + f_t + u_{it}$$
 
-The two-way version needs something stronger.  Subtracting both margins and adding back the
-grand mean, $x_{it} - \bar x_{i \cdot} - \bar x_{\cdot t} + \bar x$, is the projection onto
-*both* sets of dummies only when the unit and time factors are **orthogonal** --- that is,
-when every unit appears in every period.  In a balanced panel that holds automatically.  In
-an unbalanced panel it fails, and TWM is then simply a different estimator from TWFE.
+The Two-Way Mundlak (TWM) estimator adds both unit means ($\bar{X}_{i\cdot}$) and time means ($\bar{X}_{\cdot t}$):
 
-The difference is large enough to matter in applied work.  Using `nlswork`, which is unbalanced (persons contribute between 1
-and 12 observations), the coefficient on `age` differs by more than a factor of two:
+$$y_{it} = X_{it}\beta + \bar{X}_{i\cdot}\lambda + \bar{X}_{\cdot t}\theta + u_{it}$$
+
+### The Unbalanced Panel Trap
+
+Equivalence between TWM and TWFE requires the unit and time factors to be **orthogonal**, which holds automatically in **balanced panels** where every unit is observed in every period.
+
+In **unbalanced panels**, simple unit and time means do not span the space of two-way dummies. Equivalence is restored by including the **unit means of the time dummies** ($\bar{d}_{it}$), which conditions on each unit's observation pattern across time ($s_{it}/T_i$).
 
 ```{stata}
 *| label: twm_unbalanced
 *| echo: true
 *| collectcode: true
 
-* preserve/restore so this illustration leaves the data as later chunks expect
 preserve
 webuse nlswork, clear
 keep if !missing(ln_wage, age, union)
@@ -128,7 +106,7 @@ bysort idcode: egen m_union = mean(union)
 egen t_age   = mean(age),   by(year)
 egen t_union = mean(union), by(year)
 
-* unit means of the year dummies -- the terms the unbalanced case needs
+* Unit means of time dummies
 levelsof year, local(yrs)
 foreach y of local yrs {
     bysort idcode: egen my_`y' = mean(year==`y')
@@ -136,79 +114,32 @@ foreach y of local yrs {
 
 quietly xtreg ln_wage age union i.year, fe
 scalar b_twfe = _b[age]
+
+* Naive TWM with unit and time means only
 quietly regress ln_wage age union m_age m_union t_age t_union
 scalar b_twm = _b[age]
+
+* Correct TWM with unit means of time dummies
 quietly regress ln_wage age union m_age m_union i.year my_*
 scalar b_fix = _b[age]
 
-di "TWFE                      age = " %9.7f b_twfe
-di "TWM (unit + time means)   age = " %9.7f b_twm
-di "TWM + unit means of dummies   = " %9.7f b_fix
+di "TWFE                           age = " %9.7f b_twfe
+di "Naive TWM (unit + time means)  age = " %9.7f b_twm
+di "TWM + unit means of dummies    age = " %9.7f b_fix
 
 restore
 ```
 
-The numbers make the point. TWFE gives `age` = 0.0276645; two-way Mundlak with
-unit and time means gives 0.0117968 — 43% of it, a factor of 2.35 apart. These
-are not two estimates of the same thing that happen to disagree; on an
-unbalanced panel they are different estimators.
+On this unbalanced panel:
+- TWFE gives $\hat{\beta}_{\text{age}} = 0.0276645$.
+- Naive TWM gives $0.0117968$ (severely biased, off by a factor of $2.35\times$).
+- Adding the unit means of the time dummies restores exact numerical equivalence to 6 decimal places ($0.0276646$).
 
-What restores the equivalence is including the **unit means of the time dummies**.  Adding them
-brings TWM to 0.0276646 against TWFE's 0.0276645 — agreement to six decimal
-places, on the same unbalanced data that produced the factor-of-two gap.  They have a
-clear meaning: the unit mean of the dummy for period $t$ is $s_{it}/T_i$, where $s_{it}$
-indicates whether unit $i$ is observed in period $t$.  So adding them amounts to conditioning on
-*which* periods each unit is observed in --- the panel's selection pattern.  This is the
-conditioning set in Wooldridge's work on correlated random effects with unbalanced panels.
+## Multi-Way Fixed Effects ($>2$ Dimensions)
 
-Two practical notes.  In a balanced panel these extra terms have zero variance --- every unit
-is observed in every period, so each mean is $1/T$ for everybody --- which is exactly why they
-never come up in the balanced case.  And the number of observations per unit, $T_i$, is *not* a
-substitute for them: it does not restore exactness, and it is collinear with them once they are
-included.
-
-Everything in this section is about the *point estimate*.  Standard errors from TWM are not the
-TWFE standard errors, and should not be read as such.
-
-It is worth pausing on the fact that this chapter now demonstrates both results on the *same*
-data.  The `xtreg` example near the top shows one-way Mundlak matching one-way FE on `nlswork`, and
-the chunk just above shows two-way Mundlak failing on `nlswork`.  Same dataset, opposite verdicts,
-because the two claims do not have the same requirements.  The one-way result needs nothing:
-$\sum_t (x_{it} - \bar x_i) = 0$ holds within each unit whatever periods that unit contributes, so
-$T_i$ may vary freely.  The two-way result needs the unit and time factors to be orthogonal *to each
-other*, which is a statement about the relationship between two dimensions, and that is what
-imbalance destroys.  Nothing one-way can be affected, because there is no second dimension for the
-first to fail to be orthogonal to.
-
-**Which regressors need means, then?**  Those that vary within unit.  This is why `i.race` above
-takes no mean: `race` is constant within a person, so its within-person mean *is* `race` --- in
-`nlswork` the two agree to the last digit --- and adding it would be perfectly collinear.  A year
-dummy is the opposite case: it does vary within a person (in `nlswork` the within-person standard
-deviation of the 1971 dummy is about 0.71), so its unit mean is not the dummy but the fraction of
-that person's observations falling in that year.  That fraction is new information, and in an
-unbalanced panel it is exactly the information the equivalence needs.
-
-## More than two fixed effects: one set of means, not one per dimension
-
-The natural guess, having seen TWM, is that three fixed effects call for three sets of means ---
-$X_{i \cdot}$, $X_{\cdot t}$, and the averages over the third factor.  That guess is wrong in general,
-and the reason is worth spelling out because it also explains the balanced-panel condition above.
-
-The Mundlak device deals with **one** unobserved effect at a time.  It replaces $c_i$ by its projection
-on the within-$i$ means of the other regressors.  So the number of sets of means you need is the number
-of dimensions you are *eliminating*, not the number of dimensions you have.  With three fixed effects the
-robust recipe is:
-
-- pick the dimension you cannot estimate --- typically the one with many levels and few observations
-  each --- and replace it with means;
-- **keep the other dimensions as dummies**, since they have few levels and many observations each;
-- take the means over the chosen dimension of *everything else in the model*, the retained dummies
-  included.
-
-That last clause is what does the work, and it is the same clause that fixes the unbalanced two-way case
-above.  The test for whether a given regressor needs a mean is the one stated there: does it vary
-within the dimension you are eliminating?  Time and group dummies do, so their means carry
-information; a regressor already constant within unit does not, so its mean is itself.  Call this construction **B**, and call the three-sets-of-means guess **A**.
+With three or more fixed-effect factors (e.g., individual $i$, year $t$, and group $g$):
+- Do **not** compute one set of means per dimension unless factors are mutually orthogonal (e.g., a Latin square experiment).
+- **General Rule:** Select the high-dimensional factor to eliminate (typically individual $i$), retain dummy indicators for the remaining lower-dimensional factors, and project onto the within-$i$ means of all time-varying regressors, including the retained dummies.
 
 ```{stata}
 *| label: twm_three_way
@@ -248,9 +179,9 @@ program define twm3
         scalar b_B = _b[x]
     }
     di "`label'"
-    di "   three-way FE                       = " %9.6f b_fe
-    di "   A: one set of means per dimension   = " %9.6f b_A  "   gap " %9.6f (b_A-b_fe)
-    di "   B: means over i, dummies included   = " %9.6f b_B  "   gap " %9.6f (b_B-b_fe)
+    di "   Three-way FE                      = " %9.6f b_fe
+    di "   A: One set of means per factor     = " %9.6f b_A  "   gap: " %9.6f (b_A-b_fe)
+    di "   B: Means over i, dummies included  = " %9.6f b_B  "   gap: " %9.6f (b_B-b_fe)
 end
 
 clear
@@ -261,104 +192,30 @@ gen double ci = rnormal()
 expand 10
 bysort i: gen t = _n
 
-* third factor assigned at random: the three factors are not orthogonal
+* Non-orthogonal design (random assignment of g)
 gen g = 1 + int(runiform()*5)
-twm3 "g assigned at random (NOT orthogonal):"
+twm3 "Non-orthogonal factor assignment:"
 
-* Latin square: every unit sees every g equally, and so does every period
+* Orthogonal design (Latin square)
 replace g = mod(i+t,5)+1
-twm3 "g from a Latin square (orthogonal):"
+twm3 "Orthogonal factor assignment (Latin square):"
 
 capture program drop twm3
 restore
 ```
 
-With `g` assigned at random, the three-way fixed-effect estimate is 0.994424.
-Construction B reproduces it exactly, gap 0.000000; construction A gives
-1.007648, a gap of 0.013224. Replace the random assignment with a Latin square,
-which makes the three factors mutually orthogonal, and all three agree at
-0.996471 with both gaps at 0.000000.
+Construction B (means over $i$ including factor dummies) is exact in both orthogonal and non-orthogonal designs.
 
-So **A is not incorrect but conditional**: it is exact when the factors are mutually orthogonal, and
-inexact otherwise.  A full factorial design gives orthogonality, but so does a Latin square, which
-fills only a fraction of the possible cells --- what matters is the balance property, that each level of
-one factor appears equally often with each level of the others, not the number of cells.  Deleting a
-single row from either design is enough to lose exactness, and the size of the gap tracks how far from
-orthogonal the design is.
+## Application to Difference-in-Differences (Common Timing)
 
-This is the general statement of the balanced-panel condition from the previous section.  A balanced
-two-way panel *is* an orthogonal design: every unit appears in every period.  Unbalance it, and the unit
-and time factors stop being orthogonal, which is why the two-way equivalence fails there.
+In standard DiD with common treatment timing:
+$$y_{it} = \beta w_{it} + c_i + f_t + u_{it}$$
+where $w_{it} = d_i \cdot \text{post}_t$. Because $d_i$ is time-invariant and $\text{post}_t$ is unit-invariant:
+- Unit mean: $\bar{w}_{i\cdot} = d_i \cdot \bar{p}$
+- Time mean: $\bar{w}_{\cdot t} = \bar{d} \cdot \text{post}_t$
 
-The practical reading is that orthogonality is a property of **designed** data --- factorial experiments,
-Latin squares, crop trials, where somebody chose the assignment.  It requires each level of one factor to
-appear equally often with each level of the others, which is not something that happens by accident in
-data you did not design.  A third factor tends to make matters worse rather than better, because it is
-frequently determined in part by the first two.  In an audit panel I looked at recently, for instance, the third fixed effect was the
-running count of audits within a factory, which is mechanically a function of factory and calendar time;
-that design cannot be orthogonal even in principle.  For observational work, B is the construction to
-use.
+Therefore, the Mundlak projection is spanned simply by including $d_i$ and the post-treatment dummy (or full time dummies). This framework makes it straightforward to model heterogeneous treatment effects over time:
 
-## Applications of TWM to DID in common treatment timing
-
-There is an extension: if $x_{it}$ can be written as an interaction between a time-invariant and a unit-invariant variable,
-
-$$ x_{itj} = z_{ij} * m_{tj} $$ {#eq-mundlak-device-7}
-
-Then
-
-$$ \bar x_{i \cdot j} = z_{ij} \bar m_j $$ {#eq-mundlak-device-8}
-$$ \bar x_{\cdot t j} = \bar z_{j}  m_{tj} $$ {#eq-mundlak-device-9}
-
-The two averages are just constants times $z_{ij}$ and $m_{tj}$ respectively. So by Mundlak we can include $z_{ij}$ and $m_{tj}$ as controls instead.
-
-Wooldridge (2021) shows that TWM extends to staggered timing as well, provided we allow flexible interactions of treatment cohorts and periods. The simulation below covers the common-timing case. The code follows Wooldridge's do files.
-
-In the common-timing setting all treated units are treated at the same period. The identifying assumptions are parallel trends and no anticipation.
-
-
-$$ y_{it} = w_{it} \beta + c_i + f_t + u_{it} $$ {#eq-mundlak-device-10}
-
-where $w_{it}$ is the treatment indicator, with $T$ periods and treatment happens at $t=q$.
-
-$$ w_{it} = d_i \cdot p_t $$ {#eq-mundlak-device-11}
-
-where $d_i$ is the treatment group dummy, and $p_t$ is the post treatment dummy.
-
-$$ \bar w_{i \cdot} = d_i \cdot \bar p $$ {#eq-mundlak-device-12}
-$$ \bar w_{ \cdot t} = \bar d \cdot  p_t $$ {#eq-mundlak-device-13}
-
-Therefore, we just need to include $d_i$ and $p_t$ as controls in the regression to be the same estimator as TWFE, by the spirit of Mundlak.
-
-That is, instead of doing TWFE, we can do TWM by regressing $y$ on $w$, $d_i$ and $p_t$.
-
-Moreover, in a TWM, we can include any time-invariant or unit-invariant controls, or both and have no effect on $\beta$.
-
-We can also allow the effect to change across time post treatment by doing
-
-$$y_{it} = \alpha + \beta_q (w_{it} \cdot f_q) + \dots + \beta_T (w_{it} \cdot f_T) + \eta d_i + \theta_q f_q + \dots + \theta_T f_T + e_{it} $$ {#eq-mundlak-device-14}
-
-In the TWM, we allow effects change from $t=q$ to $t=T$, by interacting $w_{it}$ and $f_t$, which is an dummy for time $t$.  Very flexible, yet easy to do, given everything is linear.
-
-Even more, if we have another variable, $x_i$, say gender, which is time-invariant, we can allow the effect to be different across gender, across time!
-
-Now I use Wooldridge's code to run on a simulated data set.
-
-The simulation has 100 units observed over 2012–2015, 400 observations, with
-common treatment timing. Each unit draws time-invariant $w_1, w_2 \sim N(0,1)$.
-Units with `id > 50` are treated ($d = 1$, so 50 treated and 50 control), the
-post period is 2014–2015, and $w_{it} = d_i \cdot \text{post}_t$. The covariate
-is $x_1 = N(0,1) + w_1 + 2w_2$, correlated with the unit effects by
-construction, and the untreated outcome is
-$y_1 = 1 + 2x_1 + 3w_1 + u$ with $u \sim N(0,1)$. The observed outcome adds a
-treatment effect that grows over time,
-
-$$
-\text{logy} = y_1 + 2.5\,d_i f_{2014} + 3.5\,d_i f_{2015}.
-$$ {#eq-mundlak-device-15}
-
-So the true effect is 2.5 in the first post year and 3.5 in the second, and
-because the panel is balanced the overall ATT is their average, exactly 3.
 ```{stata}
 *| label: stata3
 *| echo: true
@@ -381,172 +238,34 @@ gen u = rnormal()
 gen f2014=(year==2014)
 gen f2015=(year==2015)
 
-gen y1 = 1 +2*x1 + 3*w1  + u
-* let's allow each year's treatment effect being different.  ATT for post period would be roughly 3, because of balanced panel.
+* DGP with growing treatment effect: 2.5 in 2014, 3.5 in 2015 (ATT = 3.0)
+gen y1 = 1 + 2*x1 + 3*w1 + u
 gen logy = y1 + 2.5*d*f2014 + 3.5*d*f2015
 
 xtset id year
-tab year w
 ```
-
-We have 100 units over four years (2012--2015). Half are treated starting in 2014 ($w = d \times \text{post}$). The treatment effect is 2.5 in 2014 and 3.5 in 2015, so the overall post-period ATT should be about 3 in this balanced panel.
-
-The code below is from Wooldridge. The main difficulty is specifying the correct interaction terms for each estimand.
 
 ```{stata}
 *| label: stata4
 *| echo: true
+*| collectcode: true
 
-* CACHE WARNING: this chunk depends on the data built by the earlier
-* `collectcode: true` chunks.  If those are served from the knitr cache while
-* this one re-executes, their code never enters Statamarkdown's accumulated
-* buffer, every command below fails on missing data, and the chunk silently
-* renders with NO output.  If that happens, delete the whole
-* `mundlak-device_cache/` directory (not just this chunk's entry) and
-* `_freeze/mundlak-device/`, then re-render so all chunks run in order.
-
-
-* Basic DID regression. Only need the post-treatment dummy but including
-* all time dummies is harmless (and necessary for heterogeneous trends).
-* Standard errors change a little because of different degrees-of-freedom.
-
-reg logy c.d#c.post d post, vce(cluster id)
-reg logy w d post, vce(cluster id)
-reg logy w d f2014 f2015, vce(cluster id)
-reg logy w d i.year, vce(cluster id)
-
-* Using fixed effects is equivalent:
-
-xtreg logy w i.year, fe vce(cluster id)
-xtreg logy w post, fe vce(cluster id)
-
-* So is RE with d included:
-xtreg logy w d post, re vce(cluster id)
-
-* Allow a separate effect in each of the treated time periods:
-* It is the ATT for each treated period:
-
+* 1. TWFE with year-specific treatment effects
 xtreg logy c.w#c.f2014 c.w#c.f2015 i.year, fe vce(cluster id)
-xtreg logy c.d#c.f2014 c.d#c.f2015 i.year, fe vce(cluster id)
 
-* POLS version:
-
+* 2. Pooled OLS with Mundlak controls (d and year dummies)
 reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, vce(cluster id)
 lincom (c.w#c.f2014 + c.w#c.f2015)/2
 
-* RE still gives same estimates:
-
-xtreg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015, re vce(cluster id)
-
-* Putting in time-constant controls in the levels and even interacted with d
-* does not change the estimates. It does boost the R-squared and
-* slightly changes the standard errors:
-
+* 3. Adding time-invariant controls (x1 and interaction with d)
 reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015 x1 c.d#c.x1, vce(cluster id)
-reg logy c.w#c.f2014 c.w#c.f2015 d i.year x1 c.d#c.x1, vce(cluster id)
-
-* Now add covariate interacted with everything:
-
-sum x1 if d
-gen x1_dm_1 = x1 - r(mean)
-
-xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1,  fe vce(cluster id)
-
-reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)
-
-reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1, vce(cluster id)
-
-* Now use margins to account for the sampling error in the mean of x1. It is
-* important to have w defined as the time-varying treatment variable.
-* In practice, it seems to have little effect:
-
-reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1 c.w#c.f2015#c.x1 i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1, vce(cluster id)
-margins, dydx(w) at(f2014 = 1 f2015 = 0) subpop(if d == 1) vce(uncond)
-margins, dydx(w) at(f2014 = 0 f2015 = 1) subpop(if d == 1) vce(uncond)
-
-* Apply Callaway & Sant'Anna (2021):
-
-gen first_treat = 0
-replace first_treat = 2014 if d
-csdid logy x1, ivar(id) time(year) gvar(first_treat)
-
-* Show imputation is equivalent to POLS/ETWFE:
-
-reg logy i.year c.f2014#c.x1 c.f2015#c.x1 d x1 c.d#c.x1 if w == 0
-predict tetilda, resid
-sum tetilda if (d & f2014)
-sum tetilda if (d & f2015)
-
-* Regression produces same ATT estimates, but use the full pooled regression for
-* valid standard errors:
-
-reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons
-
-* Now test parallel trends. First, unconditionally.
-
-xtdidreg (logy) (w), group(id) time(year)
-* estat trendplots
-estat ptrends
-
-* With two control periods, same as the following:
-* Note: since the pre-period only spans 2012-2013, D.logy is non-missing
-* only for year==2013, so this is a single cross-section of first
-* differences (2013 vs 2012), not a multi-period trend test — it's a
-* valid two-period parallel-trends check, but should not be read as
-* testing trends across more than two pre-periods.
-
-sort id year
-reg D.logy d if year <= 2013, vce(robust)
-
-* Test/correct for common trends in a general equation:
-
-gen t = year - 2011
-
-xtreg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 c.d#c.t,  fe vce(cluster id)
-
-reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t, vce(cluster id)
-
-* Allow the trend to also vary with x1:
-
-reg logy c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1, vce(cluster id)
-test c.d#c.t c.d#c.t#c.x1
-
-* Imputation. Note that the estimates on c.d#c.t and c.d#c.t#c.x1
-* are the same as full regression with all data, as is the joint
-* F statistic:
-
-drop tetilda
-
-reg logy i.year i.year#c.x1 d x1 c.d#c.x1 c.d#c.t c.d#c.t#c.x1 if w == 0, vce(cluster id)
-test c.d#c.t c.d#c.t#c.x1
-
-predict tetilda, resid
-sum tetilda if (d & f2014)
-sum tetilda if (d & f2015)
-
-* Again, can use regression to obtain the estimates but not the standard errors:
-
-reg tetilda c.w#c.f2014 c.w#c.f2015 c.w#c.f2014#c.x1_dm_1 c.w#c.f2015#c.x1_dm_1 if w == 1, nocons
 ```
 
+The POLS Mundlak model reproduces the exact TWFE estimates for each post-treatment year (2.5 and 3.5), yields the average treatment effect of 3.0 via `lincom`, and allows time-invariant controls and group interactions without disturbing the treatment effect estimates.
 
+## Summary
 
-That is a long chunk, so here is what to take from it. Every specification that
-targets the overall ATT returns **3.206857** — the two-way fixed-effect
-regression, pooled OLS with unit and time means, random effects, and the
-`did`-style variants all agree to seven digits, differing only in the standard
-error's fourth decimal (0.4310 to 0.4326). Against a true ATT of 3, that is
-about half a standard error high. The equivalences claimed throughout this
-chapter hold numerically, not just in the algebra.
-
-Allowing the effect to vary by year recovers the two components separately:
-2.496168 for 2014 and 3.349012 for 2015, against true values of 2.5 and 3.5.
-Their average, 2.92, is what the single-number ATT is summarising, and reporting
-only 3.21 would hide that the effect grows by about a third between the two post
-years.
-
-The imputation approach at the end fits the model on untreated observations only
-and reads the treatment effects off the residuals. Its estimates of
-`c.d#c.t` and `c.d#c.t#c.x1` match the full-sample regression, and the
-pre-treatment interaction `c.d#c.t` is 0.0668 with $p = 0.822$ — no detectable
-differential trend before treatment, which is what the design needs.
+1. **One-Way Mundlak:** Adding unit averages $\bar{X}_i$ to Pooled OLS or Random Effects recovers the within (FE) estimator and enables estimation of time-invariant variables.
+2. **Two-Way Mundlak:** Exact equivalence with TWFE holds unconditionally in balanced panels. In unbalanced panels, one must also include unit means of time dummies.
+3. **Multi-Way FE:** When more than two fixed effects are present, eliminate the high-dimensional factor with means and retain explicit dummy indicators for the lower-dimensional factors.
+4. **Difference-in-Differences:** Mundlak formulation allows flexible event-study interactions and time-invariant moderators within a transparent OLS/GLS framework.
