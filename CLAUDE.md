@@ -512,3 +512,87 @@ executes once.
 Rendered clean to HTML and PDF (592 pages, was 588). The `maximum number of runs (9)`
 LaTeX warning is pre-existing float-placement oscillation, not from this chapter —
 it has no cross-references, and the PDF has zero unresolved `??`.
+
+## Codex review pass (2026-09-08)
+
+Source: `REVIEW_SUGGESTIONS_20260908.md` in the repo root. Every claim was checked against
+the source before anything was edited; two were declined.
+
+The finding that mattered: the 2026-09-03 rewrite swap (commit `d6bd048`, six chapters
+replaced by shorter agy versions, originals in `archive/pre_agy_20260903/`) dropped
+methodological qualifications along with the wordiness, and two chapters were left claiming
+more than their own analysis supports. Both fixes are compact restorations from the archive,
+not reinstatements of the long chapters.
+
+**`gwg.qmd`** (186 → 199 lines, prose only). Four problems.
+
+- The explained OB component was called selection bias with no condition attached. It equals
+  `E[Y(0)|A=1] − E[Y(0)|A=0]` only under the linear model plus a causal reading of `A`;
+  otherwise it is a composition term. Both readings now stated.
+- The "Interpretation Trade-Off" list asserted that the −11.3% → −7.5% move shows about a
+  third of the gap is occupation, one line before saying occupation is a collider. The two
+  cannot both hold. Replaced with the ladder-of-controlled-direct-effects table from
+  `archive/…/gwg.qmd:192-200`, plus the paragraph naming the three things mixed into the
+  four-point move (mediation, collider bias, occupation–wage confounding) and the sign of
+  the second: women selected into male-dominated high-paying occupations are plausibly
+  better on `U` than the men beside them, which pushes the within-occupation gap toward zero.
+- −7.5% was labelled a controlled direct effect outright. A CDE needs no unmeasured
+  mediator–outcome confounding (VanderWeele and Robinson, 2014), which `U` violates by
+  construction here. Now reported as the within-occupation adjusted gap with the condition
+  named.
+- The AIPW section was headed "Machine Learning Confirmation". AIPW relaxes functional form
+  and nothing else — it does not touch the post-treatment adjustment, the sample selection,
+  or the definition of the treatment. Rewritten as "What This Does Not Fix".
+
+Also restored, two sentences each: gender is not manipulable in Holland's sense, so `female`
+reads as a proxy for being perceived as female by an employer; and the full-year full-time
+non-self-employed extract is itself a conditioning statement on a collider, which no covariate
+choice closes and which biases every gap below toward zero.
+
+**`likert-scale-variance.qmd`** (210 → 216 lines, prose only). The simulation draws both
+groups through one shared `cuts` vector, so the ordinal model recovers equal dispersion
+partly by construction. New subsection "What the Simulation Establishes, and What It Assumes"
+states the distinction: the comparison does show that boundary compression alone does not
+fool the latent-scale parameterization (where the Gaussian model fails), but it cannot show
+separation of dispersion from threshold differences, because no threshold difference was
+simulated. Common or explicitly modelled thresholds is the identifying assumption. Softened
+"separating true variance differences from boundary artifacts" and pooled *R* "removes
+scale-boundary effects" — *R* normalizes by the maximum attainable at that mean, which is a
+rescaling, not a correction. The README audit entry for 2026-07-30 records adding exactly
+this caveat; the September rewrite had deleted it.
+
+**Housekeeping.** HTML page TOC turned on (`toc: true`, `toc-location: right`,
+`toc-depth: 3`) — 48 numbered chapters with no in-page navigation. `code-fold: show` left
+alone; the comment above it records a deliberate choice and this is a notebook where the code
+is the argument. Reading paths added to `index.qmd` (three routes, 15 links, all verified to
+resolve in the rendered book). The README audit log moved verbatim to `CHANGELOG.md`, which
+opens with a note that entries before 2026-09-03 describe pre-rewrite text.
+
+**Declined, with reasons.**
+
+- *Rename `g-estimation.qmd`.* Its title already reads "G-computation (g-formula) with time
+  varying covariates". Only the filename is stale, and renaming breaks the published URL
+  `blog_book/g-estimation.html`.
+- *Replace `radiant` in `conjoint-analysis.qmd`.* Known-unfixable, already documented above,
+  already frozen with a dependency note.
+- *"README says 50 chapters."* That string sits inside a dated 2026-08-15 audit entry
+  describing what was true then. Moving the log to `CHANGELOG.md` resolves it.
+
+**One review claim did not reproduce.** Codex reported that the combined HTML/PDF render
+fails at `conjoint-analysis.qmd` on `radiant.model` despite `freeze: true`. A full
+`quarto render` (no `--to`) here completed with exit 0: 49/49 pages, `conjoint-analysis` at
+39/49 from freeze, no `radiant` error anywhere in the log, both `_book/index.html` and the
+3.6 MB PDF written. The only warning is the pre-existing `maximum number of runs (9)` LaTeX
+float oscillation.
+
+Verified after render, since the edits were prose-only and no number should have moved:
+`gwg` still prints −0.0383, −0.115 (ATE), −0.113 (ATT), −0.075 and −0.0674; `likert` still
+prints `sigma_groupB` 0.68 [0.60, 0.76], `disc_groupB` −0.01, and pooled *R* 0.219 / 0.211.
+Checked by extracting `div.cell-output` blocks, not by grepping page text.
+
+PDF is 528 pages, against 526 in the committed build — the two extra pages are the added
+prose. (The 592 quoted in the 2026-08-29 entry above predates the September shortening,
+which removed roughly 3,000 source lines.) The render also cleared 12 stale
+`_book/*_files/figure-pdf/*.pdf` intermediates left over from that earlier build; the live
+copies are under `_freeze/`, and the LaTeX log has no missing-figure or unresolved-reference
+warnings.

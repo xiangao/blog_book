@@ -25,11 +25,13 @@ Słoczyński (2013, 2015) connects the OB decomposition directly to the potentia
 - Demeaning covariates at the **overall sample mean** identifies the Population Average Gender Effect ($\tau_{\text{PAGE}}$, equivalent to the Average Treatment Effect, ATE).
 - Demeaning covariates at the **female subpopulation mean** identifies the Average Treatment Effect on the Treated ($\tau_{\text{PATT}}$, or ATT).
 
-In this framing, the unexplained gap is simply the treatment effect evaluated at the chosen covariate distribution, while the explained gap represents selection bias. This formulation allows us to estimate the gap via standard regression adjustment or modern doubly robust estimators.
+In this framing, the unexplained gap is the treatment effect evaluated at the chosen covariate distribution, and the explained gap is $E[Y(0) \mid A = 1] - E[Y(0) \mid A = 0]$, the selection-bias term of the potential-outcomes decomposition. That reading requires the linear model above and a causal interpretation of $A$; absent those, the explained component is a descriptive composition term and nothing more. The formulation lets us estimate the gap by standard regression adjustment or by doubly robust estimators.
 
 ## Empirical Application: 2015 CPS Data
 
 We analyze a subsample from the 2015 March Supplement of the U.S. Current Population Survey (`wage2015_subsample_inference.csv`), restricted to white, non-Hispanic full-time workers aged 25–64 ($N = 5,150$). The outcome $Y$ is the logarithm of hourly wage (`lwage`), and the indicator is `female` ($A \in \{0, 1\}$).
+
+Two features of this setup constrain everything below. Gender is not manipulable in Holland's (1986) sense, so `female` is best read as a proxy for being perceived and treated as female by an employer, which is at least conceptually an intervention. And the extract keeps only full-year, full-time, non-self-employed workers. A sample definition is a conditioning statement. Employment is a common effect of sex and of unobserved wage determinants, so restricting to workers opens a collider path that no choice of covariates can close; closing it needs data on non-workers (Lee, 2009; Olivetti and Petrongolo, 2008), not a better regression. Women are less likely to clear the full-year full-time bar, so employed women are plausibly positively selected on wage-raising unobservables, and every gap reported below understates the population gap.
 
 ```{r}
 #| label: ra1
@@ -126,11 +128,21 @@ avg_comparisons(reg4, variables = "female", newdata = subset(data, female == 1))
 
 Adjusting for 22 occupation and industry categories narrows the gap from $-11.3\%$ to $-7.5\%$. 
 
-### Interpretation Trade-Off
+### A Ladder of Controlled Direct Effects
 
-1. **Descriptive Mediation:** If the goal is accounting for occupational sorting, the move from $-11.3\%$ to $-7.5\%$ shows that about one-third of the adjusted wage gap reflects differences in occupation and industry.
-2. **Causal Interpretation (Bad Control):** Occupation and industry are post-treatment choices ($A \to \text{Occupation} \to Y$). Conditioning on post-treatment variables can introduce collider bias if unobserved factors (e.g., career preferences, flexibility constraints) simultaneously affect occupational selection and wages ($A \to \text{Occupation} \leftarrow U \to Y$).
-3. **Controlled Direct Effect:** The $-7.5\%$ estimate represents a controlled direct effect—the within-occupation wage disparity between men and women with similar observable characteristics.
+Nothing causes sex, so there is no confounding to adjust away: $Y(a) \perp A$ holds without conditioning on anything. Adjustment here does not improve identification, it changes the estimand. Each specification sits on a ladder rather than on a scale from worse to better estimates of one quantity.
+
+| Model | Held fixed | Question answered | Estimate |
+|---|---|---|---|
+| `reg1` | nothing | Total effect of the gender signal | $-3.8\%$ |
+| `reg3` | education, experience, region | Gap within education-experience cells | $-11.3\%$ |
+| `reg4` | + occupation, industry | Gap within occupation cells too | $-7.5\%$ |
+
+Occupation and industry are post-treatment ($A \to \text{Occupation} \to Y$), and they are also a common effect of gender and of unobserved wage determinants $U$ such as career preferences or flexibility constraints. Conditioning on them blocks the mediating path and at the same time opens $A \to \text{Occupation} \leftarrow U \to Y$, which was closed before (Elwert and Winship, 2014; Cinelli, Forney and Pearl, 2022).
+
+The four-point move from $-11.3\%$ to $-7.5\%$ therefore cannot be read as occupational sorting accounting for a third of the gap. Three things are mixed into it and nothing in the output separates them: genuine mediation, collider bias from the gender-$U$ association that conditioning induces, and ordinary confounding of the occupation-wage relationship. The direction of the second can be signed. If women who enter male-dominated, high-paying occupations are positively selected on $U$, then within those occupations they are better on unobservables than the men they are compared with, which pushes the within-occupation gap toward zero. Part of the attenuation may be bias rather than sorting.
+
+Calling $-7.5\%$ a controlled direct effect is licensed only under no unmeasured mediator-outcome confounding (VanderWeele and Robinson, 2014). $U$ is exactly such a confounder, and in a wage setting it is the reason this literature exists. Report the number as the within-occupation adjusted gap and state the condition that would upgrade it to a CDE.
 
 ## Nonparametric Doubly Robust Estimation (AIPW)
 
@@ -175,12 +187,12 @@ aipw_att$res
 
 ### Takeaways from Nonparametric Estimation
 
-1. **Robustness to Functional Form:** The nonparametric AIPW ATT is $-6.7\%$ ($95\%\text{ CI}: [-9.5\%, -3.9\%]$), very close to the parametric interacted OLS estimate of $-7.5\%$. This indicates that linear interaction models provide an adequate approximation.
-2. **Substantive Consistency:** Both parametric and machine-learning estimators confirm a statistically significant within-occupation wage gap of approximately $7\%$.
+1. **Robustness to Functional Form:** The nonparametric AIPW ATT is $-6.7\%$ ($95\%\text{ CI}: [-9.5\%, -3.9\%]$), close to the parametric interacted OLS estimate of $-7.5\%$. The linear interaction model is an adequate approximation to the same conditional mean.
+2. **What This Does Not Fix:** AIPW relaxes the functional-form assumption and nothing else. It does not repair the post-treatment adjustment, the sample selection, or the definition of the treatment. A similar adjusted association from a more flexible estimator is not confirmation that the estimand is the one we want.
 
 ## Summary
 
 1. **Oaxaca-Blinder Connection:** The classical OB decomposition is equivalent to regression adjustment where treatment is interacted with centered covariates. Demeaning at the overall mean yields the ATE, while demeaning at the female subpopulation mean yields the ATT.
 2. **Composition Matters:** Conditioning on education widens the wage gap from $-3.8\%$ to $-11.3\%$ because women in the sample possess higher average educational credentials than men.
-3. **Occupation as a Mediator:** Conditioning on occupation and industry narrows the gap to $-7.5\%$, capturing the within-job pay disparity (controlled direct effect).
-4. **Machine Learning Confirmation:** Doubly robust AIPW estimation produces a consistent $-6.7\%$ gap, demonstrating that the results are not driven by arbitrary parametric functional form assumptions.
+3. **Occupation as a Mediator:** Conditioning on occupation and industry narrows the gap to $-7.5\%$, the within-occupation adjusted gap. It is a controlled direct effect only under no unmeasured mediator-outcome confounding. The total effect, the one rung with no mediator held fixed, is the raw $-3.8\%$. No single number here is "the" gender gap.
+4. **What Machine Learning Buys:** Doubly robust AIPW gives $-6.7\%$, so the results do not hinge on parametric functional form. Selection into full-year full-time employment remains, and it runs in the direction of understating the gap.

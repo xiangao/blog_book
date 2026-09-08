@@ -61,7 +61,7 @@ $$P(Y_i \leq k) = \Phi\left(\frac{\theta_k - \eta_i}{\sigma_i}\right) = \Phi\big
 
 where discrimination is defined as the inverse of latent dispersion: $\text{disc}_i \equiv 1/\sigma_i$.
 
-In `brms`, we model $\log(\text{disc}_i)$ directly. Higher discrimination corresponds to smaller latent dispersion (more consensus), while lower discrimination indicates greater spread. Because the cutpoints $\theta$ are estimated on an unbounded latent scale, boundary compression no longer biases the dispersion parameter.
+In `brms`, we model $\log(\text{disc}_i)$ directly. Higher discrimination corresponds to smaller latent dispersion (more consensus), while lower discrimination indicates greater spread. Because the cutpoints $\theta$ are estimated on an unbounded latent scale, boundary compression no longer biases the dispersion parameter, provided the same cutpoints apply to the groups being compared.
 
 ## Simulation: Identical Dispersion with Different Means
 
@@ -175,6 +175,12 @@ knitr::kable(round(fixef(fit_ordinal), 2), caption = "Ordinal MELSM: Correctly r
 - **Gaussian Model:** The coefficient on `sigma_groupB` is $0.68$, indicating that Group B's residual standard deviation is estimated to be $\exp(0.68) \approx 1.97$ times larger than Group A's ($95\%\text{ CI}: [1.82, 2.14]$). This large effect is an artifact of the scale ceiling.
 - **Ordinal Model:** The coefficient on `disc_groupB` is $-0.01$ ($95\%\text{ CI}: [-0.17, 0.15]$), corresponding to a latent standard deviation ratio of $\exp(0.01) \approx 1.01$. The ordinal model correctly recovers that the underlying dispersion is identical.
 
+### What the Simulation Establishes, and What It Assumes
+
+The data were generated from the ordinal model's own functional form: a latent normal, a constant $\sigma$, and one `cuts` vector shared by both groups. The model recovers equal dispersion partly because that is how the data were built. What the comparison does establish is that boundary compression on its own does not fool the latent-scale parameterization, which is precisely where the Gaussian model fails.
+
+What it cannot establish is that the model separates dispersion from threshold differences, because no threshold difference was simulated. Common thresholds across groups, or thresholds modelled explicitly, is the identifying assumption. If two groups use the response categories differently, threshold shifts and `disc` trade off against one another: a genuine dispersion difference can be absorbed into the cutpoints, and a pure cutpoint difference can surface as `disc`. On real data, checking that assumption needs something outside the fit itself, such as anchoring vignettes or a partial-invariance specification that lets some thresholds vary by group.
+
 ## Benchmarking Relative Dispersion: The $R$ Metric
 
 An intuitive distribution-free alternative is the ratio of observed variance to maximum possible variance:
@@ -200,11 +206,11 @@ df |>
   knitr::kable(caption = "Group-level pooled R metric.")
 ```
 
-Both groups yield $R \approx 0.21–0.22$, correctly reflecting identical relative dispersion.
+Both groups yield $R \approx 0.21–0.22$, the same relative dispersion in both. $R$ benchmarks observed variance against the maximum attainable at that mean, which is what makes it comparable across groups with different means. It is a descriptive normalization rather than a correction: it rescales the boundary effect, and unlike the ordinal model it carries no latent quantity to interpret.
 
 ## Summary
 
 1. **Mechanical Confound:** On bounded scales, variance is bounded by $(\mu - a)(b - \mu)$. Skewed ratings create spurious group differences in raw standard deviations.
 2. **Gaussian Failure:** Linear mixed-effects location-scale models (`sigma ~ x`) misinterpret ceiling compression as true consensus.
-3. **Ordinal Solution:** Cumulative probit location-scale models (`disc ~ x`) model dispersion on the latent scale, separating true variance differences from boundary artifacts.
-4. **Descriptive Metric:** When a simple summary statistic is required, group-level pooled $R = \text{Var} / \text{Var}_{\max}$ removes scale-boundary effects without fitting complex models.
+3. **Ordinal Solution:** Cumulative probit location-scale models (`disc ~ x`) put dispersion on the latent scale, so ceiling compression is no longer read as consensus. This holds conditional on the thresholds being common across groups or modelled as varying; the simulation here imposes common thresholds by construction and so does not test that assumption.
+4. **Descriptive Metric:** When a simple summary statistic is required, group-level pooled $R = \text{Var} / \text{Var}_{\max}$ normalizes observed variance by the maximum attainable at that mean, which makes it comparable across groups with different means.
