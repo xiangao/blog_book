@@ -1,37 +1,35 @@
 ---
-title: "Equivalence Testing and Two One-Sided Tests (TOST)"
+title: "Equivalence testing and two one-sided tests (TOST)"
 date: "2026-07-24"
 ---
 
-## The Problem: Non-Significance Is Not Evidence of Absence
+## Why non-significance is not evidence of no effect
 
-In standard Null Hypothesis Significance Testing (NHST), we test:
+Suppose we use the usual null hypothesis significance test:
 
 $$H_0: \theta = 0 \quad \text{vs.} \quad H_1: \theta \neq 0$$
 
-Failing to reject $H_0$ ($p > 0.05$) does not demonstrate that $\theta = 0$. A large $p$-value occurs in two very different situations:
-1. The true effect is negligible ($\theta \approx 0$).
-2. The effect is meaningful, but the test is underpowered due to small sample size or noisy measurements.
+Failing to reject $H_0$ ($p > 0.05$) does not show that $\theta = 0$. We can get a large $p$-value because the true effect is small, but we can also get one because the sample is small or the outcome is noisy.
 
-Standard NHST cannot distinguish between these two states. To establish that an effect is absent or negligible, we must invert the testing burden using **equivalence testing**.
+The usual test cannot tell these cases apart. If we want evidence that an effect is small enough to ignore, we need an equivalence test.
 
-## Two One-Sided Tests (TOST)
+## Two one-sided tests
 
-Equivalence testing defines a Smallest Effect Size of Interest (SESOI), denoted by $[-\Delta, +\Delta]$. Any effect within this bound is considered practically negligible.
+We first choose a smallest effect size of interest. I write the resulting equivalence interval as $[-\Delta, +\Delta]$. An effect inside this interval is small enough to be negligible for the application.
 
-The Two One-Sided Tests (TOST) procedure (Schuirmann, 1987; Lakens, 2017) tests whether the parameter falls outside this interval:
+The two one-sided tests (TOST) procedure (Schuirmann, 1987; Lakens, 2017) uses two null hypotheses:
 
 $$
 H_{01}: \theta \le -\Delta \quad \text{and} \quad H_{02}: \theta \ge +\Delta
 $$
 
-If both null hypotheses are rejected at significance level $\alpha$, we conclude that $-\Delta < \theta < +\Delta$ with $(1 - 2\alpha)$ confidence. 
+If we reject both null hypotheses at level $\alpha$, we conclude that $-\Delta < \theta < +\Delta$ with $(1 - 2\alpha)$ confidence.
 
-Operationally, TOST corresponds to checking whether the $(1 - 2\alpha)$ confidence interval falls entirely within $[-\Delta, +\Delta]$. For a standard $\alpha = 0.05$ test, this corresponds to the 90% confidence interval.
+An equivalent way to do the test is to check whether the $(1 - 2\alpha)$ confidence interval falls entirely inside $[-\Delta, +\Delta]$. When $\alpha = 0.05$, we use the 90% confidence interval.
 
-## Implementation in R: `TOSTER`
+## Using `TOSTER` in R
 
-Consider 1974 motor trend data (`mtcars`), comparing quarter-mile acceleration time (`qsec`) between automatic ($n = 19$) and manual ($n = 13$) transmissions.
+Let's use the 1974 Motor Trend data in `mtcars`. We compare quarter-mile acceleration time (`qsec`) between automatic ($n = 19$) and manual ($n = 13$) transmissions.
 
 ```{r}
 #| message: false
@@ -43,7 +41,7 @@ mtcars$am <- factor(mtcars$am, labels = c("automatic", "manual"))
 t.test(qsec ~ am, data = mtcars)
 ```
 
-The standard two-sample $t$-test yields $p = 0.21$, which is inconclusive.
+The usual two-sample $t$-test gives $p = 0.21$. This tells us that the data do not clearly distinguish the groups, but it is not evidence that they are equivalent.
 
 ### TOST with $\Delta = 1$ second
 
@@ -53,7 +51,7 @@ Suppose we pre-specify that a difference of less than 1 second ($\Delta = 1$) is
 t_TOST(formula = qsec ~ am, data = mtcars, eqb = 1, var.equal = FALSE)
 ```
 
-The 90% confidence interval is $[-0.27, 1.91]$, which extends beyond $+1.0$. We fail to reject $H_{02}$; the data are insufficiently powered to claim equivalence within $\pm 1$ second.
+The 90% confidence interval is $[-0.27, 1.91]$, so it extends beyond $+1.0$. We fail to reject $H_{02}$ and cannot claim equivalence within $\pm 1$ second.
 
 ### TOST with $\Delta = 2$ seconds
 
@@ -63,19 +61,17 @@ If the substantive tolerance is instead $\Delta = 2$ seconds:
 t_TOST(formula = qsec ~ am, data = mtcars, eqb = 2, var.equal = FALSE)
 ```
 
-The 90% confidence interval $[-0.27, 1.91]$ lies completely within $[-2, 2]$. Both one-sided tests reject ($p_1 < 0.001$, $p_2 = 0.039$), confirming statistical equivalence within $\pm 2$ seconds at $\alpha = 0.05$.
+Now the 90% confidence interval $[-0.27, 1.91]$ lies completely inside $[-2, 2]$. Both one-sided tests reject ($p_1 < 0.001$, $p_2 = 0.039$), so the groups are statistically equivalent within $\pm 2$ seconds at $\alpha = 0.05$.
 
-## Bayesian Equivalence Testing: The Unit Trap
+## Bayesian equivalence testing and units
 
-An alternative approach evaluates the Bayes Factor (BF) for an interval null:
+We can also evaluate a Bayes factor for an interval null:
 
 $$\text{BF}_{\text{in/out}} = \frac{p(\text{data} \mid \theta \in [-\Delta, +\Delta])}{p(\text{data} \mid \theta \notin [-\Delta, +\Delta])}$$
 
-A critical implementation trap arises when moving between frequentist and Bayesian software in R:
-- `TOSTER::t_TOST(eqb = ...)` takes bounds in **raw outcome units** (seconds).
-- `BayesFactor::ttestBF(nullInterval = ...)` expects bounds in **standardized effect size units** (Cohen's $d$).
+The two R packages use different units. `TOSTER::t_TOST(eqb = ...)` takes the bound in the original outcome units, which are seconds here. `BayesFactor::ttestBF(nullInterval = ...)` expects a standardized effect size in Cohen's $d$.
 
-Passing raw bounds into `ttestBF` will distort the test. The bound must be explicitly converted using the pooled standard deviation:
+We therefore need to divide the raw bound by the pooled standard deviation before passing it to `ttestBF`:
 
 ```{r}
 #| message: false
@@ -97,18 +93,12 @@ With $s_{\text{pooled}} \approx 1.77$, $\Delta = 2$ corresponds to $d \approx 1.
 ttestBF(formula = qsec ~ am, data = mtcars, nullInterval = c(-delta_d, delta_d))
 ```
 
-The Bayes factor for the effect falling within $[-\Delta, +\Delta]$ relative to the point null is 0.98, while the Bayes factor for the effect falling outside is 0.022. The ratio favors the equivalence interval by approximately $45:1$ ($0.98 / 0.022 \approx 44.5$), matching the frequentist TOST conclusion.
+The Bayes factor is 0.98 for an effect inside $[-\Delta, +\Delta]$ relative to the point null and 0.022 for an effect outside it. Their ratio is about $45:1$ ($0.98 / 0.022 \approx 44.5$) in favor of the equivalence interval. This agrees with the TOST result.
 
-## Specifying the Equivalence Bound ($\Delta$)
+## Choosing the equivalence bound
 
-The equivalence bound $\Delta$ cannot be determined statistically from the sample at hand. Valid strategies include:
-1. **Substantive / Practical Significance:** The minimum threshold that translates to real-world impact or economic relevance.
-2. **Cost-Benefit Anchoring:** The minimum effect size required to justify the operational costs of an intervention.
-3. **Power-Based Benchmark ("Small Telescopes", Simonsohn 2015):** The effect size a prior study had only 33% power to detect ($d_{33\%}$) --- an effect the original design would have missed two times in three. Note that 33% is a power level, not a fraction of the original estimate: $d_{33\%}$ is a little over half of $d_{80\%}$.
+The data cannot choose $\Delta$ for us. It has to come from the application. We might use the smallest effect with a meaningful practical or economic consequence, or the smallest effect that would justify the cost of an intervention. Another option is Simonsohn's (2015) "small telescopes" benchmark: use the effect size that an earlier study had only 33% power to detect, denoted by $d_{33\%}$. The 33% refers to power, not to 33% of the original estimate; $d_{33\%}$ is a little more than half of $d_{80\%}$.
 
-## Summary
+## What to report
 
-1. Do not interpret $p > 0.05$ as evidence for the absence of an effect.
-2. Formally test equivalence via TOST by evaluating whether the $(1 - 2\alpha)$ confidence interval falls within pre-specified bounds $[-\Delta, +\Delta]$.
-3. When using Bayesian interval testing, ensure equivalence bounds match the scale expected by the software (raw vs. Cohen's $d$).
-4. Always report the point estimate and $(1 - 2\alpha)$ confidence interval alongside the test decision so readers can assess sensitivity to alternative bounds.
+A large $p$-value is not evidence of no effect. For TOST, report the point estimate, the pre-specified equivalence bound, the $(1 - 2\alpha)$ confidence interval, and the two test decisions. This gives readers enough information to see whether another reasonable choice of $\Delta$ would change the conclusion. For a Bayesian interval test, also check whether the software expects the bound in the original units or in standardized units.

@@ -1,5 +1,5 @@
 ---
-title: "Correlated Random Effects (CRE) in Linear and Nonlinear Models"
+title: "Correlated random effects in linear and nonlinear models"
 author: "Xiang Ao"
 date: "2025-11-11"
 ---
@@ -14,33 +14,31 @@ library(lme4)
 library(marginaleffects)
 ```
 
-## Background: Unobserved Heterogeneity and CRE
+## The CRE idea
 
-In panel data models with unobserved individual heterogeneity $v_i$:
+Suppose a panel-data model has an unobserved individual effect $v_i$:
 
 $$y_{it} = \alpha + X_{it}\beta + v_i + \epsilon_{it}$$
 
-Standard Random Effects (RE) assumes that $v_i$ is independent of the covariates ($E[v_i \mid X_i] = 0$). If $v_i$ correlates with $X_{it}$, RE estimates are biased and inconsistent. Conversely, Fixed Effects (FE) conditions out $v_i$ via demeaning or first-differencing, but cannot estimate coefficients on time-invariant covariates and does not easily extend to nonlinear models.
+The usual random-effects model assumes that $v_i$ is independent of the covariates, so $E[v_i \mid X_i] = 0$. This is often hard to defend. Fixed effects allows $v_i$ to be correlated with $X_{it}$ by removing $v_i$ through demeaning or first-differencing, but then we cannot estimate coefficients on time-invariant covariates. The fixed-effects approach is also less convenient in nonlinear models.
 
-The **Correlated Random Effects (CRE)** framework (Mundlak, 1978; Chamberlain, 1982; Wooldridge, 2010) parameterizes the dependence between $v_i$ and the history of $X_i$:
+Correlated random effects (CRE) provides another way to allow this correlation (Mundlak, 1978; Chamberlain, 1982; Wooldridge, 2010). We write the projection of $v_i$ on the history of $X_i$ as
 
 $$v_i = \psi + \bar{X}_i \xi + a_i, \qquad E[a_i \mid X_i] = 0$$
 
-where $\bar{X}_i = \frac{1}{T}\sum_{t=1}^T X_{it}$ is the time-average of time-varying covariates for unit $i$. Substituting this projection into the model yields:
+where $\bar{X}_i = \frac{1}{T}\sum_{t=1}^T X_{it}$ is the unit mean of the time-varying covariates. Substituting it into the outcome model gives
 
 $$y_{it} = (\alpha + \psi) + X_{it}\beta + \bar{X}_i \xi + a_i + \epsilon_{it}$$
 
-Adding unit means $\bar{X}_i$ directly controls for the correlation between $X_{it}$ and the unobserved effect $v_i$.
+So the practical step is simple: add the unit means $\bar{X}_i$ to the regression.
 
-## Linear Models: Equivalence to Fixed Effects
+## Linear models
 
-In a balanced linear panel, estimating the model with group means $\bar{X}_i$ via Pooled OLS (POLS) or Random Effects (GLS) produces point estimates on $X_{it}$ that are **algebraically identical** to the Within (FE) estimator.
+In a balanced linear panel, pooled OLS or random-effects GLS with $\bar{X}_i$ gives the same coefficient on $X_{it}$ as the within estimator.
 
-### Empirical Demonstration: `castle` Data
+### An example using the `castle` data
 
-Using the balanced `castle` panel (50 states over 11 years; $N = 550$):
-- Outcome: log homicide rate (`l_homicide`)
-- Covariates: poverty rate (`poverty`) and log police employment (`l_police`)
+The `castle` data form a balanced panel of 50 states observed for 11 years ($N = 550$). I use log homicide as the outcome and poverty and log police employment as the covariates.
 
 ```{r}
 #| label: fix1
@@ -80,30 +78,23 @@ res_table[, 2:3] <- round(res_table[, 2:3], 6)
 knitr::kable(res_table, caption = "Comparison of linear panel estimators.")
 ```
 
-### Key Takeaways in the Linear Case
+### Comparing the estimates
 
-1. **Numerical Equivalence:** The Two-way FE, CRE Pooled OLS, and CRE RE models yield identical coefficients: $\beta_{\text{poverty}} = -0.027068$ and $\beta_{\text{police}} = 0.066033$.
-2. **Failure of Standard RE:** Without the group means, standard RE yields $\beta_{\text{poverty}} = -0.000799$, severely attenuated toward zero due to correlation with unobserved state effects.
-3. **Inference:** Because POLS ignores within-unit error correlation, cluster-robust standard errors clustered at the unit level (`cluster = ~state`) are required to obtain valid standard errors matching FE.
+The two-way fixed-effects model, CRE pooled OLS, and CRE random-effects model give the same coefficients: $\beta_{\text{poverty}} = -0.027068$ and $\beta_{\text{police}} = 0.066033$. Standard random effects, which omits the unit means, gives $\beta_{\text{poverty}} = -0.000799$. The difference is large because the standard model rules out correlation with the state effect. For pooled OLS, we should cluster the standard errors by state because observations within a state are correlated.
 
-## Nonlinear Panel Models: Binary Outcomes
+## Binary outcomes
 
 For a binary outcome $y_{it} \in \{0, 1\}$, the latent model is:
 
 $$P(y_{it} = 1 \mid X_{it}, v_i) = \Phi(X_{it}\beta + v_i)$$
 
-In nonlinear models, the algebraic equivalence between FE and CRE breaks down:
-1. **Limitations of Conditional (Fixed Effects) Logit:**
-   - Requires strict conditional independence of $y_{it}$ across time given $X_i$ and $v_i$. Any serial correlation in the idiosyncratic errors causes inconsistency.
-   - Because $v_i$ is conditioned out rather than estimated, partial effects (Average Marginal Effects) cannot be computed.
-2. **Advantages of CRE Pooled Probit:**
-   - Incorporates the Mundlak device by including $\bar{X}_i$ in a pooled probit.
-   - Robust to arbitrary serial correlation when paired with cluster-robust standard errors (Lin and Wooldridge, 2019).
-   - Allows straightforward computation of Average Marginal Effects (AMEs).
+The exact equivalence between fixed effects and CRE no longer holds in nonlinear models. Conditional logit requires conditional independence of $y_{it}$ over time given $X_i$ and $v_i$; serial correlation in the idiosyncratic errors violates this assumption. It also conditions $v_i$ out of the likelihood, so we cannot recover partial effects that depend on $v_i$.
 
-### Empirical Demonstration: Binary Outcome
+An alternative is pooled probit with the unit means included. With standard errors clustered by unit, this approach allows arbitrary serial correlation (Lin and Wooldridge, 2019), and average marginal effects are easy to calculate.
 
-We define a binary outcome `high_homicide` indicating homicide rates above the sample mean:
+### An example with a binary outcome
+
+For an illustration, I define `high_homicide` to equal one when the homicide rate is above the sample mean:
 
 ```{r}
 #| label: fix2
@@ -143,10 +134,8 @@ ame_comp[, 2:3] <- round(ame_comp[, 2:3], 5)
 knitr::kable(ame_comp, caption = "Average Marginal Effects across binary CRE models.")
 ```
 
-Across all three specifications, the estimated average marginal effect of poverty is approximately $-0.064$ with standard error $\approx 0.034$. The CRE pooled probit provides a robust, computationally simple estimator that allows partial effect estimation without relying on strict serial independence.
+All three specifications give an average marginal effect of poverty close to $-0.064$, with a standard error of about $0.034$. In this example, CRE pooled probit gives us the partial effect without imposing the serial-independence assumption of the nonlinear random-effects model.
 
-## Summary
+## What we learn
 
-1. **Linear Panel Data:** Adding unit averages $\bar{X}_i$ allows Pooled OLS and Random Effects to recover the exact Fixed Effects estimates while retaining cluster-robust inference.
-2. **Nonlinear Models:** In binary and count models, the CRE approach avoids the incidental parameters problem and allows calculation of Average Marginal Effects.
-3. **Robustness:** Pooled estimation with cluster-robust standard errors is preferred over nonlinear random effects models due to robustness against arbitrary serial correlation.
+For a balanced linear panel, adding the unit averages $\bar{X}_i$ to pooled OLS or random effects recovers the fixed-effects coefficients. In binary and count models, CRE is useful because we can calculate average marginal effects and avoid estimating a fixed effect for every unit. Pooled estimation with unit-clustered standard errors is especially attractive when we do not want to assume serial independence.

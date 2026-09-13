@@ -1,5 +1,5 @@
 ---
-title: "The Mundlak Device in Panel Data and Difference-in-Differences"
+title: "The Mundlak device in panel data and difference-in-differences"
 date: "2021-10-23"
 ---
 
@@ -11,15 +11,15 @@ stataexe <- find_stata()
 knitr::opts_chunk$set(engine.path = list(stata = stataexe))
 ```
 
-## Introduction: Fixed Effects vs. Mundlak Regression
+## The basic idea
 
-In panel data models with individual effects $c_i$:
+Suppose we have a panel-data model with an individual effect $c_i$:
 
 $$y_{it} = X_{it}\beta + c_i + u_{it}$$
 
-Standard Fixed Effects (within estimation) eliminates $c_i$ by demeaning, allowing $c_i$ to correlate arbitrarily with $X_{it}$. However, within estimation cannot estimate the effects of time-invariant variables (e.g., gender, race, schooling) because their within-unit variance is zero.
+The fixed-effects estimator removes $c_i$ by demeaning, so $c_i$ can be correlated with $X_{it}$. But the same transformation also removes time-invariant variables such as gender, race, or baseline schooling.
 
-Mundlak (1978) proposed modeling $c_i$ as a linear projection on the unit-specific means of the time-varying covariates:
+Mundlak (1978) instead writes $c_i$ as a linear projection on the unit means of the time-varying covariates:
 
 $$c_i = \bar{X}_i \theta + \eta_i, \qquad E[\eta_i \mid X_i] = 0$$
 
@@ -27,15 +27,13 @@ Substituting into the regression yields:
 
 $$y_{it} = X_{it}\beta + \bar{X}_i \theta + \eta_i + u_{it}$$
 
-This equation can be estimated by Pooled OLS (POLS) or Random Effects (RE). By the Frisch–Waugh–Lovell (FWL) theorem, the resulting estimate of $\beta$ is algebraically identical to the fixed-effects estimator.
+We can estimate this equation by pooled OLS or random effects. By the Frisch--Waugh--Lovell theorem, the coefficient on $X_{it}$ is the same as the fixed-effects coefficient.
 
-Furthermore:
-1. **Hausman Test:** Testing $H_0: \theta = 0$ is asymptotically equivalent to the classical Hausman test, and works directly with cluster-robust standard errors.
-2. **Time-Invariant Regressors:** Time-invariant covariates can be included directly in the regression. Because within-unit deviations are orthogonal to any time-invariant regressor by construction, their inclusion does not alter $\hat{\beta}$.
+Testing $H_0:\theta=0$ gives a regression-based version of the Hausman test and works with cluster-robust standard errors. We can also add time-invariant covariates directly. They do not change $\hat\beta$ because within-unit deviations are orthogonal to every time-invariant variable.
 
-## Empirical Demonstration: One-Way Panel (`nlswork`)
+## A one-way panel example
 
-Using Stata's `nlswork` dataset (19,229 person-years):
+I start with Stata's `nlswork` data, using 19,229 person-year observations:
 
 ```{stata}
 *| label: stata1
@@ -61,7 +59,7 @@ xtreg ln_wage age union mean_age mean_union, re cluster(idcode)
 
 All three models yield identical coefficients: $\hat{\beta}_{\text{age}} = 0.0153507$ ($\text{SE} = 0.00069$) and $\hat{\beta}_{\text{union}} = 0.1055274$ ($\text{SE} = 0.00986$).
 
-### Estimating Time-Invariant Covariates
+### Adding a time-invariant covariate
 
 We add `race` (constant within individual) to the Mundlak Pooled OLS model:
 
@@ -75,7 +73,7 @@ reg ln_wage age union mean_age mean_union i.race, cluster(idcode)
 
 The coefficients on `age` and `union` remain unchanged to seven digits, while the coefficient on `race` is identified (Black women earn $-17.9\%$ relative to white women, $\text{SE} = 0.0144$).
 
-## Two-Way Mundlak (TWM) and the Balanced Panel Condition
+## Two-way Mundlak and balanced panels
 
 Wooldridge (2021) extends Mundlak's idea to Two-Way Fixed Effects (TWFE):
 
@@ -85,11 +83,11 @@ The Two-Way Mundlak (TWM) estimator adds both unit means ($\bar{X}_{i\cdot}$) an
 
 $$y_{it} = X_{it}\beta + \bar{X}_{i\cdot}\lambda + \bar{X}_{\cdot t}\theta + u_{it}$$
 
-### The Unbalanced Panel Trap
+### What changes in an unbalanced panel
 
-Equivalence between TWM and TWFE requires the unit and time factors to be **orthogonal**, which holds automatically in **balanced panels** where every unit is observed in every period.
+The simple equivalence between TWM and TWFE requires the unit and time factors to be orthogonal. This holds automatically in a balanced panel, where every unit is observed in every period.
 
-In **unbalanced panels**, simple unit and time means do not span the space of two-way dummies. Equivalence is restored by including the **unit means of the time dummies** ($\bar{d}_{it}$), which conditions on each unit's observation pattern across time ($s_{it}/T_i$).
+In an unbalanced panel, separate unit and time means do not span the two-way dummy-variable space. To recover the equivalence, we also include the unit means of the time dummies ($\bar d_{it}$). These means describe each unit's observation pattern, $s_{it}/T_i$.
 
 ```{stata}
 *| label: twm_unbalanced
@@ -130,16 +128,11 @@ di "TWM + unit means of dummies    age = " %9.7f b_fix
 restore
 ```
 
-On this unbalanced panel:
-- TWFE gives $\hat{\beta}_{\text{age}} = 0.0276645$.
-- Naive TWM gives $0.0117968$ (severely biased, off by a factor of $2.35\times$).
-- Adding the unit means of the time dummies restores exact numerical equivalence to 6 decimal places ($0.0276646$).
+TWFE gives $\hat\beta_{\text{age}}=0.0276645$. The simple TWM regression gives only $0.0117968$. Once we add the unit means of the time dummies, the estimate is $0.0276646$, equal to TWFE to six decimal places.
 
-## Multi-Way Fixed Effects ($>2$ Dimensions)
+## More than two fixed effects
 
-With three or more fixed-effect factors (e.g., individual $i$, year $t$, and group $g$):
-- Do **not** compute one set of means per dimension unless factors are mutually orthogonal (e.g., a Latin square experiment).
-- **General Rule:** Select the high-dimensional factor to eliminate (typically individual $i$), retain dummy indicators for the remaining lower-dimensional factors, and project onto the within-$i$ means of all time-varying regressors, including the retained dummies.
+With three or more fixed-effect factors, such as individual $i$, year $t$, and group $g$, one set of means for each dimension is not generally enough. It works only when the factors are mutually orthogonal, as in a Latin-square design. A safer approach is to eliminate the high-dimensional factor, usually the individual, keep dummies for the other factors, and add the within-individual means of every time-varying regressor, including those dummies.
 
 ```{stata}
 *| label: twm_three_way
@@ -206,7 +199,7 @@ restore
 
 Construction B (means over $i$ including factor dummies) is exact in both orthogonal and non-orthogonal designs.
 
-## Application to Difference-in-Differences (Common Timing)
+## Difference-in-differences with common timing
 
 In standard DiD with common treatment timing:
 $$y_{it} = \beta w_{it} + c_i + f_t + u_{it}$$
@@ -214,7 +207,7 @@ where $w_{it} = d_i \cdot \text{post}_t$. Because $d_i$ is time-invariant and $\
 - Unit mean: $\bar{w}_{i\cdot} = d_i \cdot \bar{p}$
 - Time mean: $\bar{w}_{\cdot t} = \bar{d} \cdot \text{post}_t$
 
-Therefore, the Mundlak projection is spanned simply by including $d_i$ and the post-treatment dummy (or full time dummies). This framework makes it straightforward to model heterogeneous treatment effects over time:
+So we can span the Mundlak projection with $d_i$ and the post-treatment indicator, or with the full set of time dummies. We can also interact treatment with time to allow the treatment effect to vary:
 
 ```{stata}
 *| label: stata3
@@ -261,11 +254,8 @@ lincom (c.w#c.f2014 + c.w#c.f2015)/2
 reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015 x1 c.d#c.x1, vce(cluster id)
 ```
 
-The POLS Mundlak model reproduces the exact TWFE estimates for each post-treatment year (2.5 and 3.5), yields the average treatment effect of 3.0 via `lincom`, and allows time-invariant controls and group interactions without disturbing the treatment effect estimates.
+The pooled Mundlak regression reproduces the TWFE estimates of 2.5 and 3.5 in the two post-treatment years. `lincom` gives their average, 3.0. We can add time-invariant controls and group interactions without changing these treatment-effect estimates.
 
-## Summary
+## What to remember
 
-1. **One-Way Mundlak:** Adding unit averages $\bar{X}_i$ to Pooled OLS or Random Effects recovers the within (FE) estimator and enables estimation of time-invariant variables.
-2. **Two-Way Mundlak:** Exact equivalence with TWFE holds unconditionally in balanced panels. In unbalanced panels, one must also include unit means of time dummies.
-3. **Multi-Way FE:** When more than two fixed effects are present, eliminate the high-dimensional factor with means and retain explicit dummy indicators for the lower-dimensional factors.
-4. **Difference-in-Differences:** Mundlak formulation allows flexible event-study interactions and time-invariant moderators within a transparent OLS/GLS framework.
+For a one-way model, adding unit means to pooled OLS or random effects recovers the within coefficient and lets us include time-invariant variables. For two-way models, the simple result holds in a balanced panel; an unbalanced panel also needs unit means of the time dummies. With more fixed-effect dimensions, I would eliminate the high-dimensional factor and retain explicit dummies for the others. The same formulation is useful in DiD because it accommodates time-varying effects and time-invariant moderators in an ordinary regression.

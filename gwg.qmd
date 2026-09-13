@@ -1,5 +1,5 @@
 ---
-title: "Gender Wage Gap Analysis: Oaxaca-Blinder and Causal Estimation"
+title: "Gender wage gaps: Oaxaca-Blinder and causal estimation"
 author: "Xiang Ao"
 date: "2025-11-17"
 ---
@@ -13,25 +13,23 @@ library(marginaleffects)
 library(npcausal)
 ```
 
-## Introduction: Oaxaca-Blinder as Regression Adjustment
+## Oaxaca-Blinder as regression adjustment
 
-The classical Oaxaca-Blinder (OB) decomposition separates the raw difference in mean outcomes between groups into an "explained" component (differences in observable covariates) and an "unexplained" component (differences in regression coefficients, often interpreted as discrimination):
+The Oaxaca-Blinder (OB) decomposition separates the difference in mean outcomes into a part associated with observed covariates and a part associated with different regression coefficients:
 
 $$E[Y \mid A = 1] - E[Y \mid A = 0] = \underbrace{(E[X \mid A = 1] - E[X \mid A = 0]) \beta_0}_{\text{Explained (Covariate Differences)}} + \underbrace{E[X \mid A = 1] (\beta_1 - \beta_0)}_{\text{Unexplained (Coefficient Differences)}}$$
 
-where $A = 1$ denotes female and $A = 0$ denotes male. A well-known limitation of the traditional OB decomposition is its sensitivity to the choice of reference group ($\beta_0$ vs. $\beta_1$).
+Here $A=1$ denotes female and $A=0$ denotes male. The decomposition depends on which group supplies the reference coefficients, $\beta_0$ or $\beta_1$.
 
-Słoczyński (2013, 2015) connects the OB decomposition directly to the potential outcomes framework:
-- Demeaning covariates at the **overall sample mean** identifies the Population Average Gender Effect ($\tau_{\text{PAGE}}$, equivalent to the Average Treatment Effect, ATE).
-- Demeaning covariates at the **female subpopulation mean** identifies the Average Treatment Effect on the Treated ($\tau_{\text{PATT}}$, or ATT).
+Słoczyński (2013, 2015) connects this decomposition to potential outcomes. If we demean the covariates at the overall sample mean, the coefficient gives the population average gender effect ($\tau_{\text{PAGE}}$), which corresponds to the ATE. If we demean at the female-sample means, it gives the average effect for women ($\tau_{\text{PATT}}$), which corresponds to the ATT.
 
-In this framing, the unexplained gap is the treatment effect evaluated at the chosen covariate distribution, and the explained gap is $E[Y(0) \mid A = 1] - E[Y(0) \mid A = 0]$, the selection-bias term of the potential-outcomes decomposition. That reading requires the linear model above and a causal interpretation of $A$; absent those, the explained component is a descriptive composition term and nothing more. The formulation lets us estimate the gap by standard regression adjustment or by doubly robust estimators.
+Under this interpretation, the unexplained gap is the treatment effect averaged over the chosen covariate distribution. The explained part is $E[Y(0)\mid A=1]-E[Y(0)\mid A=0]$, the selection term in the potential-outcomes decomposition. This causal reading requires the linear model and a meaningful intervention attached to $A$. Without them, the explained part is only a descriptive composition difference. We can estimate the same quantities with regression adjustment or with a doubly robust estimator.
 
-## Empirical Application: 2015 CPS Data
+## 2015 CPS data
 
-We analyze a subsample from the 2015 March Supplement of the U.S. Current Population Survey (`wage2015_subsample_inference.csv`), restricted to white, non-Hispanic full-time workers aged 25–64 ($N = 5,150$). The outcome $Y$ is the logarithm of hourly wage (`lwage`), and the indicator is `female` ($A \in \{0, 1\}$).
+I use a subsample from the March 2015 U.S. Current Population Survey. It contains 5,150 white, non-Hispanic, full-time workers aged 25--64. The outcome is log hourly wage (`lwage`), and `female` is the group indicator.
 
-Two features of this setup constrain everything below. Gender is not manipulable in Holland's (1986) sense, so `female` is best read as a proxy for being perceived and treated as female by an employer, which is at least conceptually an intervention. And the extract keeps only full-year, full-time, non-self-employed workers. A sample definition is a conditioning statement. Employment is a common effect of sex and of unobserved wage determinants, so restricting to workers opens a collider path that no choice of covariates can close; closing it needs data on non-workers (Lee, 2009; Olivetti and Petrongolo, 2008), not a better regression. Women are less likely to clear the full-year full-time bar, so employed women are plausibly positively selected on wage-raising unobservables, and every gap reported below understates the population gap.
+There are two qualifications. First, gender is not manipulable in Holland's (1986) sense. I interpret `female` as a proxy for being perceived and treated as female by an employer, which is closer to an intervention. Second, the extract contains only full-year, full-time, non-self-employed workers. Restricting the sample conditions on employment, which can be affected by sex and by unobserved wage determinants. This opens a collider path that covariate adjustment cannot close. We would need data on non-workers instead (Lee, 2009; Olivetti and Petrongolo, 2008). If employed women are positively selected on wage-raising unobservables, the gaps below understate the population gap.
 
 ```{r}
 #| label: ra1
@@ -65,11 +63,11 @@ reg2 <- lm(lwage ~ female * (exp_dm + sohs_dm + hsg_dm + socl_dm + clg_dm + mw_d
 tidy(reg2) |> filter(term == "female")
 ```
 
-### The Composition Effect
+### Why adjustment widens the gap
 
 The raw wage gap is $-3.8\%$ ($p = 0.012$). After controlling for potential experience, education, and region, the estimated gap widens to $-11.3\%$ ($p < 0.001$). 
 
-Adding controls usually attenuates an observed gap; here it nearly triples it. This occurs because of sample composition:
+Here adjustment nearly triples the gap. We can see why by comparing the covariate means:
 
 ```{r}
 #| label: composition
@@ -91,9 +89,9 @@ data |>
   knitr::kable(caption = "Covariate means by gender.")
 ```
 
-Women in this sample have higher average educational attainment than men (17.5% hold advanced degrees vs. 10.7%; only 1.3% have less than high school vs. 3.2%), with identical experience ($\approx 13.8$ years). Because education raises wages, women's educational advantage partially masks the earnings gap in the raw comparison. Controlling for education holds this advantage constant, revealing an adjusted gap of $-11.3\%$ within equivalent education-experience cells.
+Women in this sample have more education than men: 17.5% have advanced degrees, compared with 10.7% of men, while 1.3% have less than high school, compared with 3.2% of men. Average potential experience is about 13.8 years in both groups. Because education raises wages, the raw comparison partly hides the gap. Holding education fixed gives the larger $-11.3\%$ gap within education-experience cells.
 
-### Regression Adjustment via `marginaleffects`
+### Regression adjustment with `marginaleffects`
 
 Instead of manual demeaning, the same estimands can be obtained directly using `marginaleffects::avg_comparisons()`:
 
@@ -110,11 +108,11 @@ avg_comparisons(reg3, variables = "female")
 avg_comparisons(reg3, variables = "female", newdata = subset(data, female == 1))
 ```
 
-Both ATE and ATT land at $-11.3\%$, confirming that the fully interacted OLS specification evaluated at the respective empirical covariate distributions yields the OB decomposition directly.
+Both the ATE and ATT are $-11.3\%$. In this sample, averaging the fully interacted OLS model over either covariate distribution gives the same result as the OB decomposition.
 
-## Adding Occupation and Industry: Mediators vs. Bad Controls
+## Should we control for occupation and industry?
 
-A central question in pay gap analyses is whether to adjust for occupation and industry:
+Pay-gap regressions often adjust for occupation and industry. Let's see what happens here:
 
 ```{r}
 #| label: ra4
@@ -128,9 +126,9 @@ avg_comparisons(reg4, variables = "female", newdata = subset(data, female == 1))
 
 Adjusting for 22 occupation and industry categories narrows the gap from $-11.3\%$ to $-7.5\%$. 
 
-### A Ladder of Controlled Direct Effects
+### Different controls answer different questions
 
-Nothing causes sex, so there is no confounding to adjust away: $Y(a) \perp A$ holds without conditioning on anything. Adjustment here does not improve identification, it changes the estimand. Each specification sits on a ladder rather than on a scale from worse to better estimates of one quantity.
+If we take sex as the treatment, there is no earlier common cause to adjust for, so $Y(a)\perp A$ holds without conditioning. Adding controls changes the estimand rather than improving identification. The models below answer different questions; they are not progressively better estimates of one quantity.
 
 | Model | Held fixed | Question answered | Estimate |
 |---|---|---|---|
@@ -144,9 +142,9 @@ The four-point move from $-11.3\%$ to $-7.5\%$ therefore cannot be read as occup
 
 Calling $-7.5\%$ a controlled direct effect is licensed only under no unmeasured mediator-outcome confounding (VanderWeele and Robinson, 2014). $U$ is exactly such a confounder, and in a wage setting it is the reason this literature exists. Report the number as the within-occupation adjusted gap and state the condition that would upgrade it to a CDE.
 
-## Nonparametric Doubly Robust Estimation (AIPW)
+## A nonparametric AIPW estimate
 
-Linear regression adjustment assumes that the relationship between covariates and wages is additive and correctly specified. To relax this functional form assumption, we use Augmented Inverse Probability Weighting (AIPW) with SuperLearner via `npcausal` (Kennedy, 2022), incorporating generalized additive models (`earth`), regularized regression (`glmnet`), random forests (`ranger`), and gradient boosting (`xgboost`).
+The regression adjustment still depends on its functional form. To make that part more flexible, I use augmented inverse probability weighting (AIPW) with SuperLearner through `npcausal` (Kennedy, 2022). The learner library includes `earth`, `glmnet`, `ranger`, and `xgboost`.
 
 ```{r}
 #| label: npcausal1
@@ -185,14 +183,10 @@ aipw_ate$res
 aipw_att$res
 ```
 
-### Takeaways from Nonparametric Estimation
+### Comparing the estimates
 
-1. **Robustness to Functional Form:** The nonparametric AIPW ATT is $-6.7\%$ ($95\%\text{ CI}: [-9.5\%, -3.9\%]$), close to the parametric interacted OLS estimate of $-7.5\%$. The linear interaction model is an adequate approximation to the same conditional mean.
-2. **What This Does Not Fix:** AIPW relaxes the functional-form assumption and nothing else. It does not repair the post-treatment adjustment, the sample selection, or the definition of the treatment. A similar adjusted association from a more flexible estimator is not confirmation that the estimand is the one we want.
+The AIPW estimate of the ATT is $-6.7\%$ ($95\%\text{ CI}: [-9.5\%,-3.9\%]$), close to the interacted OLS estimate of $-7.5\%$. This suggests that the linear model is a reasonable approximation to the same conditional mean. AIPW only relaxes the functional-form assumption. It does not solve post-treatment adjustment, selection into the sample, or the interpretation of gender as a treatment.
 
-## Summary
+## What the estimates mean
 
-1. **Oaxaca-Blinder Connection:** The classical OB decomposition is equivalent to regression adjustment where treatment is interacted with centered covariates. Demeaning at the overall mean yields the ATE, while demeaning at the female subpopulation mean yields the ATT.
-2. **Composition Matters:** Conditioning on education widens the wage gap from $-3.8\%$ to $-11.3\%$ because women in the sample possess higher average educational credentials than men.
-3. **Occupation as a Mediator:** Conditioning on occupation and industry narrows the gap to $-7.5\%$, the within-occupation adjusted gap. It is a controlled direct effect only under no unmeasured mediator-outcome confounding. The total effect, the one rung with no mediator held fixed, is the raw $-3.8\%$. No single number here is "the" gender gap.
-4. **What Machine Learning Buys:** Doubly robust AIPW gives $-6.7\%$, so the results do not hinge on parametric functional form. Selection into full-year full-time employment remains, and it runs in the direction of understating the gap.
+The raw gap is $-3.8\%$. Holding education, experience, and region fixed gives $-11.3\%$, partly because women in this sample have more education. Adding occupation and industry gives a within-occupation gap of $-7.5\%$; it is a controlled direct effect only if there is no unmeasured occupation-wage confounding. AIPW gives $-6.7\%$, so the within-occupation result is not driven mainly by the linear functional form. None of these methods solves selection into full-time employment, and no single number should be called *the* gender wage gap without saying which question it answers.

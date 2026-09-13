@@ -1,5 +1,5 @@
 ---
-title: "Instrumental Variables in Fixed-Effects Poisson Models"
+title: "Instrumental variables in fixed-effects Poisson models"
 date: "2024-08-29"
 ---
 
@@ -13,40 +13,31 @@ stataexe <- find_stata()
 knitr::opts_chunk$set(engine.path = list(stata = stataexe))
 ```
 
-## The Problem: Endogeneity with Exponential Conditional Means
+## Why a control function is needed
 
-In panel count data models, the standard conditional mean specification is:
+Suppose a panel count-data model has the conditional mean
 
 $$E[y_{it} \mid x_{it}, c_i] = c_i \exp(x_{it} \beta)$$
 
-When an explanatory variable in $x_{it}$ is endogenous, standard linear Two-Stage Least Squares (2SLS) cannot be applied because the conditional mean is exponential rather than additive. Meanwhile, nonlinear IV estimators (such as `ivpoisson` in Stata) cannot absorb high-dimensional individual and time fixed effects.
+If a variable in $x_{it}$ is endogenous, linear two-stage least squares does not fit this exponential conditional mean. Nonlinear IV commands such as Stata's `ivpoisson` also cannot absorb high-dimensional individual and time fixed effects.
 
-To estimate an endogenous Poisson model with multiple fixed effects, Lin and Wooldridge (2019) establish a two-step **control function** approach.
+Lin and Wooldridge (2019) propose a two-step control-function estimator for this setting.
 
-## The Two-Step Control Function Recipe
+## The two-step estimator
 
-For a continuous endogenous regressor $w_{it}$ and excluded instruments $z_{it}$:
+Let $w_{it}$ be a continuous endogenous regressor and $z_{it}$ an excluded instrument. The first stage regresses $w_{it}$ on the instrument and exogenous controls while absorbing all fixed effects:
 
-1. **First Stage (Reduced Form):** Regress the endogenous variable on the instruments and exogenous controls, absorbing all fixed effects:
-   $$w_{it} = z_{it}\pi + x_{it1}\gamma + c_i + f_t + v_{it}$$
-   Obtain the OLS residual $\hat{v}_{it}$. In Stata, use `reghdfe ..., resid`; in R, use `fixest::feols()`.
+$$w_{it} = z_{it}\pi + x_{it1}\gamma + c_i + f_t + v_{it}$$
 
-2. **Second Stage (Structural Poisson):** Estimate the fixed-effects Poisson model including both $w_{it}$ and the first-stage residual $\hat{v}_{it}$, absorbing the same fixed effects:
-   $$E[y_{it} \mid w_{it}, x_{it1}, c_i, f_t, \hat{v}_{it}] = c_i f_t \exp(w_{it}\beta_1 + x_{it1}\beta_2 + \rho \hat{v}_{it})$$
-   In Stata, use `ppmlhdfe`; in R, use `fixest::fepois()`.
+We save the OLS residual $\hat v_{it}$ and include it in a fixed-effects Poisson model:
 
-3. **Inference & Testing:** 
-   - A $t$-test of $H_0: \rho = 0$ serves as a direct test of exogeneity.
-   - Because $\hat{v}_{it}$ is a generated regressor, reported second-stage standard errors are invalid. Standard errors must be computed via a panel/cluster bootstrap re-estimating both stages in each replication.
+$$E[y_{it} \mid w_{it}, x_{it1}, c_i, f_t, \hat{v}_{it}] = c_i f_t \exp(w_{it}\beta_1 + x_{it1}\beta_2 + \rho \hat{v}_{it})$$
 
-## Continuous Endogenous Variable: Application in Stata
+In Stata, the two commands are `reghdfe ..., resid` and `ppmlhdfe`. In R, we can use `fixest::feols()` and `fixest::fepois()`. Testing $H_0:\rho=0$ gives a test of exogeneity. Because $\hat v_{it}$ is estimated, the usual second-stage standard errors are not valid. I use a cluster bootstrap that repeats both stages.
 
-Using Stata's `website.dta` ($N = 500$):
-- Outcome: `visits` (count)
-- Endogenous regressor: `time` (minutes on site)
-- Instrument: `phone` (support calls)
-- Exogenous control: `frfam` (referrals)
-- Fixed effects: `ad` (13 campaigns) and `female` (gender)
+## A continuous endogenous variable in Stata
+
+I use Stata's `website.dta`, which has 500 observations. `visits` is the count outcome, `time` is the endogenous regressor, `phone` is the instrument, and `frfam` is an exogenous control. The model absorbs fixed effects for the 13 advertising campaigns and for `female`.
 
 ```{stata}
 *| label: stata1
@@ -65,9 +56,9 @@ ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
 
 The coefficient on `time` is $0.0448$ ($p = 0.318$). The residual coefficient is $\hat{\rho} = 0.0765$ ($p = 0.096$), indicating weak positive selection.
 
-### Comparison with Linear Models
+### A comparison with linear models
 
-In a linear model, the control function estimator is algebraically identical to 2SLS. Comparing linear specifications verifies that the two stages are wired correctly:
+In a linear model, the control-function estimator gives the same coefficient as 2SLS. I fit both as a check on the two-step code:
 
 ```{stata}
 *| label: stata2
@@ -98,11 +89,11 @@ ppmlhdfe visits time frfam, absorb(ad female)
 | Naive FE Poisson | `ppmlhdfe` (no residual) | 0.1188 | 0.0096 | $<0.001$ |
 | Control-Function FE Poisson | `ppmlhdfe` (with $\hat{v}$) | 0.0448 | 0.0449 | 0.318 |
 
-In linear models, manual control function reproduces 2SLS point estimates exactly. In the Poisson model, addressing endogeneity drops the estimated effect of `time` from $0.1188$ to $0.0448$.
+The manual linear control function reproduces the 2SLS coefficient exactly. In the Poisson model, adding the control-function residual reduces the `time` coefficient from $0.1188$ to $0.0448$.
 
-### Cluster Bootstrap in Stata
+### Cluster bootstrap in Stata
 
-Because clusters may be sampled multiple times during replacement, each resampled cluster copy must receive a unique identifier via `idcluster()` to prevent duplicates from being pooled into a single fixed effect:
+The bootstrap can draw the same cluster more than once. Each copy must get a new identifier through `idcluster()`; otherwise Stata pools the copies into one fixed effect.
 
 ```{stata}
 *| label: stata3
@@ -128,9 +119,9 @@ bootstrap r(b_time) r(b_u2h), reps(1000) seed(123) cluster(ad) idcluster(newid) 
 
 The bootstrap standard error on `time` is $0.0477$ (compared to the unadjusted analytic standard error of $0.0449$).
 
-## Implementation in R: `fixest`
+## The same estimator in R
 
-In R, the same workflow is implemented using `fixest::feols()` and `fixest::fepois()`. Note that `feols()` drops singleton clusters (here `ad == 10`), so the residual vector must be aligned using `obs()`:
+In R, I use `fixest::feols()` and `fixest::fepois()`. `feols()` drops a singleton cluster here (`ad == 10`), so we use `obs()` to align the residuals with the rows kept in the first stage:
 
 ```{r}
 #| label: r-demo
@@ -161,7 +152,7 @@ etable(m_naive, m_cf, headers = c("Naive FE Poisson", "Control Function"), se.be
 
 The point estimates match Stata to seven digits: $0.1187612$ (naive) and $0.0448103$ (control function).
 
-### Cluster Bootstrap in R
+### Cluster bootstrap in R
 
 ```{r}
 #| label: r-bootstrap
@@ -198,22 +189,25 @@ cat("Bootstrap SE, residual :", round(sd(boot_coefs[, "resid"], na.rm = TRUE), 4
 
 The R bootstrap yields $\text{SE} = 0.0450$. With only 12 clusters in `ad`, small differences across software packages ($0.0477$ in Stata vs. $0.0450$ in R) reflect finite-sample sensitivity in how rare degenerate resamples and singletons are handled.
 
-## Extension: Binary Endogenous Regressor
+## A binary endogenous regressor
 
-When the endogenous regressor $D_{it}$ is binary (e.g., participation in a program), a linear first stage is technically misspecified because the error cannot satisfy conditional independence.
+When $D_{it}$ is binary, as with program participation, a linear first stage is misspecified because its error cannot satisfy the required conditional-independence restriction.
 
-### The CRE Logit Control Function
+### A CRE logit first stage
 
-1. **Avoid Dummy Variable Incidental Parameter Trap:** Estimating unit dummies in a first-stage logit with small $T$ causes severe bias (e.g., slopes inflated by $2\times$ when $T = 2$).
-2. **Correlated Random Effects (Mundlak Device):** Instead of unit dummies, include unit-level averages of time-varying covariates ($\bar{z}_i$) in a pooled logit:
-   $$P(D_{it} = 1 \mid z_{it}, \bar{z}_i) = \Lambda(z_{it}\gamma + \bar{z}_i \pi)$$
-3. **Generalized Residual:** For a logit model, the generalized residual simplifies directly to the response residual:
-   $$\hat{r}_{it} = D_{it} - \hat{p}_{it}$$
-4. **Second Stage:** Include $\hat{r}_{it}$ directly in the fixed-effects Poisson model.
+A first-stage logit with a dummy for every unit has an incidental-parameters problem when $T$ is small. For example, its slopes can be about twice as large as they should be when $T=2$. I instead use pooled logit with a Mundlak adjustment, adding the unit means of the time-varying covariates:
 
-### Simulation Demonstration
+$$P(D_{it} = 1 \mid z_{it}, \bar{z}_i) = \Lambda(z_{it}\gamma + \bar{z}_i \pi)$$
 
-We simulate $N = 2,000$ units with unbalanced panels ($T_i \in [2, 6]$), a binary endogenous treatment $D$, and true treatment parameter $\beta = 0.30$:
+For logit, the generalized residual is simply the response residual,
+
+$$\hat r_{it}=D_{it}-\hat p_{it}.$$
+
+We then include $\hat r_{it}$ in the fixed-effects Poisson model.
+
+### A simulation
+
+Let's simulate 2,000 units with unbalanced panels, where $T_i$ ranges from 2 to 6. The treatment $D$ is binary and endogenous, and its true coefficient is $\beta=0.30$.
 
 ```{stata}
 *| label: binary_cf
@@ -262,16 +256,10 @@ di "CF, Linear First Stage      = " %8.6f b_lin
 restore
 ```
 
-Against the true $\beta = 0.30$:
-- Naive FE Poisson estimates $0.747$ (biased by over $2.4\times$).
-- The CRE logit control function recovers $0.294$.
-- The linear first stage control function recovers $0.278$.
+The naive fixed-effects Poisson estimate is $0.747$, more than 2.4 times the true value. The CRE logit control function gives $0.294$, while the linear first-stage control function gives $0.278$.
 
-In applied practice, reporting both the CRE logit and linear first-stage control functions provides a robust sensitivity check.
+In an application, I would report both control-function specifications as a sensitivity check.
 
-## Summary
+## What to remember
 
-1. **Mechanism:** Control function augments the second-stage exponential regression with the first-stage reduced-form residual, effectively absorbing endogeneity.
-2. **Commands:** Use `reghdfe` + `ppmlhdfe` in Stata, or `fixest::feols()` + `fixest::fepois()` in R.
-3. **Inference:** Standard errors must be cluster-bootstrapped over both stages; analytic second-stage standard errors ignore first-stage estimation uncertainty.
-4. **Binary Regressors:** Use a CRE logit first stage with group means $\bar{z}_i$ and add the generalized residual $\hat{r} = d - \hat{p}$ to avoid the incidental parameters problem of unit dummies.
+The control-function approach adds the first-stage residual to the exponential outcome model. For a continuous endogenous variable, we can combine `reghdfe` with `ppmlhdfe` in Stata, or `feols()` with `fepois()` in R. Inference should bootstrap both stages by cluster. For a binary endogenous variable, a CRE logit first stage avoids the incidental-parameters problem from unit dummies, and its residual is $d-\hat p$.

@@ -1,5 +1,5 @@
 ---
-title: "Modeling Variation, Not Just the Mean, in Likert-Scale Data"
+title: "Modeling variation in Likert-scale data"
 date: "2026-07-16"
 ---
 
@@ -11,15 +11,15 @@ library(dplyr)
 library(brms)
 ```
 
-## The Problem: The Mechanical Ceiling on Dispersion
+## Why the mean constrains the variance
 
-When analyzing Likert-scale ratings (e.g., 1–7 satisfaction or agreement scales), researchers often want to know whether certain groups exhibit greater disagreement or dispersion than others. A common approach is to calculate the standard deviation for each unit and regress it on covariates.
+Suppose we have a 1–7 satisfaction or agreement scale and want to know whether one group shows more disagreement than another. A natural approach is to calculate a standard deviation for each unit and regress it on group indicators or other covariates.
 
-On a bounded scale $[a, b]$, however, variance is mechanically constrained by the mean. By the Bhatia–Davis (2000) inequality, for any random variable bounded in $[a, b]$ with mean $\mu$:
+The problem is that the variance of a bounded outcome depends mechanically on its mean. The Bhatia–Davis (2000) inequality says that, for a variable bounded in $[a,b]$ with mean $\mu$,
 
 $$\text{Var}(X) \leq (\mu - a)(b - \mu)$$ {#eq-bhatia-davis}
 
-On a 1–7 Likert item, the maximum possible standard deviation is:
+For a 1–7 item, the maximum possible standard deviation is therefore
 
 $$\text{SD}_{\max}(\mu) = \sqrt{(\mu - 1)(7 - \mu)}$$
 
@@ -38,16 +38,17 @@ ggplot(data.frame(mu = mu_grid, sd_max = sd_max), aes(mu, sd_max)) +
   theme_minimal(base_size = 12)
 ```
 
-The maximum standard deviation peaks at mid-scale ($\mu = 4, \text{SD}_{\max} = 3$) and drops to zero at the boundaries ($\mu = 1$ and $\mu = 7$). When ratings are skewed toward the ceiling—typical of satisfaction or performance evaluations—groups with higher means have mechanically smaller standard deviations, even if their true underlying dispersion is identical.
+The maximum is 3 at the middle of the scale, where $\mu=4$, and falls to zero at either endpoint. Satisfaction and performance ratings are often close to the upper endpoint. A group with a higher mean can then have a smaller observed standard deviation even when its underlying dispersion is the same.
 
-### Why Standard Ad-Hoc Adjustments Fail
+### Why simple adjustments do not solve it
 
-1. **Coefficient of Variation ($\text{SD}/\mu$):** Dividing by the mean assumes variance scales proportionally with the mean, as in count data. On a bounded scale, variance pinches at *both* ends; dividing by $\mu$ simply shifts the peak from $\mu = 4$ to $\mu = 1.75$ without eliminating mean dependence.
-2. **Gaussian Location-Scale Models:** Linear mixed-effects models that specify `sigma ~ group` assume an unbounded normal distribution. Because the model is unaware of the scale limits, boundary compression is misinterpreted as smaller residual variance.
+Dividing the standard deviation by the mean does not remove the dependence. That adjustment assumes that variance grows proportionally with the mean, while variance on a bounded scale is compressed at both endpoints. In this example, dividing by $\mu$ only moves the peak from $\mu=4$ to $\mu=1.75$.
 
-## The Solution: Ordinal Cumulative-Probit Location-Scale Model
+A Gaussian location-scale model has a related problem. A model such as `sigma ~ group` treats the response as unbounded, so it can interpret compression near an endpoint as a real difference in residual variation.
 
-The appropriate approach treats Likert responses as a discretized continuous latent variable $Y^*$:
+## An ordinal location-scale model
+
+One way to handle the bounds is to treat the Likert response as a discretized latent variable $Y^*$:
 
 $$Y_i^* = \eta_i + \sigma_i \epsilon_i, \qquad \epsilon_i \sim N(0, 1)$$
 
@@ -61,11 +62,11 @@ $$P(Y_i \leq k) = \Phi\left(\frac{\theta_k - \eta_i}{\sigma_i}\right) = \Phi\big
 
 where discrimination is defined as the inverse of latent dispersion: $\text{disc}_i \equiv 1/\sigma_i$.
 
-In `brms`, we model $\log(\text{disc}_i)$ directly. Higher discrimination corresponds to smaller latent dispersion (more consensus), while lower discrimination indicates greater spread. Because the cutpoints $\theta$ are estimated on an unbounded latent scale, boundary compression no longer biases the dispersion parameter, provided the same cutpoints apply to the groups being compared.
+In `brms`, we model $\log(\text{disc}_i)$ directly. Higher discrimination means smaller latent dispersion, or more agreement. Lower discrimination means greater spread. The cutpoints are estimated on an unbounded latent scale, so an observed response near 7 does not by itself imply smaller latent dispersion. This interpretation assumes that the groups use the response categories in the same way.
 
-## Simulation: Identical Dispersion with Different Means
+## A simulation
 
-We simulate 100 subjects per group, each evaluated by 6 raters. Both groups share the identical latent standard deviation ($\sigma = 1$), but Group A's latent mean is near the ceiling ($\mu_A = 2.4$), while Group B is centered mid-range ($\mu_B = 0.6$).
+Let's simulate 100 subjects in each group, with six ratings for each subject. Both groups have latent standard deviation $\sigma=1$. Group A has a latent mean near the ceiling ($\mu_A=2.4$), while Group B is closer to the middle ($\mu_B=0.6$).
 
 ```{r}
 #| label: simulate
@@ -95,7 +96,7 @@ df$rating     <- as.integer(cut(df$latent, breaks = c(-Inf, cuts, Inf), labels =
 df$rating_ord <- factor(df$rating, ordered = TRUE, levels = 1:7)
 ```
 
-### Observed Ratings and the Apparent Gap
+### The observed ratings
 
 ```{r}
 #| label: raw-summary
@@ -126,13 +127,11 @@ ggplot(subj_summary, aes(mean_rating, sd_rating, color = group)) +
   theme_minimal(base_size = 12)
 ```
 
-Group A averages an observed SD of 0.58 compared to 1.22 for Group B. Looking only at raw statistics suggests that raters agree much more about Group A.
+The observed standard deviation averages 0.58 in Group A and 1.22 in Group B. If we looked only at these numbers, we would conclude that raters agree much more about Group A, even though the two latent standard deviations are identical by construction.
 
-## Model Comparison: Gaussian vs. Ordinal Location-Scale
+## Comparing Gaussian and ordinal models
 
-We fit two models in `brms`:
-1. **Gaussian MELSM:** Models $\log(\sigma)$ as a function of group.
-2. **Ordinal Cumulative-Probit MELSM:** Models $\log(\text{disc})$ with Group A fixed at reference ($\text{disc}_A = 1$).
+I fit two models in `brms`. The Gaussian model makes $\log(\sigma)$ a function of group. The ordinal cumulative-probit model instead makes $\log(\text{disc})$ a function of group, with Group A used as the reference ($\text{disc}_A=1$).
 
 ```{r}
 #| label: fit-models
@@ -170,26 +169,27 @@ knitr::kable(round(fixef(fit_gaussian), 2), caption = "Gaussian MELSM: Incorrect
 knitr::kable(round(fixef(fit_ordinal), 2), caption = "Ordinal MELSM: Correctly recovers equal latent dispersion.")
 ```
 
-### Interpretation
+### Results
 
-- **Gaussian Model:** The coefficient on `sigma_groupB` is $0.68$, indicating that Group B's residual standard deviation is estimated to be $\exp(0.68) \approx 1.97$ times larger than Group A's ($95\%\text{ CI}: [1.82, 2.14]$). This large effect is an artifact of the scale ceiling.
-- **Ordinal Model:** The coefficient on `disc_groupB` is $-0.01$ ($95\%\text{ CI}: [-0.17, 0.15]$), corresponding to a latent standard deviation ratio of $\exp(0.01) \approx 1.01$. The ordinal model correctly recovers that the underlying dispersion is identical.
+The Gaussian coefficient on `sigma_groupB` is $0.68$. It estimates that Group B's residual standard deviation is $\exp(0.68)\approx1.97$ times Group A's ($95\%\text{ CI}: [1.82,2.14]$). This apparent difference comes from the scale ceiling.
 
-### What the Simulation Establishes, and What It Assumes
+The ordinal coefficient on `disc_groupB` is $-0.01$ ($95\%\text{ CI}: [-0.17,0.15]$), which implies a latent standard-deviation ratio of $\exp(0.01)\approx1.01$. The ordinal model recovers the equal dispersion used to generate the data.
 
-The data were generated from the ordinal model's own functional form: a latent normal, a constant $\sigma$, and one `cuts` vector shared by both groups. The model recovers equal dispersion partly because that is how the data were built. What the comparison does establish is that boundary compression on its own does not fool the latent-scale parameterization, which is precisely where the Gaussian model fails.
+### An important assumption
 
-What it cannot establish is that the model separates dispersion from threshold differences, because no threshold difference was simulated. Common thresholds across groups, or thresholds modelled explicitly, is the identifying assumption. If two groups use the response categories differently, threshold shifts and `disc` trade off against one another: a genuine dispersion difference can be absorbed into the cutpoints, and a pure cutpoint difference can surface as `disc`. On real data, checking that assumption needs something outside the fit itself, such as anchoring vignettes or a partial-invariance specification that lets some thresholds vary by group.
+The data were generated from the ordinal model's own functional form: a latent normal variable, a constant $\sigma$, and one `cuts` vector shared by both groups. It is therefore not surprising that the ordinal model fits well. What the example shows is narrower: boundary compression by itself does not create a difference in the latent dispersion parameter, while it does create one in the Gaussian model.
 
-## Benchmarking Relative Dispersion: The $R$ Metric
+The example does not show that the model can distinguish dispersion from threshold differences, because I did not simulate any threshold difference. Common thresholds across groups, or a model that allows them to vary, are needed for identification. If groups use the categories differently, threshold shifts and `disc` can trade off: the cutpoints can absorb a real dispersion difference, or a threshold difference can appear as a change in `disc`. On real data, we need information outside the basic model, such as anchoring vignettes or a partial-invariance specification, to check this assumption.
 
-An intuitive distribution-free alternative is the ratio of observed variance to maximum possible variance:
+## A descriptive alternative
+
+A simpler descriptive measure is the ratio of the observed variance to the maximum possible variance at the same mean:
 
 $$R = \frac{\text{Var}(Y)}{\text{Var}_{\max}(\mu)} \in [0, 1]$$
 
 where $R = 0$ indicates perfect agreement and $R = 1$ indicates maximum polarization.
 
-When computed on small individual clusters ($n = 6$), $R$ can be noisy or undefined if all raters choose 7 ($0/0$). However, when evaluated at the group level pooling all ratings, $R$ accurately captures dispersion:
+With only six ratings per subject, $R$ is noisy and can be undefined when every rater chooses 7, giving $0/0$. We can instead calculate it after pooling the ratings within each group:
 
 ```{r}
 #| label: r-pooled
@@ -206,11 +206,8 @@ df |>
   knitr::kable(caption = "Group-level pooled R metric.")
 ```
 
-Both groups yield $R \approx 0.21–0.22$, the same relative dispersion in both. $R$ benchmarks observed variance against the maximum attainable at that mean, which is what makes it comparable across groups with different means. It is a descriptive normalization rather than a correction: it rescales the boundary effect, and unlike the ordinal model it carries no latent quantity to interpret.
+Both groups give $R\approx0.21$--$0.22$. Dividing by the maximum attainable variance makes the descriptive measure more comparable across groups with different means. It is still only a normalization, not a model-based correction, and it has no latent dispersion parameter to interpret.
 
-## Summary
+## Which approach to use
 
-1. **Mechanical Confound:** On bounded scales, variance is bounded by $(\mu - a)(b - \mu)$. Skewed ratings create spurious group differences in raw standard deviations.
-2. **Gaussian Failure:** Linear mixed-effects location-scale models (`sigma ~ x`) misinterpret ceiling compression as true consensus.
-3. **Ordinal Solution:** Cumulative probit location-scale models (`disc ~ x`) put dispersion on the latent scale, so ceiling compression is no longer read as consensus. This holds conditional on the thresholds being common across groups or modelled as varying; the simulation here imposes common thresholds by construction and so does not test that assumption.
-4. **Descriptive Metric:** When a simple summary statistic is required, group-level pooled $R = \text{Var} / \text{Var}_{\max}$ normalizes observed variance by the maximum attainable at that mean, which makes it comparable across groups with different means.
+Raw standard deviations are hard to compare when group means differ on a bounded scale. If the goal is a model of underlying response dispersion, I would use the ordinal location-scale model and examine whether common thresholds are plausible. If the goal is only a descriptive comparison, pooled $R=\text{Var}/\text{Var}_{\max}$ is easier to explain, as long as it is not interpreted as a latent parameter.
