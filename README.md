@@ -19,6 +19,17 @@ quarto render    # Render the book
 quarto preview   # Preview with live reload
 ```
 
+## Writing style
+
+Chapters are written in a direct, conversational voice: state the question, show the
+equation or example, then say what the result means. Headings are sentence case and
+descriptive — the canned "The Problem" / "The Solution" / "Key Takeaways" template is
+not used, and an ordinary explanation is written as prose rather than a list of bold
+labels. Tightening prose must not make a claim stronger or more general than the
+algebra, code or evidence supports. Chapter titles are sentence case as well.
+
+The full convention is in `CLAUDE.md`.
+
 ## Author
 
 Xiang Ao

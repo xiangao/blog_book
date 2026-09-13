@@ -9,7 +9,7 @@ shorter rewrites (commit `d6bd048`): `gwg`, `likert-scale-variance`, `equivalenc
 `more-cre`, `mundlak-device`, and `poisson-iv-fe`. Entries dated before then describe the
 pre-rewrite text, which is preserved in `archive/pre_agy_20260903/`. Where a rewrite
 dropped a qualification the log records adding, the qualification was restored on
-2026-09-08 — see the last entry.
+2026-09-08 (see that entry).
 
 > **2026-08-15:** Simulation write-up pass across all 50 chapters (47 edited; `likert-scale-variance`, `same-data-different-estimators` and `index` already compliant). Every chunk now has prose before it saying what it does and — for simulated data — the complete DGP (sample size, every distribution, the treatment and outcome equations, the true parameter), and prose after it saying what the output shows. Prose only; no DGP, seed or estimator changed. **One real bug found and fixed:** `lmtp.qmd` was suffering the R analogue of the documented `collectcode` cache trap — its DGP chunk had been re-run in June after gaining a `0.5*A_1` term while the regression chunk below kept a May cached result, so the chapter said `Y` depends on `A_1` with coefficient 0.5 and then printed that coefficient as −0.006. Clearing `lmtp_cache/` and `_freeze/lmtp/` restored it to 0.494. **One correction:** the `sensitivity-analysis` IV section claimed a confounder as strong as `black` or `smsa` could not explain away the effect; its own bounds table gives adjusted intervals of [−0.021, 0.402] and [−0.019, 0.396], both containing zero (re-ran the package to confirm before editing). Two reproducibility problems flagged rather than patched: `policytree` sets no seed, and `frengression`'s torch training is not fixed by `set.seed()`. `conjoint-analysis` still cannot be re-rendered here (`radiant` uninstallable), so its published HTML lags its source. Full itemisation in `CLAUDE.md`.
 
@@ -122,3 +122,20 @@ dropped a qualification the log records adding, the qualification was restored o
 > declined: renaming `g-estimation.qmd` (its title already says g-formula, and renaming breaks
 > a published URL) and replacing `radiant` in `conjoint-analysis.qmd` (known-unfixable, already
 > documented and frozen).
+
+> **2026-09-13:** Second prose pass over the same six chapters (`equivalence-testing`, `gwg`,
+> `likert-scale-variance`, `more-cre`, `mundlak-device`, `poisson-iv-fe`), this time by Codex,
+> reviewed here before commit. Unlike the 2026-09-03 rewrites these are not abridgements: the
+> textbook-template headings ("The Problem", "The Solution", "Key Takeaways", "Summary") and the
+> bold-label bullet lists were replaced by ordinary prose, and the six titles moved to sentence
+> case, which is what 41 of the book's 48 chapters already used. Every crossref anchor, every
+> reported number and every technical qualification survived. **All six files' code chunks are
+> byte-identical to the previous revision** (verified by hashing the chunk bodies), so no estimate
+> could have moved and every knitr cache key still resolved — including `gwg`'s hardcoded
+> `gwg_cache/html/npcausal1_<hash>` SuperLearner path. Checks that went beyond reading: the
+> `gwg` AIPW paragraph now calls its estimate the *within-occupation* comparison, which the
+> `npcausal` design matrix supports (it includes `occ2 + ind2`); `more-cre`'s new sentence
+> attributes serial independence to the RE probit, the correct one of its three specifications;
+> and the Likert μ=7/4 peak, the Bhatia–Davis bound, the disc = 1/σ ratio and the T=2
+> incidental-parameters claim all re-derive. No defect found in this book. Rendered HTML and PDF
+> together and pushed; Pages deploy green.
