@@ -21,7 +21,7 @@ $$E[Y \mid A = 1] - E[Y \mid A = 0] = \underbrace{(E[X \mid A = 1] - E[X \mid A 
 
 Here $A=1$ denotes female and $A=0$ denotes male. The decomposition depends on which group supplies the reference coefficients, $\beta_0$ or $\beta_1$.
 
-Słoczyński (2013, 2015) connects this decomposition to potential outcomes. If we demean the covariates at the overall sample mean, the coefficient gives the population average gender effect ($\tau_{\text{PAGE}}$), which corresponds to the ATE. If we demean at the female-sample means, it gives the average effect for women ($\tau_{\text{PATT}}$), which corresponds to the ATT.
+@sloczynski-2013 and @sloczynski-2015 connect this decomposition to potential outcomes. If we demean the covariates at the overall sample mean, the coefficient gives the population average gender effect ($\tau_{\text{PAGE}}$), which corresponds to the ATE. If we demean at the female-sample means, it gives the average effect for women ($\tau_{\text{PATT}}$), which corresponds to the ATT.
 
 Under this interpretation, the unexplained gap is the treatment effect averaged over the chosen covariate distribution. The explained part is $E[Y(0)\mid A=1]-E[Y(0)\mid A=0]$, the selection term in the potential-outcomes decomposition. This causal reading requires the linear model and a meaningful intervention attached to $A$. Without them, the explained part is only a descriptive composition difference. We can estimate the same quantities with regression adjustment or with a doubly robust estimator.
 
@@ -29,7 +29,7 @@ Under this interpretation, the unexplained gap is the treatment effect averaged 
 
 I use a subsample from the March 2015 U.S. Current Population Survey. It contains 5,150 white, non-Hispanic, full-time workers aged 25--64. The outcome is log hourly wage (`lwage`), and `female` is the group indicator.
 
-There are two qualifications. First, gender is not manipulable in Holland's (1986) sense. I interpret `female` as a proxy for being perceived and treated as female by an employer, which is closer to an intervention. Second, the extract contains only full-year, full-time, non-self-employed workers. Restricting the sample conditions on employment, which can be affected by sex and by unobserved wage determinants. This opens a collider path that covariate adjustment cannot close. We would need data on non-workers instead (Lee, 2009; Olivetti and Petrongolo, 2008). If employed women are positively selected on wage-raising unobservables, the gaps below understate the population gap.
+There are two qualifications. First, gender is not manipulable in @holland1986's sense. I interpret `female` as a proxy for being perceived and treated as female by an employer, which is closer to an intervention. Second, the extract contains only full-year, full-time, non-self-employed workers. Restricting the sample conditions on employment, which can be affected by sex and by unobserved wage determinants. This opens a collider path that covariate adjustment cannot close. We would need data on non-workers instead [@lee-2009-bounds; @olivetti-petrongolo-2008]. If employed women are positively selected on wage-raising unobservables, the gaps below understate the population gap.
 
 ```{r}
 #| label: ra1
@@ -136,15 +136,15 @@ If we take sex as the treatment, there is no earlier common cause to adjust for.
 | `reg3` | education, experience, region | Gap within education-experience cells | $-11.3\%$ |
 | `reg4` | + occupation, industry | Gap within occupation cells too | $-7.5\%$ |
 
-Occupation and industry are post-treatment ($A \to \text{Occupation} \to Y$), and they are also a common effect of gender and of unobserved wage determinants $U$ such as career preferences or flexibility constraints. Conditioning on them blocks the mediating path and at the same time opens $A \to \text{Occupation} \leftarrow U \to Y$, which was closed before (Elwert and Winship, 2014; Cinelli, Forney and Pearl, 2022).
+Occupation and industry are post-treatment ($A \to \text{Occupation} \to Y$), and they are also a common effect of gender and of unobserved wage determinants $U$ such as career preferences or flexibility constraints. Conditioning on them blocks the mediating path and at the same time opens $A \to \text{Occupation} \leftarrow U \to Y$, which was closed before [@elwert-winship-2014; @cinelli-forney-pearl-2024].
 
 The four-point move from $-11.3\%$ to $-7.5\%$ therefore cannot be read as occupational sorting accounting for a third of the gap. Three things are mixed into it and nothing in the output separates them: genuine mediation, collider bias from the gender-$U$ association that conditioning induces, and ordinary confounding of the occupation-wage relationship. The direction of the second can be signed. If women who enter male-dominated, high-paying occupations are positively selected on $U$, then within those occupations they are better on unobservables than the men they are compared with, which pushes the within-occupation gap toward zero. Part of the attenuation may be bias rather than sorting.
 
-Calling $-7.5\%$ a controlled direct effect is licensed only under no unmeasured mediator-outcome confounding (VanderWeele and Robinson, 2014). $U$ is exactly such a confounder, and in a wage setting it is the reason this literature exists. Report the number as the within-occupation adjusted gap and state the condition that would upgrade it to a CDE.
+Calling $-7.5\%$ a controlled direct effect is licensed only under no unmeasured mediator-outcome confounding [@vanderweele-robinson-2014]. $U$ is exactly such a confounder, and in a wage setting it is the reason this literature exists. Report the number as the within-occupation adjusted gap and state the condition that would upgrade it to a CDE.
 
 ## A nonparametric AIPW estimate
 
-The regression adjustment still depends on its functional form. To make that part more flexible, I use augmented inverse probability weighting (AIPW) with SuperLearner through `npcausal` (Kennedy, 2022). The learner library includes `earth`, `glmnet`, `ranger`, and `xgboost`.
+The regression adjustment still depends on its functional form. To make that part more flexible, I use augmented inverse probability weighting (AIPW) with SuperLearner through `npcausal` [@kennedy-2022-overview]. The learner library includes `earth`, `glmnet`, `ranger`, and `xgboost`.
 
 ```{r}
 #| label: npcausal1

@@ -53,7 +53,27 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="site_libs/quarto-nav/headroom.min.js"></script>
@@ -542,6 +562,12 @@ window.Quarto = {
 </li>
       </ul>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
     </ul>
 </div>
 </nav><div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
@@ -580,7 +606,7 @@ window.Quarto = {
 
 </header><section id="ols-cannot-be-ate-most-of-the-time" class="level2" data-number="12.1"><h2 data-number="12.1" class="anchored" data-anchor-id="ols-cannot-be-ate-most-of-the-time">
 <span class="header-section-number">12.1</span> OLS cannot be ATE (most of the time)</h2>
-<p><a href="https://doi.org/10.1162/rest_a_01072">Słoczyński</a> clarifies when the OLS coefficient on a treatment dummy can and cannot be read as the ATE.</p>
+<p><span class="citation" data-cites="sloczynski-2022">Słoczyński (<a href="references.html#ref-sloczynski-2022" role="doc-biblioref">2022</a>)</span> clarifies when the OLS coefficient on a treatment dummy can and cannot be read as the ATE.</p>
 <p>Consider the standard setup:</p>
 <p><span id="eq-ols-ate-1"><span class="math display">\[ y = \alpha + \tau d + X \beta  \tag{12.1}\]</span></span></p>
 <p>Here <span class="math inline">\(d\)</span> is the treatment dummy and <span class="math inline">\(X\)</span> the covariates, under unconfoundedness. If the treatment effect is homogeneous, <span class="math inline">\(\tau\)</span> is the ATE. Under heterogeneous effects, <span class="math inline">\(\tau\)</span> is a convex combination of ATT and ATU — but with weights that are inversely proportional to the treatment shares. The more treated units there are, the less weight falls on ATT.</p>
@@ -698,7 +724,7 @@ OLS = w1*ATT + w0*ATU = 793.6
 <p>Now, what’s the intuition that OLS coefficient is just the opposite as the ATE in terms of weighting ATT and ATU? The reason is that OLS is to predict actual outcome, not counterfactual outcome. For calculating ATE, we need counterfactual outcome predicted. Now suppose we have a lot of control observations, we’d much better predicting <span class="math inline">\((y(0)| d==0)\)</span> rather than <span class="math inline">\((y(1) | d==1)\)</span>. That is, we are better getting the slope of <span class="math inline">\((y(0) | d==0, X=x)\)</span>; therefore predicting <span class="math inline">\((y(0) | d==1, X=x)\)</span>. Therefore although treatment group has less observations, but because the <span class="math inline">\((y(0) | d==1)\)</span> is better predicted, the ATT is better estimated, thus more weight. If the opposite happens, then the ATU should be more heavily weighted. Thus the counter-intuitive weighting.</p>
 </section><section id="regression-adjustment" class="level2" data-number="12.2"><h2 data-number="12.2" class="anchored" data-anchor-id="regression-adjustment">
 <span class="header-section-number">12.2</span> Regression adjustment</h2>
-<p>Słoczyński’s method is to include propensity score as a covariate. This propensity score serves as a proxy as all covariates. As Rosenbaum and Rubin (1983) showed, the propensity score is a balancing score (treatment is independent of the covariates given the propensity score). Another way to allow treatment effect to differ across all covariates is to allow interaction of treatment dummy with all covariates, then I am doing “Regression Adjustment” (see Stata’s <code>teffects ra</code>, used in the <a href="./treatment-matching.html">treatment effects and matching chapter</a>; note this is not <code>treatreg</code>, which was the old endogenous-treatment command, superseded by <code>etregress</code>). We can calculate ATE, ATT, ATU after the linear model.</p>
+<p>Słoczyński’s method is to include propensity score as a covariate. This propensity score serves as a proxy as all covariates. As <span class="citation" data-cites="rosenbaum-rubin-1983">Rosenbaum and Rubin (<a href="references.html#ref-rosenbaum-rubin-1983" role="doc-biblioref">1983</a>)</span> showed, the propensity score is a balancing score (treatment is independent of the covariates given the propensity score). Another way to allow treatment effect to differ across all covariates is to allow interaction of treatment dummy with all covariates, then I am doing “Regression Adjustment” (see Stata’s <code>teffects ra</code>, used in the <a href="./treatment-matching.html">treatment effects and matching chapter</a>; note this is not <code>treatreg</code>, which was the old endogenous-treatment command, superseded by <code>etregress</code>). We can calculate ATE, ATT, ATU after the linear model.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyverse.tidyverse.org">tidyverse</a></span><span class="op">)</span></span>
 <span><span class="va">lm1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">re78</span> <span class="op">~</span> <span class="va">treated</span><span class="op">*</span><span class="op">(</span><span class="va">age</span> <span class="op">+</span> <span class="va">age2</span> <span class="op">+</span>  <span class="va">educ</span> <span class="op">+</span> <span class="va">black</span> <span class="op">+</span> <span class="va">hispanic</span> <span class="op">+</span> <span class="va">married</span> <span class="op">+</span> <span class="va">nodegree</span>  <span class="op">+</span> <span class="va">re74</span> <span class="op">+</span> <span class="va">re75</span><span class="op">)</span>, data <span class="op">=</span> <span class="va">nswcps</span><span class="op">)</span></span>
@@ -732,6 +758,20 @@ OLS = w1*ATT + w0*ATU = 793.6
 
 <!-- -->
 
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-hainmueller-2014" class="csl-entry" role="listitem">
+Hainmueller, Jens, Daniel J. Hopkins, and Teppei Yamamoto. 2014. <span>“Causal Inference in Conjoint Analysis: Understanding Multidimensional Choices via Stated Preference Experiments.”</span> <em>Political Analysis</em> 22 (1): 1–30. <a href="https://doi.org/10.1093/pan/mpt024">https://doi.org/10.1093/pan/mpt024</a>.
+</div>
+<div id="ref-kuhfeld-1994" class="csl-entry" role="listitem">
+Kuhfeld, Warren F., Randall D. Tobias, and Mark Garratt. 1994. <span>“Efficient Experimental Design with Marketing Research Applications.”</span> <em>Journal of Marketing Research</em> 31 (4): 545–57. <a href="https://doi.org/10.1177/002224379403100408">https://doi.org/10.1177/002224379403100408</a>.
+</div>
+<div id="ref-rosenbaum-rubin-1983" class="csl-entry" role="listitem">
+Rosenbaum, Paul R., and Donald B. Rubin. 1983. <span>“The Central Role of the Propensity Score in Observational Studies for Causal Effects.”</span> <em>Biometrika</em> 70 (1): 41–55.
+</div>
+<div id="ref-sloczynski-2022" class="csl-entry" role="listitem">
+Słoczyński, Tymon. 2022. <span>“Interpreting <span>OLS</span> Estimands When Treatment Effects Are Heterogeneous: Smaller Groups Get Larger Weights.”</span> <em>The Review of Economics and Statistics</em> 104 (3): 501–9. <a href="https://doi.org/10.1162/rest_a_00953">https://doi.org/10.1162/rest_a_00953</a>.
+</div>
+</div>
 </section></main><!-- /main --><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
@@ -1203,7 +1243,7 @@ OLS = w1*ATT + w0*ATU = 793.6
 <span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## OLS cannot be ATE (most of the time)</span></span>
 <span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">Słoczyński</span><span class="co">](https://doi.org/10.1162/rest_a_01072)</span> clarifies when the OLS coefficient on a treatment dummy can and cannot be read as the ATE.</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>@sloczynski-2022 clarifies when the OLS coefficient on a treatment dummy can and cannot be read as the ATE.</span>
 <span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>Consider the standard setup:</span>
 <span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
@@ -1309,7 +1349,7 @@ OLS = w1*ATT + w0*ATU = 793.6
 <span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a><span class="fu">## Regression adjustment</span></span>
 <span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a>Słoczyński's method is to include propensity score as a covariate.  This propensity score serves as a proxy as all covariates.  As Rosenbaum and Rubin (1983) showed, the propensity score is a balancing score (treatment is independent of the covariates given the propensity score).  Another way to allow treatment effect to differ across all covariates is to allow interaction of treatment dummy with all covariates, then I am doing "Regression Adjustment" (see Stata's <span class="in">`teffects ra`</span>, used in the <span class="co">[</span><span class="ot">treatment effects and matching chapter</span><span class="co">](treatment-matching.qmd)</span>; note this is not <span class="in">`treatreg`</span>, which was the old endogenous-treatment command, superseded by <span class="in">`etregress`</span>).  We can calculate ATE, ATT, ATU after the linear model.</span>
+<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a>Słoczyński's method is to include propensity score as a covariate.  This propensity score serves as a proxy as all covariates.  As @rosenbaum-rubin-1983 showed, the propensity score is a balancing score (treatment is independent of the covariates given the propensity score).  Another way to allow treatment effect to differ across all covariates is to allow interaction of treatment dummy with all covariates, then I am doing "Regression Adjustment" (see Stata's <span class="in">`teffects ra`</span>, used in the <span class="co">[</span><span class="ot">treatment effects and matching chapter</span><span class="co">](treatment-matching.qmd)</span>; note this is not <span class="in">`treatreg`</span>, which was the old endogenous-treatment command, superseded by <span class="in">`etregress`</span>).  We can calculate ATE, ATT, ATU after the linear model.</span>
 <span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: chunk3</span></span>

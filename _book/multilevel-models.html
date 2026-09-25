@@ -53,7 +53,27 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="site_libs/quarto-nav/headroom.min.js"></script>
@@ -542,6 +562,12 @@ window.Quarto = {
 </li>
       </ul>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./references.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">References</span></a>
+  </div>
+</li>
     </ul>
 </div>
 </nav><div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
@@ -598,7 +624,7 @@ window.Quarto = {
 
 
 </header><p>This post is a demo for doing the same multi-level models with R and stata. R’s multilevel models are mostly done with lme4 and nlme. Stata’s multilevel models are mostly done with mixed and menl. The two packages are not exactly the same. <code>mixed</code> does in fact support several residual covariance structures via its <code><a href="https://rdrr.io/r/stats/residuals.html">residuals()</a></code> option (e.g.&nbsp;<code>residuals(exponential, t(year))</code>, as well as <code>ar</code>, <code>ma</code>, <code>toeplitz</code>, etc.) — so it’s not that <code>mixed</code> cannot handle a structured residual at all, but <code>menl</code>’s nonlinear-mixed-model framework gives more flexibility to combine that with custom nonlinear mean/random-effect specifications (like the CEM model below), which is why we reach for it here. Likewise, in R lme4’s “lmer” does not allow this specification. We have to use nlme. But it’s good to know how to do the same thing in both packages.</p>
-<p>For example, we want to do a consensus emergence model (CEM) as described in <a href="https://doi.org/10.1111/peps.12260">Lang, Bliese and de Voogt (2018)</a>, <em>Personnel Psychology</em>. The CEM model is basically a growth model with the residual being a exponential function of the time variable. We want to do the same thing in both R and stata.</p>
+<p>For example, we want to do a consensus emergence model (CEM) as described in <span class="citation" data-cites="lang-2018">Lang, Bliese, and Voogt (<a href="references.html#ref-lang-2018" role="doc-biblioref">2018</a>)</span>. The CEM model is basically a growth model with the residual being a exponential function of the time variable. We want to do the same thing in both R and stata.</p>
 <p>We start with simpler models.</p>
 <section id="stata-and-r-syntax-comparison-for-the-same-three-level-model" class="level2" data-number="36.1"><h2 data-number="36.1" class="anchored" data-anchor-id="stata-and-r-syntax-comparison-for-the-same-three-level-model">
 <span class="header-section-number">36.1</span> Stata and R syntax comparison for the same three level model</h2>
@@ -614,96 +640,10 @@ window.Quarto = {
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>mixed gsp || region: || state:</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>menl gsp = {b1:},  <span class="kw">define</span>(b1: U1[region] UU1[region&gt;state])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>(Public capital productivity)
+<pre><code>no; dataset in memory has changed since last saved
+r(4);
 
-
-Performing EM optimization ...
-
-Performing gradient-based optimization: 
-Iteration 0:  Log likelihood =  200.86162  
-Iteration 1:  Log likelihood =  200.86162  
-
-Computing standard errors ...
-
-Mixed-effects ML regression                                Number of obs = 816
-
-        Grouping information
-        -------------------------------------------------------------
-                        |     No. of       Observations per group
-         Group variable |     groups    Minimum    Average    Maximum
-        ----------------+--------------------------------------------
-                 region |          9         51       90.7        136
-                  state |         48         17       17.0         17
-        -------------------------------------------------------------
-
-                                                           Wald chi2(0)  =   .
-Log likelihood =  200.86162                                Prob &gt; chi2   =   .
-
-------------------------------------------------------------------------------
-         gsp | Coefficient  Std. err.      z    P&gt;|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-       _cons |   10.65961   .2503806    42.57   0.000     10.16887    11.15035
-------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------
-  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
------------------------------+------------------------------------------------
-region: Identity             |
-                  var(_cons) |   .4376123   .2697616        .13073    1.464887
------------------------------+------------------------------------------------
-state: Identity              |
-                  var(_cons) |   .6080626   .1382733      .3893904    .9495357
------------------------------+------------------------------------------------
-               var(Residual) |   .0246633   .0012586      .0223159    .0272577
-------------------------------------------------------------------------------
-LR test vs. linear model: chi2(2) = 2750.56               Prob &gt; chi2 = 0.0000
-
-Note: LR test is conservative and provided only for reference.
-
-
-Obtaining starting values by EM:
-
-Alternating PNLS/LME algorithm:
-
-Iteration 1:  Linearization log likelihood =  200.86162
-Iteration 2:  Linearization log likelihood =  200.86162
-
-Computing standard errors:
-
-Mixed-effects ML nonlinear regression           Number of obs     =        816
-
-      Grouping information
-      ------------------------------------------------------------------
-                           |     No. of        Observations per group
-                      Path |     groups    Minimum    Average    Maximum
-      ---------------------+--------------------------------------------
-                    region |          9         51       90.7        136
-              region&gt;state |         48         17       17.0         17
-      ------------------------------------------------------------------
-
-
-Linearization log likelihood =  200.86162
-
-          b1: U1[region] UU1[region&gt;state]
-
-------------------------------------------------------------------------------
-         gsp | Coefficient  Std. err.      z    P&gt;|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-b1           |
-       _cons |   10.65961   .2505341    42.55   0.000     10.16857    11.15065
-------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------
-  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
------------------------------+------------------------------------------------
-region: Identity             |
-                     var(U1) |   .4376119   .2686479      .1313834    1.457598
------------------------------+------------------------------------------------
-region&gt;state: Identity       |
-                    var(UU1) |   .6080625   .1381527      .3895418    .9491666
------------------------------+------------------------------------------------
-               var(Residual) |   .0246633   .0012586      .0223159    .0272577
-------------------------------------------------------------------------------</code></pre>
+r(4);</code></pre>
 </div>
 </div>
 </section><section id="r" class="level3" data-number="36.1.2"><h3 data-number="36.1.2" class="anchored" data-anchor-id="r">
@@ -806,110 +746,14 @@ Number of Groups:
 <span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>mixed gsp <span class="fu">year</span> || region: <span class="fu">year</span>, <span class="kw">covariance</span>(<span class="kw">unstructured</span>) || state:</span>
 <span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>menl gsp =  {b2:} + {U1[region]}*<span class="fu">year</span>, <span class="kw">define</span>(b2: <span class="fu">year</span> U0[region]  U11[region&gt;state])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>(Public capital productivity)
+<pre><code>no; dataset in memory has changed since last saved
+r(4);
 
 
-Performing EM optimization ...
+no; dataset in memory has changed since last saved
+r(4);
 
-Performing gradient-based optimization: 
-Iteration 0:  Log likelihood =  782.11459  (not concave)
-Iteration 1:  Log likelihood =  803.58071  (not concave)
-Iteration 2:  Log likelihood =   813.1017  (not concave)
-Iteration 3:  Log likelihood =  816.56892  
-Iteration 4:  Log likelihood =  885.27225  (not concave)
-Iteration 5:  Log likelihood =  888.29208  
-Iteration 6:  Log likelihood =  888.79472  
-Iteration 7:  Log likelihood =  888.82395  
-Iteration 8:  Log likelihood =  888.82404  
-Iteration 9:  Log likelihood =  888.82404  
-
-Computing standard errors ...
-
-Mixed-effects ML regression                             Number of obs =    816
-
-        Grouping information
-        -------------------------------------------------------------
-                        |     No. of       Observations per group
-         Group variable |     groups    Minimum    Average    Maximum
-        ----------------+--------------------------------------------
-                 region |          9         51       90.7        136
-                  state |         48         17       17.0         17
-        -------------------------------------------------------------
-
-                                                        Wald chi2(1)  = 107.46
-Log likelihood =  888.82404                             Prob &gt; chi2   = 0.0000
-
-------------------------------------------------------------------------------
-         gsp | Coefficient  Std. err.      z    P&gt;|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-        year |   .0263275   .0025397    10.37   0.000     .0213497    .0313053
-       _cons |  -41.43216    5.20712    -7.96   0.000    -51.63793   -31.22639
-------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------
-  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
------------------------------+------------------------------------------------
-region: Unstructured         |
-                   var(year) |    .000056   .0000274      .0000215     .000146
-                  var(_cons) |   235.7658     115.06      90.58819    613.6066
-             cov(year,_cons) |  -.1148543    .056104     -.2248162   -.0048923
------------------------------+------------------------------------------------
-state: Identity              |
-                  var(_cons) |   .6121886    .139357        .39185    .9564242
------------------------------+------------------------------------------------
-               var(Residual) |   .0039862   .0002046      .0036046    .0044081
-------------------------------------------------------------------------------
-LR test vs. linear model: chi2(4) = 4112.15               Prob &gt; chi2 = 0.0000
-
-Note: LR test is conservative and provided only for reference.
-
-
-Obtaining starting values by EM:
-
-Alternating PNLS/LME algorithm:
-
-Iteration 1:  Linearization log likelihood =  784.65134
-Iteration 2:  Linearization log likelihood =  784.65343
-Iteration 3:  Linearization log likelihood =  784.65343
-
-Computing standard errors:
-
-Mixed-effects ML nonlinear regression           Number of obs     =        816
-
-      Grouping information
-      ------------------------------------------------------------------
-                           |     No. of        Observations per group
-                      Path |     groups    Minimum    Average    Maximum
-      ---------------------+--------------------------------------------
-                    region |          9         51       90.7        136
-              region&gt;state |         48         17       17.0         17
-      ------------------------------------------------------------------
-
-                                                Wald chi2(1)      =    2737.78
-Linearization log likelihood =  784.65343       Prob &gt; chi2       =     0.0000
-
-          b2: year U0[region] U11[region&gt;state]
-
-------------------------------------------------------------------------------
-         gsp | Coefficient  Std. err.      z    P&gt;|z|     [95% conf. interval]
--------------+----------------------------------------------------------------
-b2           |
-        year |   .0274903   .0005254    52.32   0.000     .0264605      .02852
-       _cons |  -43.71615   1.069039   -40.89   0.000    -45.81143   -41.62087
-------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------
-  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
------------------------------+------------------------------------------------
-region: Independent          |
-                     var(U0) |   .4378219   .2687857      .1314413    1.458355
-                     var(U1) |   5.40e-13   2.67e-10             0           .
------------------------------+------------------------------------------------
-region&gt;state: Identity       |
-                    var(U11) |   .6091976   .1381402      .3906086    .9501115
------------------------------+------------------------------------------------
-               var(Residual) |   .0053926   .0002752      .0048793    .0059598
-------------------------------------------------------------------------------</code></pre>
+r(4);</code></pre>
 </div>
 </div>
 </section><section id="r-1" class="level3" data-number="36.2.2"><h3 data-number="36.2.2" class="anchored" data-anchor-id="r-1">
@@ -1001,7 +845,11 @@ Number of Groups:
 <span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>* <span class="kw">this</span> replicates the results from R</span>
 <span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>menl gsp =  {b2:} + {U1[region]}*<span class="fu">year</span>, <span class="kw">define</span>(b2: <span class="fu">year</span> U0[region]  U11[region&gt;state]) resvariance(exponential <span class="fu">year</span>) <span class="kw">nolog</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>(Public capital productivity)
+<pre><code>no; dataset in memory has changed since last saved
+r(4);
+
+
+(Public capital productivity)
 
 
 Mixed-effects ML nonlinear regression           Number of obs     =        816
@@ -1104,6 +952,17 @@ Number of Groups:
 
 <!-- -->
 
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-hainmueller-2014" class="csl-entry" role="listitem">
+Hainmueller, Jens, Daniel J. Hopkins, and Teppei Yamamoto. 2014. <span>“Causal Inference in Conjoint Analysis: Understanding Multidimensional Choices via Stated Preference Experiments.”</span> <em>Political Analysis</em> 22 (1): 1–30. <a href="https://doi.org/10.1093/pan/mpt024">https://doi.org/10.1093/pan/mpt024</a>.
+</div>
+<div id="ref-kuhfeld-1994" class="csl-entry" role="listitem">
+Kuhfeld, Warren F., Randall D. Tobias, and Mark Garratt. 1994. <span>“Efficient Experimental Design with Marketing Research Applications.”</span> <em>Journal of Marketing Research</em> 31 (4): 545–57. <a href="https://doi.org/10.1177/002224379403100408">https://doi.org/10.1177/002224379403100408</a>.
+</div>
+<div id="ref-lang-2018" class="csl-entry" role="listitem">
+Lang, Jonas W. B., Paul D. Bliese, and Alex de Voogt. 2018. <span>“Modeling Consensus Emergence in Groups Using Longitudinal Multilevel Methods.”</span> <em>Personnel Psychology</em> 71 (2): 255–81. <a href="https://doi.org/10.1111/peps.12260">https://doi.org/10.1111/peps.12260</a>.
+</div>
+</div>
 </section></section></main><!-- /main --><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
@@ -1573,7 +1432,7 @@ Number of Groups:
 <span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>This post is a demo for doing the same multi-level models with R and stata.  R's multilevel models are mostly done with lme4 and nlme.  Stata's multilevel models are mostly done with mixed and menl.  The two packages are not exactly the same.  <span class="in">`mixed`</span> does in fact support several residual covariance structures via its <span class="in">`residuals()`</span> option (e.g. <span class="in">`residuals(exponential, t(year))`</span>, as well as <span class="in">`ar`</span>, <span class="in">`ma`</span>, <span class="in">`toeplitz`</span>, etc.) — so it's not that <span class="in">`mixed`</span> cannot handle a structured residual at all, but <span class="in">`menl`</span>'s nonlinear-mixed-model framework gives more flexibility to combine that with custom nonlinear mean/random-effect specifications (like the CEM model below), which is why we reach for it here.  Likewise, in R lme4's "lmer" does not allow this specification.  We have to use nlme.  But it's good to know how to do the same thing in both packages.</span>
 <span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>For example, we want to do a consensus emergence model (CEM) as described in <span class="co">[</span><span class="ot">Lang, Bliese and de Voogt (2018)</span><span class="co">](https://doi.org/10.1111/peps.12260)</span>, *Personnel Psychology*.  The CEM model is basically a growth model with the residual being a exponential function of the time variable.  We want to do the same thing in both R and stata.</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>For example, we want to do a consensus emergence model (CEM) as described in @lang-2018.  The CEM model is basically a growth model with the residual being a exponential function of the time variable.  We want to do the same thing in both R and stata.</span>
 <span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>We start with simpler models.</span>
 <span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
