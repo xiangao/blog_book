@@ -33,7 +33,7 @@ We save the OLS residual $\hat v_{it}$ and include it in a fixed-effects Poisson
 
 $$E[y_{it} \mid w_{it}, x_{it1}, c_i, f_t, \hat{v}_{it}] = c_i f_t \exp(w_{it}\beta_1 + x_{it1}\beta_2 + \rho \hat{v}_{it})$$
 
-In Stata, the two commands are `reghdfe ..., resid` and `ppmlhdfe`. In R, we can use `fixest::feols()` and `fixest::fepois()`. Testing $H_0:\rho=0$ gives a test of exogeneity. Because $\hat v_{it}$ is estimated, the usual second-stage standard errors are not valid. I use a cluster bootstrap that repeats both stages.
+In Stata, the two commands are `reghdfe ..., resid` and `ppmlhdfe`. In R, we can use `fixest::feols()` and `fixest::fepois()`. Testing $H_0:\rho=0$ gives a test of exogeneity. Two inference questions sit here and they have different answers. The test of $\rho = 0$ is fine as it stands: under that null the first stage contributes nothing to the asymptotic variance, so the usual $t$-statistic on $\hat v_{it}$ is valid. Inference on the *corrected* coefficient $\beta_1$ is the problem, because $\hat v_{it}$ is estimated and under the alternative that estimation enters the variance. Either an analytic two-step correction or a bootstrap repeating both stages is needed there. I use a cluster bootstrap over units.
 
 ## A continuous endogenous variable in Stata
 
@@ -54,7 +54,7 @@ predict double u2h_fe, resid
 ppmlhdfe visits time u2h_fe frfam, absorb(ad female)
 ```
 
-The coefficient on `time` is $0.0448$ ($p = 0.318$). The residual coefficient is $\hat{\rho} = 0.0765$ ($p = 0.096$), indicating weak positive selection.
+The coefficient on `time` is $0.0448$ ($p = 0.318$). The residual coefficient is $\hat{\rho} = 0.0765$ ($p = 0.096$): positive, but imprecisely estimated. The $p$ value is not a measure of how large the selection is.
 
 ### A comparison with linear models
 
@@ -258,7 +258,7 @@ restore
 
 The naive fixed-effects Poisson estimate is $0.747$, more than 2.4 times the true value. The CRE logit control function gives $0.294$, while the linear first-stage control function gives $0.278$.
 
-In an application, I would report both control-function specifications as a sensitivity check.
+These two are not specifications of equal standing, and reporting them side by side as coequal sensitivity checks would misrepresent the second. The CRE logit control function is the estimator here. The linear first stage is a misspecified benchmark: as noted above, a linear reduced form for a binary $D_{it}$ has no valid independence assumption behind it, so it is inconsistent whatever the sample size. Agreement between the two says the misspecification happens not to bite much in this sample. It is not evidence that the linear version is an alternative estimator. When the approximation is in doubt, the comparison to reach for is with Terza's exact correction or with multiplicative-moment GMM. Both carry stated assumptions, and both are set out in the [Poisson IV chapter](https://xiangao.github.io/causal_econometrics_guide/poisson-iv.html) of the causal econometrics guide.
 
 ## What to remember
 

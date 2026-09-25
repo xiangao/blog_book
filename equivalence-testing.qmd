@@ -23,7 +23,7 @@ $$
 H_{01}: \theta \le -\Delta \quad \text{and} \quad H_{02}: \theta \ge +\Delta
 $$
 
-If we reject both null hypotheses at level $\alpha$, we conclude that $-\Delta < \theta < +\Delta$ with $(1 - 2\alpha)$ confidence.
+If we reject both null hypotheses at level $\alpha$, we declare equivalence. The claim is exactly that: both nonequivalence nulls are rejected at level $\alpha$, so the procedure falsely declares equivalence at most $\alpha$ of the time for any $\theta$ outside the interval. It is not a statement that $\theta$ lies inside $[-\Delta, +\Delta]$ with probability $1 - 2\alpha$. A frequentist interval does not carry that reading.
 
 An equivalent way to do the test is to check whether the $(1 - 2\alpha)$ confidence interval falls entirely inside $[-\Delta, +\Delta]$. When $\alpha = 0.05$, we use the 90% confidence interval.
 
@@ -69,6 +69,8 @@ We can also evaluate a Bayes factor for an interval null:
 
 $$\text{BF}_{\text{in/out}} = \frac{p(\text{data} \mid \theta \in [-\Delta, +\Delta])}{p(\text{data} \mid \theta \notin [-\Delta, +\Delta])}$$
 
+Both terms are marginal likelihoods, so each one integrates the likelihood over a *prior* for $\theta$ conditional on its region. `BayesFactor` puts a Cauchy prior on Cohen's $d$ and truncates it to the interval in the numerator and to the complement in the denominator. The number that comes out depends on that prior and on $\Delta$, not on the data alone.
+
 The two R packages use different units. `TOSTER::t_TOST(eqb = ...)` takes the bound in the original outcome units, which are seconds here. `BayesFactor::ttestBF(nullInterval = ...)` expects a standardized effect size in Cohen's $d$.
 
 We therefore need to divide the raw bound by the pooled standard deviation before passing it to `ttestBF`:
@@ -93,7 +95,7 @@ With $s_{\text{pooled}} \approx 1.77$, $\Delta = 2$ corresponds to $d \approx 1.
 ttestBF(formula = qsec ~ am, data = mtcars, nullInterval = c(-delta_d, delta_d))
 ```
 
-The Bayes factor is 0.98 for an effect inside $[-\Delta, +\Delta]$ relative to the point null and 0.022 for an effect outside it. Their ratio is about $45:1$ ($0.98 / 0.022 \approx 44.5$) in favor of the equivalence interval. This agrees with the TOST result.
+The Bayes factor is 0.98 for an effect inside $[-\Delta, +\Delta]$ relative to the point null and 0.022 for an effect outside it. Their ratio is about $45:1$ ($0.98 / 0.022 \approx 44.5$) in favor of the equivalence interval. The two analyses point the same way for this bound and this prior. They are not the same test and they answer different questions: TOST controls the rate at which equivalence is wrongly declared, while the Bayes factor weighs evidence for two regions under a prior we chose. Agreement here is a fact about this example, not a general correspondence.
 
 ## Choosing the equivalence bound
 

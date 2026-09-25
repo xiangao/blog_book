@@ -600,7 +600,7 @@ window.Quarto = {
 <p><span class="math display">\[
 H_{01}: \theta \le -\Delta \quad \text{and} \quad H_{02}: \theta \ge +\Delta
 \]</span></p>
-<p>If we reject both null hypotheses at level <span class="math inline">\(\alpha\)</span>, we conclude that <span class="math inline">\(-\Delta &lt; \theta &lt; +\Delta\)</span> with <span class="math inline">\((1 - 2\alpha)\)</span> confidence.</p>
+<p>If we reject both null hypotheses at level <span class="math inline">\(\alpha\)</span>, we declare equivalence. The claim is exactly that: both nonequivalence nulls are rejected at level <span class="math inline">\(\alpha\)</span>, so the procedure falsely declares equivalence at most <span class="math inline">\(\alpha\)</span> of the time for any <span class="math inline">\(\theta\)</span> outside the interval. It is not a statement that <span class="math inline">\(\theta\)</span> lies inside <span class="math inline">\([-\Delta, +\Delta]\)</span> with probability <span class="math inline">\(1 - 2\alpha\)</span>. A frequentist interval does not carry that reading.</p>
 <p>An equivalent way to do the test is to check whether the <span class="math inline">\((1 - 2\alpha)\)</span> confidence interval falls entirely inside <span class="math inline">\([-\Delta, +\Delta]\)</span>. When <span class="math inline">\(\alpha = 0.05\)</span>, we use the 90% confidence interval.</p>
 </section><section id="using-toster-in-r" class="level2" data-number="48.3"><h2 data-number="48.3" class="anchored" data-anchor-id="using-toster-in-r">
 <span class="header-section-number">48.3</span> Using <code>TOSTER</code> in R</h2>
@@ -687,6 +687,7 @@ Note: SMD confidence intervals are an approximation. See vignette("SMD_calcs").<
 <span class="header-section-number">48.4</span> Bayesian equivalence testing and units</h2>
 <p>We can also evaluate a Bayes factor for an interval null:</p>
 <p><span class="math display">\[\text{BF}_{\text{in/out}} = \frac{p(\text{data} \mid \theta \in [-\Delta, +\Delta])}{p(\text{data} \mid \theta \notin [-\Delta, +\Delta])}\]</span></p>
+<p>Both terms are marginal likelihoods, so each one integrates the likelihood over a <em>prior</em> for <span class="math inline">\(\theta\)</span> conditional on its region. <code>BayesFactor</code> puts a Cauchy prior on Cohen’s <span class="math inline">\(d\)</span> and truncates it to the interval in the numerator and to the complement in the denominator. The number that comes out depends on that prior and on <span class="math inline">\(\Delta\)</span>, not on the data alone.</p>
 <p>The two R packages use different units. <code>TOSTER::t_TOST(eqb = ...)</code> takes the bound in the original outcome units, which are seconds here. <code>BayesFactor::ttestBF(nullInterval = ...)</code> expects a standardized effect size in Cohen’s <span class="math inline">\(d\)</span>.</p>
 <p>We therefore need to divide the raw bound by the pooled standard deviation before passing it to <code>ttestBF</code>:</p>
 <div class="cell">
@@ -720,7 +721,7 @@ Against denominator:
 Bayes factor type: BFindepSample, JZS</code></pre>
 </div>
 </div>
-<p>The Bayes factor is 0.98 for an effect inside <span class="math inline">\([-\Delta, +\Delta]\)</span> relative to the point null and 0.022 for an effect outside it. Their ratio is about <span class="math inline">\(45:1\)</span> (<span class="math inline">\(0.98 / 0.022 \approx 44.5\)</span>) in favor of the equivalence interval. This agrees with the TOST result.</p>
+<p>The Bayes factor is 0.98 for an effect inside <span class="math inline">\([-\Delta, +\Delta]\)</span> relative to the point null and 0.022 for an effect outside it. Their ratio is about <span class="math inline">\(45:1\)</span> (<span class="math inline">\(0.98 / 0.022 \approx 44.5\)</span>) in favor of the equivalence interval. The two analyses point the same way for this bound and this prior. They are not the same test and they answer different questions: TOST controls the rate at which equivalence is wrongly declared, while the Bayes factor weighs evidence for two regions under a prior we chose. Agreement here is a fact about this example, not a general correspondence.</p>
 </section><section id="choosing-the-equivalence-bound" class="level2" data-number="48.5"><h2 data-number="48.5" class="anchored" data-anchor-id="choosing-the-equivalence-bound">
 <span class="header-section-number">48.5</span> Choosing the equivalence bound</h2>
 <p>The data cannot choose <span class="math inline">\(\Delta\)</span> for us. It has to come from the application. We might use the smallest effect with a meaningful practical or economic consequence, or the smallest effect that would justify the cost of an intervention. Another option is Simonsohn’s (2015) “small telescopes” benchmark: use the effect size that an earlier study had only 33% power to detect, denoted by <span class="math inline">\(d_{33\%}\)</span>. The 33% refers to power, not to 33% of the original estimate; <span class="math inline">\(d_{33\%}\)</span> is a little more than half of <span class="math inline">\(d_{80\%}\)</span>.</p>
@@ -1214,7 +1215,7 @@ Bayes factor type: BFindepSample, JZS</code></pre>
 <span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>H_{01}: \theta \le -\Delta \quad \text{and} \quad H_{02}: \theta \ge +\Delta</span>
 <span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>$$</span>
 <span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>If we reject both null hypotheses at level $\alpha$, we conclude that $-\Delta &lt; \theta &lt; +\Delta$ with $(1 - 2\alpha)$ confidence.</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>If we reject both null hypotheses at level $\alpha$, we declare equivalence. The claim is exactly that: both nonequivalence nulls are rejected at level $\alpha$, so the procedure falsely declares equivalence at most $\alpha$ of the time for any $\theta$ outside the interval. It is not a statement that $\theta$ lies inside $<span class="co">[</span><span class="ot">-\Delta, +\Delta</span><span class="co">]</span>$ with probability $1 - 2\alpha$. A frequentist interval does not carry that reading.</span>
 <span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>An equivalent way to do the test is to check whether the $(1 - 2\alpha)$ confidence interval falls entirely inside $<span class="co">[</span><span class="ot">-\Delta, +\Delta</span><span class="co">]</span>$. When $\alpha = 0.05$, we use the 90% confidence interval.</span>
 <span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a></span>
@@ -1260,39 +1261,41 @@ Bayes factor type: BFindepSample, JZS</code></pre>
 <span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a>$$\text{BF}_{\text{in/out}} = \frac{p(\text{data} \mid \theta \in <span class="co">[</span><span class="ot">-\Delta, +\Delta</span><span class="co">]</span>)}{p(\text{data} \mid \theta \notin <span class="co">[</span><span class="ot">-\Delta, +\Delta</span><span class="co">]</span>)}$$</span>
 <span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a>The two R packages use different units. <span class="in">`TOSTER::t_TOST(eqb = ...)`</span> takes the bound in the original outcome units, which are seconds here. <span class="in">`BayesFactor::ttestBF(nullInterval = ...)`</span> expects a standardized effect size in Cohen's $d$.</span>
+<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a>Both terms are marginal likelihoods, so each one integrates the likelihood over a *prior* for $\theta$ conditional on its region. <span class="in">`BayesFactor`</span> puts a Cauchy prior on Cohen's $d$ and truncates it to the interval in the numerator and to the complement in the denominator. The number that comes out depends on that prior and on $\Delta$, not on the data alone.</span>
 <span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a>We therefore need to divide the raw bound by the pooled standard deviation before passing it to <span class="in">`ttestBF`</span>:</span>
+<span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a>The two R packages use different units. <span class="in">`TOSTER::t_TOST(eqb = ...)`</span> takes the bound in the original outcome units, which are seconds here. <span class="in">`BayesFactor::ttestBF(nullInterval = ...)`</span> expects a standardized effect size in Cohen's $d$.</span>
 <span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(BayesFactor)</span>
-<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute pooled SD to standardize the 2-second bound</span></span>
-<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a>grp <span class="ot">&lt;-</span> <span class="fu">split</span>(mtcars<span class="sc">$</span>qsec, mtcars<span class="sc">$</span>am)</span>
-<span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a>n1 <span class="ot">&lt;-</span> <span class="fu">length</span>(grp[[<span class="dv">1</span>]])</span>
-<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a>n2 <span class="ot">&lt;-</span> <span class="fu">length</span>(grp[[<span class="dv">2</span>]])</span>
-<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a>sd_pooled <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(((n1 <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">var</span>(grp[[<span class="dv">1</span>]]) <span class="sc">+</span> (n2 <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">var</span>(grp[[<span class="dv">2</span>]])) <span class="sc">/</span> (n1 <span class="sc">+</span> n2 <span class="sc">-</span> <span class="dv">2</span>))</span>
-<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a>delta_d <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">/</span> sd_pooled  <span class="co"># convert +/- 2 seconds to Cohen's d</span></span>
-<span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">sd_pooled =</span> sd_pooled, <span class="at">delta_d =</span> delta_d)</span>
-<span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a>With $s_{\text{pooled}} \approx 1.77$, $\Delta = 2$ corresponds to $d \approx 1.13$. We can now test the interval null:</span>
+<span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a>We therefore need to divide the raw bound by the pooled standard deviation before passing it to <span class="in">`ttestBF`</span>:</span>
+<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(BayesFactor)</span>
+<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute pooled SD to standardize the 2-second bound</span></span>
+<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a>grp <span class="ot">&lt;-</span> <span class="fu">split</span>(mtcars<span class="sc">$</span>qsec, mtcars<span class="sc">$</span>am)</span>
+<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a>n1 <span class="ot">&lt;-</span> <span class="fu">length</span>(grp[[<span class="dv">1</span>]])</span>
+<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a>n2 <span class="ot">&lt;-</span> <span class="fu">length</span>(grp[[<span class="dv">2</span>]])</span>
+<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a>sd_pooled <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(((n1 <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">var</span>(grp[[<span class="dv">1</span>]]) <span class="sc">+</span> (n2 <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fu">var</span>(grp[[<span class="dv">2</span>]])) <span class="sc">/</span> (n1 <span class="sc">+</span> n2 <span class="sc">-</span> <span class="dv">2</span>))</span>
+<span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a>delta_d <span class="ot">&lt;-</span> <span class="dv">2</span> <span class="sc">/</span> sd_pooled  <span class="co"># convert +/- 2 seconds to Cohen's d</span></span>
+<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(<span class="at">sd_pooled =</span> sd_pooled, <span class="at">delta_d =</span> delta_d)</span>
+<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a><span class="fu">ttestBF</span>(<span class="at">formula =</span> qsec <span class="sc">~</span> am, <span class="at">data =</span> mtcars, <span class="at">nullInterval =</span> <span class="fu">c</span>(<span class="sc">-</span>delta_d, delta_d))</span>
-<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a>The Bayes factor is 0.98 for an effect inside $<span class="co">[</span><span class="ot">-\Delta, +\Delta</span><span class="co">]</span>$ relative to the point null and 0.022 for an effect outside it. Their ratio is about $45:1$ ($0.98 / 0.022 \approx 44.5$) in favor of the equivalence interval. This agrees with the TOST result.</span>
+<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a>With $s_{\text{pooled}} \approx 1.77$, $\Delta = 2$ corresponds to $d \approx 1.13$. We can now test the interval null:</span>
+<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a><span class="fu">ttestBF</span>(<span class="at">formula =</span> qsec <span class="sc">~</span> am, <span class="at">data =</span> mtcars, <span class="at">nullInterval =</span> <span class="fu">c</span>(<span class="sc">-</span>delta_d, delta_d))</span>
+<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a><span class="fu">## Choosing the equivalence bound</span></span>
+<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a>The Bayes factor is 0.98 for an effect inside $<span class="co">[</span><span class="ot">-\Delta, +\Delta</span><span class="co">]</span>$ relative to the point null and 0.022 for an effect outside it. Their ratio is about $45:1$ ($0.98 / 0.022 \approx 44.5$) in favor of the equivalence interval. The two analyses point the same way for this bound and this prior. They are not the same test and they answer different questions: TOST controls the rate at which equivalence is wrongly declared, while the Bayes factor weighs evidence for two regions under a prior we chose. Agreement here is a fact about this example, not a general correspondence.</span>
 <span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a>The data cannot choose $\Delta$ for us. It has to come from the application. We might use the smallest effect with a meaningful practical or economic consequence, or the smallest effect that would justify the cost of an intervention. Another option is Simonsohn's (2015) "small telescopes" benchmark: use the effect size that an earlier study had only 33% power to detect, denoted by $d_{33\%}$. The 33% refers to power, not to 33% of the original estimate; $d_{33\%}$ is a little more than half of $d_{80\%}$.</span>
+<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a><span class="fu">## Choosing the equivalence bound</span></span>
 <span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a><span class="fu">## What to report</span></span>
+<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a>The data cannot choose $\Delta$ for us. It has to come from the application. We might use the smallest effect with a meaningful practical or economic consequence, or the smallest effect that would justify the cost of an intervention. Another option is Simonsohn's (2015) "small telescopes" benchmark: use the effect size that an earlier study had only 33% power to detect, denoted by $d_{33\%}$. The 33% refers to power, not to 33% of the original estimate; $d_{33\%}$ is a little more than half of $d_{80\%}$.</span>
 <span id="cb11-113"><a href="#cb11-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a>A large $p$-value is not evidence of no effect. For TOST, report the point estimate, the pre-specified equivalence bound, the $(1 - 2\alpha)$ confidence interval, and the two test decisions. This gives readers enough information to see whether another reasonable choice of $\Delta$ would change the conclusion. For a Bayesian interval test, also check whether the software expects the bound in the original units or in standardized units.</span>
+<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a><span class="fu">## What to report</span></span>
+<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a>A large $p$-value is not evidence of no effect. For TOST, report the point estimate, the pre-specified equivalence bound, the $(1 - 2\alpha)$ confidence interval, and the two test decisions. This gives readers enough information to see whether another reasonable choice of $\Delta$ would change the conclusion. For a Bayesian interval test, also check whether the software expects the bound in the original units or in standardized units.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->

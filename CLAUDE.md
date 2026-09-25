@@ -605,3 +605,43 @@ which removed roughly 3,000 source lines.) The render also cleared 12 stale
 `_book/*_files/figure-pdf/*.pdf` intermediates left over from that earlier build; the live
 copies are under `_freeze/`, and the LaTeX log has no missing-figure or unresolved-reference
 warnings.
+
+
+## 2026-09-25 — Codex review pass: causal labels, g-formula assumptions, bounds
+
+Source: `../BOOK_REVIEW_20260925.md`. Prose-only; all chunk hashes unchanged.
+
+`gwg.qmd`: the chapter flagged selection into full-time work early, then asserted
+unconditional exchangeability because sex has no earlier common cause. It does not
+follow — the sample restriction is a collider, so exchangeability fails inside the
+analysed population. `reg1` is relabelled the raw gap among selected full-time
+workers rather than the total effect of a gender signal.
+
+`poisson-iv-fe.qmd`: testing `rho = 0` separated from inference on the corrected
+coefficient (the second-stage t on the residual is valid under the null, so the
+bootstrap is for the corrected coefficient). A point estimate with `p = 0.096` is
+no longer called "weak positive selection". The linear-residual CF is demoted from
+coequal sensitivity check to misspecified benchmark — for binary `D` it has no
+valid reduced-form assumption — and links to the guide's Poisson IV chapter.
+
+`g-estimation.qmd`: positivity now quantifies over every treatment value and every
+history of positive density, not just `A_0 = 1`. Consistency is written as an
+implication rather than a conditional equality. The identification chain names the
+assumption used at each equality instead of ending in "basically". The leftover
+"components in the g-estimation" corrected to the parametric g-formula.
+
+`equivalence-testing.qmd`: the `1-2alpha` statement no longer invites a probability
+reading of a frequentist interval. The interval Bayes factor's conditional priors
+are made explicit, and "agrees with TOST" narrowed to same direction for this bound
+and this prior.
+
+`likert-scale-variance.qmd`: Bhatia-Davis is a distributional bound. Enumerating
+all six-rater configurations on a 1-7 item, only 7 of 37 achievable means admit a
+configuration reaching it; the largest attainable `R` is 0.83 at mean 3.5, 0.45 at
+1.5, 0.14 at 7/6. So a subject-level `R` is measured against a ceiling the ratings
+could not reach, and the shortfall is itself mean-dependent.
+
+Raw source acknowledgments in `g-estimation.qmd` and `conjoint-analysis.qmd`
+replaced with proper attributions stating what was adapted.
+
+Rendered clean to HTML and PDF.
