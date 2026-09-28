@@ -645,3 +645,12 @@ Raw source acknowledgments in `g-estimation.qmd` and `conjoint-analysis.qmd`
 replaced with proper attributions stating what was adapted.
 
 Rendered clean to HTML and PDF.
+
+## 2026-09-28 — Reference-list leak from the book-level `nocite`
+
+The book-level `nocite` for the frozen conjoint chapter's two works appended
+Hainmueller (2014) and Kuhfeld (1994) to every chapter's own reference list. Removed.
+The two works now reach the References chapter through a sentence on that page, and the
+conjoint chapter lists them through a page-level `nocite` in its own front matter (which
+a full project render honours). Do not test this by `quarto render conjoint-analysis.qmd`:
+naming a frozen file explicitly executes it, and `radiant` is not installable.
