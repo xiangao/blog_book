@@ -126,6 +126,31 @@ try {
     window.localStorage.setItem("quarto-reader-mode", "false");
   }
 } catch (e) {}
+</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script><script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
 </script><link rel="stylesheet" href="style.css">
 </head>
 <body class="nav-sidebar floating quarto-light">
@@ -556,6 +581,7 @@ try {
   <li><a href="#conjoint-design-of-experiment" id="toc-conjoint-design-of-experiment" class="nav-link" data-scroll-target="#conjoint-design-of-experiment"><span class="header-section-number">38.3</span> Conjoint design of experiment</a></li>
   <li><a href="#conjoint-analysis-1" id="toc-conjoint-analysis-1" class="nav-link" data-scroll-target="#conjoint-analysis-1"><span class="header-section-number">38.4</span> Conjoint analysis</a></li>
   <li><a href="#causal-effect-in-conjoint-analysis" id="toc-causal-effect-in-conjoint-analysis" class="nav-link" data-scroll-target="#causal-effect-in-conjoint-analysis"><span class="header-section-number">38.5</span> Causal effect in conjoint analysis</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">38.6</span> Summary</a></li>
   </ul><div class="toc-actions"><ul><li><a href="https://github.com/xiangao/blog_book/edit/main/conjoint-analysis.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/xiangao/blog_book/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
     </div>
 <!-- main -->
@@ -602,273 +628,234 @@ try {
 <p>These product concepts are then included in a series of questions, usually 8-20, called choice tasks, that make up the conjoint analysis portion of the survey.”</p>
 </section><section id="example" class="level2" data-number="38.2"><h2 data-number="38.2" class="anchored" data-anchor-id="example">
 <span class="header-section-number">38.2</span> Example</h2>
-<p>I am following the example here: https://bookdown.org/lien_lamey/R_tutorial/8-1-data-5.html</p>
+<p>The example uses the tea data that ships with the <code>conjoint</code> package (Bak and Bartłomowicz). A hundred respondents rate 13 tea profiles on a scale from 0 to 10. Each profile combines four attributes: price (low, medium, high), variety (black, green, red), kind (bags, granulated, leafy) and aroma (yes, no).</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyverse.tidyverse.org">tidyverse</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://ycphs.github.io/openxlsx/index.html">openxlsx</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/packagesR/conjoint">conjoint</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">url</span> <span class="op">&lt;-</span> <span class="st">"https://feb.kuleuven.be/lien.lamey/public/rmodule/icecream.xlsx"</span></span>
-<span><span class="va">icecream</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/openxlsx/man/read.xlsx.html">read.xlsx</a></span><span class="op">(</span><span class="va">url</span><span class="op">)</span></span>
-<span><span class="va">icecream</span> <span class="op">&lt;-</span> <span class="va">icecream</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span> </span>
-<span>  <span class="fu"><a href="https://tidyr.tidyverse.org/reference/pivot_longer.html">pivot_longer</a></span><span class="op">(</span>cols <span class="op">=</span> <span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html">starts_with</a></span><span class="op">(</span><span class="st">"Individual"</span><span class="op">)</span>, names_to <span class="op">=</span> <span class="st">"respondent"</span>, values_to <span class="op">=</span> <span class="st">"rating"</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span> <span class="co"># respondent keeps track of the respondent, rating will store the respondent's ratings, and we want to stack every variable that starts with Individual</span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/rename.html">rename</a></span><span class="op">(</span><span class="st">"profile"</span> <span class="op">=</span> <span class="st">"Observations"</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html">%&gt;%</a></span> <span class="co"># rename Observations to profile</span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>profile <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">profile</span><span class="op">)</span>, respondent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">respondent</span><span class="op">)</span>,  <span class="co"># factorize identifiers</span></span>
-<span>         Flavor <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">Flavor</span><span class="op">)</span>, Packaging <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">Packaging</span><span class="op">)</span>, Light <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">Light</span><span class="op">)</span>, Organic <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">Organic</span><span class="op">)</span><span class="op">)</span> <span class="co"># factorize the ice cream attributes</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/data.html">data</a></span><span class="op">(</span><span class="va">tea</span><span class="op">)</span>   <span class="co"># tprof: the 13 profiles; tprefm: 100 x 13 ratings; tlevn: level names</span></span>
 <span></span>
-<span><span class="va">icecream</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span><span class="va">levels_list</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html">list</a></span><span class="op">(</span>price   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"low"</span>, <span class="st">"medium"</span>, <span class="st">"high"</span><span class="op">)</span>,</span>
+<span>                    variety <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"black"</span>, <span class="st">"green"</span>, <span class="st">"red"</span><span class="op">)</span>,</span>
+<span>                    kind    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"bags"</span>, <span class="st">"granulated"</span>, <span class="st">"leafy"</span><span class="op">)</span>,</span>
+<span>                    aroma   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"yes"</span>, <span class="st">"no"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">profiles</span> <span class="op">&lt;-</span> <span class="va">tprof</span></span>
+<span><span class="va">profiles</span><span class="op">[</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/funprog.html">Map</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">l</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">l</span><span class="op">[</span><span class="va">x</span><span class="op">]</span>, levels <span class="op">=</span> <span class="va">l</span><span class="op">)</span>, <span class="va">tprof</span>, <span class="va">levels_list</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">tea_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html">tibble</a></span><span class="op">(</span>respondent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">100</span>, each <span class="op">=</span> <span class="fl">13</span><span class="op">)</span>,</span>
+<span>                   profile    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">13</span>, times <span class="op">=</span> <span class="fl">100</span><span class="op">)</span>,</span>
+<span>                   rating     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html">as.vector</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html">t</a></span><span class="op">(</span><span class="va">tprefm</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_cols.html">bind_cols</a></span><span class="op">(</span><span class="va">profiles</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/rep.html">rep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">13</span>, times <span class="op">=</span> <span class="fl">100</span><span class="op">)</span>, <span class="op">]</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">tea_long</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 150 × 7
-   profile   Flavor    Packaging       Light      Organic     respondent  rating
-   &lt;fct&gt;     &lt;fct&gt;     &lt;fct&gt;           &lt;fct&gt;      &lt;fct&gt;       &lt;fct&gt;        &lt;dbl&gt;
- 1 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      1
- 2 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      6
- 3 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      5
- 4 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      1
- 5 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      2
- 6 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      7
- 7 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      7
- 8 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      5
- 9 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…      1
-10 Profile 1 Raspberry Homemade waffle No low fat Not organic Individual…     10
-# ℹ 140 more rows</code></pre>
+<pre><code># A tibble: 1,300 × 7
+   respondent profile rating price  variety kind       aroma
+ *      &lt;int&gt;   &lt;int&gt;  &lt;int&gt; &lt;fct&gt;  &lt;fct&gt;   &lt;fct&gt;      &lt;fct&gt;
+ 1          1       1      8 high   black   bags       yes  
+ 2          1       2      1 low    green   bags       yes  
+ 3          1       3      1 medium green   granulated yes  
+ 4          1       4      3 medium black   leafy      yes  
+ 5          1       5      9 high   red     leafy      yes  
+ 6          1       6      2 medium black   bags       no   
+ 7          1       7      7 high   green   bags       no   
+ 8          1       8      2 medium red     bags       no   
+ 9          1       9      2 high   black   granulated no   
+10          1      10      2 low    red     granulated no   
+# ℹ 1,290 more rows</code></pre>
 </div>
 </div>
-<p>In this example, we have 4 attributes: Flavor, Packaging, Light, and Organic. There are 5, 3, 2, 2 levels correspondingly. Usually we are interested in how much does each level of attributes predict the outcome, say the rating of the icecream. To do this, we would think we’ll need all 5<em>3</em>2*2=60 combinations of attribute levels to estimate the effect. In that case, we would need data for each combination. This is called full factorial design. The problem of full factorial design is that it might be too costly or not possible if the combination is huge. Instead, conjoint analysis allows us to estimate the effect of each level of each attribute by using a fraction of the combinations. This is done by creating a set of profiles, each of which contains a subset of the levels of the attributes. The profiles are then presented to the respondents, who rate the profiles. The ratings are then used to estimate the effect of each level of each attribute. This is done by regressing the ratings on the levels of the attributes. The coefficients of the regression are the estimates of the effects of the levels of the attributes.</p>
-<p>The disadvantage of a fractional factorial design is that some effects are confounded; that is, the effect of one level of an attribute is confounded with the effect of another level of another attribute.</p>
-<div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># attribute1, attribute2, etc. are vectors with one element in which we first provide the name of the attribute followed by a semi-colon and then provide all the levels of the attributes separated by semi-colons</span></span>
-<span><span class="va">attribute1</span> <span class="op">&lt;-</span> <span class="st">"Flavor; Raspberry; Chocolate; Strawberry; Mango; Vanilla"</span></span>
-<span><span class="va">attribute2</span> <span class="op">&lt;-</span> <span class="st">"Package; Homemade waffle; Cone; Pint"</span></span>
-<span><span class="va">attribute3</span> <span class="op">&lt;-</span> <span class="st">"Light; Low fat; No low fat"</span></span>
-<span><span class="va">attribute4</span> <span class="op">&lt;-</span> <span class="st">"Organic; Organic; Not organic"</span></span>
-<span></span>
-<span><span class="co"># now combine these different attributes into one vector with c()</span></span>
-<span><span class="va">attributes</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="va">attribute1</span>, <span class="va">attribute2</span>, <span class="va">attribute3</span>, <span class="va">attribute4</span><span class="op">)</span></span>
-<span><span class="va">attributes</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details><div class="cell-output cell-output-stdout">
-<pre><code>[1] "Flavor; Raspberry; Chocolate; Strawberry; Mango; Vanilla"
-[2] "Package; Homemade waffle; Cone; Pint"                    
-[3] "Light; Low fat; No low fat"                              
-[4] "Organic; Organic; Not organic"                           </code></pre>
-</div>
-</div>
+<p>The data are 1,300 rows, 100 respondents times 13 profiles.</p>
 </section><section id="conjoint-design-of-experiment" class="level2" data-number="38.3"><h2 data-number="38.3" class="anchored" data-anchor-id="conjoint-design-of-experiment">
 <span class="header-section-number">38.3</span> Conjoint design of experiment</h2>
-<p>The first step in conjoint analysis is to create a design of experiment. This is to use a fraction of all possible combinations of attribute levels to estimate the effect of each level of each attribute. For example, instead of using all 60 icecream profiles, we use 10 profiles.</p>
-<p>We use “radiant” package’s “doe” function to create the design of experiment. The “doe” function takes the attributes as input and returns a data frame with the profiles. The “seed” argument is used to fix the random number generator. This is useful if you want to reproduce the same results.</p>
+<p>With three, three, three and two levels, the full factorial has <span class="math inline">\(3 \times 3 \times 3 \times 2 = 54\)</span> profiles. Asking every respondent to rate 54 teas is too much, so a conjoint study shows a fraction of them. The question is which fraction. A good design lets us estimate the effect of every attribute level, with little correlation between the attributes.</p>
+<p><code>AlgDesign</code> searches for such designs. <code><a href="https://rdrr.io/pkg/AlgDesign/man/Federov.html">optFederov()</a></code> picks the subset of the full factorial that maximizes the determinant of the information matrix for a main-effects model, the D-optimality criterion. A main-effects model here has 8 parameters, an intercept plus <span class="math inline">\(2 + 2 + 2 + 1\)</span> level contrasts, so a design needs at least 8 profiles. We search for designs of several sizes and report their D-efficiency <span class="citation" data-cites="kuhfeld-1994">(<a href="references.html#ref-kuhfeld-1994" role="doc-biblioref">Kuhfeld, Tobias, and Garratt 1994</a>)</span> and whether every level appears equally often.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/radiant-rstats/radiant">radiant</a></span><span class="op">)</span></span>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/jvbraun/AlgDesign">AlgDesign</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">ice_doe</span> <span class="op">&lt;-</span> <span class="fu">doe</span><span class="op">(</span><span class="va">attributes</span>, seed <span class="op">=</span> <span class="fl">123</span><span class="op">)</span></span>
-<span><span class="va">ice_doe</span><span class="op">$</span><span class="va">eff</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span><span class="va">full</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/expand.grid.html">expand.grid</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html">lapply</a></span><span class="op">(</span><span class="va">levels_list</span>, <span class="va">factor</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span>
+<span><span class="va">designs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html">map</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">9</span>, <span class="fl">12</span>, <span class="fl">13</span>, <span class="fl">18</span>, <span class="fl">27</span>, <span class="fl">54</span><span class="op">)</span>,</span>
+<span>               \<span class="op">(</span><span class="va">n</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/pkg/AlgDesign/man/Federov.html">optFederov</a></span><span class="op">(</span><span class="op">~</span> <span class="va">.</span>, data <span class="op">=</span> <span class="va">full</span>, nTrials <span class="op">=</span> <span class="va">n</span>, criterion <span class="op">=</span> <span class="st">"D"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html">tibble</a></span><span class="op">(</span>trials       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">9</span>, <span class="fl">12</span>, <span class="fl">13</span>, <span class="fl">18</span>, <span class="fl">27</span>, <span class="fl">54</span><span class="op">)</span>,</span>
+<span>       D_efficiency <span class="op">=</span> <span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html">map_dbl</a></span><span class="op">(</span><span class="va">designs</span>, <span class="st">"Dea"</span><span class="op">)</span>,</span>
+<span>       balanced     <span class="op">=</span> <span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html">map_lgl</a></span><span class="op">(</span><span class="va">designs</span>, \<span class="op">(</span><span class="va">d</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/all.html">all</a></span><span class="op">(</span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html">map_lgl</a></span><span class="op">(</span><span class="va">d</span><span class="op">$</span><span class="va">design</span>,</span>
+<span>                                     \<span class="op">(</span><span class="va">f</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html">unique</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html">table</a></span><span class="op">(</span><span class="va">f</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>   Trials D-efficiency Balanced
-1       9        0.105    FALSE
-2      10        0.389    FALSE
-3      11        0.411    FALSE
-4      12        0.614    FALSE
-5      13        0.542    FALSE
-6      14        0.479    FALSE
-7      15        0.762    FALSE
-8      16        0.738    FALSE
-9      17        0.748    FALSE
-10     18        0.756    FALSE
-11     19        0.644    FALSE
-12     20        0.895    FALSE
-13     21        0.848    FALSE
-14     22        0.833    FALSE
-15     23        0.790    FALSE
-16     24        0.827    FALSE
-17     25        0.787    FALSE
-18     26        0.768    FALSE
-19     27        0.759    FALSE
-20     28        0.736    FALSE
-21     29        0.702    FALSE
-22     30        0.984     TRUE
-23     31        0.952    FALSE
-24     32        0.933    FALSE
-25     33        0.928    FALSE
-26     34        0.900    FALSE
-27     35        0.871    FALSE
-28     36        0.893    FALSE
-29     37        0.866    FALSE
-30     38        0.843    FALSE
-31     39        0.836    FALSE
-32     40        0.922    FALSE
-33     41        0.899    FALSE
-34     42        0.904    FALSE
-35     43        0.882    FALSE
-36     44        0.861    FALSE
-37     45        0.949    FALSE
-38     46        0.919    FALSE
-39     47        0.912    FALSE
-40     48        0.911    FALSE
-41     49        0.891    FALSE
-42     50        0.959    FALSE
-43     51        0.939    FALSE
-44     52        0.944    FALSE
-45     53        0.925    FALSE
-46     54        0.924    FALSE
-47     55        0.906    FALSE
-48     56        0.902    FALSE
-49     57        0.884    FALSE
-50     58        0.872    FALSE
-51     59        0.855    FALSE
-52     60        1.000     TRUE</code></pre>
+<pre><code># A tibble: 6 × 3
+  trials D_efficiency balanced
+   &lt;dbl&gt;        &lt;dbl&gt; &lt;lgl&gt;   
+1      9        0.146 FALSE   
+2     12        0.779 TRUE    
+3     13        0.67  FALSE   
+4     18        1     TRUE    
+5     27        0.969 FALSE   
+6     54        1     TRUE    </code></pre>
 </div>
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co">#summary(doe(attributes, seed = 123, trials = 10))</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</details>
 </div>
-<p>This is a list of efficiency of different number of “trials”. Trials mean combinations of attribute levels. For example, with 10 trials, the efficiency is .389 and it’s unbalanced.</p>
-<p>We can see that the only two designs with balanced design are 30 and 60. That’s because 30 and 60 are the only two numbers that can be divided by 5, 3 and 2, all unique number of 5, 3, 3, 2. If the factors are, say, 3, 2, 3. Then the integers that can be divided by 3 and 2 are 6, 12, and 18.</p>
-<p>Efficiency is a measure of the information content a design can capture. Efficiency are typically stated in relative terms, as in “design A is 80% as efficient as design B.” In practical terms this means you will need 25% more (the reciprocal of 80%) design A observations (respondents, choice sets per respondent or a combination of both) to get the same standard errors and significance as with the more efficient design B. We used a measure of efficiency called D-Efficiency (Kuhfeld et al.&nbsp;1994). In this case, the only orthogonal design is the full factorial design of 60 trials.</p>
-<p>For example, a trial of 30 has a efficiency of .984, that means it’s 98.4% as efficient as the full factorial design of 60 trials.</p>
+<p>D-efficiency measures how much information a design carries per profile, relative to an ideal orthogonal design. A design with efficiency 0.8 needs about 25% more observations to give the same standard errors as one with efficiency 1. Balance requires a number of profiles divisible by 3 and by 2. Among these sizes, only 12, 18 and 54 are balanced. The 18-profile design reaches an efficiency of 1: it is an orthogonal main-effects design, a third of the full factorial with nothing lost for a main-effects model.</p>
+<p>The tea study used 13 profiles. That number cannot be balanced, and the design shows it.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/radiant-rstats/radiant">radiant</a></span><span class="op">)</span></span>
-<span><span class="va">ice_doe2</span> <span class="op">&lt;-</span> <span class="fu">doe</span><span class="op">(</span><span class="va">attributes</span>, seed <span class="op">=</span> <span class="fl">123</span>, trials <span class="op">=</span> <span class="fl">30</span><span class="op">)</span></span>
-<span><span class="va">ice_doe2</span><span class="op">$</span><span class="va">cor_mat</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html">map</a></span><span class="op">(</span><span class="va">profiles</span>, <span class="va">table</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>               Flavor       Package         Light       Organic
-Flavor   1.000000e+00 -1.942890e-16 -1.665335e-16 -1.665335e-16
-Package -1.942890e-16  1.000000e+00 -1.665335e-16 -1.665335e-16
-Light   -1.665335e-16 -1.665335e-16  1.000000e+00 -1.045299e-01
-Organic -1.665335e-16 -1.665335e-16 -1.045299e-01  1.000000e+00</code></pre>
+<pre><code>$price
+
+   low medium   high 
+     3      5      5 
+
+$variety
+
+black green   red 
+    5     5     3 
+
+$kind
+
+      bags granulated      leafy 
+         5          3          5 
+
+$aroma
+
+yes  no 
+  5   8 </code></pre>
 </div>
-</div>
-<p>From the covariance matrix, we can se that in this 30 profile design, there is a correlation of -.105 between “Light” and “Organic”. That means these two effects are confounded; the design is not orthogonal. That’s why the efficiency is not 1. The D-efficiency is calculated as a function of the determinant of the correlation matrix. The D-efficiency of the full factorial design is 1. The D-efficiency of the 30 profile design is .984. That means the 30 profile design is 98.4% as efficient as the full factorial design.</p>
-<p>The partial factorial design of 30 profile is</p>
-<div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">ice_doe2</span><span class="op">$</span><span class="va">part</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">X</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/model.matrix.html">model.matrix</a></span><span class="op">(</span><span class="op">~</span> <span class="va">price</span> <span class="op">+</span> <span class="va">variety</span> <span class="op">+</span> <span class="va">kind</span> <span class="op">+</span> <span class="va">aroma</span>, <span class="va">profiles</span><span class="op">)</span><span class="op">[</span>, <span class="op">-</span><span class="fl">1</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/cor.html">cor</a></span><span class="op">(</span><span class="va">X</span><span class="op">)</span>, <span class="fl">2</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>   trial     Flavor         Package      Light     Organic
-1      1  Raspberry Homemade_waffle    Low_fat     Organic
-2      4  Raspberry Homemade_waffle No_low_fat Not_organic
-3      6  Raspberry            Cone    Low_fat Not_organic
-4      7  Raspberry            Cone No_low_fat     Organic
-5     10  Raspberry            Pint    Low_fat Not_organic
-6     11  Raspberry            Pint No_low_fat     Organic
-7     13  Chocolate Homemade_waffle    Low_fat     Organic
-8     14  Chocolate Homemade_waffle    Low_fat Not_organic
-9     19  Chocolate            Cone No_low_fat     Organic
-10    20  Chocolate            Cone No_low_fat Not_organic
-11    22  Chocolate            Pint    Low_fat Not_organic
-12    23  Chocolate            Pint No_low_fat     Organic
-13    26 Strawberry Homemade_waffle    Low_fat Not_organic
-14    28 Strawberry Homemade_waffle No_low_fat Not_organic
-15    29 Strawberry            Cone    Low_fat     Organic
-16    32 Strawberry            Cone No_low_fat Not_organic
-17    33 Strawberry            Pint    Low_fat     Organic
-18    35 Strawberry            Pint No_low_fat     Organic
-19    39      Mango Homemade_waffle No_low_fat     Organic
-20    40      Mango Homemade_waffle No_low_fat Not_organic
-21    41      Mango            Cone    Low_fat     Organic
-22    42      Mango            Cone    Low_fat Not_organic
-23    46      Mango            Pint    Low_fat Not_organic
-24    47      Mango            Pint No_low_fat     Organic
-25    49    Vanilla Homemade_waffle    Low_fat     Organic
-26    51    Vanilla Homemade_waffle No_low_fat     Organic
-27    53    Vanilla            Cone    Low_fat     Organic
-28    56    Vanilla            Cone No_low_fat Not_organic
-29    58    Vanilla            Pint    Low_fat Not_organic
-30    60    Vanilla            Pint No_low_fat Not_organic</code></pre>
+<pre><code>               pricemedium pricehigh varietygreen varietyred kindgranulated
+pricemedium           1.00     -0.62         0.02      -0.06          -0.06
+pricehigh            -0.62      1.00         0.02      -0.06          -0.06
+varietygreen          0.02      0.02         1.00      -0.43          -0.06
+varietyred           -0.06     -0.06        -0.43       1.00           0.13
+kindgranulated       -0.06     -0.06        -0.06       0.13           1.00
+kindleafy             0.02      0.02         0.02      -0.06          -0.43
+aromano              -0.02     -0.02        -0.02       0.06           0.06
+               kindleafy aromano
+pricemedium         0.02   -0.02
+pricehigh           0.02   -0.02
+varietygreen        0.02   -0.02
+varietyred         -0.06    0.06
+kindgranulated     -0.43    0.06
+kindleafy           1.00   -0.02
+aromano            -0.02    1.00</code></pre>
 </div>
 </div>
+<p>Low price and red variety appear 3 times, while other levels appear 5 times, and aroma is “no” in 8 of the 13 profiles. The correlations between dummies of the <em>same</em> attribute, such as <span class="math inline">\(-0.62\)</span> for medium and high price, come from the coding and are expected. What matters is the correlation <em>between</em> attributes, and it stays small: the largest is 0.13, between red variety and granulated kind. The attributes are close to independent, so each attribute’s effect can be estimated without much contamination from the others.</p>
 </section><section id="conjoint-analysis-1" class="level2" data-number="38.4"><h2 data-number="38.4" class="anchored" data-anchor-id="conjoint-analysis-1">
 <span class="header-section-number">38.4</span> Conjoint analysis</h2>
-<p>In the icecream data set we read in, it’s a 10 profile design. There are 15 respondents. They rate 10 profiles of icecreams.</p>
+<p>The part-worths are the coefficients of a regression of the rating on attribute dummies. Each respondent rates 13 profiles, so the ratings are clustered by respondent, and the standard errors have to allow for that.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">conjoint</span> <span class="op">&lt;-</span> <span class="fu">conjoint</span><span class="op">(</span><span class="va">icecream</span>, rvar <span class="op">=</span> <span class="st">"rating"</span>, evar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">"Flavor"</span>,<span class="st">"Packaging"</span>,<span class="st">"Light"</span>,<span class="st">"Organic"</span><span class="op">)</span><span class="op">)</span> </span>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://zeileis.codeberg.page/sandwich/">sandwich</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">lmtest</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="va">conjoint</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span><span class="va">partworths_lm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">rating</span> <span class="op">~</span> <span class="va">price</span> <span class="op">+</span> <span class="va">variety</span> <span class="op">+</span> <span class="va">kind</span> <span class="op">+</span> <span class="va">aroma</span>, data <span class="op">=</span> <span class="va">tea_long</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/lmtest/man/coeftest.html">coeftest</a></span><span class="op">(</span><span class="va">partworths_lm</span>, vcov <span class="op">=</span> <span class="fu"><a href="https://zeileis.codeberg.page/sandwich/reference/vcovCL.html">vcovCL</a></span><span class="op">(</span><span class="va">partworths_lm</span>, cluster <span class="op">=</span> <span class="op">~</span> <span class="va">respondent</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>Conjoint analysis
-Data                 : icecream 
-Response variable    : rating 
-Explanatory variables: Flavor, Packaging, Light, Organic 
+<pre><code>
+t test of coefficients:
 
-Conjoint part-worths:
-   Attributes          Levels     PW
- Flavor       Chocolate        0.000
- Flavor       Mango            1.522
- Flavor       Raspberry        0.522
- Flavor       Strawberry       0.767
- Flavor       Vanilla          1.389
- Packaging    Cone             0.000
- Packaging    Homemade waffle -0.244
- Packaging    Pint            -0.100
- Light        Low fat          0.000
- Light        No low fat       0.478
- Organic      Not organic      0.000
- Organic      Organic          0.307
- Base utility ~                4.358
-
-Conjoint importance weights:
- Attributes    IW
-  Flavor    0.597
-  Packaging 0.096
-  Light     0.187
-  Organic   0.120
-
-Conjoint regression results:
-
-                           coefficient
- (Intercept)                     4.358
- Flavor|Mango                    1.522
- Flavor|Raspberry                0.522
- Flavor|Strawberry               0.767
- Flavor|Vanilla                  1.389
- Packaging|Homemade waffle      -0.244
- Packaging|Pint                 -0.100
- Light|No low fat                0.478
- Organic|Organic                 0.307</code></pre>
+               Estimate Std. Error t value  Pr(&gt;|t|)    
+(Intercept)     4.95614    0.25090 19.7538 &lt; 2.2e-16 ***
+pricemedium    -0.38334    0.18135 -2.1139  0.034717 *  
+pricehigh      -0.33734    0.23621 -1.4282  0.153483    
+varietygreen   -0.58000    0.25521 -2.2727  0.023210 *  
+varietyred     -1.26466    0.25189 -5.0206 5.870e-07 ***
+kindgranulated -1.02666    0.10561 -9.7216 &lt; 2.2e-16 ***
+kindleafy       0.61600    0.22559  2.7306  0.006407 ** 
+aromano        -0.82155    0.17027 -4.8250 1.567e-06 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 </div>
 </div>
+<p>The baseline profile is low-priced black tea in bags with aroma. Relative to it, red tea lowers the rating by 1.26 points and green tea by 0.58. Granulated tea lowers it by 1.03, while leafy tea raises it by 0.62. Tea without aroma is rated 0.82 lower. Price matters least: medium and high prices lower the rating by about 0.35, and only the medium-price contrast is significant at 5%.</p>
+<p>Conjoint software usually reports part-worths in effect coding, where the part-worths of each attribute sum to zero. They are the same coefficients, re-centred within each attribute. The importance of an attribute is the range of its part-worths as a share of the sum of the ranges.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html">plot</a></span><span class="op">(</span><span class="va">conjoint</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">part_worths</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://purrr.tidyverse.org/reference/map_dfr.html">imap_dfr</a></span><span class="op">(</span><span class="va">levels_list</span>, \<span class="op">(</span><span class="va">lv</span>, <span class="va">attr</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">b</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fu"><a href="https://rdrr.io/r/stats/coef.html">coef</a></span><span class="op">(</span><span class="va">partworths_lm</span><span class="op">)</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html">paste0</a></span><span class="op">(</span><span class="va">attr</span>, <span class="va">lv</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html">tibble</a></span><span class="op">(</span>attribute <span class="op">=</span> <span class="va">attr</span>, level <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html">factor</a></span><span class="op">(</span><span class="va">lv</span>, levels <span class="op">=</span> <span class="va">lv</span><span class="op">)</span>, part_worth <span class="op">=</span> <span class="va">b</span> <span class="op">-</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html">mean</a></span><span class="op">(</span><span class="va">b</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">importance</span> <span class="op">&lt;-</span> <span class="va">part_worths</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html">group_by</a></span><span class="op">(</span><span class="va">attribute</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html">summarise</a></span><span class="op">(</span>range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/diff.html">diff</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/range.html">range</a></span><span class="op">(</span><span class="va">part_worth</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html">mutate</a></span><span class="op">(</span>importance <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="fl">100</span> <span class="op">*</span> <span class="va">range</span> <span class="op">/</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html">sum</a></span><span class="op">(</span><span class="va">range</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">importance</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details><div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 3
+  attribute range importance
+  &lt;chr&gt;     &lt;dbl&gt;      &lt;dbl&gt;
+1 aroma     0.822       20  
+2 kind      1.64        39.9
+3 price     0.383        9.3
+4 variety   1.26        30.8</code></pre>
+</div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html">ggplot</a></span><span class="op">(</span><span class="va">part_worths</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html">aes</a></span><span class="op">(</span><span class="va">level</span>, <span class="va">part_worth</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_bar.html">geom_col</a></span><span class="op">(</span>fill <span class="op">=</span> <span class="st">"darkcyan"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_abline.html">geom_hline</a></span><span class="op">(</span>yintercept <span class="op">=</span> <span class="fl">0</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html">facet_wrap</a></span><span class="op">(</span><span class="op">~</span> <span class="va">attribute</span>, scales <span class="op">=</span> <span class="st">"free_x"</span>, nrow <span class="op">=</span> <span class="fl">1</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="cn">NULL</span>, y <span class="op">=</span> <span class="st">"Part-worth"</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggtheme.html">theme_bw</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output-display">
 <div>
-<figure class="figure"><p><img src="conjoint-analysis_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="672"></p>
+<figure class="figure"><p><img src="conjoint-analysis_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="768"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>The partworths are just coefficient from a linear regression:</p>
+<p>Kind is the most important attribute, with 39.9% of the total range, followed by variety with 30.8%, aroma with 20.0% and price with 9.3%.</p>
+<p>The <code>conjoint</code> package computes the same quantities. Its pooled part-worths match ours exactly. Its importance figures do not, and the reason is worth knowing. <code><a href="https://rdrr.io/pkg/conjoint/man/caImportance.html">caImportance()</a></code> computes each respondent’s importance from that respondent’s own part-worths, and then averages across respondents. Individual part-worths from 13 ratings are noisy, and noise widens every attribute’s range, so the averaged importance spreads more evenly across attributes than the pooled figure.</p>
 <div class="cell">
-<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/lm.html">lm</a></span><span class="op">(</span><span class="va">rating</span> <span class="op">~</span> <span class="va">Flavor</span> <span class="op">+</span> <span class="va">Packaging</span> <span class="op">+</span> <span class="va">Light</span> <span class="op">+</span> <span class="va">Organic</span>, data <span class="op">=</span> <span class="va">icecream</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co"># conjoint's functions switch R to sum-to-zero contrasts globally and do not</span></span>
+<span><span class="co"># switch back, which would break every later regression; save and restore.</span></span>
+<span><span class="va">op</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html">options</a></span><span class="op">(</span><span class="st">"contrasts"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html">invisible</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html">capture.output</a></span><span class="op">(</span><span class="va">pooled</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/conjoint/man/caUtilities.html">caUtilities</a></span><span class="op">(</span>y <span class="op">=</span> <span class="va">tprefm</span>, x <span class="op">=</span> <span class="va">tprof</span>, z <span class="op">=</span> <span class="va">tlevn</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/invisible.html">invisible</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/utils/capture.output.html">capture.output</a></span><span class="op">(</span><span class="va">imp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/conjoint/man/caImportance.html">caImportance</a></span><span class="op">(</span>y <span class="op">=</span> <span class="va">tprefm</span>, x <span class="op">=</span> <span class="va">tprof</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/options.html">options</a></span><span class="op">(</span><span class="va">op</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="va">pooled</span>, <span class="fl">3</span><span class="op">)</span>                      <span class="co"># intercept, then effect-coded part-worths</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details><div class="cell-output cell-output-stdout">
-<pre><code>
-Call:
-lm(formula = rating ~ Flavor + Packaging + Light + Organic, data = icecream)
-
-Residuals:
-    Min      1Q  Median      3Q     Max 
--5.2867 -2.2244 -0.1911  2.3128  5.4089 
-
-Coefficients:
-                         Estimate Std. Error t value Pr(&gt;|t|)    
-(Intercept)                4.3578     0.8172   5.332 3.76e-07 ***
-FlavorMango                1.5222     0.9453   1.610    0.110    
-FlavorRaspberry            0.5222     0.9453   0.552    0.582    
-FlavorStrawberry           0.7667     0.8399   0.913    0.363    
-FlavorVanilla              1.3889     0.9453   1.469    0.144    
-PackagingHomemade waffle  -0.2444     0.8675  -0.282    0.779    
-PackagingPint             -0.1000     0.8399  -0.119    0.905    
-LightNo low fat            0.4778     0.5738   0.833    0.406    
-OrganicOrganic             0.3067     0.4751   0.645    0.520    
----
-Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-
-Residual standard error: 2.91 on 141 degrees of freedom
-Multiple R-squared:  0.03541,   Adjusted R-squared:  -0.01932 
-F-statistic: 0.6469 on 8 and 141 DF,  p-value: 0.7371</code></pre>
+<pre><code> [1]  3.553  0.240 -0.143 -0.097  0.615  0.035 -0.650  0.137 -0.890  0.753
+[11]  0.411 -0.411</code></pre>
+</div>
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/stats/setNames.html">setNames</a></span><span class="op">(</span><span class="va">imp</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html">names</a></span><span class="op">(</span><span class="va">levels_list</span><span class="op">)</span><span class="op">)</span>     <span class="co"># averaged over respondents</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details><div class="cell-output cell-output-stdout">
+<pre><code>  price variety    kind   aroma 
+  24.76   32.22   27.15   15.88 </code></pre>
 </div>
 </div>
-<p>The conjoint importance weights are the relative importance of each attribute. First the range of partworths for each attribute is calculated. Then the range of partworths for each attribute is divided by the sum of the ranges of all attributes. In this example, Flavor is the most important attribute, with an importance weight of .597.</p>
-<p>There is another package called “conjoint” which I have not played with.</p>
-<p>In summary, we can use R packages to set up a conjoint experiment, in the sense that we can have partial (fractional) factorial design. After collecting the data, we can use either the conjoint packages, or just run linear or logit models to analyze it. The frequentist approach used in conjoint analysis seems nothing special. Bayesian approach can also be used, but that’s another topic.</p>
+<p>The averaged importances are 24.8 for price, 32.2 for variety, 27.2 for kind and 15.9 for aroma. Price moves from least important to second. The two figures answer different questions. The pooled range describes the average respondent. The averaged importance describes how much each attribute matters within a respondent, and it is inflated by sampling noise in the individual fits.</p>
 </section><section id="causal-effect-in-conjoint-analysis" class="level2" data-number="38.5"><h2 data-number="38.5" class="anchored" data-anchor-id="causal-effect-in-conjoint-analysis">
 <span class="header-section-number">38.5</span> Causal effect in conjoint analysis</h2>
-<p>Hainmueller, Hopkins, and Yamamoto (2014) defined ACME (average marginal component effect). The basic idea is that once all the assumptions are met (usual assumptions in causal inference), we can have the effect of changing one attribute level to another with a causal interpretation. Fortunately it is usually just coefficients from a linear model, or linear combinations of the coefficients. There is a package “cregg” for each calculation and plotting of ACME, but we can just do it manually.</p>
+<p><span class="citation" data-cites="hainmueller-2014">Hainmueller, Hopkins, and Yamamoto (<a href="references.html#ref-hainmueller-2014" role="doc-biblioref">2014</a>)</span> define the average marginal component effect (AMCE): the average change in the outcome when one attribute moves from one level to another, averaged over the distribution of the other attributes. It is not to be confused with the ACME, the average causal mediation effect of Imai et al.&nbsp;When the attribute levels are randomized independently of each other and of the respondents, the AMCE is identified, and it is estimated by the coefficients of a regression of the outcome on the attribute dummies. Standard errors are clustered by respondent. The <code>cjoint</code> package implements it.</p>
+<div class="cell">
+<details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va">cjoint</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">amce_fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/cjoint/man/amce.html">amce</a></span><span class="op">(</span><span class="va">rating</span> <span class="op">~</span> <span class="va">price</span> <span class="op">+</span> <span class="va">variety</span> <span class="op">+</span> <span class="va">kind</span> <span class="op">+</span> <span class="va">aroma</span>, data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html">as.data.frame</a></span><span class="op">(</span><span class="va">tea_long</span><span class="op">)</span>,</span>
+<span>                 cluster <span class="op">=</span> <span class="cn">TRUE</span>, respondent.id <span class="op">=</span> <span class="st">"respondent"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://purrr.tidyverse.org/reference/map_dfr.html">imap_dfr</a></span><span class="op">(</span><span class="va">amce_fit</span><span class="op">$</span><span class="va">estimates</span>, \<span class="op">(</span><span class="va">m</span>, <span class="va">attr</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html">tibble</a></span><span class="op">(</span>attribute <span class="op">=</span> <span class="va">attr</span>, level <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/colnames.html">colnames</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span>,</span>
+<span>         amce <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="va">m</span><span class="op">[</span><span class="st">"AMCE"</span>, <span class="op">]</span>, <span class="fl">3</span><span class="op">)</span>, se <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html">round</a></span><span class="op">(</span><span class="va">m</span><span class="op">[</span><span class="st">"Std. Error"</span>, <span class="op">]</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details><div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 7 × 4
+  attribute level            amce    se
+  &lt;chr&gt;     &lt;chr&gt;           &lt;dbl&gt; &lt;dbl&gt;
+1 aroma     aromano        -0.822 0.17 
+2 kind      kindgranulated -1.03  0.106
+3 kind      kindleafy       0.616 0.226
+4 price     pricemedium    -0.383 0.181
+5 price     pricehigh      -0.337 0.236
+6 variety   varietygreen   -0.58  0.255
+7 variety   varietyred     -1.26  0.252</code></pre>
+</div>
+</div>
+<p>The AMCEs are exactly the part-worth coefficients above, with the same clustered standard errors. The tea profiles were not randomized; they are a fixed 13-profile design. The attributes in it are close to independent, which is why the regression coefficients still read as average effects of each attribute. The causal reading also needs the ratings to reflect the attributes shown and nothing else about the profile, and it holds only for the population of profiles the design represents.</p>
+</section><section id="summary" class="level2" data-number="38.6"><h2 data-number="38.6" class="anchored" data-anchor-id="summary">
+<span class="header-section-number">38.6</span> Summary</h2>
+<p>A conjoint study asks respondents to rate or choose among product profiles whose attributes vary by design. The full factorial is usually too long, so we use a fraction chosen for D-efficiency and balance. For the tea attributes, an 18-profile design is fully efficient and balanced. The study’s own 13 profiles cannot be balanced, but the correlations between attributes stay below 0.13.</p>
+<p>The analysis is a regression of the ratings on attribute dummies, with standard errors clustered by respondent. The coefficients are the part-worths. Kind and variety matter most, and price least. Importance from the pooled part-worths differs from <code>conjoint</code>’s average of individual importances, because individual fits are noisy. When attribute levels are independent, the same coefficients are Hainmueller et al.’s average marginal component effects, which <code>cjoint</code> reproduces.</p>
 
 
 <!-- -->
@@ -1342,220 +1329,263 @@ Kuhfeld, Warren F., Randall D. Tobias, and Mark Garratt. 1994. <span>“Efficien
       </a>
   </div>
 </nav><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Conjoint design and analysis using R"</span></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2024-08-08"</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">  freeze: true   # radiant is not installable on current R; always use the frozen output</span></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co"># A frozen chapter does not build its own reference list from its citations; name</span></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># them so the list at the foot of this page is complete.</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="an">nocite:</span><span class="co"> |</span></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co">  @hainmueller-2014, @kuhfeld-1994</span></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>This post is to illustrate how to use R to do basic conjoint analysis.  </span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conjoint Analysis</span></span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>Marketing people used to use Sawtooth to do conjoint analysis.</span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>What is conjoint analysis?  Here is the intro from Sawtooth:</span>
-<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>"Conjoint analysis methods use statistical analysis to compute mathematical representations of survey respondents’ preferences for product features, simulate how attribute changes affect demand, and even predict market acceptance of new products before they launch.</span>
-<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>This powerful research methodology has become very popular with market researchers and economists for the valuable insight that few other research methods can provide."</span>
-<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>"Consider the task of purchasing a new vehicle.</span>
-<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>When searching for the “right” vehicle, you typically consider a multitude of variables: type, make (brand), model, year, mileage, price, color, accessories packages, etc. You can see how this is a complex choice to make.</span>
-<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>How does anyone possibly make such a complicated decision?</span>
-<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>You think about what features matter most to you and then make tradeoffs.</span>
-<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>For example, one vehicle could be an acceptable make and model, but at a high price point, whereas a second option is not the ideal make and model but has a more palatable price.</span>
-<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>The tradeoff in this simple example is whether the make and model is more preferable to a reasonable price, or vice versa.</span>
-<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>A conjoint survey captures the relationship between different attributes of a product and how preferable they are both comparatively and when combined.</span>
-<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>Because of this, conjoint analysis is the gold standard solution for testing multiple features simultaneously, when limited A/B testing doesn’t go far enough."</span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>"In simple terms, the conjoint survey design algorithm generates a balanced survey design with product profiles, also known as concepts, formulated to have ideal statistical properties (such as level balance and independence of attributes).</span>
-<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>Each profile is made up of multiple conjoined product features (hence, conjoint analysis), such as brand, type, engine, and color, each with systematically varied levels.</span>
-<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>These product concepts are then included in a series of questions, usually 8-20, called choice tasks, that make up the conjoint analysis portion of the survey."</span>
-<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
-<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>The example below is adapted from Lien Lamey's R tutorial, [*Conjoint</span>
-<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>analysis*](https://bookdown.org/lien_lamey/R_tutorial/8-1-data-5.html). The</span>
-<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>design and the ratings data are hers; the analysis and discussion are mine.</span>
-<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(openxlsx)</span>
-<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">NOTE</span><span class="co">: this URL now returns HTTP 401 (the host requires authentication), so this</span></span>
-<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a><span class="co"># chunk cannot be re-executed as written -- the chapter renders from a frozen</span></span>
-<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a><span class="co"># result. Substitute a local copy of the ice-cream data to run it again.</span></span>
-<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a>url <span class="ot">&lt;-</span> <span class="st">"https://feb.kuleuven.be/lien.lamey/public/rmodule/icecream.xlsx"</span></span>
-<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a>icecream <span class="ot">&lt;-</span> <span class="fu">read.xlsx</span>(url)</span>
-<span id="cb17-72"><a href="#cb17-72" aria-hidden="true" tabindex="-1"></a>icecream <span class="ot">&lt;-</span> icecream <span class="sc">%&gt;%</span> </span>
-<span id="cb17-73"><a href="#cb17-73" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="at">cols =</span> <span class="fu">starts_with</span>(<span class="st">"Individual"</span>), <span class="at">names_to =</span> <span class="st">"respondent"</span>, <span class="at">values_to =</span> <span class="st">"rating"</span>) <span class="sc">%&gt;%</span> <span class="co"># respondent keeps track of the respondent, rating will store the respondent's ratings, and we want to stack every variable that starts with Individual</span></span>
-<span id="cb17-74"><a href="#cb17-74" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="st">"profile"</span> <span class="ot">=</span> <span class="st">"Observations"</span>) <span class="sc">%&gt;%</span> <span class="co"># rename Observations to profile</span></span>
-<span id="cb17-75"><a href="#cb17-75" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">profile =</span> <span class="fu">factor</span>(profile), <span class="at">respondent =</span> <span class="fu">factor</span>(respondent),  <span class="co"># factorize identifiers</span></span>
-<span id="cb17-76"><a href="#cb17-76" aria-hidden="true" tabindex="-1"></a>         <span class="at">Flavor =</span> <span class="fu">factor</span>(Flavor), <span class="at">Packaging =</span> <span class="fu">factor</span>(Packaging), <span class="at">Light =</span> <span class="fu">factor</span>(Light), <span class="at">Organic =</span> <span class="fu">factor</span>(Organic)) <span class="co"># factorize the ice cream attributes</span></span>
-<span id="cb17-77"><a href="#cb17-77" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-78"><a href="#cb17-78" aria-hidden="true" tabindex="-1"></a>icecream</span>
-<span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a>The data are 150 rows: 15 respondents each rating 10 ice-cream profiles, in long</span>
-<span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a>format after pivoting.</span>
-<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a>In this example, we have 4 attributes: Flavor, Packaging, Light, and Organic.  There are 5, 3, 2, 2 levels correspondingly.  Usually we are interested in how much does each level of attributes predict the outcome, say the rating of the icecream.  To do this, we would think we'll need all 5*3*2*2=60 combinations of attribute levels to estimate the effect.  In that case, we would need data for each combination.  This is called full factorial design.  The problem of full factorial design is that it might be too costly or not possible if the combination is huge.  Instead, conjoint analysis allows us to estimate the effect of each level of each attribute by using a fraction of the combinations.  This is done by creating a set of profiles, each of which contains a subset of the levels of the attributes.  The profiles are then presented to the respondents, who rate the profiles.  The ratings are then used to estimate the effect of each level of each attribute.  This is done by regressing the ratings on the levels of the attributes.  The coefficients of the regression are the estimates of the effects of the levels of the attributes. </span>
-<span id="cb17-85"><a href="#cb17-85" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a>The disadvantage of a fractional factorial design is that some effects are confounded; that is,  the effect of one level of an attribute is confounded with the effect of another level of another attribute.  </span>
-<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a><span class="co"># attribute1, attribute2, etc. are vectors with one element in which we first provide the name of the attribute followed by a semi-colon and then provide all the levels of the attributes separated by semi-colons</span></span>
-<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a>attribute1 <span class="ot">&lt;-</span> <span class="st">"Flavor; Raspberry; Chocolate; Strawberry; Mango; Vanilla"</span></span>
-<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a>attribute2 <span class="ot">&lt;-</span> <span class="st">"Packaging; Homemade waffle; Cone; Pint"</span></span>
-<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a>attribute3 <span class="ot">&lt;-</span> <span class="st">"Light; Low fat; No low fat"</span></span>
-<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a>attribute4 <span class="ot">&lt;-</span> <span class="st">"Organic; Organic; Not organic"</span></span>
-<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a><span class="co"># now combine these different attributes into one vector with c()</span></span>
-<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a>attributes <span class="ot">&lt;-</span> <span class="fu">c</span>(attribute1, attribute2, attribute3, attribute4)</span>
-<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a>attributes</span>
-<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conjoint design of experiment</span></span>
-<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a> </span>
-<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a>The first step in conjoint analysis is to create a design of experiment.  This is to use a fraction of all possible combinations of attribute levels to estimate the effect of each level of each attribute.  For example, instead of using all 60 icecream profiles, we use 10 profiles.     </span>
-<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a>We use "radiant" package's "doe" function to create the design of experiment.  The "doe" function takes the attributes as input and returns a data frame with the profiles.  The "seed" argument is used to fix the random number generator.  This is useful if you want to reproduce the same results.</span>
-<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a>::: {.callout-warning}</span>
-<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a>**Dependency note.** This chapter depends on the <span class="in">`radiant`</span> package, whose plotting functions can fail to install or run on current R versions. If <span class="in">`radiant`</span> is unavailable in your environment, the design-of-experiment and plotting chunks below will not execute; the <span class="in">`doe`</span> output and figures are kept from a prior successful render.</span>
-<span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-116"><a href="#cb17-116" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-117"><a href="#cb17-117" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb17-118"><a href="#cb17-118" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb17-119"><a href="#cb17-119" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb17-120"><a href="#cb17-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-121"><a href="#cb17-121" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(radiant)</span>
-<span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a>ice_doe <span class="ot">&lt;-</span> <span class="fu">doe</span>(attributes, <span class="at">seed =</span> <span class="dv">123</span>)</span>
-<span id="cb17-124"><a href="#cb17-124" aria-hidden="true" tabindex="-1"></a>ice_doe<span class="sc">$</span>eff</span>
-<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a><span class="co">#summary(doe(attributes, seed = 123, trials = 10))</span></span>
-<span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-129"><a href="#cb17-129" aria-hidden="true" tabindex="-1"></a>This is a list of efficiency of different number of "trials".  Trials mean combinations of attribute levels.  For example, with 10 trials, the efficiency is .389 and it's unbalanced.  </span>
-<span id="cb17-130"><a href="#cb17-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-131"><a href="#cb17-131" aria-hidden="true" tabindex="-1"></a>We can see that the only two designs with balanced design are 30 and 60.  That's because 30 and 60 are the only two numbers that can be divided by 5, 3 and 2, all unique number of 5, 3, 3, 2.  If the factors are, say, 3, 2, 3.  Then the integers that can be divided by 3 and 2 are 6, 12, and 18.  </span>
-<span id="cb17-132"><a href="#cb17-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-133"><a href="#cb17-133" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-134"><a href="#cb17-134" aria-hidden="true" tabindex="-1"></a>Efficiency is a measure of the information content a design can capture. Efficiency are</span>
-<span id="cb17-135"><a href="#cb17-135" aria-hidden="true" tabindex="-1"></a>typically stated in relative terms, as in “design A is 80% as efficient as design B.” In</span>
-<span id="cb17-136"><a href="#cb17-136" aria-hidden="true" tabindex="-1"></a>practical terms this means you will need 25% more (the reciprocal of 80%) design A</span>
-<span id="cb17-137"><a href="#cb17-137" aria-hidden="true" tabindex="-1"></a>observations (respondents, choice sets per respondent or a combination of both) to get the</span>
-<span id="cb17-138"><a href="#cb17-138" aria-hidden="true" tabindex="-1"></a>same standard errors and significance as with the more efficient design B. We used a</span>
-<span id="cb17-139"><a href="#cb17-139" aria-hidden="true" tabindex="-1"></a>measure of efficiency called D-Efficiency <span class="co">[</span><span class="ot">@kuhfeld-1994</span><span class="co">]</span>.  In this case, the only orthogonal design is the full factorial design of 60 trials.  </span>
-<span id="cb17-140"><a href="#cb17-140" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-141"><a href="#cb17-141" aria-hidden="true" tabindex="-1"></a>For example, a trial of 30 has a efficiency of .984, that means it's 98.4% as efficient as the full factorial design of 60 trials.  </span>
-<span id="cb17-142"><a href="#cb17-142" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-143"><a href="#cb17-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-146"><a href="#cb17-146" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-147"><a href="#cb17-147" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb17-148"><a href="#cb17-148" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb17-149"><a href="#cb17-149" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb17-150"><a href="#cb17-150" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-151"><a href="#cb17-151" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(radiant)</span>
-<span id="cb17-152"><a href="#cb17-152" aria-hidden="true" tabindex="-1"></a>ice_doe2 <span class="ot">&lt;-</span> <span class="fu">doe</span>(attributes, <span class="at">seed =</span> <span class="dv">123</span>, <span class="at">trials =</span> <span class="dv">30</span>)</span>
-<span id="cb17-153"><a href="#cb17-153" aria-hidden="true" tabindex="-1"></a>ice_doe2<span class="sc">$</span>cor_mat</span>
-<span id="cb17-154"><a href="#cb17-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-155"><a href="#cb17-155" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-156"><a href="#cb17-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-157"><a href="#cb17-157" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-158"><a href="#cb17-158" aria-hidden="true" tabindex="-1"></a>From the covariance matrix, we can se that in this 30 profile design, there is a correlation of -.105 between "Light" and "Organic".  That means these two effects are confounded; the design is not orthogonal.  That's why the efficiency is not 1.  The D-efficiency is calculated as a function of the determinant of the correlation matrix.  The D-efficiency of the full factorial design is 1.  The D-efficiency of the 30 profile design is .984.  That means the 30 profile design is 98.4% as efficient as the full factorial design.</span>
-<span id="cb17-159"><a href="#cb17-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-160"><a href="#cb17-160" aria-hidden="true" tabindex="-1"></a>Note also that the off-diagonal correlations among Flavor, Package and the other</span>
-<span id="cb17-161"><a href="#cb17-161" aria-hidden="true" tabindex="-1"></a>attributes are of order $10^{-16}$ — numerically zero. Only the</span>
-<span id="cb17-162"><a href="#cb17-162" aria-hidden="true" tabindex="-1"></a>Light-Organic pair is confounded; the rest of the design is orthogonal.</span>
-<span id="cb17-163"><a href="#cb17-163" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-164"><a href="#cb17-164" aria-hidden="true" tabindex="-1"></a>The partial factorial design of 30 profile is </span>
-<span id="cb17-165"><a href="#cb17-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-166"><a href="#cb17-166" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-169"><a href="#cb17-169" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-170"><a href="#cb17-170" aria-hidden="true" tabindex="-1"></a>ice_doe2<span class="sc">$</span>part</span>
-<span id="cb17-171"><a href="#cb17-171" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-172"><a href="#cb17-172" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-173"><a href="#cb17-173" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-174"><a href="#cb17-174" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conjoint analysis</span></span>
-<span id="cb17-175"><a href="#cb17-175" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-176"><a href="#cb17-176" aria-hidden="true" tabindex="-1"></a>In the icecream data set we read in, it's a 10 profile design.  There are 15 respondents.  They rate 10 profiles of icecreams.</span>
-<span id="cb17-177"><a href="#cb17-177" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-178"><a href="#cb17-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-179"><a href="#cb17-179" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-182"><a href="#cb17-182" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-183"><a href="#cb17-183" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb17-184"><a href="#cb17-184" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb17-185"><a href="#cb17-185" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb17-186"><a href="#cb17-186" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-187"><a href="#cb17-187" aria-hidden="true" tabindex="-1"></a>conjoint <span class="ot">&lt;-</span> <span class="fu">conjoint</span>(icecream, <span class="at">rvar =</span> <span class="st">"rating"</span>, <span class="at">evar =</span> <span class="fu">c</span>(<span class="st">"Flavor"</span>,<span class="st">"Packaging"</span>,<span class="st">"Light"</span>,<span class="st">"Organic"</span>)) </span>
-<span id="cb17-188"><a href="#cb17-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-189"><a href="#cb17-189" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(conjoint)</span>
-<span id="cb17-190"><a href="#cb17-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-191"><a href="#cb17-191" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-192"><a href="#cb17-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-195"><a href="#cb17-195" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-196"><a href="#cb17-196" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(conjoint)</span>
-<span id="cb17-197"><a href="#cb17-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-198"><a href="#cb17-198" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-199"><a href="#cb17-199" aria-hidden="true" tabindex="-1"></a>The partworths are just coefficient from a linear regression:</span>
-<span id="cb17-200"><a href="#cb17-200" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-203"><a href="#cb17-203" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb17-204"><a href="#cb17-204" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb17-205"><a href="#cb17-205" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb17-206"><a href="#cb17-206" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-207"><a href="#cb17-207" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sandwich)</span>
-<span id="cb17-208"><a href="#cb17-208" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmtest)</span>
-<span id="cb17-209"><a href="#cb17-209" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-210"><a href="#cb17-210" aria-hidden="true" tabindex="-1"></a>partworths_lm <span class="ot">&lt;-</span> <span class="fu">lm</span>(rating <span class="sc">~</span> Flavor <span class="sc">+</span> Packaging <span class="sc">+</span> Light <span class="sc">+</span> Organic, <span class="at">data =</span> icecream)</span>
-<span id="cb17-211"><a href="#cb17-211" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(partworths_lm)</span>
-<span id="cb17-212"><a href="#cb17-212" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-213"><a href="#cb17-213" aria-hidden="true" tabindex="-1"></a><span class="co"># Each of the 15 respondents rates 10 profiles, so observations are clustered</span></span>
-<span id="cb17-214"><a href="#cb17-214" aria-hidden="true" tabindex="-1"></a><span class="co"># by respondent; plain OLS standard errors above assume independence and</span></span>
-<span id="cb17-215"><a href="#cb17-215" aria-hidden="true" tabindex="-1"></a><span class="co"># understate the true uncertainty. Cluster at the respondent level instead.</span></span>
-<span id="cb17-216"><a href="#cb17-216" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(partworths_lm, <span class="at">vcov =</span> <span class="fu">vcovCL</span>(partworths_lm, <span class="at">cluster =</span> icecream<span class="sc">$</span>respondent))</span>
-<span id="cb17-217"><a href="#cb17-217" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-218"><a href="#cb17-218" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-219"><a href="#cb17-219" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-220"><a href="#cb17-220" aria-hidden="true" tabindex="-1"></a>The conjoint importance weights are the relative importance of each attribute.  First the range of partworths for each attribute is calculated.  Then the range of partworths for each attribute is divided by the sum of the ranges of all attributes.  In this example, Flavor is the most important attribute, with an importance weight of .597.  </span>
-<span id="cb17-221"><a href="#cb17-221" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-222"><a href="#cb17-222" aria-hidden="true" tabindex="-1"></a>There is another package called "conjoint" which I have not played with.   </span>
-<span id="cb17-223"><a href="#cb17-223" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-224"><a href="#cb17-224" aria-hidden="true" tabindex="-1"></a>In summary, we can use R packages to set up a conjoint experiment, in the sense that we can have partial (fractional) factorial design.  After collecting the data, we can use either the conjoint packages, or just run linear or logit models to analyze it.  The frequentist approach used in conjoint analysis seems nothing special.  Bayesian approach can also be used, but that's another topic.  </span>
-<span id="cb17-225"><a href="#cb17-225" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-226"><a href="#cb17-226" aria-hidden="true" tabindex="-1"></a><span class="fu">## Causal effect in conjoint analysis</span></span>
-<span id="cb17-227"><a href="#cb17-227" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-228"><a href="#cb17-228" aria-hidden="true" tabindex="-1"></a>@hainmueller-2014 defined AMCE (average marginal component effect) -- not to be confused with ACME (average causal mediation effect, Imai et al.), a different causal estimand from the mediation-analysis literature. The basic idea is that once all the assumptions are met (usual assumptions in causal inference), we can have the effect of changing one attribute level to another with a causal interpretation.  Fortunately it is usually just coefficients from a linear model, or linear combinations of the coefficients.  There is a package "cregg" for each calculation and plotting of AMCE, but we can just do it manually.</span>
-<span id="cb17-229"><a href="#cb17-229" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-230"><a href="#cb17-230" aria-hidden="true" tabindex="-1"></a> </span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Conjoint design and analysis using R"</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "2024-08-08"</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>This post is to illustrate how to use R to do basic conjoint analysis.  </span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conjoint Analysis</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>Marketing people used to use Sawtooth to do conjoint analysis.</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>What is conjoint analysis?  Here is the intro from Sawtooth:</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>"Conjoint analysis methods use statistical analysis to compute mathematical representations of survey respondents’ preferences for product features, simulate how attribute changes affect demand, and even predict market acceptance of new products before they launch.</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>This powerful research methodology has become very popular with market researchers and economists for the valuable insight that few other research methods can provide."</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>"Consider the task of purchasing a new vehicle.</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>When searching for the “right” vehicle, you typically consider a multitude of variables: type, make (brand), model, year, mileage, price, color, accessories packages, etc. You can see how this is a complex choice to make.</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>How does anyone possibly make such a complicated decision?</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>You think about what features matter most to you and then make tradeoffs.</span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>For example, one vehicle could be an acceptable make and model, but at a high price point, whereas a second option is not the ideal make and model but has a more palatable price.</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>The tradeoff in this simple example is whether the make and model is more preferable to a reasonable price, or vice versa.</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>A conjoint survey captures the relationship between different attributes of a product and how preferable they are both comparatively and when combined.</span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>Because of this, conjoint analysis is the gold standard solution for testing multiple features simultaneously, when limited A/B testing doesn’t go far enough."</span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a>"In simple terms, the conjoint survey design algorithm generates a balanced survey design with product profiles, also known as concepts, formulated to have ideal statistical properties (such as level balance and independence of attributes).</span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a>Each profile is made up of multiple conjoined product features (hence, conjoint analysis), such as brand, type, engine, and color, each with systematically varied levels.</span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a>These product concepts are then included in a series of questions, usually 8-20, called choice tasks, that make up the conjoint analysis portion of the survey."</span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a><span class="fu">## Example</span></span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a>The example uses the tea data that ships with the <span class="in">`conjoint`</span> package</span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a>(Bak and Bartłomowicz). A hundred respondents rate 13 tea profiles on a</span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a>scale from 0 to 10. Each profile combines four attributes: price (low, medium,</span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a>high), variety (black, green, red), kind (bags, granulated, leafy) and aroma</span>
+<span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a>(yes, no).</span>
+<span id="cb20-50"><a href="#cb20-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-53"><a href="#cb20-53" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb20-54"><a href="#cb20-54" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb20-55"><a href="#cb20-55" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb20-56"><a href="#cb20-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-57"><a href="#cb20-57" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb20-58"><a href="#cb20-58" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(conjoint)</span>
+<span id="cb20-59"><a href="#cb20-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-60"><a href="#cb20-60" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(tea)   <span class="co"># tprof: the 13 profiles; tprefm: 100 x 13 ratings; tlevn: level names</span></span>
+<span id="cb20-61"><a href="#cb20-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-62"><a href="#cb20-62" aria-hidden="true" tabindex="-1"></a>levels_list <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">price   =</span> <span class="fu">c</span>(<span class="st">"low"</span>, <span class="st">"medium"</span>, <span class="st">"high"</span>),</span>
+<span id="cb20-63"><a href="#cb20-63" aria-hidden="true" tabindex="-1"></a>                    <span class="at">variety =</span> <span class="fu">c</span>(<span class="st">"black"</span>, <span class="st">"green"</span>, <span class="st">"red"</span>),</span>
+<span id="cb20-64"><a href="#cb20-64" aria-hidden="true" tabindex="-1"></a>                    <span class="at">kind    =</span> <span class="fu">c</span>(<span class="st">"bags"</span>, <span class="st">"granulated"</span>, <span class="st">"leafy"</span>),</span>
+<span id="cb20-65"><a href="#cb20-65" aria-hidden="true" tabindex="-1"></a>                    <span class="at">aroma   =</span> <span class="fu">c</span>(<span class="st">"yes"</span>, <span class="st">"no"</span>))</span>
+<span id="cb20-66"><a href="#cb20-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-67"><a href="#cb20-67" aria-hidden="true" tabindex="-1"></a>profiles <span class="ot">&lt;-</span> tprof</span>
+<span id="cb20-68"><a href="#cb20-68" aria-hidden="true" tabindex="-1"></a>profiles[] <span class="ot">&lt;-</span> <span class="fu">Map</span>(<span class="cf">function</span>(x, l) <span class="fu">factor</span>(l[x], <span class="at">levels =</span> l), tprof, levels_list)</span>
+<span id="cb20-69"><a href="#cb20-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-70"><a href="#cb20-70" aria-hidden="true" tabindex="-1"></a>tea_long <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">respondent =</span> <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">100</span>, <span class="at">each =</span> <span class="dv">13</span>),</span>
+<span id="cb20-71"><a href="#cb20-71" aria-hidden="true" tabindex="-1"></a>                   <span class="at">profile    =</span> <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">13</span>, <span class="at">times =</span> <span class="dv">100</span>),</span>
+<span id="cb20-72"><a href="#cb20-72" aria-hidden="true" tabindex="-1"></a>                   <span class="at">rating     =</span> <span class="fu">as.vector</span>(<span class="fu">t</span>(tprefm))) <span class="sc">|&gt;</span></span>
+<span id="cb20-73"><a href="#cb20-73" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_cols</span>(profiles[<span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">13</span>, <span class="at">times =</span> <span class="dv">100</span>), ])</span>
+<span id="cb20-74"><a href="#cb20-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-75"><a href="#cb20-75" aria-hidden="true" tabindex="-1"></a>tea_long</span>
+<span id="cb20-76"><a href="#cb20-76" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb20-77"><a href="#cb20-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-78"><a href="#cb20-78" aria-hidden="true" tabindex="-1"></a>The data are 1,300 rows, 100 respondents times 13 profiles.</span>
+<span id="cb20-79"><a href="#cb20-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-80"><a href="#cb20-80" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conjoint design of experiment</span></span>
+<span id="cb20-81"><a href="#cb20-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-82"><a href="#cb20-82" aria-hidden="true" tabindex="-1"></a>With three, three, three and two levels, the full factorial has</span>
+<span id="cb20-83"><a href="#cb20-83" aria-hidden="true" tabindex="-1"></a>$3 \times 3 \times 3 \times 2 = 54$ profiles. Asking every respondent to rate 54</span>
+<span id="cb20-84"><a href="#cb20-84" aria-hidden="true" tabindex="-1"></a>teas is too much, so a conjoint study shows a fraction of them. The question is</span>
+<span id="cb20-85"><a href="#cb20-85" aria-hidden="true" tabindex="-1"></a>which fraction. A good design lets us estimate the effect of every attribute</span>
+<span id="cb20-86"><a href="#cb20-86" aria-hidden="true" tabindex="-1"></a>level, with little correlation between the attributes.</span>
+<span id="cb20-87"><a href="#cb20-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-88"><a href="#cb20-88" aria-hidden="true" tabindex="-1"></a><span class="in">`AlgDesign`</span> searches for such designs. <span class="in">`optFederov()`</span> picks the subset of the</span>
+<span id="cb20-89"><a href="#cb20-89" aria-hidden="true" tabindex="-1"></a>full factorial that maximizes the determinant of the information matrix for a</span>
+<span id="cb20-90"><a href="#cb20-90" aria-hidden="true" tabindex="-1"></a>main-effects model, the D-optimality criterion. A main-effects model here has 8</span>
+<span id="cb20-91"><a href="#cb20-91" aria-hidden="true" tabindex="-1"></a>parameters, an intercept plus $2 + 2 + 2 + 1$ level contrasts, so a design needs</span>
+<span id="cb20-92"><a href="#cb20-92" aria-hidden="true" tabindex="-1"></a>at least 8 profiles. We search for designs of several sizes and report their</span>
+<span id="cb20-93"><a href="#cb20-93" aria-hidden="true" tabindex="-1"></a>D-efficiency <span class="co">[</span><span class="ot">@kuhfeld-1994</span><span class="co">]</span> and whether every level appears equally often.</span>
+<span id="cb20-94"><a href="#cb20-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-97"><a href="#cb20-97" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb20-98"><a href="#cb20-98" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb20-99"><a href="#cb20-99" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb20-100"><a href="#cb20-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-101"><a href="#cb20-101" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AlgDesign)</span>
+<span id="cb20-102"><a href="#cb20-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-103"><a href="#cb20-103" aria-hidden="true" tabindex="-1"></a>full <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="fu">lapply</span>(levels_list, factor))</span>
+<span id="cb20-104"><a href="#cb20-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-105"><a href="#cb20-105" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb20-106"><a href="#cb20-106" aria-hidden="true" tabindex="-1"></a>designs <span class="ot">&lt;-</span> <span class="fu">map</span>(<span class="fu">c</span>(<span class="dv">9</span>, <span class="dv">12</span>, <span class="dv">13</span>, <span class="dv">18</span>, <span class="dv">27</span>, <span class="dv">54</span>),</span>
+<span id="cb20-107"><a href="#cb20-107" aria-hidden="true" tabindex="-1"></a>               \(n) <span class="fu">optFederov</span>(<span class="sc">~</span> ., <span class="at">data =</span> full, <span class="at">nTrials =</span> n, <span class="at">criterion =</span> <span class="st">"D"</span>))</span>
+<span id="cb20-108"><a href="#cb20-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-109"><a href="#cb20-109" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">trials       =</span> <span class="fu">c</span>(<span class="dv">9</span>, <span class="dv">12</span>, <span class="dv">13</span>, <span class="dv">18</span>, <span class="dv">27</span>, <span class="dv">54</span>),</span>
+<span id="cb20-110"><a href="#cb20-110" aria-hidden="true" tabindex="-1"></a>       <span class="at">D_efficiency =</span> <span class="fu">map_dbl</span>(designs, <span class="st">"Dea"</span>),</span>
+<span id="cb20-111"><a href="#cb20-111" aria-hidden="true" tabindex="-1"></a>       <span class="at">balanced     =</span> <span class="fu">map_lgl</span>(designs, \(d) <span class="fu">all</span>(<span class="fu">map_lgl</span>(d<span class="sc">$</span>design,</span>
+<span id="cb20-112"><a href="#cb20-112" aria-hidden="true" tabindex="-1"></a>                                     \(f) <span class="fu">length</span>(<span class="fu">unique</span>(<span class="fu">table</span>(f))) <span class="sc">==</span> <span class="dv">1</span>))))</span>
+<span id="cb20-113"><a href="#cb20-113" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb20-114"><a href="#cb20-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-115"><a href="#cb20-115" aria-hidden="true" tabindex="-1"></a>D-efficiency measures how much information a design carries per profile,</span>
+<span id="cb20-116"><a href="#cb20-116" aria-hidden="true" tabindex="-1"></a>relative to an ideal orthogonal design. A design with efficiency 0.8 needs about</span>
+<span id="cb20-117"><a href="#cb20-117" aria-hidden="true" tabindex="-1"></a>25% more observations to give the same standard errors as one with</span>
+<span id="cb20-118"><a href="#cb20-118" aria-hidden="true" tabindex="-1"></a>efficiency 1. Balance requires a number of profiles divisible by 3 and by 2.</span>
+<span id="cb20-119"><a href="#cb20-119" aria-hidden="true" tabindex="-1"></a>Among these sizes, only 12, 18 and 54 are balanced. The 18-profile design reaches</span>
+<span id="cb20-120"><a href="#cb20-120" aria-hidden="true" tabindex="-1"></a>an efficiency of 1: it is an orthogonal main-effects design, a third of the full</span>
+<span id="cb20-121"><a href="#cb20-121" aria-hidden="true" tabindex="-1"></a>factorial with nothing lost for a main-effects model.</span>
+<span id="cb20-122"><a href="#cb20-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-123"><a href="#cb20-123" aria-hidden="true" tabindex="-1"></a>The tea study used 13 profiles. That number cannot be balanced, and the</span>
+<span id="cb20-124"><a href="#cb20-124" aria-hidden="true" tabindex="-1"></a>design shows it.</span>
+<span id="cb20-125"><a href="#cb20-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-128"><a href="#cb20-128" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb20-129"><a href="#cb20-129" aria-hidden="true" tabindex="-1"></a><span class="fu">map</span>(profiles, table)</span>
+<span id="cb20-130"><a href="#cb20-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-131"><a href="#cb20-131" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(<span class="sc">~</span> price <span class="sc">+</span> variety <span class="sc">+</span> kind <span class="sc">+</span> aroma, profiles)[, <span class="sc">-</span><span class="dv">1</span>]</span>
+<span id="cb20-132"><a href="#cb20-132" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">cor</span>(X), <span class="dv">2</span>)</span>
+<span id="cb20-133"><a href="#cb20-133" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb20-134"><a href="#cb20-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-135"><a href="#cb20-135" aria-hidden="true" tabindex="-1"></a>Low price and red variety appear 3 times, while other levels appear 5 times,</span>
+<span id="cb20-136"><a href="#cb20-136" aria-hidden="true" tabindex="-1"></a>and aroma is "no" in 8 of the 13 profiles. The correlations between dummies of</span>
+<span id="cb20-137"><a href="#cb20-137" aria-hidden="true" tabindex="-1"></a>the *same* attribute, such as $-0.62$ for medium and high price, come from the</span>
+<span id="cb20-138"><a href="#cb20-138" aria-hidden="true" tabindex="-1"></a>coding and are expected. What matters is the correlation *between* attributes,</span>
+<span id="cb20-139"><a href="#cb20-139" aria-hidden="true" tabindex="-1"></a>and it stays small: the largest is 0.13, between red variety and granulated</span>
+<span id="cb20-140"><a href="#cb20-140" aria-hidden="true" tabindex="-1"></a>kind. The attributes are close to independent, so each attribute's effect can be</span>
+<span id="cb20-141"><a href="#cb20-141" aria-hidden="true" tabindex="-1"></a>estimated without much contamination from the others.</span>
+<span id="cb20-142"><a href="#cb20-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-143"><a href="#cb20-143" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conjoint analysis</span></span>
+<span id="cb20-144"><a href="#cb20-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-145"><a href="#cb20-145" aria-hidden="true" tabindex="-1"></a>The part-worths are the coefficients of a regression of the rating on attribute</span>
+<span id="cb20-146"><a href="#cb20-146" aria-hidden="true" tabindex="-1"></a>dummies. Each respondent rates 13 profiles, so the ratings are clustered by</span>
+<span id="cb20-147"><a href="#cb20-147" aria-hidden="true" tabindex="-1"></a>respondent, and the standard errors have to allow for that.</span>
+<span id="cb20-148"><a href="#cb20-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-151"><a href="#cb20-151" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb20-152"><a href="#cb20-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb20-153"><a href="#cb20-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb20-154"><a href="#cb20-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-155"><a href="#cb20-155" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sandwich)</span>
+<span id="cb20-156"><a href="#cb20-156" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmtest)</span>
+<span id="cb20-157"><a href="#cb20-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-158"><a href="#cb20-158" aria-hidden="true" tabindex="-1"></a>partworths_lm <span class="ot">&lt;-</span> <span class="fu">lm</span>(rating <span class="sc">~</span> price <span class="sc">+</span> variety <span class="sc">+</span> kind <span class="sc">+</span> aroma, <span class="at">data =</span> tea_long)</span>
+<span id="cb20-159"><a href="#cb20-159" aria-hidden="true" tabindex="-1"></a><span class="fu">coeftest</span>(partworths_lm, <span class="at">vcov =</span> <span class="fu">vcovCL</span>(partworths_lm, <span class="at">cluster =</span> <span class="sc">~</span> respondent))</span>
+<span id="cb20-160"><a href="#cb20-160" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb20-161"><a href="#cb20-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-162"><a href="#cb20-162" aria-hidden="true" tabindex="-1"></a>The baseline profile is low-priced black tea in bags with aroma. Relative to it,</span>
+<span id="cb20-163"><a href="#cb20-163" aria-hidden="true" tabindex="-1"></a>red tea lowers the rating by 1.26 points and green tea by 0.58. Granulated tea</span>
+<span id="cb20-164"><a href="#cb20-164" aria-hidden="true" tabindex="-1"></a>lowers it by 1.03, while leafy tea raises it by 0.62. Tea without aroma is rated</span>
+<span id="cb20-165"><a href="#cb20-165" aria-hidden="true" tabindex="-1"></a>0.82 lower. Price matters least: medium and high prices lower the rating by about</span>
+<span id="cb20-166"><a href="#cb20-166" aria-hidden="true" tabindex="-1"></a>0.35, and only the medium-price contrast is significant at 5%.</span>
+<span id="cb20-167"><a href="#cb20-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-168"><a href="#cb20-168" aria-hidden="true" tabindex="-1"></a>Conjoint software usually reports part-worths in effect coding, where the</span>
+<span id="cb20-169"><a href="#cb20-169" aria-hidden="true" tabindex="-1"></a>part-worths of each attribute sum to zero. They are the same coefficients,</span>
+<span id="cb20-170"><a href="#cb20-170" aria-hidden="true" tabindex="-1"></a>re-centred within each attribute. The importance of an attribute is the range of</span>
+<span id="cb20-171"><a href="#cb20-171" aria-hidden="true" tabindex="-1"></a>its part-worths as a share of the sum of the ranges.</span>
+<span id="cb20-172"><a href="#cb20-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-175"><a href="#cb20-175" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb20-176"><a href="#cb20-176" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-width: 8</span></span>
+<span id="cb20-177"><a href="#cb20-177" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 3.5</span></span>
+<span id="cb20-178"><a href="#cb20-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-179"><a href="#cb20-179" aria-hidden="true" tabindex="-1"></a>part_worths <span class="ot">&lt;-</span> <span class="fu">imap_dfr</span>(levels_list, \(lv, attr) {</span>
+<span id="cb20-180"><a href="#cb20-180" aria-hidden="true" tabindex="-1"></a>  b <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">coef</span>(partworths_lm)[<span class="fu">paste0</span>(attr, lv[<span class="sc">-</span><span class="dv">1</span>])])</span>
+<span id="cb20-181"><a href="#cb20-181" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">attribute =</span> attr, <span class="at">level =</span> <span class="fu">factor</span>(lv, <span class="at">levels =</span> lv), <span class="at">part_worth =</span> b <span class="sc">-</span> <span class="fu">mean</span>(b))</span>
+<span id="cb20-182"><a href="#cb20-182" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb20-183"><a href="#cb20-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-184"><a href="#cb20-184" aria-hidden="true" tabindex="-1"></a>importance <span class="ot">&lt;-</span> part_worths <span class="sc">|&gt;</span></span>
+<span id="cb20-185"><a href="#cb20-185" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(attribute) <span class="sc">|&gt;</span></span>
+<span id="cb20-186"><a href="#cb20-186" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">range =</span> <span class="fu">diff</span>(<span class="fu">range</span>(part_worth))) <span class="sc">|&gt;</span></span>
+<span id="cb20-187"><a href="#cb20-187" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">importance =</span> <span class="fu">round</span>(<span class="dv">100</span> <span class="sc">*</span> range <span class="sc">/</span> <span class="fu">sum</span>(range), <span class="dv">1</span>))</span>
+<span id="cb20-188"><a href="#cb20-188" aria-hidden="true" tabindex="-1"></a>importance</span>
+<span id="cb20-189"><a href="#cb20-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-190"><a href="#cb20-190" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(part_worths, <span class="fu">aes</span>(level, part_worth)) <span class="sc">+</span></span>
+<span id="cb20-191"><a href="#cb20-191" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">fill =</span> <span class="st">"darkcyan"</span>) <span class="sc">+</span></span>
+<span id="cb20-192"><a href="#cb20-192" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb20-193"><a href="#cb20-193" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span> attribute, <span class="at">scales =</span> <span class="st">"free_x"</span>, <span class="at">nrow =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb20-194"><a href="#cb20-194" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Part-worth"</span>) <span class="sc">+</span></span>
+<span id="cb20-195"><a href="#cb20-195" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span>
+<span id="cb20-196"><a href="#cb20-196" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb20-197"><a href="#cb20-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-198"><a href="#cb20-198" aria-hidden="true" tabindex="-1"></a>Kind is the most important attribute, with 39.9% of the total range, followed by</span>
+<span id="cb20-199"><a href="#cb20-199" aria-hidden="true" tabindex="-1"></a>variety with 30.8%, aroma with 20.0% and price with 9.3%.</span>
+<span id="cb20-200"><a href="#cb20-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-201"><a href="#cb20-201" aria-hidden="true" tabindex="-1"></a>The <span class="in">`conjoint`</span> package computes the same quantities. Its pooled part-worths</span>
+<span id="cb20-202"><a href="#cb20-202" aria-hidden="true" tabindex="-1"></a>match ours exactly. Its importance figures do not, and the reason is worth</span>
+<span id="cb20-203"><a href="#cb20-203" aria-hidden="true" tabindex="-1"></a>knowing. <span class="in">`caImportance()`</span> computes each respondent's importance from that</span>
+<span id="cb20-204"><a href="#cb20-204" aria-hidden="true" tabindex="-1"></a>respondent's own part-worths, and then averages across respondents. Individual</span>
+<span id="cb20-205"><a href="#cb20-205" aria-hidden="true" tabindex="-1"></a>part-worths from 13 ratings are noisy, and noise widens every attribute's range,</span>
+<span id="cb20-206"><a href="#cb20-206" aria-hidden="true" tabindex="-1"></a>so the averaged importance spreads more evenly across attributes than the pooled</span>
+<span id="cb20-207"><a href="#cb20-207" aria-hidden="true" tabindex="-1"></a>figure.</span>
+<span id="cb20-208"><a href="#cb20-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-211"><a href="#cb20-211" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb20-212"><a href="#cb20-212" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb20-213"><a href="#cb20-213" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb20-214"><a href="#cb20-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-215"><a href="#cb20-215" aria-hidden="true" tabindex="-1"></a><span class="co"># conjoint's functions switch R to sum-to-zero contrasts globally and do not</span></span>
+<span id="cb20-216"><a href="#cb20-216" aria-hidden="true" tabindex="-1"></a><span class="co"># switch back, which would break every later regression; save and restore.</span></span>
+<span id="cb20-217"><a href="#cb20-217" aria-hidden="true" tabindex="-1"></a>op <span class="ot">&lt;-</span> <span class="fu">options</span>(<span class="st">"contrasts"</span>)</span>
+<span id="cb20-218"><a href="#cb20-218" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">capture.output</span>(pooled <span class="ot">&lt;-</span> <span class="fu">caUtilities</span>(<span class="at">y =</span> tprefm, <span class="at">x =</span> tprof, <span class="at">z =</span> tlevn)))</span>
+<span id="cb20-219"><a href="#cb20-219" aria-hidden="true" tabindex="-1"></a><span class="fu">invisible</span>(<span class="fu">capture.output</span>(imp <span class="ot">&lt;-</span> <span class="fu">caImportance</span>(<span class="at">y =</span> tprefm, <span class="at">x =</span> tprof)))</span>
+<span id="cb20-220"><a href="#cb20-220" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(op)</span>
+<span id="cb20-221"><a href="#cb20-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-222"><a href="#cb20-222" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(pooled, <span class="dv">3</span>)                      <span class="co"># intercept, then effect-coded part-worths</span></span>
+<span id="cb20-223"><a href="#cb20-223" aria-hidden="true" tabindex="-1"></a><span class="fu">setNames</span>(imp, <span class="fu">names</span>(levels_list))     <span class="co"># averaged over respondents</span></span>
+<span id="cb20-224"><a href="#cb20-224" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb20-225"><a href="#cb20-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-226"><a href="#cb20-226" aria-hidden="true" tabindex="-1"></a>The averaged importances are 24.8 for price, 32.2 for variety, 27.2 for kind and</span>
+<span id="cb20-227"><a href="#cb20-227" aria-hidden="true" tabindex="-1"></a>15.9 for aroma. Price moves from least important to second. The two figures</span>
+<span id="cb20-228"><a href="#cb20-228" aria-hidden="true" tabindex="-1"></a>answer different questions. The pooled range describes the average respondent.</span>
+<span id="cb20-229"><a href="#cb20-229" aria-hidden="true" tabindex="-1"></a>The averaged importance describes how much each attribute matters within a</span>
+<span id="cb20-230"><a href="#cb20-230" aria-hidden="true" tabindex="-1"></a>respondent, and it is inflated by sampling noise in the individual fits.</span>
+<span id="cb20-231"><a href="#cb20-231" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-232"><a href="#cb20-232" aria-hidden="true" tabindex="-1"></a><span class="fu">## Causal effect in conjoint analysis</span></span>
+<span id="cb20-233"><a href="#cb20-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-234"><a href="#cb20-234" aria-hidden="true" tabindex="-1"></a>@hainmueller-2014 define the average marginal component effect (AMCE): the</span>
+<span id="cb20-235"><a href="#cb20-235" aria-hidden="true" tabindex="-1"></a>average change in the outcome when one attribute moves from one level to</span>
+<span id="cb20-236"><a href="#cb20-236" aria-hidden="true" tabindex="-1"></a>another, averaged over the distribution of the other attributes. It is not to be</span>
+<span id="cb20-237"><a href="#cb20-237" aria-hidden="true" tabindex="-1"></a>confused with the ACME, the average causal mediation effect of Imai et al. When</span>
+<span id="cb20-238"><a href="#cb20-238" aria-hidden="true" tabindex="-1"></a>the attribute levels are randomized independently of each other and of the</span>
+<span id="cb20-239"><a href="#cb20-239" aria-hidden="true" tabindex="-1"></a>respondents, the AMCE is identified, and it is estimated by the coefficients of a</span>
+<span id="cb20-240"><a href="#cb20-240" aria-hidden="true" tabindex="-1"></a>regression of the outcome on the attribute dummies. Standard errors are clustered</span>
+<span id="cb20-241"><a href="#cb20-241" aria-hidden="true" tabindex="-1"></a>by respondent. The <span class="in">`cjoint`</span> package implements it.</span>
+<span id="cb20-242"><a href="#cb20-242" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-245"><a href="#cb20-245" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb20-246"><a href="#cb20-246" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb20-247"><a href="#cb20-247" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb20-248"><a href="#cb20-248" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-249"><a href="#cb20-249" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cjoint)</span>
+<span id="cb20-250"><a href="#cb20-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-251"><a href="#cb20-251" aria-hidden="true" tabindex="-1"></a>amce_fit <span class="ot">&lt;-</span> <span class="fu">amce</span>(rating <span class="sc">~</span> price <span class="sc">+</span> variety <span class="sc">+</span> kind <span class="sc">+</span> aroma, <span class="at">data =</span> <span class="fu">as.data.frame</span>(tea_long),</span>
+<span id="cb20-252"><a href="#cb20-252" aria-hidden="true" tabindex="-1"></a>                 <span class="at">cluster =</span> <span class="cn">TRUE</span>, <span class="at">respondent.id =</span> <span class="st">"respondent"</span>)</span>
+<span id="cb20-253"><a href="#cb20-253" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-254"><a href="#cb20-254" aria-hidden="true" tabindex="-1"></a><span class="fu">imap_dfr</span>(amce_fit<span class="sc">$</span>estimates, \(m, attr)</span>
+<span id="cb20-255"><a href="#cb20-255" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">attribute =</span> attr, <span class="at">level =</span> <span class="fu">colnames</span>(m),</span>
+<span id="cb20-256"><a href="#cb20-256" aria-hidden="true" tabindex="-1"></a>         <span class="at">amce =</span> <span class="fu">round</span>(m[<span class="st">"AMCE"</span>, ], <span class="dv">3</span>), <span class="at">se =</span> <span class="fu">round</span>(m[<span class="st">"Std. Error"</span>, ], <span class="dv">3</span>)))</span>
+<span id="cb20-257"><a href="#cb20-257" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb20-258"><a href="#cb20-258" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-259"><a href="#cb20-259" aria-hidden="true" tabindex="-1"></a>The AMCEs are exactly the part-worth coefficients above, with the same clustered</span>
+<span id="cb20-260"><a href="#cb20-260" aria-hidden="true" tabindex="-1"></a>standard errors. The tea profiles were not randomized; they are a fixed</span>
+<span id="cb20-261"><a href="#cb20-261" aria-hidden="true" tabindex="-1"></a>13-profile design. The attributes in it are close to independent, which is why</span>
+<span id="cb20-262"><a href="#cb20-262" aria-hidden="true" tabindex="-1"></a>the regression coefficients still read as average effects of each attribute. The</span>
+<span id="cb20-263"><a href="#cb20-263" aria-hidden="true" tabindex="-1"></a>causal reading also needs the ratings to reflect the attributes shown and nothing</span>
+<span id="cb20-264"><a href="#cb20-264" aria-hidden="true" tabindex="-1"></a>else about the profile, and it holds only for the population of profiles the</span>
+<span id="cb20-265"><a href="#cb20-265" aria-hidden="true" tabindex="-1"></a>design represents.</span>
+<span id="cb20-266"><a href="#cb20-266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-267"><a href="#cb20-267" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb20-268"><a href="#cb20-268" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-269"><a href="#cb20-269" aria-hidden="true" tabindex="-1"></a>A conjoint study asks respondents to rate or choose among product profiles whose attributes vary by design. The full factorial is usually too long, so we use a fraction chosen for D-efficiency and balance. For the tea attributes, an 18-profile design is fully efficient and balanced. The study's own 13 profiles cannot be balanced, but the correlations between attributes stay below 0.13.</span>
+<span id="cb20-270"><a href="#cb20-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-271"><a href="#cb20-271" aria-hidden="true" tabindex="-1"></a>The analysis is a regression of the ratings on attribute dummies, with standard errors clustered by respondent. The coefficients are the part-worths. Kind and variety matter most, and price least. Importance from the pooled part-worths differs from <span class="in">`conjoint`</span>'s average of individual importances, because individual fits are noisy. When attribute levels are independent, the same coefficients are Hainmueller et al.'s average marginal component effects, which <span class="in">`cjoint`</span> reproduces.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
