@@ -1,12 +1,6 @@
 ---
 title: "Conjoint design and analysis using R"
 date: "2024-08-08"
-execute:
-  freeze: true   # radiant is not installable on current R; always use the frozen output
-# A frozen chapter does not build its own reference list from its citations; name
-# them so the list at the foot of this page is complete.
-nocite: |
-  @hainmueller-2014, @kuhfeld-1994
 ---
 
 
@@ -48,147 +42,103 @@ These product concepts are then included in a series of questions, usually 8-20,
 
 ## Example
 
-The example below is adapted from Lien Lamey's R tutorial, [*Conjoint
-analysis*](https://bookdown.org/lien_lamey/R_tutorial/8-1-data-5.html). The
-design and the ratings data are hers; the analysis and discussion are mine.
-
-
+The example uses the tea data that ships with the `conjoint` package
+(Bak and Bartłomowicz). A hundred respondents rate 13 tea profiles on a
+scale from 0 to 10. Each profile combines four attributes: price (low, medium,
+high), variety (black, green, red), kind (bags, granulated, leafy) and aroma
+(yes, no).
 
 ```{r}
 #| message: false
 #| warning: false
-#| cache: true
 
 library(tidyverse)
-library(openxlsx)
+library(conjoint)
 
-# NOTE: this URL now returns HTTP 401 (the host requires authentication), so this
-# chunk cannot be re-executed as written -- the chapter renders from a frozen
-# result. Substitute a local copy of the ice-cream data to run it again.
-url <- "https://feb.kuleuven.be/lien.lamey/public/rmodule/icecream.xlsx"
-icecream <- read.xlsx(url)
-icecream <- icecream %>% 
-  pivot_longer(cols = starts_with("Individual"), names_to = "respondent", values_to = "rating") %>% # respondent keeps track of the respondent, rating will store the respondent's ratings, and we want to stack every variable that starts with Individual
-  rename("profile" = "Observations") %>% # rename Observations to profile
-  mutate(profile = factor(profile), respondent = factor(respondent),  # factorize identifiers
-         Flavor = factor(Flavor), Packaging = factor(Packaging), Light = factor(Light), Organic = factor(Organic)) # factorize the ice cream attributes
+data(tea)   # tprof: the 13 profiles; tprefm: 100 x 13 ratings; tlevn: level names
 
-icecream
+levels_list <- list(price   = c("low", "medium", "high"),
+                    variety = c("black", "green", "red"),
+                    kind    = c("bags", "granulated", "leafy"),
+                    aroma   = c("yes", "no"))
+
+profiles <- tprof
+profiles[] <- Map(function(x, l) factor(l[x], levels = l), tprof, levels_list)
+
+tea_long <- tibble(respondent = rep(1:100, each = 13),
+                   profile    = rep(1:13, times = 100),
+                   rating     = as.vector(t(tprefm))) |>
+  bind_cols(profiles[rep(1:13, times = 100), ])
+
+tea_long
 ```
 
-The data are 150 rows: 15 respondents each rating 10 ice-cream profiles, in long
-format after pivoting.
+The data are 1,300 rows, 100 respondents times 13 profiles.
 
-In this example, we have 4 attributes: Flavor, Packaging, Light, and Organic.  There are 5, 3, 2, 2 levels correspondingly.  Usually we are interested in how much does each level of attributes predict the outcome, say the rating of the icecream.  To do this, we would think we'll need all 5*3*2*2=60 combinations of attribute levels to estimate the effect.  In that case, we would need data for each combination.  This is called full factorial design.  The problem of full factorial design is that it might be too costly or not possible if the combination is huge.  Instead, conjoint analysis allows us to estimate the effect of each level of each attribute by using a fraction of the combinations.  This is done by creating a set of profiles, each of which contains a subset of the levels of the attributes.  The profiles are then presented to the respondents, who rate the profiles.  The ratings are then used to estimate the effect of each level of each attribute.  This is done by regressing the ratings on the levels of the attributes.  The coefficients of the regression are the estimates of the effects of the levels of the attributes. 
-
-The disadvantage of a fractional factorial design is that some effects are confounded; that is,  the effect of one level of an attribute is confounded with the effect of another level of another attribute.  
-
-```{r}
-
-
-# attribute1, attribute2, etc. are vectors with one element in which we first provide the name of the attribute followed by a semi-colon and then provide all the levels of the attributes separated by semi-colons
-attribute1 <- "Flavor; Raspberry; Chocolate; Strawberry; Mango; Vanilla"
-attribute2 <- "Packaging; Homemade waffle; Cone; Pint"
-attribute3 <- "Light; Low fat; No low fat"
-attribute4 <- "Organic; Organic; Not organic"
-
-# now combine these different attributes into one vector with c()
-attributes <- c(attribute1, attribute2, attribute3, attribute4)
-attributes
-```
- 
 ## Conjoint design of experiment
- 
-The first step in conjoint analysis is to create a design of experiment.  This is to use a fraction of all possible combinations of attribute levels to estimate the effect of each level of each attribute.  For example, instead of using all 60 icecream profiles, we use 10 profiles.     
 
-We use "radiant" package's "doe" function to create the design of experiment.  The "doe" function takes the attributes as input and returns a data frame with the profiles.  The "seed" argument is used to fix the random number generator.  This is useful if you want to reproduce the same results.
+With three, three, three and two levels, the full factorial has
+$3 \times 3 \times 3 \times 2 = 54$ profiles. Asking every respondent to rate 54
+teas is too much, so a conjoint study shows a fraction of them. The question is
+which fraction. A good design lets us estimate the effect of every attribute
+level, with little correlation between the attributes.
 
-::: {.callout-warning}
-**Dependency note.** This chapter depends on the `radiant` package, whose plotting functions can fail to install or run on current R versions. If `radiant` is unavailable in your environment, the design-of-experiment and plotting chunks below will not execute; the `doe` output and figures are kept from a prior successful render.
-:::
-
-
-
-```{r}
-#| message: false
-#| warning: false
-#| cache: true
-
-library(radiant)
-
-ice_doe <- doe(attributes, seed = 123)
-ice_doe$eff
-#summary(doe(attributes, seed = 123, trials = 10))
-
-```
-
-This is a list of efficiency of different number of "trials".  Trials mean combinations of attribute levels.  For example, with 10 trials, the efficiency is .389 and it's unbalanced.  
-
-We can see that the only two designs with balanced design are 30 and 60.  That's because 30 and 60 are the only two numbers that can be divided by 5, 3 and 2, all unique number of 5, 3, 3, 2.  If the factors are, say, 3, 2, 3.  Then the integers that can be divided by 3 and 2 are 6, 12, and 18.  
-
-
-Efficiency is a measure of the information content a design can capture. Efficiency are
-typically stated in relative terms, as in “design A is 80% as efficient as design B.” In
-practical terms this means you will need 25% more (the reciprocal of 80%) design A
-observations (respondents, choice sets per respondent or a combination of both) to get the
-same standard errors and significance as with the more efficient design B. We used a
-measure of efficiency called D-Efficiency [@kuhfeld-1994].  In this case, the only orthogonal design is the full factorial design of 60 trials.  
-
-For example, a trial of 30 has a efficiency of .984, that means it's 98.4% as efficient as the full factorial design of 60 trials.  
-
+`AlgDesign` searches for such designs. `optFederov()` picks the subset of the
+full factorial that maximizes the determinant of the information matrix for a
+main-effects model, the D-optimality criterion. A main-effects model here has 8
+parameters, an intercept plus $2 + 2 + 2 + 1$ level contrasts, so a design needs
+at least 8 profiles. We search for designs of several sizes and report their
+D-efficiency [@kuhfeld-1994] and whether every level appears equally often.
 
 ```{r}
 #| message: false
 #| warning: false
-#| cache: true
 
-library(radiant)
-ice_doe2 <- doe(attributes, seed = 123, trials = 30)
-ice_doe2$cor_mat
+library(AlgDesign)
 
+full <- expand.grid(lapply(levels_list, factor))
+
+set.seed(123)
+designs <- map(c(9, 12, 13, 18, 27, 54),
+               \(n) optFederov(~ ., data = full, nTrials = n, criterion = "D"))
+
+tibble(trials       = c(9, 12, 13, 18, 27, 54),
+       D_efficiency = map_dbl(designs, "Dea"),
+       balanced     = map_lgl(designs, \(d) all(map_lgl(d$design,
+                                     \(f) length(unique(table(f))) == 1))))
 ```
 
+D-efficiency measures how much information a design carries per profile,
+relative to an ideal orthogonal design. A design with efficiency 0.8 needs about
+25% more observations to give the same standard errors as one with
+efficiency 1. Balance requires a number of profiles divisible by 3 and by 2.
+Among these sizes, only 12, 18 and 54 are balanced. The 18-profile design reaches
+an efficiency of 1: it is an orthogonal main-effects design, a third of the full
+factorial with nothing lost for a main-effects model.
 
-From the covariance matrix, we can se that in this 30 profile design, there is a correlation of -.105 between "Light" and "Organic".  That means these two effects are confounded; the design is not orthogonal.  That's why the efficiency is not 1.  The D-efficiency is calculated as a function of the determinant of the correlation matrix.  The D-efficiency of the full factorial design is 1.  The D-efficiency of the 30 profile design is .984.  That means the 30 profile design is 98.4% as efficient as the full factorial design.
-
-Note also that the off-diagonal correlations among Flavor, Package and the other
-attributes are of order $10^{-16}$ — numerically zero. Only the
-Light-Organic pair is confounded; the rest of the design is orthogonal.
-
-The partial factorial design of 30 profile is 
-
+The tea study used 13 profiles. That number cannot be balanced, and the
+design shows it.
 
 ```{r}
+map(profiles, table)
 
-
-ice_doe2$part
-
+X <- model.matrix(~ price + variety + kind + aroma, profiles)[, -1]
+round(cor(X), 2)
 ```
+
+Low price and red variety appear 3 times, while other levels appear 5 times,
+and aroma is "no" in 8 of the 13 profiles. The correlations between dummies of
+the *same* attribute, such as $-0.62$ for medium and high price, come from the
+coding and are expected. What matters is the correlation *between* attributes,
+and it stays small: the largest is 0.13, between red variety and granulated
+kind. The attributes are close to independent, so each attribute's effect can be
+estimated without much contamination from the others.
 
 ## Conjoint analysis
 
-In the icecream data set we read in, it's a 10 profile design.  There are 15 respondents.  They rate 10 profiles of icecreams.
-
-
-
-```{r}
-#| message: false
-#| warning: false
-#| cache: true
-
-conjoint <- conjoint(icecream, rvar = "rating", evar = c("Flavor","Packaging","Light","Organic")) 
-
-summary(conjoint)
-
-```
-
-```{r}
-
-
-plot(conjoint)
-
-```
-The partworths are just coefficient from a linear regression:
+The part-worths are the coefficients of a regression of the rating on attribute
+dummies. Each respondent rates 13 profiles, so the ratings are clustered by
+respondent, and the standard errors have to allow for that.
 
 ```{r}
 #| message: false
@@ -197,24 +147,111 @@ The partworths are just coefficient from a linear regression:
 library(sandwich)
 library(lmtest)
 
-partworths_lm <- lm(rating ~ Flavor + Packaging + Light + Organic, data = icecream)
-summary(partworths_lm)
-
-# Each of the 15 respondents rates 10 profiles, so observations are clustered
-# by respondent; plain OLS standard errors above assume independence and
-# understate the true uncertainty. Cluster at the respondent level instead.
-coeftest(partworths_lm, vcov = vcovCL(partworths_lm, cluster = icecream$respondent))
-
+partworths_lm <- lm(rating ~ price + variety + kind + aroma, data = tea_long)
+coeftest(partworths_lm, vcov = vcovCL(partworths_lm, cluster = ~ respondent))
 ```
 
-The conjoint importance weights are the relative importance of each attribute.  First the range of partworths for each attribute is calculated.  Then the range of partworths for each attribute is divided by the sum of the ranges of all attributes.  In this example, Flavor is the most important attribute, with an importance weight of .597.  
+The baseline profile is low-priced black tea in bags with aroma. Relative to it,
+red tea lowers the rating by 1.26 points and green tea by 0.58. Granulated tea
+lowers it by 1.03, while leafy tea raises it by 0.62. Tea without aroma is rated
+0.82 lower. Price matters least: medium and high prices lower the rating by about
+0.35, and only the medium-price contrast is significant at 5%.
 
-There is another package called "conjoint" which I have not played with.   
+Conjoint software usually reports part-worths in effect coding, where the
+part-worths of each attribute sum to zero. They are the same coefficients,
+re-centred within each attribute. The importance of an attribute is the range of
+its part-worths as a share of the sum of the ranges.
 
-In summary, we can use R packages to set up a conjoint experiment, in the sense that we can have partial (fractional) factorial design.  After collecting the data, we can use either the conjoint packages, or just run linear or logit models to analyze it.  The frequentist approach used in conjoint analysis seems nothing special.  Bayesian approach can also be used, but that's another topic.  
+```{r}
+#| fig-width: 8
+#| fig-height: 3.5
+
+part_worths <- imap_dfr(levels_list, \(lv, attr) {
+  b <- c(0, coef(partworths_lm)[paste0(attr, lv[-1])])
+  tibble(attribute = attr, level = factor(lv, levels = lv), part_worth = b - mean(b))
+})
+
+importance <- part_worths |>
+  group_by(attribute) |>
+  summarise(range = diff(range(part_worth))) |>
+  mutate(importance = round(100 * range / sum(range), 1))
+importance
+
+ggplot(part_worths, aes(level, part_worth)) +
+  geom_col(fill = "darkcyan") +
+  geom_hline(yintercept = 0) +
+  facet_wrap(~ attribute, scales = "free_x", nrow = 1) +
+  labs(x = NULL, y = "Part-worth") +
+  theme_bw()
+```
+
+Kind is the most important attribute, with 39.9% of the total range, followed by
+variety with 30.8%, aroma with 20.0% and price with 9.3%.
+
+The `conjoint` package computes the same quantities. Its pooled part-worths
+match ours exactly. Its importance figures do not, and the reason is worth
+knowing. `caImportance()` computes each respondent's importance from that
+respondent's own part-worths, and then averages across respondents. Individual
+part-worths from 13 ratings are noisy, and noise widens every attribute's range,
+so the averaged importance spreads more evenly across attributes than the pooled
+figure.
+
+```{r}
+#| message: false
+#| warning: false
+
+# conjoint's functions switch R to sum-to-zero contrasts globally and do not
+# switch back, which would break every later regression; save and restore.
+op <- options("contrasts")
+invisible(capture.output(pooled <- caUtilities(y = tprefm, x = tprof, z = tlevn)))
+invisible(capture.output(imp <- caImportance(y = tprefm, x = tprof)))
+options(op)
+
+round(pooled, 3)                      # intercept, then effect-coded part-worths
+setNames(imp, names(levels_list))     # averaged over respondents
+```
+
+The averaged importances are 24.8 for price, 32.2 for variety, 27.2 for kind and
+15.9 for aroma. Price moves from least important to second. The two figures
+answer different questions. The pooled range describes the average respondent.
+The averaged importance describes how much each attribute matters within a
+respondent, and it is inflated by sampling noise in the individual fits.
 
 ## Causal effect in conjoint analysis
 
-@hainmueller-2014 defined AMCE (average marginal component effect) -- not to be confused with ACME (average causal mediation effect, Imai et al.), a different causal estimand from the mediation-analysis literature. The basic idea is that once all the assumptions are met (usual assumptions in causal inference), we can have the effect of changing one attribute level to another with a causal interpretation.  Fortunately it is usually just coefficients from a linear model, or linear combinations of the coefficients.  There is a package "cregg" for each calculation and plotting of AMCE, but we can just do it manually.
+@hainmueller-2014 define the average marginal component effect (AMCE): the
+average change in the outcome when one attribute moves from one level to
+another, averaged over the distribution of the other attributes. It is not to be
+confused with the ACME, the average causal mediation effect of Imai et al. When
+the attribute levels are randomized independently of each other and of the
+respondents, the AMCE is identified, and it is estimated by the coefficients of a
+regression of the outcome on the attribute dummies. Standard errors are clustered
+by respondent. The `cjoint` package implements it.
 
- 
+```{r}
+#| message: false
+#| warning: false
+
+library(cjoint)
+
+amce_fit <- amce(rating ~ price + variety + kind + aroma, data = as.data.frame(tea_long),
+                 cluster = TRUE, respondent.id = "respondent")
+
+imap_dfr(amce_fit$estimates, \(m, attr)
+  tibble(attribute = attr, level = colnames(m),
+         amce = round(m["AMCE", ], 3), se = round(m["Std. Error", ], 3)))
+```
+
+The AMCEs are exactly the part-worth coefficients above, with the same clustered
+standard errors. The tea profiles were not randomized; they are a fixed
+13-profile design. The attributes in it are close to independent, which is why
+the regression coefficients still read as average effects of each attribute. The
+causal reading also needs the ratings to reflect the attributes shown and nothing
+else about the profile, and it holds only for the population of profiles the
+design represents.
+
+## Summary
+
+A conjoint study asks respondents to rate or choose among product profiles whose attributes vary by design. The full factorial is usually too long, so we use a fraction chosen for D-efficiency and balance. For the tea attributes, an 18-profile design is fully efficient and balanced. The study's own 13 profiles cannot be balanced, but the correlations between attributes stay below 0.13.
+
+The analysis is a regression of the ratings on attribute dummies, with standard errors clustered by respondent. The coefficients are the part-worths. Kind and variety matter most, and price least. Importance from the pooled part-worths differs from `conjoint`'s average of individual importances, because individual fits are noisy. When attribute levels are independent, the same coefficients are Hainmueller et al.'s average marginal component effects, which `cjoint` reproduces.

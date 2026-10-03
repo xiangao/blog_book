@@ -77,6 +77,12 @@ SuperLearner (tmle), grf (causal-forest-panel) and the bootstrap chapters are
 minutes of compute and genuinely need them. The trap is specific to `collectcode`,
 which is a Statamarkdown feature with no R equivalent here.
 
+### Leftover `profile.do` contaminates other Stata chapters (found 2026-10-03)
+
+Statamarkdown's `collectcode` writes its buffer to `profile.do` in the project root, and Stata runs that file automatically at startup. If a render leaves it behind, every later Stata chapter starts with that data in memory, so `sysuse`/`webuse` without `clear` fails with `no; dataset in memory has changed since last saved r(4)`. Other chunks silently run on the wrong data (mediation-analysis's `sem` ran on 400 observations instead of 10,000). The 2026-10-03 summary pass re-executed 32 chapters in one render and contaminated six. The committed `multilevel-models` output had been broken this way before that, and `treatment-matching` carried the "Running .../profile.do" line.
+
+**Prevention:** `rm -f profile.do` before rendering. When several Stata chapters must re-execute, render them one at a time with `rm -f profile.do` between, then do a full render. **Check after any render:** `grep -l "r(4);\|Running /home" _book/*.html` must print nothing.
+
 ## Compatibility Fixes Applied
 - `estimate_average_effect()` → `average_treatment_effect()` (grf package rename)
 - `PanelMatch()` now requires `PanelData()` constructor object
