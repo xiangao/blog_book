@@ -9,7 +9,7 @@ A Quarto book collecting notes and tutorials on causal inference and applied eco
 - **Part III: Treatment Effects & Matching** — Matching, weighting, sensitivity analysis
 - **Part IV: Panel Data & DiD** — Causal forest, synthetic control, Bartik instruments, TWFE, DDDiD
 - **Part V: Count Data & Specialized Models** — Poisson regression, rare events, IV in fixed effect Poisson
-- **Part VI: Causal Inference Methods** — TMLE, mediation, g-estimation, policy learning, proximal CI, LMTP
+- **Part VI: Causal Inference Methods** — TMLE, mediation, g-estimation, policy learning, proximal CI, LMTP, incremental effects for continuous exposures
 - **Part VII: Advanced Topics** — Multi-level models, conjoint analysis, spatial econometrics, causal simulation
 
 ## Build

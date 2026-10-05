@@ -102,7 +102,7 @@ After initial render, `_freeze/` caches all output. Subsequent renders skip exec
 ## Source
 - Original 40 chapters converted from blogdown posts in `../blog/content/post/` using `convert_posts.py`
 - 4 additional chapters (more-cre, gwg, uplift, numpyro) added from `~/projects/myprojects/quarto_blog/posts/`
-- 4 further chapters added since (frengression, partial-interference, same-data-different-estimators, tasc) — 48 total
+- 4 further chapters added since (frengression, partial-interference, same-data-different-estimators, tasc), plus incremental-effects (2026-10-05) — 49 total
 
 ## Review pass (2026-06-07)
 Math/code audit + fixes across ~33 chapters (audit trail: ../_review/). Key corrections:
@@ -660,3 +660,12 @@ The two works now reach the References chapter through a sentence on that page, 
 conjoint chapter lists them through a page-level `nocite` in its own front matter (which
 a full project render honours). Do not test this by `quarto render conjoint-analysis.qmd`:
 naming a frozen file explicitly executes it, and `radiant` is not installable.
+
+## Incremental effects chapter (added 2026-10-05)
+
+`incremental-effects.qmd`, after `lmtp.qmd`: exponentially tilted dose distributions (Schindl, Shen & Kennedy, arXiv 2409.11967), with our own estimator code in the chapter (no package exists; the authors ship replication code only).
+
+- **Saved results, not re-run on render.** The simulation (~40 min at n=1000, ~95 min at n=4000, 6 cores) and the application (~30 min: tilts, dose-response, lmtp) write `incremental-effects-sim.rds`, `incremental-effects-app.rds`, `incremental-effects-lmtp.rds`; the chunks read them when present. Delete an .rds to recompute it. Data: `FECForCEM.RData` (from the authors' repo; Fong et al. 2018).
+- **Findings the prose depends on:** with the true dose law the one-step estimator is unbiased with ~95% coverage; with the estimated (kernel-on-forest) law the bias shrinks ~n^-0.2, so coverage at moderate tilts worsens with n. Ignoring the zero-ads atom biases negative tilts badly. Ads vary only across 138 media markets (73 distinct doses): folds by market, SEs clustered by market (~10x iid).
+- **Authors' code problems the chapter names:** bandwidth CV on RMSE of K_h always picks the largest h; pi-hat not renormalised in `estimate_psi` (so psi-hat(0) != Ybar); simulation noise added to Y.
+- Figure facet labels use plotmath (`label_parsed`), not Unicode Greek: the PDF device fails on U+03C8.
