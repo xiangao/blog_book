@@ -7,7 +7,7 @@ Most causal inference methods assume SUTVA: one unit's treatment does not affect
 
 Partial interference [@sobel-2006; @hudgens-halloran-2008] is one way to make this manageable. Units are organized into clusters. Interference can happen within a cluster, but not between clusters. This is still a strong assumption, but it is weaker than no interference.
 
-@qu-2021 develop clustered IPW and AIPW estimators for this setting, and the `CausalModel` R package implements them. Here I just simulate data and see how the functions work.
+@qu-2021 develop clustered IPW and AIPW estimators for this setting, and the `CausalModel` R package implements them. As the number of clusters grows, their AIPW estimator is asymptotically normal and attains a semiparametric efficiency bound that allows outcomes in a cluster to be correlated (their Theorem 2). Here I just simulate data and see how the functions work.
 
 ## The Setup
 
@@ -94,7 +94,7 @@ This is the estimator I would usually try first, for the same reason standard AI
 
 ### Variance Estimation
 
-Standard errors are computed by a matching-based variance estimator. Within each group and neighborhood configuration, units are matched on standardized covariates, and the variance is estimated from the matched pairs. This avoids a cluster bootstrap, which can be expensive here.
+Standard errors are computed by the matching-based variance estimator of @qu-2021 [Appendix A.5], which they propose for testing which interference structure holds and show to be consistent. Within each group and neighborhood configuration, units are matched on standardized covariates, and the variance is estimated from the matched pairs. This avoids a cluster bootstrap, which can be expensive here.
 
 ## Using CausalModel
 
@@ -353,6 +353,8 @@ The reason is positivity. Configuration $(0,0)$ requires a unit with *no*
 treated neighbours in either group, and with treatment prevalence near 0.5 in
 clusters of five that configuration is rare, so the inverse-probability weights
 attached to it are extreme.
+
+The paper's own simulation points the same way on a smaller scale [@qu-2021, Table 2]. With 5,000 clusters of size four, AIPW's coverage is 94.88% to 95.60%, close to nominal. But its mean squared error, 0.0038 to 0.0039, is larger than a random forest's, 0.0027, for every outcome model, and larger than OLS's, 0.0003, when the outcome model is linear. The text there says AIPW has much smaller MSE. What the table shows is that AIPW gives valid intervals, not that it is the most precise.
 
 ```{r}
 #| label: mc_hist

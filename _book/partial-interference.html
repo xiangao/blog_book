@@ -639,7 +639,7 @@ window.Quarto = {
 
 </header><p>Most causal inference methods assume SUTVA: one unit’s treatment does not affect another unit’s outcome. This is often not true. Vaccinating your neighbor can reduce your risk of infection. A job training program for one worker may affect another worker’s job prospect. A student’s test score may depend on whether classmates received tutoring.</p>
 <p>Partial interference <span class="citation" data-cites="sobel-2006 hudgens-halloran-2008">(<a href="references.html#ref-sobel-2006" role="doc-biblioref">Sobel 2006</a>; <a href="references.html#ref-hudgens-halloran-2008" role="doc-biblioref">Hudgens and Halloran 2008</a>)</span> is one way to make this manageable. Units are organized into clusters. Interference can happen within a cluster, but not between clusters. This is still a strong assumption, but it is weaker than no interference.</p>
-<p><span class="citation" data-cites="qu-2021">Qu et al. (<a href="references.html#ref-qu-2021" role="doc-biblioref">2021</a>)</span> develop clustered IPW and AIPW estimators for this setting, and the <code>CausalModel</code> R package implements them. Here I just simulate data and see how the functions work.</p>
+<p><span class="citation" data-cites="qu-2021">Qu et al. (<a href="references.html#ref-qu-2021" role="doc-biblioref">2024</a>)</span> develop clustered IPW and AIPW estimators for this setting, and the <code>CausalModel</code> R package implements them. As the number of clusters grows, their AIPW estimator is asymptotically normal and attains a semiparametric efficiency bound that allows outcomes in a cluster to be correlated (their Theorem 2). Here I just simulate data and see how the functions work.</p>
 <section id="the-setup" class="level2" data-number="44.1"><h2 data-number="44.1" class="anchored" data-anchor-id="the-setup">
 <span class="header-section-number">44.1</span> The Setup</h2>
 <section id="clusters-and-groups" class="level3" data-number="44.1.1"><h3 data-number="44.1.1" class="anchored" data-anchor-id="clusters-and-groups">
@@ -737,7 +737,7 @@ window.Quarto = {
 <p>This is the estimator I would usually try first, for the same reason standard AIPW is attractive.</p>
 </section><section id="variance-estimation" class="level3" data-number="44.2.4"><h3 data-number="44.2.4" class="anchored" data-anchor-id="variance-estimation">
 <span class="header-section-number">44.2.4</span> Variance Estimation</h3>
-<p>Standard errors are computed by a matching-based variance estimator. Within each group and neighborhood configuration, units are matched on standardized covariates, and the variance is estimated from the matched pairs. This avoids a cluster bootstrap, which can be expensive here.</p>
+<p>Standard errors are computed by the matching-based variance estimator of <span class="citation" data-cites="qu-2021">Qu et al. (<a href="references.html#ref-qu-2021" role="doc-biblioref">2024</a>, Appendix A.5)</span>, which they propose for testing which interference structure holds and show to be consistent. Within each group and neighborhood configuration, units are matched on standardized covariates, and the variance is estimated from the matched pairs. This avoids a cluster bootstrap, which can be expensive here.</p>
 </section></section><section id="using-causalmodel" class="level2" data-number="44.3"><h2 data-number="44.3" class="anchored" data-anchor-id="using-causalmodel">
 <span class="header-section-number">44.3</span> Using CausalModel</h2>
 <div class="cell">
@@ -1059,6 +1059,7 @@ Group 1:
 </div>
 <p>Over 100 replications the picture is mixed, and the failure is informative. Configuration <span class="math inline">\((1,0)\)</span> recovers its truth well — mean 1.569 against 1.5, bias 0.069, coverage 89.9% — and <span class="math inline">\((0,1)\)</span> better still, 1.083 against 1.1 with 93.0% coverage. But <span class="math inline">\((0,0)\)</span> is badly behaved: mean 2.107 against a true 1.0, and an empirical standard deviation of 8.760 against a mean reported standard error of 0.448. The estimator is not merely biased there; its own standard error understates the sampling variability by a factor of nearly twenty, and coverage is 82% only because a few enormous outliers drag the mean while most draws sit near the truth.</p>
 <p>The reason is positivity. Configuration <span class="math inline">\((0,0)\)</span> requires a unit with <em>no</em> treated neighbours in either group, and with treatment prevalence near 0.5 in clusters of five that configuration is rare, so the inverse-probability weights attached to it are extreme.</p>
+<p>The paper’s own simulation points the same way on a smaller scale <span class="citation" data-cites="qu-2021">(<a href="references.html#ref-qu-2021" role="doc-biblioref">Qu et al. 2024</a>, Table 2)</span>. With 5,000 clusters of size four, AIPW’s coverage is 94.88% to 95.60%, close to nominal. But its mean squared error, 0.0038 to 0.0039, is larger than a random forest’s, 0.0027, for every outcome model, and larger than OLS’s, 0.0003, when the outcome model is linear. The text there says AIPW has much smaller MSE. What the table shows is that AIPW gives valid intervals, not that it is the most precise.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html">length</a></span><span class="op">(</span><span class="va">g_indices</span><span class="op">)</span><span class="op">)</span>, mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">3</span>, <span class="fl">2</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="kw">for</span> <span class="op">(</span><span class="va">j</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html">seq_along</a></span><span class="op">(</span><span class="va">g_indices</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
@@ -1153,7 +1154,7 @@ Group 1:
 Hudgens, Michael G., and M. Elizabeth Halloran. 2008. <span>“Toward Causal Inference with Interference.”</span> <em>Journal of the American Statistical Association</em> 103 (482): 832–42. <a href="https://doi.org/10.1198/016214508000000292">https://doi.org/10.1198/016214508000000292</a>.
 </div>
 <div id="ref-qu-2021" class="csl-entry" role="listitem">
-Qu, Zhaonan, Ruoxuan Xiong, Jizhou Liu, and Guido Imbens. 2021. <span>“Semiparametric Estimation of Treatment Effects in Observational Studies with Heterogeneous Partial Interference.”</span> <a href="https://doi.org/10.48550/arXiv.2107.12420">https://doi.org/10.48550/arXiv.2107.12420</a>.
+Qu, Zhaonan, Ruoxuan Xiong, Jizhou Liu, and Guido Imbens. 2024. <span>“Semiparametric Estimation of Treatment Effects in Observational Studies with Heterogeneous Partial Interference.”</span> <a href="https://doi.org/10.48550/arXiv.2107.12420">https://doi.org/10.48550/arXiv.2107.12420</a>.
 </div>
 <div id="ref-sobel-2006" class="csl-entry" role="listitem">
 Sobel, Michael E. 2006. <span>“What Do Randomized Studies of Housing Mobility Demonstrate? Causal Inference in the Face of Interference.”</span> <em>Journal of the American Statistical Association</em> 101 (476): 1398–1407. <a href="https://doi.org/10.1198/016214506000000636">https://doi.org/10.1198/016214506000000636</a>.
@@ -1629,7 +1630,7 @@ Sobel, Michael E. 2006. <span>“What Do Randomized Studies of Housing Mobility 
 <span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>Partial interference <span class="co">[</span><span class="ot">@sobel-2006; @hudgens-halloran-2008</span><span class="co">]</span> is one way to make this manageable. Units are organized into clusters. Interference can happen within a cluster, but not between clusters. This is still a strong assumption, but it is weaker than no interference.</span>
 <span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>@qu-2021 develop clustered IPW and AIPW estimators for this setting, and the <span class="in">`CausalModel`</span> R package implements them. Here I just simulate data and see how the functions work.</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>@qu-2021 develop clustered IPW and AIPW estimators for this setting, and the <span class="in">`CausalModel`</span> R package implements them. As the number of clusters grows, their AIPW estimator is asymptotically normal and attains a semiparametric efficiency bound that allows outcomes in a cluster to be correlated (their Theorem 2). Here I just simulate data and see how the functions work.</span>
 <span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a><span class="fu">## The Setup</span></span>
 <span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a></span>
@@ -1716,7 +1717,7 @@ Sobel, Michael E. 2006. <span>“What Do Randomized Studies of Housing Mobility 
 <span id="cb29-94"><a href="#cb29-94" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-95"><a href="#cb29-95" aria-hidden="true" tabindex="-1"></a><span class="fu">### Variance Estimation</span></span>
 <span id="cb29-96"><a href="#cb29-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-97"><a href="#cb29-97" aria-hidden="true" tabindex="-1"></a>Standard errors are computed by a matching-based variance estimator. Within each group and neighborhood configuration, units are matched on standardized covariates, and the variance is estimated from the matched pairs. This avoids a cluster bootstrap, which can be expensive here.</span>
+<span id="cb29-97"><a href="#cb29-97" aria-hidden="true" tabindex="-1"></a>Standard errors are computed by the matching-based variance estimator of @qu-2021 <span class="co">[</span><span class="ot">Appendix A.5</span><span class="co">]</span>, which they propose for testing which interference structure holds and show to be consistent. Within each group and neighborhood configuration, units are matched on standardized covariates, and the variance is estimated from the matched pairs. This avoids a cluster bootstrap, which can be expensive here.</span>
 <span id="cb29-98"><a href="#cb29-98" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-99"><a href="#cb29-99" aria-hidden="true" tabindex="-1"></a><span class="fu">## Using CausalModel</span></span>
 <span id="cb29-100"><a href="#cb29-100" aria-hidden="true" tabindex="-1"></a></span>
@@ -1976,88 +1977,90 @@ Sobel, Michael E. 2006. <span>“What Do Randomized Studies of Housing Mobility 
 <span id="cb29-374"><a href="#cb29-374" aria-hidden="true" tabindex="-1"></a>clusters of five that configuration is rare, so the inverse-probability weights</span>
 <span id="cb29-375"><a href="#cb29-375" aria-hidden="true" tabindex="-1"></a>attached to it are extreme.</span>
 <span id="cb29-376"><a href="#cb29-376" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-379"><a href="#cb29-379" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-380"><a href="#cb29-380" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: mc_hist</span></span>
-<span id="cb29-381"><a href="#cb29-381" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb29-382"><a href="#cb29-382" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-383"><a href="#cb29-383" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb29-384"><a href="#cb29-384" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Studentized statistics under clustered AIPW"</span></span>
-<span id="cb29-385"><a href="#cb29-385" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
-<span id="cb29-386"><a href="#cb29-386" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fu">length</span>(g_indices)), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>))</span>
-<span id="cb29-387"><a href="#cb29-387" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="fu">seq_along</span>(g_indices)) {</span>
-<span id="cb29-388"><a href="#cb29-388" aria-hidden="true" tabindex="-1"></a>  betas <span class="ot">&lt;-</span> int_results[, j, <span class="st">"beta"</span>]</span>
-<span id="cb29-389"><a href="#cb29-389" aria-hidden="true" tabindex="-1"></a>  ses <span class="ot">&lt;-</span> int_results[, j, <span class="st">"se"</span>]</span>
-<span id="cb29-390"><a href="#cb29-390" aria-hidden="true" tabindex="-1"></a>  valid <span class="ot">&lt;-</span> <span class="sc">!</span><span class="fu">is.nan</span>(betas) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.nan</span>(ses) <span class="sc">&amp;</span> ses <span class="sc">&gt;</span> <span class="dv">0</span></span>
-<span id="cb29-391"><a href="#cb29-391" aria-hidden="true" tabindex="-1"></a>  t_stats <span class="ot">&lt;-</span> (betas[valid] <span class="sc">-</span> true_values[j]) <span class="sc">/</span> ses[valid]</span>
-<span id="cb29-392"><a href="#cb29-392" aria-hidden="true" tabindex="-1"></a>  g_label <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"("</span>, <span class="fu">paste</span>(g_indices[[j]], <span class="at">collapse =</span> <span class="st">","</span>), <span class="st">")"</span>)</span>
-<span id="cb29-393"><a href="#cb29-393" aria-hidden="true" tabindex="-1"></a>  <span class="fu">hist</span>(t_stats, <span class="at">breaks =</span> <span class="dv">20</span>, <span class="at">freq =</span> <span class="cn">FALSE</span>, <span class="at">col =</span> <span class="st">"lightblue"</span>,</span>
-<span id="cb29-394"><a href="#cb29-394" aria-hidden="true" tabindex="-1"></a>       <span class="at">main =</span> <span class="fu">sprintf</span>(<span class="st">"g = %s"</span>, g_label),</span>
-<span id="cb29-395"><a href="#cb29-395" aria-hidden="true" tabindex="-1"></a>       <span class="at">xlab =</span> <span class="st">""</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">4</span>, <span class="dv">4</span>))</span>
-<span id="cb29-396"><a href="#cb29-396" aria-hidden="true" tabindex="-1"></a>  <span class="fu">curve</span>(<span class="fu">dnorm</span>(x), <span class="at">add =</span> <span class="cn">TRUE</span>, <span class="at">col =</span> <span class="st">"red"</span>, <span class="at">lwd =</span> <span class="dv">2</span>)</span>
-<span id="cb29-397"><a href="#cb29-397" aria-hidden="true" tabindex="-1"></a>  <span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">0</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span>
-<span id="cb29-398"><a href="#cb29-398" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb29-399"><a href="#cb29-399" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb29-400"><a href="#cb29-400" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-401"><a href="#cb29-401" aria-hidden="true" tabindex="-1"></a>If both the estimator and SE work well, the studentized statistics should look roughly normal.</span>
+<span id="cb29-377"><a href="#cb29-377" aria-hidden="true" tabindex="-1"></a>The paper's own simulation points the same way on a smaller scale <span class="co">[</span><span class="ot">@qu-2021, Table 2</span><span class="co">]</span>. With 5,000 clusters of size four, AIPW's coverage is 94.88% to 95.60%, close to nominal. But its mean squared error, 0.0038 to 0.0039, is larger than a random forest's, 0.0027, for every outcome model, and larger than OLS's, 0.0003, when the outcome model is linear. The text there says AIPW has much smaller MSE. What the table shows is that AIPW gives valid intervals, not that it is the most precise.</span>
+<span id="cb29-378"><a href="#cb29-378" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-381"><a href="#cb29-381" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-382"><a href="#cb29-382" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: mc_hist</span></span>
+<span id="cb29-383"><a href="#cb29-383" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb29-384"><a href="#cb29-384" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-385"><a href="#cb29-385" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb29-386"><a href="#cb29-386" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Studentized statistics under clustered AIPW"</span></span>
+<span id="cb29-387"><a href="#cb29-387" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-height: 4</span></span>
+<span id="cb29-388"><a href="#cb29-388" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fu">length</span>(g_indices)), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>))</span>
+<span id="cb29-389"><a href="#cb29-389" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="fu">seq_along</span>(g_indices)) {</span>
+<span id="cb29-390"><a href="#cb29-390" aria-hidden="true" tabindex="-1"></a>  betas <span class="ot">&lt;-</span> int_results[, j, <span class="st">"beta"</span>]</span>
+<span id="cb29-391"><a href="#cb29-391" aria-hidden="true" tabindex="-1"></a>  ses <span class="ot">&lt;-</span> int_results[, j, <span class="st">"se"</span>]</span>
+<span id="cb29-392"><a href="#cb29-392" aria-hidden="true" tabindex="-1"></a>  valid <span class="ot">&lt;-</span> <span class="sc">!</span><span class="fu">is.nan</span>(betas) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.nan</span>(ses) <span class="sc">&amp;</span> ses <span class="sc">&gt;</span> <span class="dv">0</span></span>
+<span id="cb29-393"><a href="#cb29-393" aria-hidden="true" tabindex="-1"></a>  t_stats <span class="ot">&lt;-</span> (betas[valid] <span class="sc">-</span> true_values[j]) <span class="sc">/</span> ses[valid]</span>
+<span id="cb29-394"><a href="#cb29-394" aria-hidden="true" tabindex="-1"></a>  g_label <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"("</span>, <span class="fu">paste</span>(g_indices[[j]], <span class="at">collapse =</span> <span class="st">","</span>), <span class="st">")"</span>)</span>
+<span id="cb29-395"><a href="#cb29-395" aria-hidden="true" tabindex="-1"></a>  <span class="fu">hist</span>(t_stats, <span class="at">breaks =</span> <span class="dv">20</span>, <span class="at">freq =</span> <span class="cn">FALSE</span>, <span class="at">col =</span> <span class="st">"lightblue"</span>,</span>
+<span id="cb29-396"><a href="#cb29-396" aria-hidden="true" tabindex="-1"></a>       <span class="at">main =</span> <span class="fu">sprintf</span>(<span class="st">"g = %s"</span>, g_label),</span>
+<span id="cb29-397"><a href="#cb29-397" aria-hidden="true" tabindex="-1"></a>       <span class="at">xlab =</span> <span class="st">""</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">4</span>, <span class="dv">4</span>))</span>
+<span id="cb29-398"><a href="#cb29-398" aria-hidden="true" tabindex="-1"></a>  <span class="fu">curve</span>(<span class="fu">dnorm</span>(x), <span class="at">add =</span> <span class="cn">TRUE</span>, <span class="at">col =</span> <span class="st">"red"</span>, <span class="at">lwd =</span> <span class="dv">2</span>)</span>
+<span id="cb29-399"><a href="#cb29-399" aria-hidden="true" tabindex="-1"></a>  <span class="fu">abline</span>(<span class="at">v =</span> <span class="dv">0</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span>
+<span id="cb29-400"><a href="#cb29-400" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb29-401"><a href="#cb29-401" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb29-402"><a href="#cb29-402" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-403"><a href="#cb29-403" aria-hidden="true" tabindex="-1"></a><span class="fu">## What If You Ignore Interference?</span></span>
+<span id="cb29-403"><a href="#cb29-403" aria-hidden="true" tabindex="-1"></a>If both the estimator and SE work well, the studentized statistics should look roughly normal.</span>
 <span id="cb29-404"><a href="#cb29-404" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-405"><a href="#cb29-405" aria-hidden="true" tabindex="-1"></a>What happens if we ignore interference and use a standard AIPW estimator? We get one number that averages over neighborhood configurations. That number is hard to interpret.</span>
+<span id="cb29-405"><a href="#cb29-405" aria-hidden="true" tabindex="-1"></a><span class="fu">## What If You Ignore Interference?</span></span>
 <span id="cb29-406"><a href="#cb29-406" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-409"><a href="#cb29-409" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb29-410"><a href="#cb29-410" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ignore_interference</span></span>
-<span id="cb29-411"><a href="#cb29-411" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb29-412"><a href="#cb29-412" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb29-413"><a href="#cb29-413" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb29-414"><a href="#cb29-414" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate one dataset with interference</span></span>
-<span id="cb29-415"><a href="#cb29-415" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb29-416"><a href="#cb29-416" aria-hidden="true" tabindex="-1"></a>cdata <span class="ot">&lt;-</span> <span class="fu">generate_fixed_cluster</span>(</span>
-<span id="cb29-417"><a href="#cb29-417" aria-hidden="true" tabindex="-1"></a>  <span class="at">clusters =</span> <span class="dv">200</span>,</span>
-<span id="cb29-418"><a href="#cb29-418" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_struct =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>),</span>
-<span id="cb29-419"><a href="#cb29-419" aria-hidden="true" tabindex="-1"></a>  <span class="at">tau =</span> <span class="dv">1</span>,</span>
-<span id="cb29-420"><a href="#cb29-420" aria-hidden="true" tabindex="-1"></a>  <span class="at">gamma =</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="fl">0.1</span>)</span>
-<span id="cb29-421"><a href="#cb29-421" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb29-422"><a href="#cb29-422" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-423"><a href="#cb29-423" aria-hidden="true" tabindex="-1"></a><span class="co"># Naive: ignore clusters, treat as standard observational data</span></span>
-<span id="cb29-424"><a href="#cb29-424" aria-hidden="true" tabindex="-1"></a>obs_naive <span class="ot">&lt;-</span> <span class="fu">observational</span>(cdata<span class="sc">$</span>Y, cdata<span class="sc">$</span>Z, cdata<span class="sc">$</span>X)</span>
-<span id="cb29-425"><a href="#cb29-425" aria-hidden="true" tabindex="-1"></a>naive_ate <span class="ot">&lt;-</span> <span class="fu">est_via_aipw</span>(obs_naive)</span>
-<span id="cb29-426"><a href="#cb29-426" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-427"><a href="#cb29-427" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Naive AIPW (ignoring interference):"</span>, <span class="fu">round</span>(naive_ate<span class="sc">$</span>ate, <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
-<span id="cb29-428"><a href="#cb29-428" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"SE:"</span>, <span class="fu">round</span>(naive_ate<span class="sc">$</span>se, <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>)</span>
-<span id="cb29-429"><a href="#cb29-429" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-430"><a href="#cb29-430" aria-hidden="true" tabindex="-1"></a><span class="co"># Correct: use clustered estimator</span></span>
-<span id="cb29-431"><a href="#cb29-431" aria-hidden="true" tabindex="-1"></a>cl_obj <span class="ot">&lt;-</span> <span class="fu">clustered</span>(</span>
-<span id="cb29-432"><a href="#cb29-432" aria-hidden="true" tabindex="-1"></a>  <span class="at">Y =</span> cdata<span class="sc">$</span>Y, <span class="at">Z =</span> cdata<span class="sc">$</span>Z, <span class="at">X =</span> cdata<span class="sc">$</span>X,</span>
-<span id="cb29-433"><a href="#cb29-433" aria-hidden="true" tabindex="-1"></a>  <span class="at">cluster_labels =</span> cdata<span class="sc">$</span>cluster_labels,</span>
-<span id="cb29-434"><a href="#cb29-434" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_labels =</span> cdata<span class="sc">$</span>group_labels,</span>
-<span id="cb29-435"><a href="#cb29-435" aria-hidden="true" tabindex="-1"></a>  <span class="at">ingroup_labels =</span> cdata<span class="sc">$</span>ingroup_labels,</span>
-<span id="cb29-436"><a href="#cb29-436" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_matches =</span> <span class="dv">50</span></span>
-<span id="cb29-437"><a href="#cb29-437" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb29-438"><a href="#cb29-438" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">est_via_aipw</span>(cl_obj)</span>
-<span id="cb29-439"><a href="#cb29-439" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-440"><a href="#cb29-440" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Clustered AIPW beta_g (group 0):</span><span class="sc">\n</span><span class="st">"</span>)</span>
-<span id="cb29-441"><a href="#cb29-441" aria-hidden="true" tabindex="-1"></a>valid <span class="ot">&lt;-</span> <span class="sc">!</span><span class="fu">is.nan</span>(result[[<span class="dv">1</span>]]<span class="sc">$</span>beta_g) <span class="sc">&amp;</span> result[[<span class="dv">1</span>]]<span class="sc">$</span>se <span class="sc">&gt;</span> <span class="dv">0</span></span>
-<span id="cb29-442"><a href="#cb29-442" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb29-443"><a href="#cb29-443" aria-hidden="true" tabindex="-1"></a>  <span class="at">g_index =</span> <span class="fu">which</span>(valid) <span class="sc">-</span> <span class="dv">1</span>,</span>
-<span id="cb29-444"><a href="#cb29-444" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta_g =</span> <span class="fu">round</span>(result[[<span class="dv">1</span>]]<span class="sc">$</span>beta_g[valid], <span class="dv">3</span>),</span>
-<span id="cb29-445"><a href="#cb29-445" aria-hidden="true" tabindex="-1"></a>  <span class="at">se =</span> <span class="fu">round</span>(result[[<span class="dv">1</span>]]<span class="sc">$</span>se[valid], <span class="dv">3</span>)</span>
-<span id="cb29-446"><a href="#cb29-446" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb29-447"><a href="#cb29-447" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb29-448"><a href="#cb29-448" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb29-449"><a href="#cb29-449" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-450"><a href="#cb29-450" aria-hidden="true" tabindex="-1"></a>The naive estimate gives some weighted average of the $\beta(g)$ values, but it does not tell us how much is direct effect and how much is spillover. The clustered estimator separates those pieces. If spillovers are large, treating clusters may be more effective than treating isolated individuals.</span>
+<span id="cb29-407"><a href="#cb29-407" aria-hidden="true" tabindex="-1"></a>What happens if we ignore interference and use a standard AIPW estimator? We get one number that averages over neighborhood configurations. That number is hard to interpret.</span>
+<span id="cb29-408"><a href="#cb29-408" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-411"><a href="#cb29-411" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb29-412"><a href="#cb29-412" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: ignore_interference</span></span>
+<span id="cb29-413"><a href="#cb29-413" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb29-414"><a href="#cb29-414" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb29-415"><a href="#cb29-415" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb29-416"><a href="#cb29-416" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate one dataset with interference</span></span>
+<span id="cb29-417"><a href="#cb29-417" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb29-418"><a href="#cb29-418" aria-hidden="true" tabindex="-1"></a>cdata <span class="ot">&lt;-</span> <span class="fu">generate_fixed_cluster</span>(</span>
+<span id="cb29-419"><a href="#cb29-419" aria-hidden="true" tabindex="-1"></a>  <span class="at">clusters =</span> <span class="dv">200</span>,</span>
+<span id="cb29-420"><a href="#cb29-420" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_struct =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>),</span>
+<span id="cb29-421"><a href="#cb29-421" aria-hidden="true" tabindex="-1"></a>  <span class="at">tau =</span> <span class="dv">1</span>,</span>
+<span id="cb29-422"><a href="#cb29-422" aria-hidden="true" tabindex="-1"></a>  <span class="at">gamma =</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="fl">0.1</span>)</span>
+<span id="cb29-423"><a href="#cb29-423" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb29-424"><a href="#cb29-424" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-425"><a href="#cb29-425" aria-hidden="true" tabindex="-1"></a><span class="co"># Naive: ignore clusters, treat as standard observational data</span></span>
+<span id="cb29-426"><a href="#cb29-426" aria-hidden="true" tabindex="-1"></a>obs_naive <span class="ot">&lt;-</span> <span class="fu">observational</span>(cdata<span class="sc">$</span>Y, cdata<span class="sc">$</span>Z, cdata<span class="sc">$</span>X)</span>
+<span id="cb29-427"><a href="#cb29-427" aria-hidden="true" tabindex="-1"></a>naive_ate <span class="ot">&lt;-</span> <span class="fu">est_via_aipw</span>(obs_naive)</span>
+<span id="cb29-428"><a href="#cb29-428" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-429"><a href="#cb29-429" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Naive AIPW (ignoring interference):"</span>, <span class="fu">round</span>(naive_ate<span class="sc">$</span>ate, <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb29-430"><a href="#cb29-430" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"SE:"</span>, <span class="fu">round</span>(naive_ate<span class="sc">$</span>se, <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n\n</span><span class="st">"</span>)</span>
+<span id="cb29-431"><a href="#cb29-431" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-432"><a href="#cb29-432" aria-hidden="true" tabindex="-1"></a><span class="co"># Correct: use clustered estimator</span></span>
+<span id="cb29-433"><a href="#cb29-433" aria-hidden="true" tabindex="-1"></a>cl_obj <span class="ot">&lt;-</span> <span class="fu">clustered</span>(</span>
+<span id="cb29-434"><a href="#cb29-434" aria-hidden="true" tabindex="-1"></a>  <span class="at">Y =</span> cdata<span class="sc">$</span>Y, <span class="at">Z =</span> cdata<span class="sc">$</span>Z, <span class="at">X =</span> cdata<span class="sc">$</span>X,</span>
+<span id="cb29-435"><a href="#cb29-435" aria-hidden="true" tabindex="-1"></a>  <span class="at">cluster_labels =</span> cdata<span class="sc">$</span>cluster_labels,</span>
+<span id="cb29-436"><a href="#cb29-436" aria-hidden="true" tabindex="-1"></a>  <span class="at">group_labels =</span> cdata<span class="sc">$</span>group_labels,</span>
+<span id="cb29-437"><a href="#cb29-437" aria-hidden="true" tabindex="-1"></a>  <span class="at">ingroup_labels =</span> cdata<span class="sc">$</span>ingroup_labels,</span>
+<span id="cb29-438"><a href="#cb29-438" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_matches =</span> <span class="dv">50</span></span>
+<span id="cb29-439"><a href="#cb29-439" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb29-440"><a href="#cb29-440" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">est_via_aipw</span>(cl_obj)</span>
+<span id="cb29-441"><a href="#cb29-441" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-442"><a href="#cb29-442" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Clustered AIPW beta_g (group 0):</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb29-443"><a href="#cb29-443" aria-hidden="true" tabindex="-1"></a>valid <span class="ot">&lt;-</span> <span class="sc">!</span><span class="fu">is.nan</span>(result[[<span class="dv">1</span>]]<span class="sc">$</span>beta_g) <span class="sc">&amp;</span> result[[<span class="dv">1</span>]]<span class="sc">$</span>se <span class="sc">&gt;</span> <span class="dv">0</span></span>
+<span id="cb29-444"><a href="#cb29-444" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb29-445"><a href="#cb29-445" aria-hidden="true" tabindex="-1"></a>  <span class="at">g_index =</span> <span class="fu">which</span>(valid) <span class="sc">-</span> <span class="dv">1</span>,</span>
+<span id="cb29-446"><a href="#cb29-446" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta_g =</span> <span class="fu">round</span>(result[[<span class="dv">1</span>]]<span class="sc">$</span>beta_g[valid], <span class="dv">3</span>),</span>
+<span id="cb29-447"><a href="#cb29-447" aria-hidden="true" tabindex="-1"></a>  <span class="at">se =</span> <span class="fu">round</span>(result[[<span class="dv">1</span>]]<span class="sc">$</span>se[valid], <span class="dv">3</span>)</span>
+<span id="cb29-448"><a href="#cb29-448" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb29-449"><a href="#cb29-449" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb29-450"><a href="#cb29-450" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb29-451"><a href="#cb29-451" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-452"><a href="#cb29-452" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb29-452"><a href="#cb29-452" aria-hidden="true" tabindex="-1"></a>The naive estimate gives some weighted average of the $\beta(g)$ values, but it does not tell us how much is direct effect and how much is spillover. The clustered estimator separates those pieces. If spillovers are large, treating clusters may be more effective than treating isolated individuals.</span>
 <span id="cb29-453"><a href="#cb29-453" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-454"><a href="#cb29-454" aria-hidden="true" tabindex="-1"></a>Partial interference is a compromise. We do not assume away spillovers, but we</span>
-<span id="cb29-455"><a href="#cb29-455" aria-hidden="true" tabindex="-1"></a>do assume they stay inside clusters. Once we make that assumption, the</span>
-<span id="cb29-456"><a href="#cb29-456" aria-hidden="true" tabindex="-1"></a>neighborhood configuration $G$ becomes part of the estimand. The effect is no</span>
-<span id="cb29-457"><a href="#cb29-457" aria-hidden="true" tabindex="-1"></a>longer just treatment versus control; it is treatment versus control under a</span>
-<span id="cb29-458"><a href="#cb29-458" aria-hidden="true" tabindex="-1"></a>particular neighborhood treatment environment.</span>
-<span id="cb29-459"><a href="#cb29-459" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-460"><a href="#cb29-460" aria-hidden="true" tabindex="-1"></a>The <span class="in">`CausalModel`</span> package estimates these effects with clustered IPW and AIPW.</span>
-<span id="cb29-461"><a href="#cb29-461" aria-hidden="true" tabindex="-1"></a>The important practical lesson is that a standard AIPW estimate is not a good</span>
-<span id="cb29-462"><a href="#cb29-462" aria-hidden="true" tabindex="-1"></a>substitute. It collapses direct effects and spillovers into one number.</span>
+<span id="cb29-454"><a href="#cb29-454" aria-hidden="true" tabindex="-1"></a><span class="fu">## Summary</span></span>
+<span id="cb29-455"><a href="#cb29-455" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-456"><a href="#cb29-456" aria-hidden="true" tabindex="-1"></a>Partial interference is a compromise. We do not assume away spillovers, but we</span>
+<span id="cb29-457"><a href="#cb29-457" aria-hidden="true" tabindex="-1"></a>do assume they stay inside clusters. Once we make that assumption, the</span>
+<span id="cb29-458"><a href="#cb29-458" aria-hidden="true" tabindex="-1"></a>neighborhood configuration $G$ becomes part of the estimand. The effect is no</span>
+<span id="cb29-459"><a href="#cb29-459" aria-hidden="true" tabindex="-1"></a>longer just treatment versus control; it is treatment versus control under a</span>
+<span id="cb29-460"><a href="#cb29-460" aria-hidden="true" tabindex="-1"></a>particular neighborhood treatment environment.</span>
+<span id="cb29-461"><a href="#cb29-461" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-462"><a href="#cb29-462" aria-hidden="true" tabindex="-1"></a>The <span class="in">`CausalModel`</span> package estimates these effects with clustered IPW and AIPW.</span>
+<span id="cb29-463"><a href="#cb29-463" aria-hidden="true" tabindex="-1"></a>The important practical lesson is that a standard AIPW estimate is not a good</span>
+<span id="cb29-464"><a href="#cb29-464" aria-hidden="true" tabindex="-1"></a>substitute. It collapses direct effects and spillovers into one number.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
