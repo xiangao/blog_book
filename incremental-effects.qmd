@@ -9,51 +9,51 @@ For a binary treatment this is the incremental propensity score intervention of 
 
 ## The exponential tilt
 
-We observe covariates $X$, a dose $A$ and an outcome $Y$. Let $\pi(a \mid x)$ be the conditional law of the dose and $\mu(x, a) = E(Y \mid X = x, A = a)$ the outcome regression. For a number $\delta$, the tilted law of the dose is
+We observe covariates $X$, a dose $A$ and an outcome $Y$. Let $\pi(a \mid x)$ be the conditional distribution of the dose and $\mu(x, a) = E(Y \mid X = x, A = a)$ the outcome regression. For a number $\delta$, the tilted distribution of the dose is [@schindl-2026, eq. 1; the construction is from @diaz-hejazi-2020]
 
 $$
 q_\delta(a \mid x) = \frac{e^{\delta a}\, \pi(a \mid x)}{\int e^{\delta t}\, \pi(t \mid x)\, dt}.
 $$ {#eq-incremental-tilt}
 
-The denominator only makes the result integrate to one. On the log scale, $\log q_\delta(a \mid x) = \log \pi(a \mid x) + \delta a - \text{const}$: we add a line of slope $\delta$ to the log density, which tips it toward high doses when $\delta > 0$ and toward low doses when $\delta < 0$. That is why it is called a tilt. It goes back to @esscher-1932 in actuarial work and is the standard device in importance sampling. A normal density with mean $m$ and variance $s^2$, tilted by $\delta$, becomes a normal with mean $m + \delta s^2$ and the same variance. On a bounded support it cannot shift forever, so the mass piles up against the edge, and as $\delta \to \infty$ it becomes a point mass at the top dose.
+The denominator only makes the result integrate to one. On the log scale, $\log q_\delta(a \mid x) = \log \pi(a \mid x) + \delta a - \text{const}$: we add a line of slope $\delta$ to the log density, which tips it toward high doses when $\delta > 0$ and toward low doses when $\delta < 0$. That is why it is called a tilt. It goes back to @esscher-1932 in actuarial work and is the standard device in importance sampling. A normal density with mean $m$ and variance $s^2$, tilted by $\delta$, becomes a normal with mean $m + \delta s^2$ and the same variance: adding $\delta a$ to the exponent $-(a - m)^2/(2s^2)$ and completing the square moves the centre to $m + \delta s^2$ and leaves the coefficient on $a^2$ alone. On a bounded support it cannot shift forever, so the mass piles up against the edge, and as $\delta \to \infty$ all of it ends up at the top dose.
 
-Two features matter for what follows. First, $\delta$ is not a dose. It is the slope of the log likelihood ratio between $q_\delta$ and $\pi$, measured in one over the units of $A$. The dose change it implies is the change in the conditional mean, which for small $\delta$ is about $\delta \operatorname{var}(A \mid X)$. Second, where $\pi(a \mid x) = 0$, so is $q_\delta(a \mid x)$. The tilt never sends anyone to a dose they could not have received.
+Two features matter for what follows. First, $\delta$ is not a dose. It is the slope of the log likelihood ratio between $q_\delta$ and $\pi$, measured in one over the units of $A$. The dose change it implies is the change in the conditional mean. The derivative of the tilted mean with respect to $\delta$ is the tilted variance, so for small $\delta$ the change is about $\delta \operatorname{var}(A \mid X)$. Second, where $\pi(a \mid x) = 0$, so is $q_\delta(a \mid x)$. The tilt never sends anyone to a dose they could not have received.
 
-The estimand is the mean outcome when $X$ keeps its distribution and each unit's dose is drawn from $q_\delta$:
+The estimand is the mean outcome when $X$ keeps its distribution and each unit's dose is drawn from $q_\delta$ [@schindl-2026, eq. 2]:
 
 $$
 \psi(\delta) = E\left[\int \mu(X, a)\, q_\delta(a \mid X)\, da\right].
 $$ {#eq-incremental-psi}
 
-Under consistency and conditional exchangeability, $\psi(\delta)$ is identified by @eq-incremental-psi, and it needs no positivity, because the integral only uses $\mu$ where $\pi$ is positive. At $\delta = 0$ the tilt does nothing and $\psi(0) = E(Y)$. That gives an exact check on any estimator.
+Under consistency and conditional exchangeability, $\psi(\delta)$ is identified by @eq-incremental-psi [@schindl-2026, Section 3.4], and it needs no positivity, because the integral only uses $\mu$ where $\pi$ is positive. At $\delta = 0$ the tilt does nothing and $\psi(0) = E(Y)$. That gives an exact check on any estimator.
 
 ## Tilt or shift
 
-The two interventions differ in what they act on. A shift, the modified treatment policy of @diaz-2012 and @haneuse-2013 that `lmtp` estimates, acts on each unit's own dose: it replaces the observed $A$ with $A + s$, or with $A + s$ only when that dose is still feasible. A tilt acts on the law the dose is drawn from. Each unit keeps its covariates and receives a new dose drawn from $q_\delta(\cdot \mid X)$, and its observed dose plays no part.
+The two interventions differ in what they act on. A shift, the modified treatment policy of @diaz-2012 and @haneuse-2013 that `lmtp` estimates, acts on each unit's own dose: it replaces the observed $A$ with $A + s$, or with $A + s$ only when that dose is still feasible. A tilt acts on the distribution the dose is drawn from. Each unit keeps its covariates and receives a new dose drawn from $q_\delta(\cdot \mid X)$, and its observed dose plays no part.
 
-Four differences follow. A shift needs positivity at the shifted dose, $\pi(a + s \mid x) > 0$ wherever $\pi(a \mid x) > 0$; a tilt needs none. A shift moves everyone by $s$ in dose units; a tilt moves the conditional mean by about $\delta \operatorname{var}(A \mid X)$, so units whose dose is more uncertain given their covariates move further. The efficient influence function of a shift weights residuals by the density ratio $\pi(A - s \mid X)/\pi(A \mid X)$, which `lmtp` estimates with a classifier; the tilt weights them by $e^{\delta A}/E(e^{\delta A} \mid X)$. And when the dose is normal given $X$ with variance $\sigma^2(X)$, the tilt by $\delta$ is exactly a shift by $\delta\sigma^2(X)$, so with constant variance the two are the same intervention. They part ways when the support is bounded, lumpy or has holes, which is the setting where the shift's positivity condition bites.
+Four differences follow. A shift needs positivity at the shifted dose, $\pi(a + s \mid x) > 0$ wherever $\pi(a \mid x) > 0$; a tilt needs none. A shift moves everyone by $s$ in dose units; a tilt moves the conditional mean by about $\delta \operatorname{var}(A \mid X)$, so units whose dose is more uncertain given their covariates move further. The efficient influence function of a shift weights residuals by the density ratio $\pi(A - s \mid X)/\pi(A \mid X)$ [@diaz-2023], which `lmtp` estimates with a classifier; the tilt weights them by $e^{\delta A}/E(e^{\delta A} \mid X)$. And when the dose is normal given $X$ with variance $\sigma^2(X)$, the tilt by $\delta$ is exactly a shift by $\delta\sigma^2(X)$, by the completing-the-square argument above, so with constant variance the two are the same intervention. They part ways when the support is bounded, lumpy or has holes, which is the setting where the shift's positivity condition bites.
 
 ## Efficiency, and why the tilt size matters
 
-Write $E_Q(\mu \mid X) = \int \mu(X, a)\, q_\delta(a \mid X)\, da$ for the regression averaged over the tilted law. For bounded $\delta$, the efficient influence function is
+Write $E_Q(\mu \mid X) = \int \mu(X, a)\, q_\delta(a \mid X)\, da$ for the regression averaged over the tilted distribution. For bounded $\delta$, the efficient influence function is the following. It is Proposition 1 of @schindl-2026, who write it as three terms that add up to this form, and it was first derived by @diaz-hejazi-2020.
 
 $$
 \varphi(Z; \delta) = \frac{q_\delta(A \mid X)}{\pi(A \mid X)}\bigl\{Y - E_Q(\mu \mid X)\bigr\} + E_Q(\mu \mid X) - \psi(\delta),
 $$ {#eq-incremental-eif}
 
-and the one-step estimator replaces the nuisances by cross-fitted estimates and averages $\hat\varphi + \hat\psi$ over the sample. The likelihood ratio in @eq-incremental-eif has a simple form, $q_\delta(A \mid X)/\pi(A \mid X) = e^{\delta A} / \int e^{\delta t} \pi(t \mid X)\, dt$, so we never need the density at the observed dose, only integrals against it.
+and the one-step estimator replaces the nuisances by cross-fitted estimates and averages $\hat\varphi + \hat\psi$ over the sample. The likelihood ratio in @eq-incremental-eif has a simple form, $q_\delta(A \mid X)/\pi(A \mid X) = e^{\delta A} / \int e^{\delta t} \pi(t \mid X)\, dt$, by @eq-incremental-tilt, so we never need the density at the observed dose, only integrals against it.
 
-That ratio grows with $\delta$. If $\pi$ is uniform on $[0, 1]$, it equals $\delta e^{\delta a}/(e^\delta - 1)$, which is at least $\delta$ at $a = 1$. @schindl-2026 show that, when the dose density is bounded below on an interval at the top of the support (they call this weak positivity), the variance of $\varphi$ is bounded above and below by multiples of $\delta$. A two-point argument then gives a minimax lower bound of order $\sqrt{\delta / n}$ for any estimator, and the cross-fitted one-step estimator attains it. The effective sample size is $n / \delta$. Without weak positivity, for example when the density goes to zero at the top edge, the variance can grow like any power of $\delta$. As $\delta \to \infty$ in both directions around an interior dose $a'$, a "reflected" tilt also gives an estimate of the dose-response curve $E(Y^{a'})$, with $\delta$ playing the role of an inverse bandwidth. We come back to that at the end.
+That ratio grows with $\delta$. If $\pi$ is uniform on $[0, 1]$, it equals $\delta e^{\delta a}/(e^\delta - 1)$, which is at least $\delta$ at $a = 1$ [@schindl-2026, Section 4.1]. @schindl-2026 show that, when the dose density is bounded below on an interval at the top of the support (they call this weak positivity), the variance of $\varphi$ is bounded above and below by multiples of $\delta$ (their Lemma 1). A two-point argument then gives a minimax lower bound of order $\sqrt{\delta / n}$ for any estimator (their Theorem 2), and the cross-fitted one-step estimator attains it (their Theorems 3 and 4). The effective sample size is $n / \delta$. Without weak positivity, for example when the density goes to zero at the top edge, the variance can grow like any power of $\delta$ (their Section 10). As $\delta \to \infty$ in both directions around an interior dose $a'$, a "reflected" tilt also gives an estimate of the dose-response curve $E(Y^{a'})$, with $\delta$ playing the role of an inverse bandwidth. We come back to that at the end.
 
 ## Implementing it
 
-The paper estimates $\pi(a \mid x)$ on a grid of design points $a_j$ by regressing the kernel-transformed outcome $K_h(A - a_j)$ on $X$, since $E\{K_h(A - a) \mid X = x\}$ is close to $\pi(a \mid x)$ for small $h$. The integrals in @eq-incremental-tilt and $E_Q(\mu \mid X)$ are then weighted sums over the grid. We keep that approach and change four things.
+The paper estimates $\pi(a \mid x)$ on a grid of design points $a_j$ by regressing the kernel-transformed outcome $K_h(A - a_j)$ on $X$ (their Section 5.1), since $E\{K_h(A - a) \mid X = x\}$ is close to $\pi(a \mid x)$ for small $h$. The integrals in @eq-incremental-tilt and $E_Q(\mu \mid X)$ are then weighted sums over the grid. We keep that approach and change four things.
 
-The first is the bandwidth. The authors' code chooses $h$ by the cross-validated RMSE of the regression of $K_h(A - a_j)$ on $X$. The variance of $K_h(A - a)$ is of order $1/h$, so the criterion is not comparable across bandwidths. Run on a subsample of the application data, it picks an end of its grid at every design point: the largest bandwidth wherever doses are nearby, and the smallest wherever the design point falls between the discrete dose values, since there a narrow kernel sees no data and its target is close to zero. We fix $h$ by Silverman's rule. The second is normalisation. Their $\hat\pi$ for $\psi(\delta)$ is not rescaled to integrate to one, so $\hat q_\delta / \hat\pi$ is off by a factor $1 / \int \hat\pi$, and $\hat\psi(0)$ need not equal $\bar Y$. We renormalise each unit's density. The third is the edge of the support. A Gaussian kernel loses about half its mass at the boundary, which is exactly where the tilt puts its weight, so we reflect the kernel at both ends. The fourth is specific to the application: 12% of the ZIP codes there have no ads at all, a point mass at $A = 0$. The tilt in @eq-incremental-tilt is defined for any law, with or without an atom: the zero dose keeps weight $e^{0} = 1$, so $q_\delta / \pi = e^{\delta A} / \nu(X)$ with $\nu(x) = E(e^{\delta A} \mid X = x)$, also at $A = 0$. We estimate $P(A = 0 \mid X)$ with a classification forest and fit the kernel to the positive doses only. The influence function keeps the form of @eq-incremental-eif. The paper instead smooths the zeros into the density.
+The first is the bandwidth. The authors' code chooses $h$ by the cross-validated RMSE of the regression of $K_h(A - a_j)$ on $X$. The variance of $K_h(A - a)$ is of order $1/h$, so the criterion is not comparable across bandwidths. Run on a subsample of the application data, it picks an end of its grid at every design point: the largest bandwidth wherever doses are nearby, and the smallest wherever the design point falls between the discrete dose values, since there a narrow kernel sees no data and its target is close to zero. We fix $h$ by Silverman's rule. The second is normalisation. Their $\hat\pi$ for $\psi(\delta)$ is not rescaled to integrate to one, so $\hat q_\delta / \hat\pi$ is off by a factor $1 / \int \hat\pi$, and $\hat\psi(0)$ need not equal $\bar Y$. We renormalise each unit's density. The third is the edge of the support. A Gaussian kernel loses about half its mass at the boundary, which is exactly where the tilt puts its weight, so we reflect the kernel at both ends. The fourth is specific to the application: 12% of the ZIP codes there have no ads at all, so many units share the dose $A = 0$ exactly and no smooth density describes them. The tilt in @eq-incremental-tilt still works: the zero dose keeps weight $e^{0} = 1$, so $q_\delta / \pi = e^{\delta A} / \nu(X)$ with $\nu(x) = E(e^{\delta A} \mid X = x)$, also at $A = 0$. We estimate $P(A = 0 \mid X)$ with a classification forest and fit the kernel to the positive doses only. The influence function keeps the form of @eq-incremental-eif, since the derivation behind Proposition 1 uses only that $q_\delta/\pi$ is a likelihood ratio, which it still is when some units have dose exactly zero. The simulation below supports this: with the true dose distribution the estimator is unbiased with 95% coverage. The paper instead smooths the zeros into the density.
 
-The paper also mentions a version with no density at all (their Remark 3). Since $E_Q(\mu \mid X) = \eta(X)/\nu(X)$ with $\eta(x) = E\{e^{\delta A}\mu(X, A) \mid X = x\}$, both pieces are regressions on $X$. The bias of the one-step estimator is then $(\hat\nu - \nu)(\hat\eta/\hat\nu - \eta/\nu)/\hat\nu$, a product of errors, so it is as doubly robust as the density version. The authors report that it is unstable, and we include it in the simulation to see.
+The paper also mentions a version with no density at all (their Remark 3). Since $E_Q(\mu \mid X) = \eta(X)/\nu(X)$ with $\eta(x) = E\{e^{\delta A}\mu(X, A) \mid X = x\}$, both pieces are regressions on $X$. The estimated influence value is $e^{\delta A}(Y - \hat\eta/\hat\nu)/\hat\nu + \hat\eta/\hat\nu$. Its expectation given $X$ is $\eta/\hat\nu - \nu\hat\eta/\hat\nu^2 + \hat\eta/\hat\nu$, and subtracting $\eta/\nu$ leaves a bias of $(\hat\nu - \nu)(\hat\eta/\hat\nu - \eta/\nu)/\hat\nu$, a product of errors, so it is as doubly robust as the density version. The authors report that it is unstable, and we include it in the simulation to see.
 
-All four estimators below share the outcome forest and the cross-fitting. `tilt_grid()` takes a function that returns the conditional law on a grid, so the same code runs with our mixed law, the paper's law, and the true law in the simulation.
+All four estimators below share the outcome forest and the cross-fitting. `tilt_grid()` takes a function that returns the conditional dose distribution on a grid, so the same code runs with ours, with the paper's, and with the true distribution in the simulation.
 
 ```{r}
 #| label: incremental-functions
@@ -238,10 +238,14 @@ reflect_grid <- function(y, a, x, a1s, delta, folds, law, cluster = NULL,
 
 ## Simulation
 
-The aim is to see whether the one-step estimator is unbiased and covers at 95% as $\delta$ moves away from zero, how fast its precision falls with $\delta$, and what ignoring the atom at zero does. The covariates $X_1$ and $X_2$ are independent uniforms on $(0, 1)$. The dose is zero with probability $\operatorname{expit}(-1.5 + X_1)$; otherwise it is drawn from an equal mixture of a $\text{Uniform}(0, 1)$ and a $\text{Beta}(1 + 2X_2, 1)$, whose density is at least $0.5$ everywhere on $(0, 1)$, so weak positivity holds at both edges. The outcome is $Y = 1 + X_1 + X_2 + 2A + \sin(3A) + \varepsilon$ with standard normal $\varepsilon$. The true $\psi(\delta)$ comes from numerical integration over $X$ and $A$. We compare four estimators: our mixed law, the paper's law with zeros smoothed into the density, the regression version, and the true law with the outcome forest still estimated (the oracle). The tilts are $\delta \in \{-10, -5, -2, 0, 2, 5, 10, 25\}$, the sample sizes $n = 1000$ (200 replications) and $n = 4000$ (100 replications). The run takes about 40 minutes at $n = 1000$ and an hour and a half at $n = 4000$ on six cores, so the chunk reads the saved results when they exist.
+We check two things: whether the one-step estimator is right when the dose distribution is known, and what estimating it costs. The covariates $X_1$ and $X_2$ are independent uniforms on $(0, 1)$. With probability $\operatorname{expit}(-1.5 + X_1)$ the dose is zero. Otherwise it is drawn from a density on $(0, 1)$ that depends on $X_2$ and is at least $0.5$ everywhere, so weak positivity holds at both edges. The outcome is $Y = 1 + X_1 + X_2 + 2A + \sin(3A) + \varepsilon$ with standard normal $\varepsilon$, and the true $\psi(\delta)$ comes from numerical integration.
+
+All estimators are the cross-fitted one-step estimator of @eq-incremental-eif with the same outcome forest. They differ only in the dose distribution plugged into it: the known one that generated the data (the oracle), which no one has in practice; ours, which models the zeros separately; and the paper's, which smooths the zeros into the density. We use $n = 1000$ with 200 replications and $n = 4000$ with 100, and tilts from $-10$ to $25$. The run takes about two hours on six cores, so the code reads saved results.
 
 ```{r}
 #| label: incremental-sim-dgp
+#| code-fold: true
+#| code-summary: "Show the simulation code"
 
 mu_true <- function(x1, x2, a) 1 + x1 + x2 + 2 * a + sin(3 * a)
 p0_true <- function(x1) plogis(-1.5 + x1)
@@ -307,6 +311,8 @@ one_rep <- function(n, deltas) {
 
 ```{r}
 #| label: incremental-sim-run
+#| code-fold: true
+#| code-summary: "Show the runner"
 
 library(parallel)
 # About 40 minutes for n = 1000 and 95 for n = 4000 on six cores, so the chunk
@@ -347,29 +353,27 @@ summ <- summ[order(summ$estimator, summ$n, summ$delta), ]
 ```
 
 ```{r}
-#| label: incremental-sim-results
+#| label: tbl-incremental-sim
+#| tbl-cap: "Bias and coverage of nominal 95% intervals for $\\psi(\\delta)$. All three estimators use @eq-incremental-eif with the same outcome forest and differ only in the dose distribution $\\pi$: the known one used to generate the data (the oracle), ours (zeros modelled separately), or the paper's (zeros smoothed into the density)."
 #| echo: false
 
 cell <- function(e, nn, d, v) summ[summ$estimator == e & summ$n == nn & summ$delta == d, v]
-show <- subset(summ, estimator != "regression" & delta %in% c(-10, -5, -2, 2, 5, 10, 25))
-show$estimator <- factor(show$estimator, c("oracle", "mixed", "paper"),
-                         c("true law (oracle)", "mixed law (ours)", "paper's law"))
-show <- show[order(show$estimator, show$n, show$delta), ]
-knitr::kable(show[, c("estimator", "n", "delta", "bias", "sd", "se", "cover")],
-             digits = 3, row.names = FALSE,
-             col.names = c("Dose law", "n", "$\\delta$", "Bias", "SD", "Mean SE", "Coverage"),
-             caption = "Bias, standard deviation, mean estimated standard error and coverage of nominal 95% intervals.")
+keep <- subset(summ, estimator != "regression" & delta %in% c(-5, -2, 2, 10))
+wide <- reshape(keep[, c("estimator", "n", "delta", "bias", "cover")],
+                idvar = c("n", "delta"), timevar = "estimator", direction = "wide")
+wide <- wide[order(wide$n, wide$delta),
+             c("n", "delta", "bias.oracle", "cover.oracle", "bias.mixed", "cover.mixed",
+               "bias.paper", "cover.paper")]
+knitr::kable(wide, digits = c(0, 0, 3, 2, 3, 2, 3, 2), row.names = FALSE,
+             col.names = c("$n$", "$\\delta$", "Known $\\pi$: bias", "Known $\\pi$: cover", "Ours: bias",
+                           "Ours: cover", "Paper's: bias", "Paper's: cover"))
 ```
 
-With the true dose law, the one-step estimator is unbiased and its intervals cover at close to 95% at every tilt and both sample sizes. Its standard deviation at $n = 4000$ grows from `r round(cell("oracle", 4000, 2, "sd"), 3)` at $\delta = 2$ to `r round(cell("oracle", 4000, 25, "sd"), 3)` at $\delta = 25$, and it halves when $n$ quadruples, as an error of order $\sqrt{\delta/n}$ should. So the influence function and the one-step estimator are right, and $\hat\psi(0) = \bar Y$ held in every replication.
-
-Estimating the dose law changes the picture. With our mixed law, the bias at $\delta = -5$ is `r round(cell("mixed", 1000, -5, "bias"), 3)` at $n = 1000$ and `r round(cell("mixed", 4000, -5, "bias"), 3)` at $n = 4000$, while the standard deviation falls from `r round(cell("mixed", 1000, -5, "sd"), 3)` to `r round(cell("mixed", 4000, -5, "sd"), 3)`. The bias shrinks by about a quarter when the sample quadruples, a rate near $n^{-0.2}$, which is slower than the $n^{-1/2}$ of the standard error. Coverage therefore gets worse with more data, from `r round(cell("mixed", 1000, -5, "cover"), 2)` to `r round(cell("mixed", 4000, -5, "cover"), 2)` at $\delta = -5$ and from `r round(cell("mixed", 1000, 2, "cover"), 2)` to `r round(cell("mixed", 4000, 2, "cover"), 2)` at $\delta = 2$. The reason is in the remainder. For the average treatment effect, the second-order term is a product of the outcome and propensity errors. For the tilt it also contains the squared error of the density estimate itself, $\|\hat\pi - \pi\|^2$ in the mixed norm of @schindl-2026's Theorem 3. A good outcome model does not protect us. The conditional density has to be estimated faster than $n^{-1/4}$, uniformly over the dose, and a kernel regression on forests does not get there in this design.
-
-Ignoring the atom is much worse. The paper's law smooths the zeros into a bump over small positive doses, and its bias at $\delta = -10$ is `r round(cell("paper", 1000, -10, "bias"), 3)` at $n = 1000$ and `r round(cell("paper", 4000, -10, "bias"), 3)` at $n = 4000$, with coverage of `r round(cell("paper", 4000, -10, "cover"), 2)`. For positive tilts the two laws give similar results, since the atom gets little weight there. The regression version is unstable, as the authors reported: when $\hat\nu(X)$ is too small for a few units, $e^{\delta A}/\hat\nu(X)$ explodes, and the mean estimate at $\delta = 25$ is `r round(cell("regression", 4000, 25, "bias") + sim$truth$truth[sim$truth$delta == 25], 1)` against a true value of `r round(sim$truth$truth[sim$truth$delta == 25], 2)`.
+With the true dose distribution the estimator is unbiased and covers at about 95% at every tilt, so @eq-incremental-eif and the one-step estimator are right. With our estimated distribution the bias at $\delta = -5$ falls only from `r round(cell("mixed", 1000, -5, "bias"), 3)` to `r round(cell("mixed", 4000, -5, "bias"), 3)` when $n$ quadruples, while the standard deviation halves, so coverage falls from `r round(cell("mixed", 1000, -5, "cover"), 2)` to `r round(cell("mixed", 4000, -5, "cover"), 2)`. The reason is that the remainder contains the squared error of the density estimate [@schindl-2026, Theorem 3], so a good outcome model does not protect us and the density has to be estimated well at every dose. Smoothing the zeros into the density, as the paper's code does, is worse: at negative tilts its coverage is close to zero at both sample sizes. The density-free regression version of the previous section, which we also ran, was unstable at large positive tilts, as the authors reported.
 
 ## Political ads and campaign contributions
 
-The application follows @urban-niebler-2014, with data from @fong-2018 as distributed in the authors' repository. The units are 16,265 ZIP codes in states that were not competitive in the 2008 presidential election. Media markets cross state lines, so some of these ZIP codes received ads aimed at a neighbouring competitive state. The dose is $\log(\text{ads} + 1)$, the outcome $\log(\text{contributions} + 1)$, and the eight covariates are those of the paper. Two facts about the dose shape the analysis. It has a point mass at zero and a hole between about 3.6 and 5.0. And ads are bought by media market, so every ZIP code in one of the 138 markets has the same dose. The dose takes only 73 distinct values. The paper treats the ZIP codes as independent. We cross-fit with folds made of whole markets and report standard errors clustered by market next to the iid ones.
+The application follows @urban-niebler-2014, with data from @fong-2018 as distributed in the authors' repository. The units are 16,265 ZIP codes in states that were not competitive in the 2008 presidential election. Media markets cross state lines, so some of these ZIP codes received ads aimed at a neighbouring competitive state. The dose is $\log(\text{ads} + 1)$, the outcome $\log(\text{contributions} + 1)$, and the eight covariates are those of the paper. Two facts about the dose shape the analysis. Twelve percent of ZIP codes have no ads, and none has between about 3.6 and 5.0 log ads. And ads are bought by media market, so every ZIP code in one of the 138 markets has the same dose. The dose takes only 73 distinct values. The paper treats the ZIP codes as independent. We cross-fit with folds made of whole markets and report standard errors clustered by market next to the iid ones.
 
 ```{r}
 #| label: incremental-app
@@ -406,13 +410,13 @@ app <- readRDS("incremental-effects-app.rds")
 
 ```{r}
 #| label: fig-incremental-app
-#| fig-cap: "Estimated incremental effect of political ads on log contributions (top) and the implied change in the mean dose (bottom), for the mixed law and for the paper's law that smooths the zeros. Bands are 95% intervals clustered by media market."
+#| fig-cap: "Estimated incremental effect of political ads on log contributions (top) and the implied change in the mean dose (bottom), with the zeros modelled separately (ours) and smoothed into the density (the paper's). Bands are 95% intervals clustered by media market."
 #| fig-height: 6
 #| echo: false
 #| message: false
 
 library(ggplot2)
-lab <- c(mixed = "mixed law (ours)", paper = "paper's law")
+lab <- c(mixed = "zeros modelled separately (ours)", paper = "zeros smoothed into density (paper)")
 long <- rbind(
   data.frame(law = unname(lab["mixed"]), delta = app$mixed$delta, panel = "psi(delta)", value = app$mixed$est,
              lo = app$mixed$est - 1.96 * app$mixed$se_cluster, hi = app$mixed$est + 1.96 * app$mixed$se_cluster),
@@ -435,7 +439,7 @@ px <- function(d, v = "est") app$paper[[v]][abs(app$paper$delta - d) < 1e-9]
 
 The check at zero holds: $\hat\psi(0) =$ `r round(mx(0), 4)`, the sample mean of log contributions. The first thing the bottom panel shows is how strong these tilts are. The dose has variance `r round(var(a), 1)` across ZIP codes, so $\delta = 0.05$ already moves the mean dose by `r round(mx(0.05, "mean_shift"), 2)` log ads, and the paper's largest tilt, $\delta = 5$, moves it by `r round(mx(5, "mean_shift"), 2)`, which puts nearly every ZIP code at the largest ad counts. The range of $\delta$ the paper plots, from $-2.5$ to $5$, runs from almost no ads to the maximum.
 
-The estimated curve rises slightly from `r round(mx(0), 3)` to a peak of `r round(max(app$mixed$est), 3)` near $\delta =$ `r app$mixed$delta[which.max(app$mixed$est)]`, then falls to `r round(mx(5), 3)` at $\delta = 5$. Negative tilts lower it to `r round(mx(-2.5), 3)` at $\delta = -2.5$. For positive tilts the two laws agree, because the atom at zero gets little weight there. For negative tilts the paper's law gives lower values, `r round(px(-2.5), 3)` at $\delta = -2.5$, which is the same direction as its bias in the simulation.
+The estimated curve rises slightly from `r round(mx(0), 3)` to a peak of `r round(max(app$mixed$est), 3)` near $\delta =$ `r app$mixed$delta[which.max(app$mixed$est)]`, then falls to `r round(mx(5), 3)` at $\delta = 5$. Negative tilts lower it to `r round(mx(-2.5), 3)` at $\delta = -2.5$. For positive tilts the two versions agree, because the zeros get little weight there. For negative tilts the paper's version gives lower values, `r round(px(-2.5), 3)` at $\delta = -2.5$, which is the same direction as its bias in the simulation.
 
 The standard errors clustered by market are about ten times the iid ones: `r round(mx(0, "se_cluster"), 3)` against `r round(mx(0, "se"), 3)` at $\delta = 0$. Ads vary across 138 markets, and the iid errors treat 16,265 ZIP codes as independent doses. With intervals of about $\pm 0.24$, moderate tilts cannot be told apart from no tilt, and the simulation warns that even these intervals are too narrow at moderate $\delta$. We read the curve as descriptive.
 
@@ -503,13 +507,13 @@ They differ in who moves. The shift moves everyone it can by the same amount: `r
 
 ## Dose-response by a reflected tilt
 
-To reach an interior dose $a'$, tilt upward below $a'$ and downward above it. With $\omega(x) = P(A \le a' \mid X = x)$, the reflected tilt is
+To reach an interior dose $a'$, tilt upward below $a'$ and downward above it. With $\omega(x) = P(A \le a' \mid X = x)$, the reflected tilt is the following [@schindl-2026, Section 6; Theorem 5 gives its influence function]
 
 $$
 r_\delta(a \mid x) = \omega(x)\, \frac{e^{\delta a}\pi(a\mid x)\, 1(a \le a')}{\int_{t \le a'} e^{\delta t}\pi(t\mid x)\, dt} + \{1 - \omega(x)\}\, \frac{e^{-\delta a}\pi(a\mid x)\, 1(a > a')}{\int_{t > a'} e^{-\delta t}\pi(t\mid x)\, dt},
 $$ {#eq-incremental-reflect}
 
-and $\psi_R(\delta, a')$ averages $\mu$ over it. As $\delta \to \infty$ it converges to $E(Y^{a'})$. If $\mu$ is Lipschitz in the dose, the estimate is within $O_P(1/\delta + \sqrt{\delta/n})$ of $E(Y^{a'})$, so $\delta$ of order $n^{1/3}$ gives the usual $n^{-1/3}$ rate. The two sides of $a'$ get the weights $\omega$ and $1 - \omega$, which makes the tilt an asymmetric exponential kernel. Its bias is first order in $1/\delta$, which is why the result stops at Lipschitz smoothness. The rate is stated for a dose on $[0, 1]$, so we set $\delta = n^{1/3}$ on that scale, which is $\delta =$ `r round(app$delta_dr, 2)` per log ad here, and evaluate the curve away from the hole, where weak positivity fails.
+and $\psi_R(\delta, a')$ averages $\mu$ over it. As $\delta \to \infty$ it converges to $E(Y^{a'})$. If $\mu$ is Lipschitz in the dose, the estimate is within $O_P(1/\delta + \sqrt{\delta/n})$ of $E(Y^{a'})$ (their Theorem 6), so $\delta$ of order $n^{1/3}$ gives the usual $n^{-1/3}$ rate. The two sides of $a'$ get the weights $\omega$ and $1 - \omega$, which makes the tilt an asymmetric exponential kernel. Its bias is first order in $1/\delta$, which is why the result stops at Lipschitz smoothness. The rate is stated for a dose on $[0, 1]$, so we set $\delta = n^{1/3}$ on that scale, which is $\delta =$ `r round(app$delta_dr, 2)` per log ad here, and evaluate the curve away from the hole, where weak positivity fails.
 
 ```{r}
 #| label: fig-incremental-dr
@@ -531,7 +535,7 @@ The estimated curve is flat within its noise. It rises from `r round(app$dr$est[
 
 An incremental effect tilts each unit's dose distribution toward higher or lower doses, $q_\delta(a \mid x) \propto e^{\delta a}\pi(a \mid x)$, and asks for the mean outcome under the tilted distribution. Doses a unit could never receive stay impossible, so the effect is identified without positivity, which a shift of the dose needs. The price is that $\delta$ is not a dose: it changes the mean dose by about $\delta \operatorname{var}(A \mid X)$. Its efficient influence function weights residuals by $e^{\delta A}/E(e^{\delta A} \mid X)$. Under weak positivity at the top of the support, the best attainable error is of order $\sqrt{\delta/n}$, and the cross-fitted one-step estimator attains it when the nuisances are good enough.
 
-"Good enough" is the catch. In our simulation the one-step estimator is unbiased and covers at 95% when the dose law is known. With the law estimated by the paper's kernel regression, made to integrate to one, reflected at the edges and given its own probability for an atom at zero, the bias falls more slowly than the standard error, and coverage at moderate tilts gets worse as $n$ grows. The remainder contains the squared error of the density estimate, so the conditional density has to be estimated well, uniformly over doses. Treating an atom at zero as part of a density biases negative tilts badly, and the regression version without a density is unstable.
+"Good enough" is the catch. In our simulation the one-step estimator is unbiased and covers at 95% when the dose distribution is known. With the distribution estimated by the paper's kernel regression, made to integrate to one, reflected at the edges and given a separate probability for zero doses, the bias falls more slowly than the standard error, and coverage at moderate tilts gets worse as $n$ grows. The remainder contains the squared error of the density estimate, so the conditional density has to be estimated well, uniformly over doses. Smoothing the zeros into the density biases negative tilts badly, and the regression version without a density is unstable.
 
 In the political-ads data the tilts are strong, standard errors must be clustered by the 138 media markets that set the dose, and the curve is flat within those errors. Shifting the dose by half a log ad with `lmtp` and tilting it to give the same change in the mean dose give the same answer.
 
