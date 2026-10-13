@@ -47,7 +47,9 @@ $$\beta(G) = \tau + \sum_{j=0}^{J-1} \gamma_j \cdot g_j$$ {#eq-partial-interfere
 where:
 
 - $\tau$ is the direct effect when no neighbors are treated
-- $\gamma_j$ is the spillover from group $j$, per treated neighbor
+- $\gamma_j$ is how much each treated neighbor in group $j$ changes the direct effect
+
+$\beta(G)$ is a direct effect at a fixed neighborhood: own treatment changes and $G$ is held fixed. A spillover effect is the other contrast. It holds own treatment $z$ fixed and changes the neighborhood, $E[Y_i(z, G) - Y_i(z, G')]$. So $\gamma_j$ is not by itself the spillover of a treated neighbor. It is the spillover for treated units minus the spillover for untreated units, per treated neighbor in group $j$. In the simulation below, untreated outcomes do not depend on $G$, so untreated units get no spillover and treated units get $\gamma_j$ per treated neighbor in group $j$. The package estimates $\beta$ separately for each group of the focal unit, so it is really $\beta_j(G)$ for a unit in group $j$. In the simulation all groups share one $\beta(G)$.
 
 #### Example
 
@@ -71,7 +73,7 @@ Standard IPW uses one propensity score, $P(Z_i = 1 | X_i)$. Under interference, 
 1. **Individual propensity**: $P(Z_i = 1 | X_i)$ — probability of being treated given covariates (logistic regression)
 2. **Neighborhood propensity**: $P(G_i = g | Z_i, X_i)$ — probability of neighborhood configuration $g$ given **own treatment** and covariates (multinomial logistic regression)
 
-The second piece is the new part. It models how likely a particular treatment environment is, conditional on covariates.
+The second piece is the new part. It models how likely a particular treatment environment is, conditional on covariates. Here $X_i$ includes cluster-level covariates, such as the mean of the neighbors' covariates, and not only unit $i$'s own. The neighbors' treatments depend on their covariates, so the focal unit's covariates alone do not determine the distribution of $G_i$. The `clustered()` constructor below adds the cluster means.
 
 Note the conditioning on $Z_i$ in the second piece. Own treatment $Z_i$ and the neighborhood exposure $G_i$ are usually **dependent by design** — for a network or cluster exposure mapping, $G_i$ is built from the treatments of $i$'s neighbours, which are correlated with $i$'s own assignment mechanism. The joint exposure probability must therefore be modeled as a joint distribution $P(Z_i=z, G_i=g \mid X_i)$, or via the valid factorization $P(Z_i=z\mid X_i)\,P(G_i=g\mid Z_i=z, X_i)$. A product of the two *marginals* $P(Z_i\mid X_i)P(G_i\mid X_i)$ is only correct when own and neighborhood treatment are conditionally independent given $X_i$, which is not the typical case.
 
@@ -110,7 +112,7 @@ set.seed(42)
 
 ### Generate Clustered Data
 
-The `generate_fixed_cluster()` function creates synthetic data where the interference structure is known. We build 200 clusters of 5 units each — 2 in group 0 and 3 in group 1, 1,000 units in all. The direct effect is $\tau = 1$, and the spillover is 0.5 per treated neighbour in group 0 and 0.1 per treated neighbour in group 1. Treatment prevalence comes out at 0.477.
+The `generate_fixed_cluster()` function creates synthetic data where the interference structure is known. We build 200 clusters of 5 units each — 2 in group 0 and 3 in group 1, 1,000 units in all. The direct effect is $\tau = 1$ when no neighbor is treated. Each treated neighbour in group 0 raises it by 0.5, and each in group 1 by 0.1. The outcome is $Y_i = (1 + Z_i) X_{ci}' b + Z_i \beta(G_i) + \varepsilon_i$, where $X_{ci}$ stacks unit $i$'s two covariates and their cluster means, $b$ is a fixed coefficient vector and $\varepsilon_i$ is standard normal noise. Untreated outcomes therefore do not depend on the neighbours. Treatment is drawn from a logistic model in the same $X_{ci}$, so own treatment and the neighbours' treatments both depend on the cluster means. Treatment prevalence comes out at 0.477.
 
 ```{r}
 #| label: gen_data
@@ -425,7 +427,7 @@ df <- data.frame(
 print(df, row.names = FALSE)
 ```
 
-The naive estimate gives some weighted average of the $\beta(g)$ values, but it does not tell us how much is direct effect and how much is spillover. The clustered estimator separates those pieces. If spillovers are large, treating clusters may be more effective than treating isolated individuals.
+The naive estimate compares treated units, whose neighborhoods follow the distribution of $G$ given $Z = 1$, with untreated units, whose neighborhoods follow the distribution given $Z = 0$. These differ here, because own and neighbors' treatments both depend on the cluster means. Write $m_0(g) = E[Y_i(0, g)]$ for the mean untreated outcome at neighborhood $g$. The naive contrast is then an average of $\beta(G)$ over the treated units' neighborhoods, plus the difference in $m_0(G)$ between the two neighborhood distributions. The second term is a spillover on untreated units. It is zero in this simulation only because untreated outcomes do not depend on $G$. When it is not zero, the naive number has no simple direct-effect interpretation. The naive AIPW also adjusts only for each unit's own covariates, while treatment depends on the cluster means too. The clustered estimator avoids both problems. It reports the direct effect separately at each neighborhood configuration.
 
 ## Summary
 
