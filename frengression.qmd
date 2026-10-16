@@ -192,14 +192,14 @@ For interventional prediction, `eta` is sampled from $N(0,1)$ instead of being g
 #| message: false
 torch::torch_manual_seed(1)
 
-y1 <- predict(model, matrix(1, ncol = 1), type = "mean", nsample = 2000)
-y0 <- predict(model, matrix(0, ncol = 1), type = "mean", nsample = 2000)
+y1 <- predict(model, matrix(1, ncol = 1), type = "mean", nsample = 2000, trim = 0)
+y0 <- predict(model, matrix(0, ncol = 1), type = "mean", nsample = 2000, trim = 0)
 
 cat("Frengression ATE:", round(y1 - y0, 4), "\n")
 cat("True ATE:", round(true_ate, 4), "\n")
 ```
 
-The realized ATE in this draw is $0.1935$, and averaging the true probabilities over the sampled covariates gives $0.2024$. The gap between those two is outcome sampling noise, not model error, and it is worth keeping them apart: the realized figure is the ATE of the potential outcomes actually drawn, while the covariate-averaged figure is the smoother target the estimator is really chasing. Frengression lands a few hundredths below either one.
+The realized ATE in this draw is $0.1935$, and averaging the true probabilities over the sampled covariates gives $0.2024$. The gap between those two is outcome sampling noise, not model error, and it is worth keeping them apart: the realized figure is the ATE of the potential outcomes actually drawn, while the covariate-averaged figure is the smoother target the estimator is really chasing. Frengression's 0.1485 lands about 0.05 below either one.
 
 The training chunks carry `cache: false`, so they re-run on every render, and
 torch keeps a generator of its own that R's `set.seed()` does not reach. Seeding
@@ -229,11 +229,36 @@ model_bench <- specify_causal(model, function(x, eta) {
   torch::torch_sigmoid(0.2 * x + eta)
 })
 
-# True ATE computed empirically from the model
-y1_true <- predict(model_bench, matrix(1, ncol = 1), type = "mean", nsample = 5000)
-y0_true <- predict(model_bench, matrix(0, ncol = 1), type = "mean", nsample = 5000)
-cat("True ATE (specified):", round(as.numeric(y1_true - y0_true), 4), "\n")
+# Y is binary: Y = 1{sigmoid(0.2*x + eta) > 0.5} = 1{0.2*x + eta > 0}, eta ~ N(0,1),
+# so P(Y = 1 | do(x)) = pnorm(0.2 * x) and the true ATE is pnorm(0.2) - 0.5.
+true_ate_spec <- pnorm(0.2) - 0.5
+y1_true <- predict(model_bench, matrix(1, ncol = 1), type = "mean", nsample = 5000, trim = 0)
+y0_true <- predict(model_bench, matrix(0, ncol = 1), type = "mean", nsample = 5000, trim = 0)
+cat("True ATE (specified, exact):", round(true_ate_spec, 4), "\n")
+cat("Monte Carlo check from predict():", round(as.numeric(y1_true - y0_true), 4), "\n")
+
+# The generator draws eta from the learned model_eta, whose marginal is trained
+# toward N(0,1). The ATE in the generated population is P(eta > -0.2) - P(eta > 0)
+# under that learned marginal; check it on a large draw.
+eta_gen <- torch::with_no_grad({
+  xz  <- model_bench$model_xz$forward(n = 100000)
+  x_g <- (xz[, 1, drop = FALSE] > 0)$to(dtype = torch::torch_float())
+  z_g <- xz[, 2:(1 + model_bench$z_dim), drop = FALSE]
+  zb  <- model_bench$z_binary_dims
+  if (zb > 0) z_g[, 1:zb] <- (z_g[, 1:zb] > 0)$to(dtype = torch::torch_float())
+  as.numeric(as.array(model_bench$model_eta$forward(torch::torch_cat(list(x_g, z_g), dim = 2))))
+})
+cat(sprintf("Generator eta: mean %.3f, sd %.3f; implied ATE %.4f\n",
+            mean(eta_gen), sd(eta_gen), mean(eta_gen > -0.2) - mean(eta_gen > 0)))
 ```
+
+The specified margin has an exact ATE of $\Phi(0.2) - 0.5 = 0.0793$, where $\Phi$ is
+the standard normal distribution function, and `predict()` with `trim = 0`
+reproduces it to Monte Carlo error. The population the generator actually draws
+uses the learned $\eta$, whose mean is 0.035 and standard deviation 1.018 rather
+than 0 and 1, and its ATE is 0.0743. We score the benchmark against the exact
+0.0793. The 0.005 gap is the generator's approximation error, small next to most
+of the biases below.
 
 Now we can generate synthetic data and benchmark any method:
 
@@ -422,13 +447,16 @@ cat("SE:", round(se_dml, 4), "\n")
 # Frengression ATE already computed above (y1 - y0)
 ate_freng <- as.numeric(y1 - y0)
 
-# Bootstrap SE via repeated prediction (Monte Carlo variability)
+# Repeated prediction from the one fitted network. This measures Monte Carlo
+# integration error in predict(), not sampling or training uncertainty: the data
+# are not resampled and the network is not refitted. It is not a standard error.
 set.seed(123)
-ate_boot <- replicate(200, {
-  predict(model, matrix(1, ncol = 1), type = "mean", nsample = 500) -
-    predict(model, matrix(0, ncol = 1), type = "mean", nsample = 500)
+ate_mc_draws <- replicate(200, {
+  predict(model, matrix(1, ncol = 1), type = "mean", nsample = 500, trim = 0) -
+    predict(model, matrix(0, ncol = 1), type = "mean", nsample = 500, trim = 0)
 })
-se_freng <- sd(ate_boot)
+mc_error_freng <- sd(ate_mc_draws)
+cat("Monte Carlo integration error of the frengression ATE:", round(mc_error_freng, 4), "\n")
 ```
 
 ```{r}
@@ -439,13 +467,9 @@ se_freng <- sd(ate_boot)
 results <- data.frame(
   Method = c("True ATE", "Frengression", "npcausal (AIPW)", "TMLE", "DoubleML (PLR)"),
   ATE = c(true_ate, ate_freng, ate_npcausal, ate_tmle, ate_dml),
-  SE = c(NA, se_freng, se_npcausal, se_tmle, se_dml),
-  CI_lower = c(NA,
-               ate_freng - 1.96 * se_freng,
-               ci_npcausal[1], ci_tmle[1], ci_dml[1]),
-  CI_upper = c(NA,
-               ate_freng + 1.96 * se_freng,
-               ci_npcausal[2], ci_tmle[2], ci_dml[2])
+  SE = c(NA, NA, se_npcausal, se_tmle, se_dml),       # no SE for frengression
+  CI_lower = c(NA, NA, ci_npcausal[1], ci_tmle[1], ci_dml[1]),
+  CI_upper = c(NA, NA, ci_npcausal[2], ci_tmle[2], ci_dml[2])
 )
 
 results$Bias <- results$ATE - true_ate
@@ -458,9 +482,11 @@ kable(results, digits = 4,
 
 On this single dataset the ranking is what one would expect. TMLE gives 0.1916,
 npcausal 0.1911 and DoubleML 0.1872, all within 0.007 of the true 0.1935;
-frengression gives 0.1650, a bias of $-0.0285$, roughly four times larger. Its
-bootstrap standard error is also the widest, 0.0318 against 0.021–0.023. All
-four intervals cover the truth.
+frengression gives 0.1485, a bias of $-0.0450$, about seven times larger. We
+report no standard error for it. The spread of repeated predictions from the one
+fitted network, 0.0285, measures only the Monte Carlo error of the integration in
+`predict()`: it does not resample the data or refit the network. The three
+reported intervals all cover the truth.
 
 The semiparametric estimators target the ATE directly. Frengression learns the joint distribution and then computes the ATE as one functional of that distribution. So I would not expect it to be the most precise ATE estimator in this table.
 
@@ -484,8 +510,8 @@ cover_mat <- ate_mat
 
 SL.lib_fast <- c("SL.glm.interaction", "SL.ranger", "SL.mean")
 
-# True ATE from the specified model (already computed above as y1_true - y0_true)
-true_ate_bench <- as.numeric(y1_true - y0_true)
+# True ATE of the specified causal margin (exact, derived above)
+true_ate_bench <- true_ate_spec
 
 set.seed(2024)
 for (b in seq_len(B)) {
@@ -508,17 +534,10 @@ for (b in seq_len(B)) {
     mod_f <- train_xz(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
                        num_iters = 500, lr = 1e-4, silent = TRUE)
 
-    y1_f <- predict(mod_f, matrix(1, ncol=1), type="mean", nsample=1000)
-    y0_f <- predict(mod_f, matrix(0, ncol=1), type="mean", nsample=1000)
+    y1_f <- predict(mod_f, matrix(1, ncol=1), type="mean", nsample=1000, trim=0)
+    y0_f <- predict(mod_f, matrix(0, ncol=1), type="mean", nsample=1000, trim=0)
     ate_mat[b, "Frengression"] <- y1_f - y0_f
-
-    ate_mc <- replicate(100, {
-      predict(mod_f, matrix(1,ncol=1), type="mean", nsample=200) -
-        predict(mod_f, matrix(0,ncol=1), type="mean", nsample=200)
-    })
-    se_mat[b, "Frengression"] <- sd(ate_mc)
-    ci_f <- ate_mat[b, "Frengression"] + c(-1,1) * 1.96 * se_mat[b, "Frengression"]
-    cover_mat[b, "Frengression"] <- (ci_f[1] <= true_ate_bench & true_ate_bench <= ci_f[2])
+    # No standard error or interval for frengression: SE and coverage stay NA.
   }, error = function(e) message("Frengression failed on rep ", b, ": ", e$message))
 
   # --- npcausal ---
@@ -574,6 +593,7 @@ bench_summary <- data.frame(
   Coverage_95 = colMeans(cover_mat, na.rm = TRUE),
   N_valid = colSums(!is.na(ate_mat))
 )
+bench_summary[, c("Mean_SE", "Coverage_95")][is.na(bench_summary[, c("Mean_SE", "Coverage_95")])] <- NA   # no SE for frengression
 
 kable(bench_summary, digits = 4,
       caption = paste0("Monte Carlo Benchmarking (B=", B,
@@ -617,10 +637,11 @@ Now do the same exercise with the LaLonde-trained model. Here the confounding st
 #| warning: false
 #| cache: false
 #| message: false
-# Compute true ATE empirically from the specified model
-y1_lal_true <- predict(model_lal_bench, matrix(1, ncol=1), type="mean", nsample=5000)
-y0_lal_true <- predict(model_lal_bench, matrix(0, ncol=1), type="mean", nsample=5000)
-true_ate_lal <- as.numeric(y1_lal_true - y0_lal_true)
+# Y = 0.3*x + eta, so Y(1) - Y(0) = 0.3 for every unit: the true ATE is exactly 0.3.
+true_ate_lal <- 0.3
+y1_lal_true <- predict(model_lal_bench, matrix(1, ncol=1), type="mean", nsample=5000, trim=0)
+y0_lal_true <- predict(model_lal_bench, matrix(0, ncol=1), type="mean", nsample=5000, trim=0)
+cat("Monte Carlo check from predict():", round(as.numeric(y1_lal_true - y0_lal_true), 4), "\n")
 cat("True ATE (standardized):", round(true_ate_lal, 4), "\n")
 cat("True ATE (dollars):", round(true_ate_lal * sd(y_lal), 0), "\n")
 
@@ -656,17 +677,11 @@ for (b in seq_len(B_lal)) {
     mod_f <- train_xz(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
                        num_iters = 500, lr = 1e-4, silent = TRUE)
 
-    y1_f <- predict(mod_f, matrix(1, ncol=1), type="mean", nsample=1000)
-    y0_f <- predict(mod_f, matrix(0, ncol=1), type="mean", nsample=1000)
+    y1_f <- predict(mod_f, matrix(1, ncol=1), type="mean", nsample=1000, trim=0)
+    y0_f <- predict(mod_f, matrix(0, ncol=1), type="mean", nsample=1000, trim=0)
     ate_mat_lal[b, "Frengression"] <- y1_f - y0_f
 
-    ate_mc <- replicate(100, {
-      predict(mod_f, matrix(1,ncol=1), type="mean", nsample=200) -
-        predict(mod_f, matrix(0,ncol=1), type="mean", nsample=200)
-    })
-    se_mat_lal[b, "Frengression"] <- sd(ate_mc)
-    ci_f <- ate_mat_lal[b, "Frengression"] + c(-1,1) * 1.96 * se_mat_lal[b, "Frengression"]
-    cover_mat_lal[b, "Frengression"] <- (ci_f[1] <= true_ate_lal & true_ate_lal <= ci_f[2])
+    # No standard error or interval for frengression: SE and coverage stay NA.
   }, error = function(e) message("Frengression failed on rep ", b, ": ", e$message))
 
   # --- npcausal ---
@@ -722,6 +737,7 @@ bench_lal <- data.frame(
   Coverage_95 = colMeans(cover_mat_lal, na.rm = TRUE),
   N_valid = colSums(!is.na(ate_mat_lal))
 )
+bench_lal[, c("Mean_SE", "Coverage_95")][is.na(bench_lal[, c("Mean_SE", "Coverage_95")])] <- NA   # no SE for frengression
 
 kable(bench_lal, digits = 4,
       caption = paste0("LaLonde-Based Benchmarking (B=", B_lal,
@@ -758,18 +774,21 @@ ggplot(ate_long_lal_trim, aes(x = Method, y = ATE, fill = Method)) +
   theme(legend.position = "none")
 ```
 
-The numbers are stark. On the hand-written DGP (true ATE 0.0662), frengression
-has a bias of 0.0013 and 100% coverage, DoubleML 0.0066 and 100%, while npcausal
-is off by 0.1532 with 40% coverage and TMLE by 0.2207 with 10%. On the
-LaLonde-generated data (true ATE 0.2846), frengression has a bias of $-0.0465$
-with 90% coverage, while npcausal is off by $-0.2918$ with **0%** coverage and
-TMLE by 0.0372 with 30%.
+On the hand-written DGP (true ATE 0.0793), DoubleML does best, with a bias of
+$-0.0100$, an RMSE of 0.0263 and 100% coverage. Frengression has a bias of
+$-0.0281$ and an RMSE of 0.0389. TMLE's average bias, 0.0212, is smaller than
+that and npcausal's, 0.0432, larger, but both are far noisier, with RMSEs of
+0.1626 for npcausal and 0.1153 for TMLE and coverage of 80% and 20%. On the LaLonde-generated data (true ATE 0.3, or \$2,241),
+TMLE has the smallest bias, 0.0284, but an RMSE of 0.3556 and 10% coverage.
+Frengression's bias is $-0.1779$ with an RMSE of 0.2099; npcausal and DoubleML are
+off by $-0.5445$ and $-0.4474$, both with **0%** coverage. Frengression has no
+coverage entry because we have no valid standard error for it.
 
-Read the coverage column rather than the bias column. A method whose interval
-covers the truth in 0 or 1 of 10 replications is not merely imprecise; its
-reported standard error is wrong. TMLE's mean SE on the simulated benchmark is
-0.0187 against an actual sampling SD of 0.2401 — understating the uncertainty by
-more than a factor of ten.
+The coverage column shows where reported standard errors fail. A method whose
+interval covers the truth in 0 or 1 of 10 replications is not merely imprecise;
+its reported standard error is wrong. TMLE's mean SE on the simulated benchmark is
+0.0220 against an actual sampling SD of 0.1195, understating the uncertainty by a
+factor of more than five.
 
 One caveat before drawing conclusions: $B = 10$ replications is a very small
 Monte Carlo, so these coverage rates carry a standard error of about 0.15

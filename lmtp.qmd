@@ -137,15 +137,17 @@ simulate_data <- function(seed, N, tau, sigma = 0.5) {
       data[[Lt]] <- runif(N, 0, 1)
       data[[Ltd]] <- data[[Lt]]
 
-      data[[At]] <- rbinom(N, size = 1, prob = 0.5)
+      # A_1 depends on L_1 (the DAG edge L1 -> A1).
+      data[[At]] <- rbinom(N, size = 1, prob = plogis(-0.5 + 0.5 * data[[Lt]]))
     }
     else {
-      # L_t depends on the previous treatment A_{t-1} (the DAG edge A1 -> L2),
-      # which is the time-varying confounding this chapter is about.
+      # L_t responds to the previous treatment A_{t-1} (the DAG edge A1 -> L2), and
+      # A_t responds to L_t (L2 -> A2). L_2 is affected by A_1 and confounds A_2:
+      # the treatment-confounder feedback this chapter is about.
       data[[Lt]] <- rnorm(N, mean = 0.25 * data[[Lt1]] + 0.4 * data[[At1]], 0.5)
       data[[Ltd]] <- rnorm(N, mean = 0.25 * data[[Lt1d]] + 0.4 * data[[At1d]], 0.5)
 
-      data[[At]] <- rbinom(N, size = 1, prob = plogis(0.5 - 0.2 * data[[At1]] + 0.1 * data[[Lt1]]))
+      data[[At]] <- rbinom(N, size = 1, prob = plogis(0.5 - 0.2 * data[[At1]] + 0.5 * data[[Lt]]))
     }
 
     data[[Atd]] <- mtp(data, At)
@@ -173,7 +175,7 @@ mean(simulated_data2$Yd)
 mean(simulated_data1$Yd) - mean(simulated_data2$Yd)
 ```
 
-Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is from $N(0.25 L_1 + 0.4 A_1,\ 0.5)$ -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability 0.5, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.1 L_1)$.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (`simulated_data1`) and the second sets it to 0 in every period (`simulated_data2`); the reported difference $E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]$ is the effect of the always-treat versus never-treat static regimes.
+Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is from $N(0.25 L_1 + 0.4 A_1,\ 0.5)$ -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability $\text{plogis}(-0.5 + 0.5 L_1)$, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.5 L_2)$. So $L_2$ is moved by the earlier treatment and in turn moves the later one.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (`simulated_data1`) and the second sets it to 0 in every period (`simulated_data2`); the reported difference $E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]$ is the effect of the always-treat versus never-treat static regimes.
 
 
 The always-treat regime gives $E[Y^d] = 2.029$, never-treat gives 0.129, and
@@ -197,7 +199,7 @@ summary(m1)
 ```
 
 Knowing the DAG, the regression recovers every structural coefficient: $L_2$ at
-0.9998, $A_1$ at 0.4940 and $A_2$ at 1.0000, against true values of 1, 0.5 and 1.
+0.9993, $A_1$ at 0.4894 and $A_2$ at 1.0052, against true values of 1, 0.5 and 1.
 Note this identifies the *direct* effect of $A_1$ only; its path through $L_2$ is
 blocked by conditioning on $L_2$, which is why the total of 1.9 above cannot be
 read off this table.
@@ -243,13 +245,34 @@ m1_d <- predict(m1, mutate(simulated_data1, A_1 = d(A_1)))
 mean(m1_d)
 ```
 
+The truth for this regime is not the same simulation with `mtp` swapped in. The
+shift acts on the *natural* value of each treatment, the value it would take
+after the earlier shift has already moved $L_2$. So we simulate that sequence
+directly, on a large sample:
+
+```{r}
+#| label: sim2-truth
+#| cache: true
+set.seed(2026)
+n_big <- 1e6
+L1  <- runif(n_big)
+A1d <- d(rbinom(n_big, 1, plogis(-0.5 + 0.5 * L1)))            # shift the natural A_1
+L2d <- rnorm(n_big, 0.25 * L1 + 0.4 * A1d, 0.5)                # L_2 under the shifted A_1
+A2d <- d(rbinom(n_big, 1, plogis(0.5 - 0.2 * A1d + 0.5 * L2d))) # shift the natural A_2
+truth_half <- mean(A2d + L2d + 0.5 * A1d)                       # E[Y] under the regime
+truth_half
+```
+
 The recursion makes the blocked path visible. The first regression, on the full
-history, again gives $A_1 = 0.4945$ — the direct effect. The second, after
+history, again gives $A_1 = 0.4894$ — the direct effect. The second, after
 substituting the shifted $A_2$ and regressing on $L_1$ and $A_1$ only, gives
-$A_1 = 0.8760$, which is close to the total $0.5 + 0.4 = 0.9$: dropping $L_2$
-from the conditioning set lets $A_1$'s indirect path back in. The final average
-is 0.652, the expected outcome under the stochastic half-off regime, sitting
-between the always-treat 2.029 and never-treat 0.129 as it should.
+$A_1 = 0.8937$, close to the $0.5 + 0.4 = 0.9$ of the direct path and the path
+through $L_2$: dropping $L_2$ from the conditioning set lets $A_1$'s indirect
+effect back in. The final average is 0.627, against a true 0.640 under the
+stochastic half-off regime. The gap comes from the second regression. Because
+$A_2$ responds to $L_2$, the mean of the shifted $A_2$ given $(L_1, A_1)$ is
+nonlinear, and the linear model only approximates it. Both numbers sit between
+the always-treat 2.029 and never-treat 0.129.
 
 Note this recursive process is based on @diaz-2023.
 
@@ -486,7 +509,7 @@ show_lmtp(lmtp_contrast(fit_dtr, fit_MR, ref = fit_CD))
 
 A modified treatment policy sets each unit's treatment to a function of its observed value and history: a shift, a cap, or a random switch. That makes it possible to ask about realistic interventions with continuous or time-varying treatments, where static always-treat or never-treat contrasts may violate positivity. The estimand is identified by a generalized g-formula. Starting at the last period, we regress the outcome on the history, predict under the shifted treatment, and repeat backwards. The `lmtp` package estimates it with TMLE or the sequentially doubly robust estimator. Both need consistency, sequential unconfoundedness and positivity for the shifted treatment.
 
-In the simulation, always-treat gives 2.029 and never-treat 0.129. The difference of 1.900 splits into the direct effects of the two treatments and the path through the time-varying confounder. The policy that switches half of the treated units off gives 0.652. The recursion shows the indirect path returning once the confounder is dropped from the conditioning set.
+In the simulation, always-treat gives 2.029 and never-treat 0.129. The difference of 1.900 splits into the direct effects of the two treatments and the path through the time-varying confounder. The policy that switches half of the treated units off has a true mean of 0.640; the linear recursion estimates 0.627. The recursion shows the indirect path returning once the confounder is dropped from the conditioning set.
 
 ---
 

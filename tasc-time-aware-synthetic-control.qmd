@@ -64,9 +64,10 @@ counterfactual.
 **DiD (-27.35)** assigns equal weight to every control state and every
 pre-treatment year. California is compared to the average of all 38 donor
 states. In this data, that average sits well below California before treatment.
-So the large DiD estimate is not automatically evidence of a larger causal
-effect. It is partly a warning that equal weights do not fit the pre-period
-well.
+A level gap alone is not a problem for DiD, which differences it away. What
+matters is whether the gap stays constant; if California's pre-period path
+diverges from the donor average, equal weights do not fit and the large DiD
+estimate is partly that misfit.
 
 **Synthetic control (-19.62)** replaces equal weights with donor weights chosen
 to match California's 1970-1988 cigarette sales. Once the pre-period fit is
@@ -112,8 +113,9 @@ tasc_se    = sqrt.(max.(vec(pred.variance), 0.0))
 
 ![Four counterfactual paths for California. Dashed lines (DiD, SDiD) use pre-period
 intercepts to enforce parallel trends; solid lines (SC, TASC) fit levels directly.
-The shaded band is the TASC 95% posterior interval
-$\hat Y_{1t}(0) \pm 1.96\,\hat\sigma_t$.](tasc-prop99.svg)
+The shaded band is the TASC 95% band for the latent untreated signal,
+$\hat Y_{1t}(0) \pm 1.96\,\hat\sigma_t$, with the model parameters fixed at their EM
+estimates. It leaves out observation noise and parameter uncertainty.](tasc-prop99.svg)
 
 Two things are visible in the figure that the table cannot show.
 
@@ -129,12 +131,12 @@ $P_{t+1} = AP_tA^\top + Q$.
 
 ## What the comparison teaches
 
-| Comparison | What it isolates |
+| Comparison | What mainly differs |
 |---|---|
 | DiD vs SC | Unit weights — equal vs optimised donor match |
-| SC vs SDiD | Time weights — equal vs recency-weighted pre-period |
+| SC vs SDiD | Mainly time weights, but SDiD also adds an intercept and regularizes the unit weights |
 | SC vs TASC | Model — weight fitting vs latent state-space |
-| SC/SDiD vs TASC | Uncertainty — point estimate vs posterior interval |
+| SC/SDiD vs TASC | Uncertainty — point estimate vs a model-based latent-signal band |
 
 Which estimator I would use depends on the setting. DiD is transparent, but
 the pre-period fit here is poor. SC improves the donor match. SDiD also weights

@@ -68,7 +68,7 @@ $$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \su
 
 where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = -\hat d(X_i)/c$ for control units ($D_i=0$)
 
-Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights could mean the observations do not have a match in the other group.  For example, $\hat d(X_i) > 1$ will cause the weight $(1-\hat d(X_i))/c$ to flip sign and become negative for a treated unit.  That means this unit is more like treated units than any control units.  In other words, there is no match in the control group.  The mirror image happens for a control unit with $\hat d(X_i) < 0$: its weight $-\hat d(X_i)/c$ flips to *positive*, so it enters the contrast on the same side as the treated.  Either way the unit contributes with the wrong sign.
+Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights are a sign that the fitted linear comparison extrapolates.  For example, $\hat d(X_i) > 1$ will cause the weight $(1-\hat d(X_i))/c$ to flip sign and become negative for a treated unit.  The linear probability model then predicts this unit to be treated with probability above one, which suggests it may have no close match among the controls.  It does not prove that: sampling noise and a misspecified linear model can also push $\hat d(X_i)$ outside $[0, 1]$, and conversely an in-range prediction does not establish common support.  The mirror image happens for a control unit with $\hat d(X_i) < 0$: its weight $-\hat d(X_i)/c$ flips to *positive*, so it enters the contrast on the same side as the treated.  Either way the unit contributes with the wrong sign.
 
 The negative weights are invisible unless we examine $\hat d(X_i)$ directly — which is to say, unless we look at the propensity score. A linear regression of $Y$ on $D$ and $X$ hides the extrapolation. So $\hat\tau_{\text{reg}}$ is a weighted average of outcomes with weights that differ from the ATE weights, and some of those weights may carry the wrong sign without the researcher knowing.
 
@@ -295,6 +295,14 @@ delivers 2.082 — the gap between those two is sampling noise, while the gap
 between either of them and 2.80 is the weighting problem. The regression is
 answering a question about the stratum where treatment happens to be most
 balanced, and nothing in its output says so.
+
+The example also bounds what can be said about ATT and ATU. Here the ATT and the
+ATU are 2.8 as well: $P(D=1) = 0.5$, and the ATT is
+$(0.2 \times 1 + 0.03 \times 4 + 0.27 \times 4)/0.5 = 2.8$, with the ATU the same by
+symmetry. So the OLS coefficient of 2.05 is not a weighted average of the ATT and
+ATU either. Unconfoundedness holds by construction. What fails is the linearity
+the ATT/ATU representation of @sloczynski-2022 needs: the stratum effects 1, 4, 4
+at propensities 0.5, 0.1, 0.9 are not linear in the propensity score.
 
 The two recommended estimators recover the ATE, and recover it identically:
 g-computation and Lin's interaction estimator both return 2.840, against a

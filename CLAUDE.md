@@ -669,3 +669,34 @@ naming a frozen file explicitly executes it, and `radiant` is not installable.
 - **Findings the prose depends on:** with the true dose law the one-step estimator is unbiased with ~95% coverage; with the estimated (kernel-on-forest) law the bias shrinks ~n^-0.2, so coverage at moderate tilts worsens with n. Ignoring the zero-ads atom biases negative tilts badly. Ads vary only across 138 media markets (73 distinct doses): folds by market, SEs clustered by market (~10x iid).
 - **Authors' code problems the chapter names** (measured 2026-10-05 by running their functions on a 3,000-ZIP subsample): bandwidth CV on RMSE of K_h always picks an end of its grid (h=1 where doses are nearby, h=0.05 where the design point falls between the 72 discrete dose values); pi-hat not renormalised in `estimate_psi` (integrates to 0.595 on average, so weights ~1.7x too large, but psi-hat(0) is only 0.008 off Ybar, so it does NOT explain the paper's $2.00 at delta=0); simulation noise added to Y. Full write-up: claude.ai artifact EtWxXUEHxKBtF1yWb4tgrT.
 - Figure facet labels use plotmath (`label_parsed`), not Unicode Greek: the PDF device fails on U+03C8.
+
+## Codex expert review fixes (2026-10-16)
+
+Verified against `~/projects/books/report/EXPERT_REVIEW_20261016.qmd`; log in
+`~/projects/books/_review6/VERIFY_20261016.md`. **Code bugs:**
+- `frengression`: Rfrengression's `predict(type = "mean")` defaults to `trim = 0.05`;
+  every call now passes `trim = 0`. The benchmark "truths" were trimmed Monte Carlo
+  values (0.0662, 0.2846); now exact: Phi(0.2) - 0.5 = 0.0793 for the binary margin, 0.3
+  for the LaLonde margin (Y = 0.3x + eta). The generator's learned eta (mean 0.035, sd
+  1.018) implies 0.0743 for the generated population — stated. "Bootstrap SE" from
+  repeated prediction on one fitted net is Monte Carlo integration error (0.0285), not a
+  standard error: frengression SE/CI/coverage removed. Numbers reproduce exactly across
+  executions (torch seeded). Render of this chapter ~30 min per format.
+- `lmtp`: DGP did not match its DAG (A_1 ~ Bern(.5), A_2 depended on L_1). Now
+  A_1 ~ plogis(-0.5 + 0.5 L_1), A_2 ~ plogis(0.5 - 0.2 A_1 + 0.5 L_2), so L_2 is
+  treatment-confounder feedback. New `sim2-truth` chunk simulates the half-off regime on
+  natural treatments under the shifted history: truth 0.640, linear ICE 0.627 (gap =
+  nonlinear second stage). Always/never truth 1.9 unchanged.
+- `fixed-random-effect`: Var(p2) = Var(b1) + Var(b2) - 2Cov (sign was +); zero Cov
+  scoped to the conventional RE covariance.
+- `likert-scale-variance`: envelope rescaled by sqrt(6/5) to match sd()'s n-1.
+**Prose:** slope contrast vs cross partial (0.304 vs 0.161 at the truth); Słoczyński
+weights stated exactly (w1 = rho0 v0/(rho0 v0 + rho1 v1), linear in p(X)), the 3-stratum
+example shows OLS 2.05 is not a mix of ATT = ATU = 2.8; LPM out-of-range is not proof of no
+match; CRE time-invariant coefficients need a restriction; comparing-margins gap
+direction; list-experiment independence; uplift = CATE not response types; policytree
+approximation vs estimation error; Poisson CF approximate; IF variance /n (npcausal,
+stata-cate); partial-interference residual selection; SC placebo rank; TASC level gap and
+latent-signal band; proximal constant-A1 proposal removed; spatial comparison changes two
+things; incremental axis label; 49 chapters; stale conjoint note removed from references.
+Stata check clean (no r(4), no profile.do).

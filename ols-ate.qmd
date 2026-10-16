@@ -14,20 +14,24 @@ Consider the standard setup:
 
 $$ y = \alpha + \tau d + X \beta $$ {#eq-ols-ate-1}
 
-Here $d$ is the treatment dummy and $X$ the covariates, under unconfoundedness. If the treatment effect is homogeneous, $\tau$ is the ATE. Under heterogeneous effects, $\tau$ is a convex combination of ATT and ATU — but with weights that are inversely proportional to the treatment shares. The more treated units there are, the less weight falls on ATT.
+Here $d$ is the treatment dummy and $X$ the covariates, under unconfoundedness. If the treatment effect is homogeneous, $\tau$ is the ATE. Under heterogeneous effects, Słoczyński shows that $\tau$ is a convex combination of ATT and ATU under an extra linearity condition, and that its weights tend to run opposite to the treatment shares: the more treated units there are, the less weight falls on ATT.
 
 By definition,
 
 $$ \tau_{ATE} = \rho \tau_{ATT} + (1- \rho) \tau_{ATU} $$ {#eq-ols-ate-2}
 
-The main result from the paper is:
+Let $p(X)$ be the linear projection of $d$ on $X$, the "linear propensity score", and let $v_1$ and $v_0$ be its variance among the treated and the untreated. The paper's main result writes the OLS coefficient as
 
-$$ \tau = (1- \rho) \tau_{ATT} + \rho \tau_{ATU} $$ {#eq-ols-ate-3}
+$$ \tau = w_1 \tau_{ATT} + w_0 \tau_{ATU}, \qquad w_1 = \frac{(1-\rho)\, v_0}{\rho\, v_1 + (1-\rho)\, v_0}, \quad w_0 = 1 - w_1. $$ {#eq-ols-ate-3}
+
+Strictly, the theorem is about linear-projection analogues of ATT and ATU, built by regressing $y$ on $p(X)$ within each group. They equal $\tau_{ATT}$ and $\tau_{ATU}$ when $E[y(1) \mid X]$ and $E[y(0) \mid X]$ are linear in $p(X)$. Unconfoundedness alone does not give that, and without it the OLS coefficient need not be any convex combination of ATT and ATU. When $v_1 \approx v_0$, $w_1 \approx 1 - \rho$, which gives the reversed-share approximation
+
+$$ \tau \approx (1- \rho) \tau_{ATT} + \rho \tau_{ATU}. $$
 
 
 where $\rho = P(d=1)$, the proportion of treated; $\tau_{ATT} = E(y(1)-y(0) | d=1)$, $\tau_{ATU} = E(y(1)-y(0) | d=0)$, and $\tau_{ATE} = E(y(1)-y(0))$.
 
-From these two equations, we see that $\tau$ and $\tau_{ATE}$ are quite different, unless the weight on ATT happens to equal $\rho$.  A caution on reading this too simply: the clean form $\tau = (1-\rho)\tau_{ATT} + \rho\tau_{ATU}$ with $\rho = P(d=1)$ is the **no-covariate special case** (or, with covariates, holds in terms of *covariate-adjusted* treatment-probability weights, not the raw marginal share).  In Słoczyński's general result the weights depend on the conditional treatment probabilities (the propensity score), so a 50/50 *marginal* treatment share alone does **not** guarantee that OLS recovers the ATE — what matters is the covariate-adjusted weighting.  With that caveat, the intuition stands: the more imbalanced the (conditional) treatment probabilities, the further OLS can be from the ATE.
+Comparing @eq-ols-ate-2 with @eq-ols-ate-3, $\tau$ and $\tau_{ATE}$ differ unless $w_1$ happens to equal $\rho$ or the effect does not vary. The weights depend on how the linear propensity score varies within each group, not on the raw treated share alone, so a 50/50 treated share does not by itself make OLS recover the ATE. The reversed-share form is the case of equal variances; the more imbalanced the treatment probabilities, the further OLS can be from the ATE.
 
 Given the true propensity score, ATT, ATU, and ATE can be separated. In practice we use the estimated propensity score. Słoczyński provides the `hettreatreg` package in R and Stata.
 
@@ -147,7 +151,7 @@ other interacts the treatment with all nine covariates. But the point is the ori
 
 ## Summary
 
-Under unconfoundedness with heterogeneous effects, the OLS coefficient on a treatment dummy is a weighted average of the ATT and the ATU. Słoczyński shows that the weights are roughly the reverse of the ones that define the ATE: OLS puts weight near the control share on the ATT. So the OLS coefficient is close to the ATE only when the groups are about equal in size, or when the effect does not vary.
+Under unconfoundedness with heterogeneous effects, and when the potential-outcome means are linear in the linear propensity score, the OLS coefficient on a treatment dummy is a weighted average of the ATT and the ATU. Słoczyński shows that the weights are roughly the reverse of the ones that define the ATE: OLS puts weight near the control share on the ATT. So the OLS coefficient is close to the ATE only when the groups are about equal in size, or when the effect does not vary.
 
 In the NSW-CPS data only 1.1% of the sample is treated. OLS gives 793.6, with 98% of its weight on the ATT of 928.4. The ATE is $-6751$, on the other side of zero. Regression adjustment with full interactions gives a different level, an ATE of $-4930$ and an ATT of 796, but the same conclusion: the OLS coefficient is close to the ATT and nowhere near the ATE.
 
