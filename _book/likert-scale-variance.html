@@ -1544,105 +1544,108 @@ Bhatia, Rajendra, and Chandler Davis. 2000. <span>“A Better Bound on the Varia
 <span id="cb9-128"><a href="#cb9-128" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
 <span id="cb9-129"><a href="#cb9-129" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: scatter</span></span>
 <span id="cb9-130"><a href="#cb9-130" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb9-131"><a href="#cb9-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Subject-level mean vs. SD against the theoretical Bhatia-Davis bound."</span></span>
+<span id="cb9-131"><a href="#cb9-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Subject-level mean vs. SD against the Bhatia-Davis bound, rescaled by $\\sqrt{6/5}$ because `sd()` divides by $n-1 = 5$."</span></span>
 <span id="cb9-132"><a href="#cb9-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-133"><a href="#cb9-133" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(subj_summary, <span class="fu">aes</span>(mean_rating, sd_rating, <span class="at">color =</span> group)) <span class="sc">+</span></span>
-<span id="cb9-134"><a href="#cb9-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_jitter</span>(<span class="at">width =</span> <span class="fl">0.05</span>, <span class="at">height =</span> <span class="dv">0</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
-<span id="cb9-135"><a href="#cb9-135" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> <span class="fu">data.frame</span>(<span class="at">mean_rating =</span> mu_grid, <span class="at">sd_rating =</span> sd_max),</span>
-<span id="cb9-136"><a href="#cb9-136" aria-hidden="true" tabindex="-1"></a>            <span class="fu">aes</span>(mean_rating, sd_rating), <span class="at">color =</span> <span class="st">"grey40"</span>, <span class="at">inherit.aes =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
-<span id="cb9-137"><a href="#cb9-137" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Subject Mean Rating"</span>, <span class="at">y =</span> <span class="st">"Subject SD"</span>,</span>
-<span id="cb9-138"><a href="#cb9-138" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Boundary Effect: Group A's SD is Mechanically Compressed"</span>) <span class="sc">+</span></span>
-<span id="cb9-139"><a href="#cb9-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
-<span id="cb9-140"><a href="#cb9-140" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-141"><a href="#cb9-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-142"><a href="#cb9-142" aria-hidden="true" tabindex="-1"></a>The observed standard deviation averages 0.58 in Group A and 1.22 in Group B. If we looked only at these numbers, we would conclude that raters agree much more about Group A, even though the two latent standard deviations are identical by construction.</span>
-<span id="cb9-143"><a href="#cb9-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-144"><a href="#cb9-144" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparing Gaussian and ordinal models</span></span>
-<span id="cb9-145"><a href="#cb9-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-146"><a href="#cb9-146" aria-hidden="true" tabindex="-1"></a>I fit two models in <span class="in">`brms`</span>. The Gaussian model makes $\log(\sigma)$ a function of group. The ordinal cumulative-probit model instead makes $\log(\text{disc})$ a function of group, with Group A used as the reference ($\text{disc}_A=1$).</span>
-<span id="cb9-147"><a href="#cb9-147" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-150"><a href="#cb9-150" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb9-151"><a href="#cb9-151" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-models</span></span>
-<span id="cb9-152"><a href="#cb9-152" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb9-153"><a href="#cb9-153" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
-<span id="cb9-154"><a href="#cb9-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
-<span id="cb9-155"><a href="#cb9-155" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
-<span id="cb9-156"><a href="#cb9-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-157"><a href="#cb9-157" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Gaussian location-scale model</span></span>
-<span id="cb9-158"><a href="#cb9-158" aria-hidden="true" tabindex="-1"></a>fit_gaussian <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), sigma <span class="sc">~</span> group),</span>
-<span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">gaussian</span>(),</span>
-<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
-<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
-<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Ordinal cumulative-probit location-scale model</span></span>
-<span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a>fit_ordinal <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
-<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating_ord <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), disc <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> group),</span>
-<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">cumulative</span>(<span class="st">"probit"</span>), <span class="at">init =</span> <span class="dv">0</span>,</span>
-<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">c</span>(</span>
-<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">constant</span>(<span class="dv">0</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupA"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>),</span>
-<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupB"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>)</span>
-<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
-<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
-<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb9-181"><a href="#cb9-181" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: compare-results</span></span>
-<span id="cb9-182"><a href="#cb9-182" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_gaussian), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Gaussian MELSM: Incorrectly finds group differences in residual SD."</span>)</span>
-<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_ordinal), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Ordinal MELSM: Correctly recovers equal latent dispersion."</span>)</span>
-<span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a><span class="fu">### Results</span></span>
-<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a>The Gaussian coefficient on <span class="in">`sigma_groupB`</span> is $0.68$. It estimates that Group B's residual standard deviation is $\exp(0.68)\approx1.97$ times Group A's ($95\%\text{ CI}: <span class="co">[</span><span class="ot">1.82,2.14</span><span class="co">]</span>$). This apparent difference comes from the scale ceiling.</span>
-<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a>The ordinal coefficient on <span class="in">`disc_groupB`</span> is $-0.01$ ($95\%\text{ CI}: <span class="co">[</span><span class="ot">-0.17,0.15</span><span class="co">]</span>$), which implies a latent standard-deviation ratio of $\exp(0.01)\approx1.01$. The ordinal model recovers the equal dispersion used to generate the data.</span>
-<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a><span class="fu">### An important assumption</span></span>
-<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a>The data were generated from the ordinal model's own functional form: a latent normal variable, a constant $\sigma$, and one <span class="in">`cuts`</span> vector shared by both groups. It is therefore not surprising that the ordinal model fits well. What the example shows is narrower: boundary compression by itself does not create a difference in the latent dispersion parameter, while it does create one in the Gaussian model.</span>
-<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a>The example does not show that the model can distinguish dispersion from threshold differences, because I did not simulate any threshold difference. Common thresholds across groups, or a model that allows them to vary, are needed for identification. If groups use the categories differently, threshold shifts and <span class="in">`disc`</span> can trade off: the cutpoints can absorb a real dispersion difference, or a threshold difference can appear as a change in <span class="in">`disc`</span>. On real data, we need information outside the basic model, such as anchoring vignettes or a partial-invariance specification, to check this assumption.</span>
-<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-200"><a href="#cb9-200" aria-hidden="true" tabindex="-1"></a><span class="fu">## A descriptive alternative</span></span>
-<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a>A simpler descriptive measure is the ratio of the observed variance to the maximum possible variance at the same mean:</span>
-<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a>$$R = \frac{\text{Var}(Y)}{\text{Var}_{\max}(\mu)} \in <span class="co">[</span><span class="ot">0, 1</span><span class="co">]</span>$$</span>
-<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a>where $R = 0$ indicates perfect agreement and $R = 1$ indicates maximum polarization.</span>
-<span id="cb9-207"><a href="#cb9-207" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a>The top of that range is not generally reachable at the subject level. Enumerate every set of six ratings on a 1–7 item and only 7 of the 37 achievable means admit a configuration that attains the Bhatia–Davis bound, namely the integer means where an all-endpoint split is possible. Elsewhere the ceiling is lower: the largest attainable $R$ is $0.83$ at a mean of $3.5$, $0.45$ at $1.5$, and $0.14$ at $7/6$. A subject-level $R$ is therefore measured against a denominator the ratings could not have produced, and the shortfall itself varies with the mean, which is the dependence $R$ was meant to remove.</span>
-<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a>Either divide by the sharp finite-sample maximum at the observed mean and rater count, obtained by the enumeration just described, or keep the Bhatia–Davis denominator and say plainly that $R \le 1$ is measured against a possibly unattainable ceiling. The pooled calculation below is the mild case: with a whole group's ratings the achievable means are dense enough that the distributional bound is close to sharp.</span>
-<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a>With only six ratings per subject, $R$ is noisy and can be undefined when every rater chooses 7, giving $0/0$. We can instead calculate it after pooling the ratings within each group:</span>
-<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb9-217"><a href="#cb9-217" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-pooled</span></span>
-<span id="cb9-218"><a href="#cb9-218" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-220"><a href="#cb9-220" aria-hidden="true" tabindex="-1"></a>df <span class="sc">|&gt;</span></span>
-<span id="cb9-221"><a href="#cb9-221" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
-<span id="cb9-222"><a href="#cb9-222" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb9-223"><a href="#cb9-223" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_rating =</span> <span class="fu">mean</span>(rating),</span>
-<span id="cb9-224"><a href="#cb9-224" aria-hidden="true" tabindex="-1"></a>    <span class="at">var_obs     =</span> <span class="fu">mean</span>((rating <span class="sc">-</span> <span class="fu">mean</span>(rating))<span class="sc">^</span><span class="dv">2</span>),</span>
-<span id="cb9-225"><a href="#cb9-225" aria-hidden="true" tabindex="-1"></a>    <span class="at">var_max     =</span> (<span class="fu">mean</span>(rating) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> (<span class="dv">7</span> <span class="sc">-</span> <span class="fu">mean</span>(rating)),</span>
-<span id="cb9-226"><a href="#cb9-226" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_pooled    =</span> <span class="fu">round</span>(var_obs <span class="sc">/</span> var_max, <span class="dv">3</span>)</span>
-<span id="cb9-227"><a href="#cb9-227" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb9-228"><a href="#cb9-228" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Group-level pooled R metric."</span>)</span>
-<span id="cb9-229"><a href="#cb9-229" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb9-230"><a href="#cb9-230" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-231"><a href="#cb9-231" aria-hidden="true" tabindex="-1"></a>Both groups give $R\approx0.21$--$0.22$. Dividing by the maximum attainable variance makes the descriptive measure more comparable across groups with different means. It is still only a normalization, not a model-based correction, and it has no latent dispersion parameter to interpret.</span>
-<span id="cb9-232"><a href="#cb9-232" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-233"><a href="#cb9-233" aria-hidden="true" tabindex="-1"></a><span class="fu">## Which approach to use</span></span>
-<span id="cb9-234"><a href="#cb9-234" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-235"><a href="#cb9-235" aria-hidden="true" tabindex="-1"></a>Raw standard deviations are hard to compare when group means differ on a bounded scale. If the goal is a model of underlying response dispersion, I would use the ordinal location-scale model and examine whether common thresholds are plausible. If the goal is only a descriptive comparison, pooled $R=\text{Var}/\text{Var}_{\max}$ is easier to explain, as long as it is not interpreted as a latent parameter.</span>
+<span id="cb9-133"><a href="#cb9-133" aria-hidden="true" tabindex="-1"></a><span class="co"># sd() uses the n - 1 denominator; the Bhatia-Davis bound is for the population</span></span>
+<span id="cb9-134"><a href="#cb9-134" aria-hidden="true" tabindex="-1"></a><span class="co"># (divide-by-n) variance. With six ratings the sample-SD ceiling is sqrt(6/5) times it.</span></span>
+<span id="cb9-135"><a href="#cb9-135" aria-hidden="true" tabindex="-1"></a>sd_max_sample <span class="ot">&lt;-</span> <span class="fu">sqrt</span>(<span class="dv">6</span> <span class="sc">/</span> <span class="dv">5</span>) <span class="sc">*</span> sd_max</span>
+<span id="cb9-136"><a href="#cb9-136" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(subj_summary, <span class="fu">aes</span>(mean_rating, sd_rating, <span class="at">color =</span> group)) <span class="sc">+</span></span>
+<span id="cb9-137"><a href="#cb9-137" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_jitter</span>(<span class="at">width =</span> <span class="fl">0.05</span>, <span class="at">height =</span> <span class="dv">0</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb9-138"><a href="#cb9-138" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> <span class="fu">data.frame</span>(<span class="at">mean_rating =</span> mu_grid, <span class="at">sd_rating =</span> sd_max_sample),</span>
+<span id="cb9-139"><a href="#cb9-139" aria-hidden="true" tabindex="-1"></a>            <span class="fu">aes</span>(mean_rating, sd_rating), <span class="at">color =</span> <span class="st">"grey40"</span>, <span class="at">inherit.aes =</span> <span class="cn">FALSE</span>) <span class="sc">+</span></span>
+<span id="cb9-140"><a href="#cb9-140" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Subject Mean Rating"</span>, <span class="at">y =</span> <span class="st">"Subject SD"</span>,</span>
+<span id="cb9-141"><a href="#cb9-141" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Boundary Effect: Group A's SD is Mechanically Compressed"</span>) <span class="sc">+</span></span>
+<span id="cb9-142"><a href="#cb9-142" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span>
+<span id="cb9-143"><a href="#cb9-143" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-144"><a href="#cb9-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-145"><a href="#cb9-145" aria-hidden="true" tabindex="-1"></a>Each subject's SD uses the $n-1$ denominator, so its ceiling is $\sqrt{6/5}$ times the population bound: six ratings split between 1 and 7 give a sample SD of 3.29, not 3. The observed standard deviation averages 0.58 in Group A and 1.22 in Group B. If we looked only at these numbers, we would conclude that raters agree much more about Group A, even though the two latent standard deviations are identical by construction.</span>
+<span id="cb9-146"><a href="#cb9-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-147"><a href="#cb9-147" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparing Gaussian and ordinal models</span></span>
+<span id="cb9-148"><a href="#cb9-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-149"><a href="#cb9-149" aria-hidden="true" tabindex="-1"></a>I fit two models in <span class="in">`brms`</span>. The Gaussian model makes $\log(\sigma)$ a function of group. The ordinal cumulative-probit model instead makes $\log(\text{disc})$ a function of group, with Group A used as the reference ($\text{disc}_A=1$).</span>
+<span id="cb9-150"><a href="#cb9-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-153"><a href="#cb9-153" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-154"><a href="#cb9-154" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: fit-models</span></span>
+<span id="cb9-155"><a href="#cb9-155" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-156"><a href="#cb9-156" aria-hidden="true" tabindex="-1"></a><span class="co">#| cache: true</span></span>
+<span id="cb9-157"><a href="#cb9-157" aria-hidden="true" tabindex="-1"></a><span class="co">#| message: false</span></span>
+<span id="cb9-158"><a href="#cb9-158" aria-hidden="true" tabindex="-1"></a><span class="co">#| warning: false</span></span>
+<span id="cb9-159"><a href="#cb9-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-160"><a href="#cb9-160" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Gaussian location-scale model</span></span>
+<span id="cb9-161"><a href="#cb9-161" aria-hidden="true" tabindex="-1"></a>fit_gaussian <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb9-162"><a href="#cb9-162" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), sigma <span class="sc">~</span> group),</span>
+<span id="cb9-163"><a href="#cb9-163" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">gaussian</span>(),</span>
+<span id="cb9-164"><a href="#cb9-164" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
+<span id="cb9-165"><a href="#cb9-165" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
+<span id="cb9-166"><a href="#cb9-166" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-167"><a href="#cb9-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-168"><a href="#cb9-168" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Ordinal cumulative-probit location-scale model</span></span>
+<span id="cb9-169"><a href="#cb9-169" aria-hidden="true" tabindex="-1"></a>fit_ordinal <span class="ot">&lt;-</span> <span class="fu">brm</span>(</span>
+<span id="cb9-170"><a href="#cb9-170" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bf</span>(rating_ord <span class="sc">~</span> group <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> subject), disc <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> group),</span>
+<span id="cb9-171"><a href="#cb9-171" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df, <span class="at">family =</span> <span class="fu">cumulative</span>(<span class="st">"probit"</span>), <span class="at">init =</span> <span class="dv">0</span>,</span>
+<span id="cb9-172"><a href="#cb9-172" aria-hidden="true" tabindex="-1"></a>  <span class="at">prior =</span> <span class="fu">c</span>(</span>
+<span id="cb9-173"><a href="#cb9-173" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">constant</span>(<span class="dv">0</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupA"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>),</span>
+<span id="cb9-174"><a href="#cb9-174" aria-hidden="true" tabindex="-1"></a>    <span class="fu">prior</span>(<span class="fu">normal</span>(<span class="dv">0</span>, <span class="dv">1</span>), <span class="at">class =</span> <span class="st">"b"</span>, <span class="at">coef =</span> <span class="st">"groupB"</span>, <span class="at">dpar =</span> <span class="st">"disc"</span>)</span>
+<span id="cb9-175"><a href="#cb9-175" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb9-176"><a href="#cb9-176" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">2</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">warmup =</span> <span class="dv">1000</span>, <span class="at">cores =</span> <span class="dv">2</span>, <span class="at">seed =</span> <span class="dv">1</span>,</span>
+<span id="cb9-177"><a href="#cb9-177" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">0</span>, <span class="at">silent =</span> <span class="dv">2</span></span>
+<span id="cb9-178"><a href="#cb9-178" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-179"><a href="#cb9-179" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-180"><a href="#cb9-180" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-183"><a href="#cb9-183" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-184"><a href="#cb9-184" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: compare-results</span></span>
+<span id="cb9-185"><a href="#cb9-185" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-186"><a href="#cb9-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-187"><a href="#cb9-187" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_gaussian), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Gaussian MELSM: Incorrectly finds group differences in residual SD."</span>)</span>
+<span id="cb9-188"><a href="#cb9-188" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">round</span>(<span class="fu">fixef</span>(fit_ordinal), <span class="dv">2</span>), <span class="at">caption =</span> <span class="st">"Ordinal MELSM: Correctly recovers equal latent dispersion."</span>)</span>
+<span id="cb9-189"><a href="#cb9-189" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-190"><a href="#cb9-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-191"><a href="#cb9-191" aria-hidden="true" tabindex="-1"></a><span class="fu">### Results</span></span>
+<span id="cb9-192"><a href="#cb9-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-193"><a href="#cb9-193" aria-hidden="true" tabindex="-1"></a>The Gaussian coefficient on <span class="in">`sigma_groupB`</span> is $0.68$. It estimates that Group B's residual standard deviation is $\exp(0.68)\approx1.97$ times Group A's ($95\%\text{ CI}: <span class="co">[</span><span class="ot">1.82,2.14</span><span class="co">]</span>$). This apparent difference comes from the scale ceiling.</span>
+<span id="cb9-194"><a href="#cb9-194" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-195"><a href="#cb9-195" aria-hidden="true" tabindex="-1"></a>The ordinal coefficient on <span class="in">`disc_groupB`</span> is $-0.01$ ($95\%\text{ CI}: <span class="co">[</span><span class="ot">-0.17,0.15</span><span class="co">]</span>$), which implies a latent standard-deviation ratio of $\exp(0.01)\approx1.01$. The ordinal model recovers the equal dispersion used to generate the data.</span>
+<span id="cb9-196"><a href="#cb9-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-197"><a href="#cb9-197" aria-hidden="true" tabindex="-1"></a><span class="fu">### An important assumption</span></span>
+<span id="cb9-198"><a href="#cb9-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-199"><a href="#cb9-199" aria-hidden="true" tabindex="-1"></a>The data were generated from the ordinal model's own functional form: a latent normal variable, a constant $\sigma$, and one <span class="in">`cuts`</span> vector shared by both groups. It is therefore not surprising that the ordinal model fits well. What the example shows is narrower: boundary compression by itself does not create a difference in the latent dispersion parameter, while it does create one in the Gaussian model.</span>
+<span id="cb9-200"><a href="#cb9-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-201"><a href="#cb9-201" aria-hidden="true" tabindex="-1"></a>The example does not show that the model can distinguish dispersion from threshold differences, because I did not simulate any threshold difference. Common thresholds across groups, or a model that allows them to vary, are needed for identification. If groups use the categories differently, threshold shifts and <span class="in">`disc`</span> can trade off: the cutpoints can absorb a real dispersion difference, or a threshold difference can appear as a change in <span class="in">`disc`</span>. On real data, we need information outside the basic model, such as anchoring vignettes or a partial-invariance specification, to check this assumption.</span>
+<span id="cb9-202"><a href="#cb9-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-203"><a href="#cb9-203" aria-hidden="true" tabindex="-1"></a><span class="fu">## A descriptive alternative</span></span>
+<span id="cb9-204"><a href="#cb9-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-205"><a href="#cb9-205" aria-hidden="true" tabindex="-1"></a>A simpler descriptive measure is the ratio of the observed variance to the maximum possible variance at the same mean:</span>
+<span id="cb9-206"><a href="#cb9-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-207"><a href="#cb9-207" aria-hidden="true" tabindex="-1"></a>$$R = \frac{\text{Var}(Y)}{\text{Var}_{\max}(\mu)} \in <span class="co">[</span><span class="ot">0, 1</span><span class="co">]</span>$$</span>
+<span id="cb9-208"><a href="#cb9-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-209"><a href="#cb9-209" aria-hidden="true" tabindex="-1"></a>where $R = 0$ indicates perfect agreement and $R = 1$ indicates maximum polarization.</span>
+<span id="cb9-210"><a href="#cb9-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-211"><a href="#cb9-211" aria-hidden="true" tabindex="-1"></a>The top of that range is not generally reachable at the subject level. Enumerate every set of six ratings on a 1–7 item and only 7 of the 37 achievable means admit a configuration that attains the Bhatia–Davis bound, namely the integer means where an all-endpoint split is possible. Elsewhere the ceiling is lower: the largest attainable $R$ is $0.83$ at a mean of $3.5$, $0.45$ at $1.5$, and $0.14$ at $7/6$. A subject-level $R$ is therefore measured against a denominator the ratings could not have produced, and the shortfall itself varies with the mean, which is the dependence $R$ was meant to remove.</span>
+<span id="cb9-212"><a href="#cb9-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-213"><a href="#cb9-213" aria-hidden="true" tabindex="-1"></a>Either divide by the sharp finite-sample maximum at the observed mean and rater count, obtained by the enumeration just described, or keep the Bhatia–Davis denominator and say plainly that $R \le 1$ is measured against a possibly unattainable ceiling. The pooled calculation below is the mild case: with a whole group's ratings the achievable means are dense enough that the distributional bound is close to sharp.</span>
+<span id="cb9-214"><a href="#cb9-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-215"><a href="#cb9-215" aria-hidden="true" tabindex="-1"></a>With only six ratings per subject, $R$ is noisy and can be undefined when every rater chooses 7, giving $0/0$. We can instead calculate it after pooling the ratings within each group:</span>
+<span id="cb9-216"><a href="#cb9-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-219"><a href="#cb9-219" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb9-220"><a href="#cb9-220" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-pooled</span></span>
+<span id="cb9-221"><a href="#cb9-221" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb9-222"><a href="#cb9-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-223"><a href="#cb9-223" aria-hidden="true" tabindex="-1"></a>df <span class="sc">|&gt;</span></span>
+<span id="cb9-224"><a href="#cb9-224" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(group) <span class="sc">|&gt;</span></span>
+<span id="cb9-225"><a href="#cb9-225" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb9-226"><a href="#cb9-226" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_rating =</span> <span class="fu">mean</span>(rating),</span>
+<span id="cb9-227"><a href="#cb9-227" aria-hidden="true" tabindex="-1"></a>    <span class="at">var_obs     =</span> <span class="fu">mean</span>((rating <span class="sc">-</span> <span class="fu">mean</span>(rating))<span class="sc">^</span><span class="dv">2</span>),</span>
+<span id="cb9-228"><a href="#cb9-228" aria-hidden="true" tabindex="-1"></a>    <span class="at">var_max     =</span> (<span class="fu">mean</span>(rating) <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> (<span class="dv">7</span> <span class="sc">-</span> <span class="fu">mean</span>(rating)),</span>
+<span id="cb9-229"><a href="#cb9-229" aria-hidden="true" tabindex="-1"></a>    <span class="at">R_pooled    =</span> <span class="fu">round</span>(var_obs <span class="sc">/</span> var_max, <span class="dv">3</span>)</span>
+<span id="cb9-230"><a href="#cb9-230" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb9-231"><a href="#cb9-231" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">"Group-level pooled R metric."</span>)</span>
+<span id="cb9-232"><a href="#cb9-232" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb9-233"><a href="#cb9-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-234"><a href="#cb9-234" aria-hidden="true" tabindex="-1"></a>Both groups give $R\approx0.21$--$0.22$. Dividing by the maximum attainable variance makes the descriptive measure more comparable across groups with different means. It is still only a normalization, not a model-based correction, and it has no latent dispersion parameter to interpret.</span>
+<span id="cb9-235"><a href="#cb9-235" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-236"><a href="#cb9-236" aria-hidden="true" tabindex="-1"></a><span class="fu">## Which approach to use</span></span>
+<span id="cb9-237"><a href="#cb9-237" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-238"><a href="#cb9-238" aria-hidden="true" tabindex="-1"></a>Raw standard deviations are hard to compare when group means differ on a bounded scale. If the goal is a model of underlying response dispersion, I would use the ordinal location-scale model and examine whether common thresholds are plausible. If the goal is only a descriptive comparison, pooled $R=\text{Var}/\text{Var}_{\max}$ is easier to explain, as long as it is not interpreted as a latent parameter.</span>
 </code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
