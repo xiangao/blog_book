@@ -230,8 +230,10 @@ cate po (assets $catecovars) (e401k),  omethod(rforest) tmethod(rforest) nolog  
 
 ```
 
-With random forests DoubleML gives \$9,474 (SE \$1,376), while Stata's `cate`
-with `rforest` for both models gives \$7,126 (SE \$1,182). The results are somewhat similar, but not exactly the same — a gap of about \$2,300, which is larger than either standard error.  There are some subtle differences in the way these two packages running random forest on the two models that I am not aware of.
+With random forests DoubleML gives \$9,114 (SE \$1,375), while Stata's `cate`
+with `rforest` for both models gives \$8,282 (SE \$1,182). The gap, about \$830, is
+smaller than either standard error. The two packages tune and cross-fit their
+forests differently, so the numbers need not match exactly.
 
 ## AIPW
 
@@ -250,7 +252,7 @@ global catecovars age educ i.(incomecat pension married twoearn ira ownhome)
 cate aipw (assets $catecovars) (e401k),  nolog
 ```
 
-Stata's AIPW gives an ATE of \$7,929 with a standard error of \$1,216, on 9,913
+Stata's AIPW gives an ATE of \$8,186 with a standard error of \$1,163, on 9,913
 households.
 
 I'll try to do this with "npcausal":
@@ -297,7 +299,7 @@ if (!is.null(aipw)) aipw$res
 
 ```
 
-Note here to match the Stata results, I included only "glmnet" in the SuperLearner library.  The results are not exactly the same, but close enough.
+Note here to match the Stata results, I included only lasso (`glmnet`) in the SuperLearner library. `npcausal` gives an ATE of \$8,065 with a standard error of \$1,158, against \$8,186 from Stata's AIPW.
 
 
 Or we can use a similar package with more functionalities: "AIPW".
@@ -335,11 +337,13 @@ AIPW_sl$result
 
 ```
 
+`AIPW` gives \$8,241 with a standard error of \$1,150, close to `npcausal` and to Stata's AIPW.
+
 ## Summary
 
 Stata 19's `cate` command estimates conditional average treatment effects with partialling out, which is double machine learning, or with AIPW. It uses lasso or random forests for the nuisance models. A fully interacted regression gives similar numbers, but it is regression adjustment, a different idea. DoubleML, `npcausal` and `AIPW` in R implement the same estimators.
 
-In the 401(k) data, the group ATEs rise from about \$4,000 in the lowest income category to \$20,350 in the highest. A single ATE would hide that spread. Overall ATEs depend on the learners and the software: \$7,553 from DoubleML with lasso, \$9,474 with random forests in R against \$7,126 in Stata, and \$7,929 from Stata's AIPW. The random-forest gap between packages is larger than either standard error.
+In the 401(k) data, the group ATEs rise from about \$4,000 in the lowest income category to \$20,350 in the highest. A single ATE would hide that spread. Overall ATEs depend on the learners and the software: \$7,553 from DoubleML with lasso, \$9,114 with random forests in R against \$8,282 in Stata, and AIPW gives \$8,186 in Stata, \$8,065 from `npcausal` and \$8,241 from `AIPW`. The estimates span \$7,553 to \$9,114 with standard errors between \$1,150 and \$1,375, so the choice of learner and software moves the ATE by up to about one standard error.
 
 ---
 

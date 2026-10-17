@@ -202,7 +202,7 @@ cat("Frengression ATE:", round(y1 - y0, 4), "\n")
 cat("True ATE:", round(true_ate, 4), "\n")
 ```
 
-The realized ATE in this draw is $0.1935$, and averaging the true probabilities over the sampled covariates gives $0.2024$. The gap between those two is outcome sampling noise, not model error, and it is worth keeping them apart: the realized figure is the ATE of the potential outcomes actually drawn, while the covariate-averaged figure is the smoother target the estimator is really chasing. Frengression's 0.1485 lands about 0.05 below either one.
+The realized ATE in this draw is $0.1935$, and averaging the true probabilities over the sampled covariates gives $0.2024$. The gap between those two is outcome sampling noise, not model error, and it is worth keeping them apart: the realized figure is the ATE of the potential outcomes actually drawn, while the covariate-averaged figure is the smoother target the estimator is really chasing. With early stopping turned off, frengression's 0.1895 lands 0.004 below the realized ATE and 0.013 below the covariate-averaged one.
 
 The training chunks carry `cache: false`, so they re-run on every render, and
 torch keeps a generator of its own that R's `set.seed()` does not reach. Seeding
@@ -258,10 +258,10 @@ cat(sprintf("Generator eta: mean %.3f, sd %.3f; implied ATE %.4f\n",
 The specified margin has an exact ATE of $\Phi(0.2) - 0.5 = 0.0793$, where $\Phi$ is
 the standard normal distribution function, and `predict()` with `trim = 0`
 reproduces it to Monte Carlo error. The population the generator actually draws
-uses the learned $\eta$, whose mean is 0.035 and standard deviation 1.018 rather
-than 0 and 1, and its ATE is 0.0743. We score the benchmark against the exact
-0.0793. The 0.005 gap is the generator's approximation error, small next to most
-of the biases below.
+uses the learned $\eta$, whose mean is 0.044 and standard deviation 0.946 rather
+than 0 and 1, and its ATE is 0.0785. We score the benchmark against the exact
+0.0793. The 0.0008 gap is the generator's approximation error, small next to the
+biases below.
 
 Now we can generate synthetic data and benchmark any method:
 
@@ -489,11 +489,11 @@ kable(results, digits = 4,
       caption = "ATE Estimation: Frengression vs Semiparametric Methods")
 ```
 
-On this single dataset the ranking is what one would expect. TMLE gives 0.1916,
-npcausal 0.1911 and DoubleML 0.1872, all within 0.007 of the true 0.1935;
-frengression gives 0.1485, a bias of $-0.0450$, about seven times larger. We
-report no standard error for it. The spread of repeated predictions from the one
-fitted network, 0.0285, measures only the Monte Carlo error of the integration in
+On this single dataset all four are close. TMLE gives 0.1916 and npcausal
+0.1911, within 0.003 of the true 0.1935; DoubleML's interactive model gives
+0.1806, 0.013 below; frengression gives 0.1895, 0.004 below. We report no
+standard error for frengression. The spread of repeated predictions from the one
+fitted network, 0.0278, measures only the Monte Carlo error of the integration in
 `predict()`: it does not resample the data or refit the network. The three
 reported intervals all cover the truth.
 
@@ -789,28 +789,35 @@ ggplot(ate_long_lal_trim, aes(x = Method, y = ATE, fill = Method)) +
   theme(legend.position = "none")
 ```
 
-On the hand-written DGP (true ATE 0.0793), DoubleML does best, with a bias of
-$-0.0100$, an RMSE of 0.0263 and 100% coverage. Frengression has a bias of
-$-0.0281$ and an RMSE of 0.0389. TMLE's average bias, 0.0212, is smaller than
-that and npcausal's, 0.0432, larger, but both are far noisier, with RMSEs of
-0.1626 for npcausal and 0.1153 for TMLE and coverage of 80% and 20%. On the LaLonde-generated data (true ATE 0.3, or \$2,241),
-TMLE has the smallest bias, 0.0284, but an RMSE of 0.3556 and 10% coverage.
-Frengression's bias is $-0.1779$ with an RMSE of 0.2099; npcausal and DoubleML are
-off by $-0.5445$ and $-0.4474$, both with **0%** coverage. Frengression has no
-coverage entry because we have no valid standard error for it.
+On the hand-written DGP (true ATE 0.0793), frengression does best, with a bias of
+0.0027 and an RMSE of 0.0370. TMLE has a bias of 0.0434 and an RMSE of 0.0914,
+DoubleML's interactive model 0.0922 and 0.1001, and npcausal 0.2004 and 0.2487,
+with coverage of 50%, 40% and 20%. The generated data treat 90% of units, so
+some propensity scores are close to one and the inverse-propensity terms in the
+three doubly robust estimators are unstable. On the LaLonde-generated data (true
+ATE 0.3, or \$2,241), only 3.2% of units are treated, about 64 of 2,000, against 30% in
+the real LaLonde sample: the learned treatment model badly understates
+treatment, and every method struggles. Frengression's bias is $-0.3487$ with an RMSE of 0.3917; TMLE's
+is 0.2203 with an RMSE of 0.6867 and 0% coverage; npcausal and DoubleML are off by
+$-0.7664$ and $-0.8070$, with 10% coverage. Frengression has no coverage entry
+because we have no valid standard error for it.
 
 The coverage column shows where reported standard errors fail. A method whose
 interval covers the truth in 0 or 1 of 10 replications is not merely imprecise;
 its reported standard error is wrong. TMLE's mean SE on the simulated benchmark is
-0.0220 against an actual sampling SD of 0.1195, understating the uncertainty by a
-factor of more than five.
+0.0273 against an actual sampling SD of 0.0848, understating the uncertainty by a
+factor of about three.
 
 One caveat before drawing conclusions: $B = 10$ replications is a very small
 Monte Carlo, so these coverage rates carry a standard error of about 0.15
-themselves. The qualitative ordering is clear; the individual percentages are
-not precise.
+themselves, and the ranking of the methods can change from one run of ten to
+the next. An earlier run of this chapter, which used the partially linear
+DoubleML model, scaled the binary covariates and stopped training early, ranked
+DoubleML first on the hand-written DGP. What is stable across runs is that weak
+overlap, 90% treated in one design and 3% in the other, makes the reported
+standard errors of the doubly robust estimators far too small.
 
-The semiparametric methods show more bias on the LaLonde-generated data than on the hand-written simulation. That is the point of this exercise. The synthetic data has a more realistic propensity surface and prior-earnings distribution, so it is harder than the usual clean simulation.
+All methods show more bias on the LaLonde-generated data than on the hand-written simulation. That is the point of this exercise. The synthetic data has the real data's skewed prior-earnings distribution, and, because the learned treatment model understates treatment, far worse overlap than the real data. Before using such a generator as a benchmark, its treatment and covariate margins should be checked against the real data; here the treatment margin fails that check.
 
 ## Summary
 

@@ -727,4 +727,4 @@ in rforest/aipw, ranger num.threads 1; ch41 WX lags the transformed X; ch43 Doub
 seeded per rep, z_binary_dims in loops, binary columns not scaled, tol = 0; ch46 NDE/NIE
 printed, medoutcon via summary(). PDF: mainfont fallback DejaVu Serif + DejaVu Sans Mono.
 32 bib entries added, 7 completed. Prose numbers for re-executed chapters 26-46 still pending
-when this was first committed.
+when first committed; filled in after the full render (101 min). Ch3: Statamarkdown collects code for any non-NULL collectcode, so `collectcode: false` still collected; the line is removed instead.

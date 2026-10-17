@@ -213,7 +213,7 @@ new_dat_11$Ey <- predict(Y_mod, newdata = new_dat_11, type = "response")
 mean(new_dat_11$Ey)
 ```
 
-That gives $E[Y^{1,1}] = 150.12$.
+That gives $E[Y^{1,1}] = 150.66$.
 
 Then for $E[Y^{0,0}]$.
 
@@ -240,8 +240,8 @@ mean(new_dat_00$Ey)
 
 ```
 
-And $E[Y^{0,0}] = 134.72$, so always-treat versus never-treat is worth
-$150.12 - 134.72 = 15.40$ by hand.
+And $E[Y^{0,0}] = 134.17$, so always-treat versus never-treat is worth
+$150.66 - 134.17 = 16.49$ by hand.
 
 Now with the gfoRmula package.
 
@@ -318,24 +318,26 @@ gform_res$sim_data
 ```
 
 The package agrees with the hand calculation. Intervention 4 ("1, 1", always
-treat) gives a g-formula mean of 150.0516 against the 150.12 computed by hand,
-and intervention 1 ("0, 0", never treat) gives 134.5405 against 134.72 — the
-small gaps are Monte Carlo error, since both routes simulate rather than
-integrate. The table's own contrast of the two, 15.51, matches the 15.40 from
-the hand calculation.
+treat) gives a g-formula mean of 150.19 against the 150.66 computed by hand,
+and intervention 1 ("0, 0", never treat) gives 134.82 against 134.17. The gaps
+are Monte Carlo error: both routes simulate the covariate, and the hand
+calculation uses only 10,000 draws, which puts a standard error of about 0.5
+on the always-treat mean and 0.75 on the never-treat mean, or 0.9 on their
+difference. The table's own contrast of the two, 15.37, is 1.1 from the 16.49 of
+the hand calculation, about one such standard error.
 
-The natural course is 141.59, sitting between the two regimes, and the
-non-parametric mean of the observed data is 142.46, which is the check that the
+The natural course is 141.73, sitting between the two regimes, and the
+non-parametric mean of the observed data is 142.60, which is the check that the
 model-based natural course is not badly misspecified.
 
-The other two regimes are worth a glance. Treating only at time 0 gives 150.35
-and treating only at time 1 gives 134.53 — so essentially all of the effect
+The other two regimes are worth a glance. Treating only at time 0 gives 150.21
+and treating only at time 1 gives 134.76 — so essentially all of the effect
 comes from the first period's treatment, and the second period adds nothing.
 
 Reading `gform_res$coeffs` shows why this needs the g-formula rather than a
 regression. The $L$ model has a coefficient of 1.0986 on lagged treatment, so
-past treatment moves the time-1 covariate; and the $Y$ model has 149.85 on $L$
-and $-269.83$ on the $L \times \text{lag}_1 A$ interaction, so that covariate
+past treatment moves the time-1 covariate; and the $Y$ model has 150.10 on $L$
+and $-270.17$ on the $L \times \text{lag}_1 A$ interaction, so that covariate
 in turn moves the outcome. $L$ is a time-varying confounder affected by past
 treatment, which is exactly the configuration where conditioning on it blocks
 part of the effect and omitting it leaves confounding.
@@ -489,7 +491,7 @@ Standard errors can be calculated with bootstrapping.
 
 With treatment over time, a covariate can be both a confounder of later treatment and a result of earlier treatment. Conditioning on it blocks part of the effect, and leaving it out leaves confounding. The g-formula handles this under sequential ignorability, positivity and consistency. It models the time-varying covariate given past treatment and the outcome given the full history. Then it simulates the population forward with the treatments fixed at the regime of interest.
 
-In the two-period example the hand calculation gives 150.12 under always-treat and 134.72 under never-treat, a difference of 15.40. `gfoRmula` gives 15.51, with the gap due to Monte Carlo error. Almost all of the effect comes from the first period's treatment. In the seven-period example, `gfoRmula` and `gmethods` agree to the third decimal. Standard errors come from the bootstrap.
+In the two-period example the hand calculation gives 150.66 under always-treat and 134.17 under never-treat, a difference of 16.49. `gfoRmula` gives 15.37, with the gap due to Monte Carlo error. Almost all of the effect comes from the first period's treatment. In the seven-period example, `gfoRmula` and `gmethods` agree to the third decimal. Standard errors come from the bootstrap.
 
 ---
 

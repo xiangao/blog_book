@@ -54,7 +54,27 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
 <script src="site_libs/quarto-nav/headroom.min.js"></script>
@@ -449,13 +469,13 @@ window.Quarto = {
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./lmtp.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">longitudinal modified treatment policy (LMTP)</span></span></a>
+ <span class="menu-text"><span class="chapter-number">35</span>&nbsp; <span class="chapter-title">Longitudinal modified treatment policy (LMTP)</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./incremental-effects.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">incremental effects for continuous exposures</span></span></a>
+ <span class="menu-text"><span class="chapter-number">36</span>&nbsp; <span class="chapter-title">Incremental effects for continuous exposures</span></span></a>
   </div>
 </li>
       </ul>
@@ -472,7 +492,7 @@ window.Quarto = {
 <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./multilevel-models.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Doing the same multi-level model with R and stata</span></span></a>
+ <span class="menu-text"><span class="chapter-number">37</span>&nbsp; <span class="chapter-title">Doing the same multi-level model with R and Stata</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -599,8 +619,7 @@ window.Quarto = {
   
 
 
-</header><p>Uplift modeling is about estimating who changes because of treatment. In a marketing example, this means separating people who buy because of the campaign from people who would have bought anyway.</p>
-<p>This is the same object as the conditional average treatment effect (CATE), <span id="eq-uplift-1"><span class="math display">\[\tau(x) = E[Y(1) - Y(0) \mid X = x]. \tag{47.1}\]</span></span> The word “uplift” is more common in industry. The word “CATE” is more common in the causal inference literature.</p>
+</header><p>Uplift modeling is about finding whom treatment changes. In a marketing example, the motivating idea is to separate people who buy because of the campaign from people who would have bought anyway. The data cannot do that person by person: each person shows only one potential outcome. What they can identify is the expected incremental response for people with given characteristics, the conditional average treatment effect (CATE), <span id="eq-uplift-1"><span class="math display">\[\tau(x) = E[Y(1) - Y(0) \mid X = x]. \tag{47.1}\]</span></span> For a binary purchase, <span class="math inline">\(\tau(x)\)</span> is the share of persuadable people at <span class="math inline">\(x\)</span> minus the share the campaign puts off. A group with a large <span class="math inline">\(\tau(x)\)</span> has a large net share of persuadables, but its members’ individual response types remain unknown. A targeting rule learned from <span class="math inline">\(\hat\tau(x)\)</span> should be evaluated on independent data. The word “uplift” is more common in industry. The word “CATE” is more common in the causal inference literature.</p>
 <section id="python-causalml-uplift-trees" class="level2" data-number="47.1"><h2 data-number="47.1" class="anchored" data-anchor-id="python-causalml-uplift-trees">
 <span class="header-section-number">47.1</span> Python: causalml uplift trees</h2>
 <p>The <code>causalml</code> library (Uber) provides uplift tree classifiers and the cumulative gain curve for evaluating targeting policies. The code below follows the library’s tutorial with synthetic data.</p>
@@ -687,7 +706,7 @@ window.Quarto = {
 <p>A caution on this evaluation. The gain curve above keeps only the units whose <em>observed</em> treatment happened to match the recommended treatment (or who were controls), and then compares outcomes. This is a common tutorial shortcut, but it estimates the value of the recommended policy <strong>only if treatment was randomly assigned</strong> (so that “units who happened to get the recommended arm” are exchangeable with those who did not). With observational treatment assignment, this selection is itself confounded, and a valid off-policy evaluation needs an inverse-probability / policy-value estimator that reweights by the propensity of the observed treatment. Read the gain curve here as a diagnostic under randomized assignment, not as a general off-policy evaluation.</p>
 </section><section id="r-causal-forest-for-cate" class="level2" data-number="47.2"><h2 data-number="47.2" class="anchored" data-anchor-id="r-causal-forest-for-cate">
 <span class="header-section-number">47.2</span> R: causal forest for CATE</h2>
-<p>In R, the <code>grf</code> package implements causal forests. The setup is simpler than the uplift tree example: provide outcomes, treatments, and covariates, and the forest estimates CATEs using honest splitting.</p>
+<p>In R, the <code>grf</code> package implements causal forests <span class="citation" data-cites="wager-athey-2018 athey-tibshirani-wager-2019">(<a href="references.html#ref-wager-athey-2018" role="doc-biblioref">Wager and Athey 2018</a>; <a href="references.html#ref-athey-tibshirani-wager-2019" role="doc-biblioref">Athey, Tibshirani, and Wager 2019</a>)</span>. The setup is simpler than the uplift tree example: provide outcomes, treatments, and covariates, and the forest estimates CATEs using honest splitting.</p>
 <p>We simulate <span class="math inline">\(n = 5000\)</span> users with five independent standard normal covariates. Treatment is randomly assigned, <span class="math inline">\(W \sim \text{Bernoulli}(0.5)\)</span>, so there is no confounding. The true CATE is <span class="math inline">\(\tau(X) = 0.3 + 0.5X_1\)</span> — the intervention helps high-<span class="math inline">\(x_1\)</span> users more — and the outcome is <span class="math inline">\(Y = \tau(X)W + X_2 + \varepsilon\)</span> with <span class="math inline">\(\varepsilon \sim N(0, 0.5^2)\)</span>. The average true effect is therefore 0.3, and only <span class="math inline">\(x_1\)</span> modifies it while <span class="math inline">\(x_2\)</span> affects the outcome level and <span class="math inline">\(x_3\)</span> to <span class="math inline">\(x_5\)</span> do nothing.</p>
 <div class="cell">
 <details open="" class="code-fold"><summary>Code</summary><div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/grf-labs/grf">grf</a></span><span class="op">)</span></span>
@@ -826,6 +845,14 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 
 <!-- -->
 
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-athey-tibshirani-wager-2019" class="csl-entry" role="listitem">
+Athey, Susan, Julie Tibshirani, and Stefan Wager. 2019. <span>“Generalized Random Forests.”</span> <em>The Annals of Statistics</em> 47 (2): 1148–78. <a href="https://doi.org/10.1214/18-AOS1709">https://doi.org/10.1214/18-AOS1709</a>.
+</div>
+<div id="ref-wager-athey-2018" class="csl-entry" role="listitem">
+Wager, Stefan, and Susan Athey. 2018. <span>“Estimation and Inference of Heterogeneous Treatment Effects Using Random Forests.”</span> <em>Journal of the American Statistical Association</em> 113 (523): 1228–42. <a href="https://doi.org/10.1080/01621459.2017.1319839">https://doi.org/10.1080/01621459.2017.1319839</a>.
+</div>
+</div>
 </section></main><!-- /main --><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
@@ -1409,7 +1436,7 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 <span id="cb17-122"><a href="#cb17-122" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-123"><a href="#cb17-123" aria-hidden="true" tabindex="-1"></a><span class="fu">## R: causal forest for CATE</span></span>
 <span id="cb17-124"><a href="#cb17-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a>In R, the <span class="in">`grf`</span> package implements causal forests. The setup is simpler than</span>
+<span id="cb17-125"><a href="#cb17-125" aria-hidden="true" tabindex="-1"></a>In R, the <span class="in">`grf`</span> package implements causal forests <span class="co">[</span><span class="ot">@wager-athey-2018; @athey-tibshirani-wager-2019</span><span class="co">]</span>. The setup is simpler than</span>
 <span id="cb17-126"><a href="#cb17-126" aria-hidden="true" tabindex="-1"></a>the uplift tree example: provide outcomes, treatments, and covariates, and the</span>
 <span id="cb17-127"><a href="#cb17-127" aria-hidden="true" tabindex="-1"></a>forest estimates CATEs using honest splitting.</span>
 <span id="cb17-128"><a href="#cb17-128" aria-hidden="true" tabindex="-1"></a></span>
