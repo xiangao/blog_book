@@ -116,9 +116,9 @@ cre_lpm <- lm(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean 
 cre_re_probit <- glmer(high_homicide ~ poverty + poverty_mean + l_police + l_police_mean + factor(year) + (1 | state), 
                        data = castle2, family = binomial(link = "probit"))
 
-# Compute Average Marginal Effects (AMEs)
-ame_probit <- avg_slopes(cre_probit, variables = c("poverty", "l_police"))
-ame_lpm    <- avg_slopes(cre_lpm, variables = c("poverty", "l_police"))
+# Average marginal effects; state-clustered SEs for the pooled fits
+ame_probit <- avg_slopes(cre_probit, variables = c("poverty", "l_police"), vcov = ~state)
+ame_lpm    <- avg_slopes(cre_lpm, variables = c("poverty", "l_police"), vcov = ~state)
 ame_re     <- avg_slopes(cre_re_probit, variables = c("poverty", "l_police"))
 
 ame_comp <- data.frame(
@@ -134,7 +134,9 @@ ame_comp[, 2:3] <- round(ame_comp[, 2:3], 5)
 knitr::kable(ame_comp, caption = "Average Marginal Effects across binary CRE models.")
 ```
 
-All three specifications give an average marginal effect of poverty close to $-0.064$, with a standard error of about $0.034$. In this example, CRE pooled probit gives us the partial effect without imposing the serial-independence assumption of the nonlinear random-effects model.
+All three specifications give an average marginal effect of poverty close to $-0.064$. For the pooled probit and the linear probability model, the standard errors are clustered by state (`vcov = ~state`) and are about $0.043$. The random-effects probit reports a model-based standard error of $0.033$. Its estimated state-effect variance is essentially zero (the fit is singular), so here it reduces to pooled probit with conventional standard errors, which ignore serial correlation within a state.
+
+In this example, CRE pooled probit with clustered standard errors gives us the partial effect without imposing the serial-independence assumption of the random-effects probit. The unit means and the clustering solve different problems. The means address correlation between the state effect and the covariates. The clustering addresses dependence across years within a state.
 
 ## What we learn
 
