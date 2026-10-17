@@ -297,7 +297,7 @@ The examples below cluster standard errors on `race`, which in `nlsw88` has only
 ```{stata}
 *| label: stata5
 *| echo: true
-*| collectcode: true
+*| collectcode: false
 
 
 sysuse nlsw88, clear
@@ -320,7 +320,7 @@ coefficients do not match the separate regressions because the fixed effects are
 ```{stata}
 *| label: stata6
 *| echo: true
-*| collectcode: true
+*| collectcode: false
 
 
 sysuse nlsw88, clear
@@ -354,7 +354,7 @@ Alternatively, pass the two interaction variables to `reghdfe`'s absorb option a
 ```{stata}
 *| label: stata7
 *| echo: true
-*| collectcode: true
+*| collectcode: false
 
 
 sysuse nlsw88, clear
@@ -383,7 +383,7 @@ The equations need not share the same covariates. If equation 1 includes $X_2$ a
 
 $$ Y_1 = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon_1, \qquad Y_2 = \gamma_0 + \gamma_1 X_1 + \epsilon_2, $$ {#eq-chow-test-1}
 
-the second equation implicitly sets the coefficient on $X_2$ to zero. In the stacked regression, replace $X_2$ with a constant (e.g. 1) for the $Y_2$ subsample, so that its "coefficient" is absorbed into the intercept:
+the second equation implicitly sets the coefficient on $X_2$ to zero. In the stacked regression, interact $X_2$ with the first subsample only, so that the second equation gets no $X_2$ term:
 
 ```{stata}
 *| label: stata8
@@ -406,10 +406,9 @@ gen wage1=wage*(subsample==1)
 gen wage2=wage*(subsample==2)
 gen hours1=hours*(subsample==1)
 gen hours2=hours*(subsample==2)
-replace tenure=1 if subsample==2
+replace tenure=0 if subsample==2
 gen tenure1= tenure*(subsample==1)
-gen tenure2= tenure*(subsample==2)
-reg Y wage? hours? tenure? subsample, cluster(id)
+reg Y wage? hours? tenure1 subsample, cluster(id)
 est sto chow
 test _b[hours1]-_b[hours2]=0
 esttab  suest chow, nogaps mti
@@ -419,8 +418,10 @@ restore
 The stacked model reproduces `suest`'s point estimates exactly: the hours
 coefficient is 0.004828 in the `south` equation and 0.0003663 in the `smsa` one,
 in both. Here the covariates differ — `tenure` appears in the first equation
-only — and the trick of setting `tenure = 1` for the second subsample lets its
-coefficient be absorbed by that equation's intercept. The Chow test on the hours
+only. We include `tenure1` but no `tenure2`, which imposes the zero restriction in
+the `smsa` equation, and `subsample` stays the intercept shift. Setting `tenure = 0`
+in the second subsample first keeps the 15 women with missing `tenure` in the
+`smsa` equation, which does not use it. The Chow test on the hours
 coefficient gives $F(1, 2241) = 10.03$ with $p = 0.0016$: hours predicts living
 in the South quite differently from how it predicts living in an SMSA. (The
 `esttab` columns do not line up because `suest` stores equation-qualified names like `south:wage` while the stacked model stores plain `wage`.)

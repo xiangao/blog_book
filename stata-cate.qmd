@@ -56,7 +56,7 @@ global catecovars age educ i.(incomecat pension married twoearn ira ownhome)
 cate po (assets $catecovars) (e401k), group(incomecat) nolog
 ```
 
-The data are `assets3`: 9,913 households, with net financial assets as the
+The data are `assets3`, from @chernozhukov-hansen-2004: 9,913 households, with net financial assets as the
 outcome and 401(k) eligibility as the treatment. The group ATEs by income
 category show strong heterogeneity — \$4,000 in the lowest category, \$1,425 in
 the second (not significant), then \$5,093, \$8,701 and \$20,350 as income
@@ -112,7 +112,7 @@ margins, at(e401k=(0 1)) noestimcheck contrast(atcontrast(r))
 
 ### DoubleML
 
-The R package DoubleML implements the double/debiased machine learning framework of @chernozhukov-2018-dml. It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.
+The R package DoubleML implements the double/debiased machine learning framework of @chernozhukov-2018-dml. It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consists of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.
 
 They consider a partially linear model:
 
@@ -202,7 +202,8 @@ If we use random forest on the two models:
 
 # suppress messages from mlr3 package during fitting
 lgr::get_logger("mlr3")$set_threshold("warn")
-learner = lrn("regr.ranger", num.trees=2000,  max.depth=5, min.node.size=2)
+learner = lrn("regr.ranger", num.trees=2000,  max.depth=5, min.node.size=2,
+              num.threads = 1)  # single thread so set.seed() fixes the forest
 ml_l = learner$clone()
 ml_m = learner$clone()
 # learner = lrn("regr.glmnet")
@@ -224,8 +225,8 @@ We can do the same in Stata:
 
 clear all
 webuse assets3
-global catecovars age educ incomecat pension married twoearn ira ownhome
-cate po (assets age educ incomecat pension married twoearn ira ownhome) (e401k),  omethod(rforest) tmethod(rforest) nolog  xfolds(5)
+global catecovars age educ i.(incomecat pension married twoearn ira ownhome)
+cate po (assets $catecovars) (e401k),  omethod(rforest) tmethod(rforest) nolog  xfolds(5)
 
 ```
 
@@ -245,7 +246,7 @@ Stata's cate also has "aipw" option.
 
 clear all
 webuse assets3
-global catecovars age educ incomecat pension married twoearn ira ownhome
+global catecovars age educ i.(incomecat pension married twoearn ira ownhome)
 cate aipw (assets $catecovars) (e401k),  nolog
 ```
 
@@ -275,25 +276,15 @@ A <- data$e401k
 # incomecat is nominal (5 categories); use the one-hot dummies created above
 # rather than the raw numeric column, for the same reason as in the
 # DoubleML example.
-# as.data.frame() is required: `data` is a tibble, so `data[, cols]` returns a
-# tibble, and npcausal::ate() fails on one with
-#   Error in rep(): invalid 'times' argument
-# It needs a plain data.frame.
-# Two coercions are needed here, both for npcausal/SuperLearner's benefit:
-#   * as.data.frame(): `data` is a tibble, and ate() fails on one with
-#       Error in rep(): invalid 'times' argument
-#   * as.numeric on every column: read_dta() returns haven_labelled columns, and
-#     SuperLearner then errors with
-#       The variable names and order in newX must be identical to ... X
-W <- as.data.frame(data[, c("age", "educ", grep("^incomecat_", names(data), value = TRUE), "pension", "married", "twoearn", "ira", "ownhome")])
+# Two coercions, both for npcausal/SuperLearner:
+#   * as.data.frame(): `data` became a data.table in the DoubleML chunk
+#     (setDT() works by reference), and data.table evaluates a character
+#     vector in j instead of selecting columns.
+#   * as.numeric on every column: read_dta() returns haven_labelled columns,
+#     which SuperLearner rejects.
+W <- as.data.frame(data)[, c("age", "educ", grep("^incomecat_", names(data), value = TRUE), "pension", "married", "twoearn", "ira", "ownhome")]
 W <- as.data.frame(lapply(W, as.numeric))
-# npcausal::ate() currently fails on this design with
-#   Error in SuperLearner(): The variable names and order in newX must be
-#   identical to the variable names and order in X
-# raised from inside npcausal's own cross-fitting loop, not from anything in this
-# chunk (the equivalent call works on a synthetic data.frame of the same shape).
-# Wrapped so the chapter degrades gracefully rather than publishing a raw error;
-# the DoubleML comparison above is the working cross-fitted estimate.
+# Wrapped so a failure inside npcausal is reported rather than stopping the render.
 aipw <- tryCatch(
   ate(y = Y, a = A, x = W, nsplits = 10, sl.lib = SL.library),
   error = function(e) {

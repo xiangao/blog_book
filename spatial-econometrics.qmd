@@ -33,7 +33,14 @@ The spatial two stage least squares (S2SLS) estimator is one solution.  Usually 
 
 S2SLS is similar to 2SLS.  The first stage is
 $$ \hat Z = PZ = [X, WX, \hat {W y}] $$ {#eq-spatial-econometrics-3}
-where $$\hat {W y} = PWy$$ {#eq-spatial-econometrics-4} and $$P = H(H'H)^{-1}H'$$ {#eq-spatial-econometrics-5}.
+where
+
+$$\hat {W y} = PWy$$ {#eq-spatial-econometrics-4}
+
+and
+
+$$P = H(H'H)^{-1}H'$$ {#eq-spatial-econometrics-5}
+
 
 Then
 $$ \hat \theta_{S2SLS} = (\hat Z'Z)^{-1} \hat Z'y $$ {#eq-spatial-econometrics-6}
@@ -52,7 +59,7 @@ $$ u = \rho W u + \epsilon $$ {#eq-spatial-econometrics-7}
 
 Then the estimation is more complicated.  The generalized spatial two stage least squares (GS2SLS) estimator is needed.  See @kelejian-prucha-1998 for details.
 
-## an example
+## An example
 
 This example is from R package "sphet".
 
@@ -121,16 +128,23 @@ explicitly as regressors:
 
 ```{r}
 
-boston_x_vars <- c("CRIM","ZN","INDUS","CHAS","NOX","RM","AGE","DIS","RAD","TAX","PTRATIO","B","LSTAT")
+# Build X with the transformations used in the model, then lag those same
+# columns, so that WX is W times the X that enters the equation.
 boston.c2 <- boston.c
+boston.c2$CHAS    <- as.numeric(as.character(boston.c$CHAS))
+boston.c2$NOX2    <- boston.c$NOX^2
+boston.c2$RM2     <- boston.c$RM^2
+boston.c2$logDIS  <- log(boston.c$DIS)
+boston.c2$logRAD  <- log(boston.c$RAD)
+boston.c2$logLSTAT <- log(boston.c$LSTAT)
+boston_x_vars <- c("CRIM","ZN","INDUS","CHAS","NOX2","RM2","AGE","logDIS","logRAD",
+                   "TAX","PTRATIO","B","logLSTAT")
 for (v in boston_x_vars) {
-  xv <- boston.c[[v]]
-  if (is.factor(xv)) xv <- as.numeric(as.character(xv))
-  boston.c2[[paste0("W_", v)]] <- lag.listw(listw, xv)
+  boston.c2[[paste0("W_", v)]] <- lag.listw(listw, boston.c2[[v]])
 }
 
 sdm_formula <- as.formula(paste(
-  "log(CMEDV) ~ CRIM + ZN + INDUS + CHAS + I(NOX^2) + I(RM^2) + AGE + log(DIS) + log(RAD) + TAX + PTRATIO + B + log(LSTAT) +",
+  "log(CMEDV) ~", paste(boston_x_vars, collapse = " + "), "+",
   paste0("W_", boston_x_vars, collapse = " + ")
 ))
 
@@ -157,19 +171,20 @@ summary(res)
 ```
 
 
-This specification separates the two channels the previous one merged.
-$\rho$, the spatial lag on $y$, is 0.296 with a standard error of 0.086, and
-$\lambda$, the spatial correlation in the errors, is 0.424 with 0.045. Both are
-significant. Note $\rho = 0.296$ here against `Wy` $= 0.715$ above. The two
-fits differ in two ways at once: this one allows spatially correlated *errors*,
-and it drops the spatially lagged covariates $WX$. So the fall in $\rho$ cannot be
-attributed to the error structure alone. Part of what the lag model attributed to
-neighbours' outcomes may be correlated unobservables, and part may be the $WX$
-terms. Separating them needs a comparison that holds the mean specification fixed.
-The coefficients are not spillover effects either: with a spatial lag, the effect
-of a regressor runs through the multiplier $(I - \rho W)^{-1}$, with $\rho$ the lag
-coefficient as reported in this paragraph (the $\lambda$ of @eq-spatial-econometrics-1), so direct and
-indirect impacts have to be computed from it.
+This specification separates the two channels the previous one merged. In the
+notation of @eq-spatial-econometrics-1 and @eq-spatial-econometrics-2, which
+`gstslshet` also uses, $\lambda$, the spatial lag on $y$, is 0.424 with a
+standard error of 0.045, and $\rho$, the spatial correlation in the errors, is
+0.296 with 0.086. Both are significant. Note $\lambda = 0.424$ here against `Wy`
+$= 0.715$ above. The two fits differ in two ways at once: this one allows
+spatially correlated *errors*, and it drops the spatially lagged covariates $WX$.
+So the fall in $\lambda$ cannot be attributed to the error structure alone. Part
+of what the lag model attributed to neighbours' outcomes may be correlated
+unobservables, and part may be the $WX$ terms. Separating them needs a comparison
+that holds the mean specification fixed. The coefficients are not spillover
+effects either: with a spatial lag, the effect of a regressor runs through the
+multiplier $(I - \lambda W)^{-1}$, so direct and indirect impacts have to be
+computed from it.
 
 In stata, you would use "spivregress" which replaced user-written "spivreg".  Stata has a set of commands for spatial econometrics.  Check out stata's "sp" manual.
 
@@ -177,4 +192,4 @@ In stata, you would use "spivregress" which replaced user-written "spivreg".  St
 
 Spatial models let a unit's outcome depend on its neighbours through a weights matrix $W$. Spatially correlated errors alone leave OLS consistent but invalidate its standard errors. A spatial lag of the outcome, $Wy$, is endogenous, so OLS is inconsistent. Spatial two-stage least squares instruments $Wy$ with spatial lags of the regressors. GS2SLS also allows spatially correlated errors. To fit the spatial Durbin model, $WX$ must enter as regressors. Using it only as instruments fits the simpler spatial autoregressive model.
 
-In the Boston house-price data, the lag model gives a spatial coefficient of 0.715. Once correlated errors are allowed for, the lag falls to 0.296 and the error correlation is 0.424. Much of what looked like neighbours' outcomes affecting each other is reassigned to correlated unobservables. That is the identification problem of spatial econometrics, visible in two numbers.
+In the Boston house-price data, the lag model gives a spatial coefficient of 0.715. Once correlated errors are allowed for, the lag falls to 0.424 and the error correlation is 0.296. Much of what looked like neighbours' outcomes affecting each other is reassigned to correlated unobservables. That is the identification problem of spatial econometrics, visible in two numbers.

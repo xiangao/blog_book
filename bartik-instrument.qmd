@@ -158,15 +158,16 @@ If we run OLS on raw data, we'll get biased results.
 
 result_ols <-
   df_lt |>
-  lm(formula = y_lt ~ x_lt)
+  lm(formula = y_lt ~ x_lt + factor(t))
 
-modelsummary(result_ols)
+modelsummary(result_ols, coef_omit = "factor")
 
 ```
 
-OLS gives 1.336 with a standard error of 0.008, against a true $\beta$ of 1 —
-biased upward by a third, and far outside any confidence interval. The
-endogenous $\tilde g_{lt}$ is doing the damage.
+With period fixed effects, OLS gives 1.809 with a standard error of 0.006,
+against a true $\beta$ of 1, far outside any confidence interval. The endogenous
+$\tilde g_{lt}$ is doing the damage, and within a period it is most of what
+varies in $x_{lt}$.
 
 Now we generate the Bartik instrument.  We calculate the Bartik instrument as the weighted sum of $z_{lk0}$ and $g_{kt}$.
 
@@ -184,38 +185,40 @@ df_lt <- df_lt |>
   left_join(b_lt, by = c("l", "t"))
 
 
-result_first_stage <-  lm(formula = x_lt ~ b_lt, data = df_lt)
+result_first_stage <-  lm(formula = x_lt ~ b_lt + factor(t), data = df_lt)
 
-modelsummary(result_first_stage)
+modelsummary(result_first_stage, coef_omit = "factor")
 
 result_tsls <- df_lt |>
-  estimatr::iv_robust(formula = y_lt ~ x_lt | b_lt)
+  estimatr::iv_robust(formula = y_lt ~ x_lt + factor(t) | b_lt + factor(t))
 
-modelsummary::modelsummary(result_tsls)
+modelsummary::modelsummary(result_tsls, coef_omit = "factor")
 ```
 
 
-The Bartik instrument recovers the truth: 2SLS gives 0.990 with a standard error
-of 0.012, against $\beta = 1$, where OLS gave 1.336. The instrument is built
+The Bartik instrument recovers the truth: with period fixed effects, the first
+stage is 0.438 (0.034), and 2SLS gives 0.951 with a standard error of 0.074,
+against $\beta = 1$, where OLS gave 1.809. The instrument is built
 from baseline shares and *national* growth rates, neither of which contains the
 local shock $\tilde g_{lt}$, which is what breaks the endogeneity.
 
 ### Calculate Rotemberg weights
 
-Let's do IV using Bartik instruments.  No controls here.  We use matrix operation to recover the IV estimates, which is the same as the tsls function in R.
+Let's do IV using Bartik instruments, with period fixed effects as the only controls. We use matrix operations to recover the IV estimates, which is the same as the tsls function in R.
 
 ```{r}
 #| message: false
 #| warning: false
 
-B = as.matrix(cbind(1,df_lt$b_lt))
+D_t = model.matrix(~ factor(t) - 1, data = df_lt)   # period dummies
+B = as.matrix(cbind(D_t, df_lt$b_lt))
 Y = as.matrix(df_lt$y_lt)
-X = as.matrix(cbind(1,df_lt$x_lt))
+X = as.matrix(cbind(D_t, df_lt$x_lt))
 
 iv = round(solve(t(B)%*%X)%*%t(B)%*%Y,3)
 
 ## Label and organize results into a data frame
-beta.hat = as.data.frame(cbind(c("Intercept","x"),iv))
+beta.hat = as.data.frame(cbind(c(paste0("period ", 1:T), "x"),iv))
 names(beta.hat) = c("Coeff.","Est")
 beta.hat
 
@@ -278,12 +281,14 @@ z_data <- df |>
 
 Z <- as.matrix(z_data[,-c(1,2)])
 
-# Residualize Y and X on the controls before forming the weights. There are
-# no controls here other than the constant, so the residualization is just
-# demeaning; this is what makes the Rotemberg decomposition exact (GPSS).
-Yp <- Y - mean(Y)
-Xp <- X - mean(X)
-beta = round((t(Z) %*% Yp)/(t(Z) %*% Xp), digits=3)
+# Residualize Y and X on the controls before forming the weights (GPSS). The
+# controls are the period fixed effects, so the residualization demeans within
+# each period. This is what makes the decomposition exact, and it keeps
+# period-level shifts in X and Y out of the industry-period weights.
+period <- df_lt$t
+Yp <- Y - ave(as.numeric(Y), period)
+Xp <- X - ave(as.numeric(X), period)
+beta = (t(Z) %*% Yp)/(t(Z) %*% Xp)
 alpha=(diag(as.numeric(G)) %*% t(Z)  %*% Xp) / as.numeric((t(G) %*% t(Z) %*% Xp))
 
 bw <- tibble(g_kt, alpha=as.numeric(alpha), beta=as.numeric(beta)) |>
@@ -294,23 +299,29 @@ bw
 sum(bw$product)
 ```
 
-The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator, and it is: 0.9894 against the 2SLS estimate of 0.990. The
-decomposition is exact, not approximate.
+The sum of the product of $\alpha$ and $\beta$ should be the same as the Bartik estimator, and it is: 0.9510 against the 2SLS estimate of 0.951. The
+decomposition is exact, not approximate, provided $\beta_k$ is not rounded
+before the products are formed and $X$ and $Y$ are residualized on the same
+controls as the 2SLS regression.
 
 Reading the table, the weights are far from uniform across the sixteen
-industry-period cells. Period 3 carries most of the weight — its four $\alpha$
-values are 0.138, 0.222, 0.076 and 0.136, summing to 0.57 — while period 2
-contributes almost nothing and even goes slightly negative
-($\alpha = -0.008$ and $-0.0004$ for its first two industries). The
-just-identified $\beta_k$ estimates are all near the true 1, ranging from 0.74
-to 1.19, which is what we should see in a simulation with a homogeneous effect.
+industry-period cells. Period 1 carries most of the weight — its four $\alpha$
+values are 0.130, 0.265, 0.223 and 0.161, summing to 0.78. Period 1 also has the
+largest national shocks, $|g_{k1}|$ between 0.13 and 0.17, and $\alpha_k$ is
+proportional to $g_k$. Five cells in periods 3 and 4 have small negative weights.
+Because the residualization removes period means, the weights reflect share
+variation across locations within a period, not the period-level swings in $X$.
+The just-identified $\beta_k$ estimates range from $-0.56$ to 2.86, but the four
+heavily weighted period-1 cells give 0.60, 1.19, 0.87 and 1.07; the values far
+from 1 all come from cells with $|\alpha| < 0.04$, where the industry-period
+instrument has a weak first stage.
 
 
 Note there is no restriction for $\alpha$, other than the sum is 1.  Therefore it can be negative or positive, and individual weights can exceed 1, as long as they sum to 1.  In GPSS the Rotemberg weights routinely take negative values and values greater than 1; this is a feature used to flag problematic instruments.
 
 
 
-## Why is good to have Rotemberg weights?
+## Why is it good to have Rotemberg weights?
 
 GPSS Corollary D.1. shows the interpretation of the Rotemberg weights.
 
@@ -329,7 +340,7 @@ If you use the reduced form, something like:
 
 $$ y_{lt} = D_{lt} \rho + \beta_0 B_{lt} + \epsilon_{lt}$$ {#eq-bartik-instrument-11}
 
-where $B_{lt}$ is the Bartik instrument, constructed in such as a way:
+where $B_{lt}$ is the Bartik instrument, constructed in such a way:
 
 $$ B_{lt} = Z_{l0} G_{t} = \sum_{k=1}^K z_{lk0} g_{kt} $$ {#eq-bartik-instrument-12}
 
@@ -350,9 +361,9 @@ where $B^{\perp}$ and $Y^{\perp}$ are residualized $B$ and $Y$.
 #| warning: false
 
 result_reduced <- df_lt |>
-  lm(formula = y_lt ~  b_lt)
+  lm(formula = y_lt ~  b_lt + factor(t))
 
-modelsummary::modelsummary(result_reduced)
+modelsummary::modelsummary(result_reduced, coef_omit = "factor")
 ```
 
 Now we calculate the Rotemberg weights for the reduced form, for our simulated data.
@@ -364,10 +375,11 @@ Now we calculate the Rotemberg weights for the reduced form, for our simulated d
 
 B <- as.matrix(b_lt[,3])
 
-# Residualize Y and B on the controls (here only a constant ⇒ demean), as in
-# the GPSS reduced-form Rotemberg formula above, so the decomposition is exact.
-Yp <- Y - mean(Y)
-Bp <- B - mean(B)
+# Residualize Y and B on the controls (the period fixed effects, so demean
+# within period), as in the GPSS reduced-form formula above, so the
+# decomposition is exact.
+Yp <- Y - ave(as.numeric(Y), period)
+Bp <- B - ave(as.numeric(B), period)
 beta = (t(Z) %*% Yp)/(t(Z) %*% Bp)
 alpha=(diag(as.numeric(G)) %*% t(Z)  %*% Bp) / as.numeric((t(G) %*% t(Z) %*% Bp))
 
@@ -380,16 +392,16 @@ sum(bw$product)
 
 ```
 
-The reduced-form decomposition sums to 0.9091 rather than 0.9894, and that is
+The reduced-form decomposition sums to 0.4166 rather than 0.9510, and that is
 not an error: it decomposes the reduced-form coefficient (the effect of the
-instrument on the outcome), not the 2SLS coefficient. The two differ by the
-first stage, which is not exactly 1.
+instrument on the outcome, 0.417), not the 2SLS coefficient. The two differ by
+the first stage, 0.438.
 
 ## Summary
 
-The Bartik instrument combines baseline local industry shares with national industry growth. Its validity rests on the shares being exogenous. GPSS show that 2SLS with a Bartik instrument is GMM with each industry share as a separate instrument. The Rotemberg weights split the estimate into the just-identified estimates of the individual industries. Each weight gives the share of an industry's bias that passes into the overall estimate, so the weights show which shares the argument depends on.
+The Bartik instrument combines baseline local industry shares with national industry growth. In the framework of GPSS, which this chapter follows, its validity rests on the shares being exogenous. A complementary framework treats the shocks as the source of identification: if the national growth rates $g_{kt}$ are as good as randomly assigned across many industries, the shares need not be exogenous [@borusyak-hull-jaravel-2022], and inference should then use exposure-robust standard errors that allow for correlation across locations with similar shares [@adao-kolesar-morales-2019]. Our simulation draws $g_{kt}$ independently across industries and periods, which is the shock-exogeneity setup, but with only $K = 4$ industries the shock-level argument has little to work with. The Rotemberg weights are the diagnostic for the share view: they show which industry shares the estimate leans on. GPSS show that 2SLS with a Bartik instrument is GMM with each industry share as a separate instrument. The Rotemberg weights split the estimate into the just-identified estimates of the individual industries. Each weight gives the share of an industry's bias that passes into the overall estimate, so the weights show which shares the argument depends on.
 
-In the simulation, OLS gives 1.336 against a true 1, and the Bartik 2SLS gives 0.990. The Rotemberg decomposition reproduces the 2SLS estimate exactly. Its weights are far from uniform, and some are negative. In the reduced form the decomposition applies to the effect of the instrument on the outcome, so it sums to a different number.
+In the simulation, with period fixed effects, OLS gives 1.809 against a true 1, and the Bartik 2SLS gives 0.951 (0.074). The Rotemberg decomposition reproduces the 2SLS estimate exactly. Its weights are far from uniform, and some are negative. In the reduced form the decomposition applies to the effect of the instrument on the outcome, so it sums to a different number.
 
 ---
 

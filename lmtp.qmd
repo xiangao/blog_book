@@ -1,5 +1,5 @@
 ---
-title: "longitudinal modified treatment policy (LMTP)"
+title: "Longitudinal modified treatment policy (LMTP)"
 date: "2025-08-23"
 ---
 
@@ -74,7 +74,7 @@ We have multiple time points, and the treatment $A$ is time-varying.  We are int
 
 The always-treat and never-treat demonstration below is, on that reading, an unusual lead example for this framework: it is the easiest case to follow, and also the case whose positivity is most likely to fail.  A bounded continuous shift is the canonical LMTP application.  @diaz-2023 state the assumptions precisely.
 
-### dynamic treatment regime
+### Dynamic treatment regime
 
 Some notations commonly used in this literature:  We observe $Z = (L_0, A_0, L_1, A_1, Y)$, where $L$ is the observed confounder, $A$ is the treatment, and $Y$ is the outcome.  The treatment $A$ can be time-varying.  We can also have multiple treatments at different time points.  For example, we can have $A_2$, $A_3$, etc.  In this graph, baseline $L_0$ affects $A_0$, which in turn affects $L_1$, which then affects $A_1$, and finally $A_1$ affects the outcome $Y$.
 
@@ -93,7 +93,7 @@ $$ \theta = E[Y^{\bar A^d}] $$ {#eq-lmtp-1}
 
 $Y^{\bar A^d}$ is the potential outcome under the hypothetical intervention $\bar A^d$. At time 1, $A^d_1 = d(A_1,H_1)$.
 
-### modified treatment policy
+### Modified treatment policy
 
 A simulated data set makes the estimation concrete.
 
@@ -175,7 +175,7 @@ mean(simulated_data2$Yd)
 mean(simulated_data1$Yd) - mean(simulated_data2$Yd)
 ```
 
-Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is from $N(0.25 L_1 + 0.4 A_1,\ 0.5)$ -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability $\text{plogis}(-0.5 + 0.5 L_1)$, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.5 L_2)$. So $L_2$ is moved by the earlier treatment and in turn moves the later one.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (`simulated_data1`) and the second sets it to 0 in every period (`simulated_data2`); the reported difference $E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]$ is the effect of the always-treat versus never-treat static regimes.
+Note in this simulation the variables ending with "d" are the variables under hypothetical intervention, or modified treatment policy.  $L_1$ is from $\text{Uniform}(0,1)$, and $L_2$ is normal with mean $0.25 L_1 + 0.4 A_1$ and standard deviation 0.5 -- so the time-varying confounder $L_2$ depends on the earlier treatment $A_1$, which is the time-varying confounding this chapter is about.  The treatment $A_1$ is from a Bernoulli distribution with probability $\text{plogis}(-0.5 + 0.5 L_1)$, and the treatment $A_2$ is from a Bernoulli distribution with probability $\text{plogis}(0.5 - 0.2 A_1 + 0.5 L_2)$. So $L_2$ is moved by the earlier treatment and in turn moves the later one.  The outcome $Y$ is from a normal distribution with mean $A_2 + L_2 + 0.5 A_1$, so $Y$ depends on both the current treatment $A_2$ and the lagged treatment $A_1$.  In the code, the first modified treatment policy sets treatment to 1 in every period (`simulated_data1`) and the second sets it to 0 in every period (`simulated_data2`); the reported difference $E[Y^{d}_{\text{always }1}] - E[Y^{d}_{\text{always }0}]$ is the effect of the always-treat versus never-treat static regimes.
 
 
 The always-treat regime gives $E[Y^d] = 2.029$, never-treat gives 0.129, and
@@ -269,9 +269,13 @@ substituting the shifted $A_2$ and regressing on $L_1$ and $A_1$ only, gives
 $A_1 = 0.8937$, close to the $0.5 + 0.4 = 0.9$ of the direct path and the path
 through $L_2$: dropping $L_2$ from the conditioning set lets $A_1$'s indirect
 effect back in. The final average is 0.627, against a true 0.640 under the
-stochastic half-off regime. The gap comes from the second regression. Because
-$A_2$ responds to $L_2$, the mean of the shifted $A_2$ given $(L_1, A_1)$ is
-nonlinear, and the linear model only approximates it. Both numbers sit between
+stochastic half-off regime. The gap is sampling noise, not misspecification. In
+this DGP the logit index of $A_2$ is $0.5 - 0.2A_1 + 0.5L_2$, and substituting
+$L_2 = 0.25L_1 + 0.4A_1 + \nu_2$ gives $0.5 + 0.125L_1 + 0.5\nu_2$, where $\nu_2$ is the normal error of $L_2$: the direct
+path and the path through $L_2$ cancel. So the mean of the shifted $A_2$ given
+$(L_1, A_1)$ does not depend on $A_1$ and is almost exactly linear in $L_1$ over
+$[0, 1]$, and the second regression is close to correctly specified. What is
+left is the variation of one sample of 10,000 and of the random draws in `d()`. Both numbers sit between
 the always-treat 2.029 and never-treat 0.129.
 
 Note this recursive process is based on @diaz-2023.
@@ -384,7 +388,7 @@ are cross-fitted; otherwise the standard errors can be anti-conservative.
 "A_2"`), treating $A_1$ as an observed baseline covariate (via `baseline =
 W`) rather than also intervening on it. That is a different, single-period
 policy from the always-1-vs-always-0 *both-period* regime computed manually
-via `simulated_data1$Yd`/`simulated_data2$Yd` above (lines 139-152) — the two
+via `simulated_data1$Yd`/`simulated_data2$Yd` in the `simulate_data()` function above — the two
 numbers are not expected to match, and should not be used as a sanity check
 against each other. To replicate the both-period always-treat/never-treat
 contrast with `lmtp`, shift both time points by passing `trt = c("A_1",
@@ -392,11 +396,11 @@ contrast with `lmtp`, shift both time points by passing `trt = c("A_1",
 before each treatment time, e.g. `list(character(0), "L_2")`), with `shift`
 functions that map each treatment in the vector to 1 (or 0).
 
-## another example
+## Another example
 
-The data set bmi, from the DynTxRegime package, are simulated to reflect a two-stage RCT {A1, A2} that studied the effect of meal replacement (MR) shakes versus a calorie deficit (CD) diet on adolescent
+The data set bmi, from the DynTxRegime package, are simulated to reflect a two-stage RCT {A1, A2} that studied the effect of meal replacement (MR) shakes versus a calorie deficit (CD) diet on adolescent obesity.
 
-### shift function 1
+### Shift function 1
 
 Consider a shift function that assigns meal replacement to all observations at time 1, but only meal replacement at time 2 to those observations whose 4-month BMI is greater than 30.
 
@@ -436,7 +440,7 @@ fit_dtr <- lmtp_sdr(
 show_lmtp(fit_dtr)
 ```
 
-### shift function 2
+### Shift function 2
 
 Suppose we are interested in comparing the dynamic treatment regime to a static treatment regime where all patients receive meal replacement at both time points. Using the SDR estimator, estimate the effect of this static intervention.
 

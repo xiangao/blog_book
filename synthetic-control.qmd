@@ -12,11 +12,11 @@ the survey in @abadie-2021-sc-review.  The key idea is for a case study situatio
 
 Now, how to construct this synthetic control unit?  Basically it is a weighted average of multiple control units.  There are two sets of weights to be determined.  One set for the control units, one set to determine the importance of predictors.  @abadie-diamond-hainmueller-2010 propose to choose a set of $w_i$'s so that the resulting synthetic control best resembles the pre-intervention values for the treated unit of predictors of the outcome variable, subject to the constraints that the weights are non-negative and sum to 1.  Another set of weights $v_h$ for predictor importance is determined such that it minimizes the mean squared prediction error (MSPE) of this synthetic control with respect to the outcome in the pre-treatment period.  The intuition of these weights are to pick $w_i$'s to make the weighted sum of each predictor as close to the treated unit's value of predictor as close as possible, given a set of $v_h$'s.  Then $v_h$'s are determined by how important each predictor is to predict the outcome.  We don't use any information post-treatment to determine the weights.  But we can use pre-treatment outcome to see the relative importance of each predictor in terms of predictor outcome.  We can do this by out-of-sample validation.  Basically divide the pre-treatment period into training and validation periods (that's one reason that the pre-treatment period cannot be too short).  Iterate the process of choosing $w_i$ and $v_h$ to achieve a minimization of MSPE in the validation period.
 
-## inference
+## Inference
 
-Since synthetic control is for case study situation, we have essentially one treated unit and one synthetic control.  The usual inference method would not work.  Abadie et al suggested a permutation based approach.  The basic idea is to permute the label of treatment; in other words, suppose one control unit is now a treated unit.  Then follow the same procedure to get the synthetic control for that "treated unit"; look at the effect.  Now if the treatment is truly for the treated unit only, then there would not be any effect for all the control unit.  Therefore we can have a distribution of treatment effects after permutation of treatment label.
+Since synthetic control is for case study situation, we have essentially one treated unit and one synthetic control.  The usual inference method would not work.  Abadie et al suggested a permutation based approach.  The basic idea is to permute the label of treatment; in other words, suppose one control unit is now a treated unit.  Then follow the same procedure to get the synthetic control for that "treated unit"; look at the effect.  Now if the treatment is truly for the treated unit only, then there would not be any effect for all the control units.  Therefore we can have a distribution of treatment effects after permutation of treatment label.
 
-## an example
+## An example
 
 The canonical synthetic control is implemented in both R and Stata (the `Synth` package, [CRAN](https://cran.r-project.org/package=Synth); see Abadie, Diamond and Hainmueller's [*JSS* paper](https://www.jstatsoft.org/article/view/v042i13) for the software description).  We use a package called "tidysynth" here to study one of the original examples, which evaluates the impact of Proposition 99 on cigarette consumption in California.
 
@@ -132,7 +132,7 @@ large as California's, relative to how well each was fitted beforehand.
 
 ## Generalized Synthetic Control
 
-The idea of generalized SC is to combine both an interactive fixed effect model and synthetic control.  It is basically a panel data synthetic control.  It naturally takes multiple treated units and uses bootstrap to get standard errors.  It generates ATT with standard errors.
+The idea of generalized SC [@xu-2017] is to combine an interactive fixed effect model and synthetic control.  It is basically a panel data synthetic control.  It naturally takes multiple treated units and uses bootstrap to get standard errors.  It generates ATT with standard errors.
 
 Examples are here: <https://yiqingxu.org/packages/gsynth/>
 
@@ -163,6 +163,7 @@ library(panelView)
 panelview(Y ~ D, data = simdata,  index = c("id","time"), pre.post = TRUE)
 
 panelview(Y ~ D, data = simdata,  index = c("id","time"), type = "outcome")
+set.seed(2017)  # cross-validation and the parametric bootstrap are random
 system.time(
     out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"), force = "two-way", CV = TRUE, r = c(0, 5), se = TRUE, inference = "parametric", nboots = 100, parallel = FALSE)
 )
@@ -172,6 +173,7 @@ out$est.att
 out$est.avg
 out$est.beta
 
+set.seed(2017)
 system.time(
 out <- gsynth(Y ~ D + X1 + X2, data = simdata, index = c("id","time"),
     force = "two-way", CV = TRUE, r = c(0, 5), se = TRUE,
@@ -191,21 +193,24 @@ plot(out)
 30 periods, with treatment starting in period 21 for the treated group, an
 interactive fixed-effect structure, and two covariates.
 
-The estimated average ATT is 5.084 with a standard error of 0.292 and a 95%
-interval of $[4.512, 5.656]$. The covariate coefficients come out at 1.454 for
+The estimated average ATT is 5.084 with a bootstrap standard error of 0.319 and a
+95% interval of $[4.460, 5.709]$. The covariate coefficients come out at 1.454 for
 `X1` and 3.507 for `X2`. The period-by-period table is the part worth reading,
 because it includes the pre-treatment periods: those run from $-19$ to $-1$ and
 should be centred on zero if the interactive fixed-effect model has absorbed the
 common factors. They mostly are — $0.059$, $-0.117$, $-0.890$, $1.295$,
 $-1.203$, $2.220$ and so on — bouncing around zero with standard errors of about
-0.5 to 0.7. Two of them ($-16$ and $-14$) are individually significant at 5%,
-which is roughly what one expects from nineteen independent tests at that level.
+0.5 to 0.7. Five of them ($-16$, $-15$, $-14$, $-7$ and $-1$) are individually
+significant at 5%, more than the one expected from nineteen independent tests at
+that level. The pre-period estimates are not independent, though, and the
+largest, 2.22 at $-14$, is small next to the post-treatment effects of 3 to 10, so
+this is a warning about the fit. It does not show that the factor model fails.
 
 ## Summary
 
 Synthetic control builds a comparison for a single treated unit as a weighted average of donor units. The weights are chosen to match the treated unit's predictors and pre-treatment outcomes. Inference comes from placebo runs, in which each donor is treated as if it had been treated. Generalized synthetic control combines this with an interactive fixed-effects model. It handles several treated units, bootstraps the standard errors, and reports pre-treatment estimates that should sit near zero.
 
-For California's Proposition 99, the synthetic control matches the pre-1988 predictors and outcomes closely, except log income. California's ratio of post- to pre-treatment fit error is the largest of all 39 states, which gives a permutation $p$-value of $1/39 = 0.026$. On `gsynth`'s simulated panel, the average ATT is 5.08 (0.29), and the pre-treatment estimates scatter around zero.
+For California's Proposition 99, the synthetic control matches the pre-1988 predictors and outcomes closely, except log income. California's ratio of post- to pre-treatment fit error is the largest of all 39 states, which gives a permutation $p$-value of $1/39 = 0.026$. On `gsynth`'s simulated panel, the average ATT is 5.08 (0.32), and the pre-treatment estimates scatter around zero, though more of them are individually significant than chance would suggest.
 
 ---
 

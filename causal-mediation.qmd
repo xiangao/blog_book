@@ -224,7 +224,7 @@ implementation, not the sampling error.
 
 ### Natural direct and indirect effect
 
-CDE is to study the effect of treatment, given the level of mediator. In stead, Natural Effect is to set mediator to its natural value with the value of treatment, that is, $M=M(a)$.
+CDE is to study the effect of treatment, given the level of mediator. Instead, the Natural Effect is to set mediator to its natural value with the value of treatment, that is, $M=M(a)$.
 
 $$
 ATE = NIE + NDE =  (E[ Y(1,M(1))] - E[Y(1,M(0))]) + (E[Y(1, M(0))] - E[Y(0,M(0))])
@@ -299,6 +299,12 @@ E_Y1M0 <- mean(EY1M0_Wi)
 # estimate of E[Y(0, M(0))]
 E_Y0M0 <- mean(EY0M0_Wi)
 
+# natural direct and indirect effects (the total effect is their sum)
+NDE <- E_Y1M0 - E_Y0M0
+NIE <- E_Y1M1 - E_Y1M0
+round(c(E_Y1M1 = E_Y1M1, E_Y1M0 = E_Y1M0, E_Y0M0 = E_Y0M0,
+        NDE = NDE, NIE = NIE, TE = E_Y1M1 - E_Y0M0), 4)
+
 ```
 
 There are other methods to estimate natural effects, some of them are doubly robust. The "mediation" package can be used to do it.
@@ -348,7 +354,7 @@ library(tidyverse)
 library(medoutcon)
 set.seed(1584)
 
-# produces a simple data set based on ca causal model with mediation
+# produces a simple data set based on a causal model with mediation
 make_example_data <- function(n_obs = 1000) {
   ## baseline covariates
   w_1 <- rbinom(n_obs, 1, prob = 0.6)
@@ -392,7 +398,8 @@ os_de <- medoutcon(W = example_data[, ..w_names],
                    Y = example_data$Y,
                    effect = "direct",
                    estimator = "onestep")
-os_de
+# print() reports through message(), which this chunk suppresses
+summary(os_de)
 
 # compute targeted minimum loss estimate of the interventional direct effect
 tmle_de <- medoutcon(W = example_data[, ..w_names],
@@ -402,13 +409,14 @@ tmle_de <- medoutcon(W = example_data[, ..w_names],
                      Y = example_data$Y,
                      effect = "direct",
                      estimator = "tmle")
-tmle_de
+# print() reports through message(), which this chunk suppresses
+summary(tmle_de)
 
 ```
 
 #### potential problem
 
-However, there is a recent paper by Caleb Miles that points out the interventional effects does not satisfy "sharp mediational null". "Intuitively, an indirect effect measure should be null whenever there is no individual-level effect for anyone in the population." He found a counter example that the interventional effects cannot pass this "sharp mediational null" criterion.
+However, @miles-2023 points out that the interventional effects do not satisfy "sharp mediational null". "Intuitively, an indirect effect measure should be null whenever there is no individual-level effect for anyone in the population." He found a counter example that the interventional effects cannot pass this "sharp mediational null" criterion.
 
 More recently, Ivan Diaz and coauthors have proposed alternative mediation estimands (discussed under the name "causal influence" in some of that line of work) aimed at satisfying the sharp mediational null where interventional effects fail to. We have not worked through the details of that proposal here, and won't attempt to summarize its identification conditions or estimator without first working through the derivation carefully -- readers interested in this specific gap should go directly to Miles's counterexample paper and the more recent Diaz et al. work rather than relying on a secondhand summary.
 

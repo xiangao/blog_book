@@ -89,7 +89,7 @@ $$y_{it} = X_{it}\beta + \bar{X}_{i\cdot}\lambda + \bar{X}_{\cdot t}\theta + u_{
 
 The simple equivalence between TWM and TWFE requires the unit and time factors to be orthogonal. This holds automatically in a balanced panel, where every unit is observed in every period.
 
-In an unbalanced panel, separate unit and time means do not span the two-way dummy-variable space. To recover the equivalence, we also include the unit means of the time dummies ($\bar d_{it}$). These means describe each unit's observation pattern, $s_{it}/T_i$.
+In an unbalanced panel, separate unit and time means do not span the two-way dummy-variable space. To recover the equivalence, we keep the year dummies as regressors and add their unit means ($\bar d_{it}$), which describe each unit's observation pattern, $s_{it}/T_i$. This is no longer a two-way Mundlak regression. It is the one-way Mundlak device over units applied to the enlarged regressor set $(X_{it}, d_t)$, the same construction as B in the next section.
 
 ```{stata}
 *| label: twm_unbalanced
@@ -101,15 +101,15 @@ webuse nlswork, clear
 keep if !missing(ln_wage, age, union)
 xtset idcode year
 
-bysort idcode: egen m_age   = mean(age)
-bysort idcode: egen m_union = mean(union)
-egen t_age   = mean(age),   by(year)
-egen t_union = mean(union), by(year)
+bysort idcode: egen double m_age   = mean(age)
+bysort idcode: egen double m_union = mean(union)
+egen double t_age   = mean(age),   by(year)
+egen double t_union = mean(union), by(year)
 
 * Unit means of time dummies
 levelsof year, local(yrs)
 foreach y of local yrs {
-    bysort idcode: egen my_`y' = mean(year==`y')
+    bysort idcode: egen double my_`y' = mean(year==`y')
 }
 
 quietly xtreg ln_wage age union i.year, fe
@@ -119,7 +119,7 @@ scalar b_twfe = _b[age]
 quietly regress ln_wage age union m_age m_union t_age t_union
 scalar b_twm = _b[age]
 
-* Correct TWM with unit means of time dummies
+* One-way Mundlak over units with explicit year dummies and their unit means
 quietly regress ln_wage age union m_age m_union i.year my_*
 scalar b_fix = _b[age]
 
@@ -185,7 +185,8 @@ set obs 300
 gen i = _n
 gen double ci = rnormal()
 expand 10
-bysort i: gen t = _n
+sort i, stable
+by i: gen t = _n
 
 * Non-orthogonal design (random assignment of g)
 gen g = 1 + int(runiform()*5)
@@ -222,12 +223,13 @@ set seed 1234567
 gen id = _n
 gen w1 = rnormal()
 gen w2 = rnormal()
+gen x1 = rnormal() + w1 + 2*w2
 expand 4
-bysort id: gen year=2011+_n
+sort id, stable
+by id: gen year=2011+_n
 gen post=(year>2013)
 gen d=(id>50)
 gen w=d*post
-gen x1 = rnormal() + w1 + 2*w2
 gen u = rnormal()
 
 gen f2014=(year==2014)
@@ -256,7 +258,7 @@ lincom (c.w#c.f2014 + c.w#c.f2015)/2
 reg logy c.w#c.f2014 c.w#c.f2015 d f2014 f2015 x1 c.d#c.x1, vce(cluster id)
 ```
 
-The pooled Mundlak regression reproduces the TWFE estimates of 2.5 and 3.5 in the two post-treatment years. `lincom` gives their average, 3.0. We can add time-invariant controls and group interactions without changing these treatment-effect estimates.
+The DGP sets the effects at 2.5 in 2014 and 3.5 in 2015, an average of 3.0. TWFE estimates 2.571 and 3.335 in this sample, and the pooled Mundlak regression reproduces both exactly; `lincom` gives their average, 2.953. Adding the time-invariant control $x_1$ and its interaction with $d$ leaves the two estimates unchanged at 2.571 and 3.335: both controls are constant within a unit, and the treatment effects are identified from changes within units.
 
 ## What to remember
 

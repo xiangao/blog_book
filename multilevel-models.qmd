@@ -1,5 +1,5 @@
 ---
-title: "Doing the same multi-level model with R and stata"
+title: "Doing the same multi-level model with R and Stata"
 date: "2023-10-26"
 ---
 
@@ -136,10 +136,14 @@ We implement a growth model in R and stata.  The results are somewhat different.
 * structure for region's random intercept and slope (var(year), var(_cons),
 * cov=0 by construction) -- verified via `estat recovariance`. R's lmer
 * "(year|region)" and lme's "region=~year" both default to an UNSTRUCTURED
-* (correlated) covariance. Add covariance(unstructured) to match R.
-webuse productivity
-mixed gsp year || region: year, covariance(unstructured) || state:
-menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region>state])
+* (correlated) covariance. Add covariance(unstructured) to match R, in both
+* mixed and menl (menl's random effects are also independent by default).
+* Time is centred at the first year, t = year - 1970, so the random intercept
+* is the region's level in 1970 rather than an extrapolation to year 0.
+webuse productivity, clear
+gen t = year - 1970
+mixed gsp t || region: t, covariance(unstructured) || state:
+menl gsp =  {b2:} + {U1[region]}*t, define(b2: t U0[region]  U11[region>state]) covariance(U0 U1, unstructured)
 
 ```
 
@@ -152,22 +156,25 @@ menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region>st
 #| collectcode: true
 
 # lme4 for three level model, growth model
-lmer_growth1 <- lmer(gsp ~ 1 + year + (year|region) +  (1|state), data=data,  REML=FALSE)
+data$t <- data$year - 1970   # centre time at the first year, as in Stata
+# state codes are unique across regions, so (1|state) is the nested state effect
+lmer_growth1 <- lmer(gsp ~ 1 + t + (t|region) +  (1|state), data=data,  REML=FALSE,
+                     control = lmerControl(optimizer = "bobyqa"))
 summary(lmer_growth1)
 # nlme for three level model, growth model
 #lme_growth1<-lme(gsp ~ year, random = list(region=pdSymm(~year), state=pdIdent(~1)),data=data, method="ML")
-lme_growth1<-lme(gsp ~ year, random = list(region=~year, state=~1),data=data, method="ML")
+lme_growth1<-lme(gsp ~ t, random = list(region=~t, state=~1),data=data, method="ML")
 summary(lme_growth1)
 ```
 
 
-## cem in R and stata
+## CEM in R and Stata
 
 "CEM" is a growth model with the residual being a exponential function of the time variable.  
 
-### stata
+### Stata
 
-This mode has some convergence problem.  I still use it for demonstration purpose.
+With raw calendar years (1970–1986) in the variance function, $\exp(\gamma \cdot \text{year})$ is evaluated near year 2000 and the model does not converge. Centring time at 1970 fixes that.
 
 ```{stata}
 *| label: stata3
@@ -176,22 +183,23 @@ This mode has some convergence problem.  I still use it for demonstration purpos
 
 
 webuse productivity, clear
+gen t = year - 1970
 
-* this replicates the results from R
-menl gsp =  {b2:} + {U1[region]}*year, define(b2: year U0[region]  U11[region>state]) resvariance(exponential year) nolog
+* residual variance sigma2 * exp(2 * gamma * t), with t centred at 1970
+menl gsp =  {b2:} + {U1[region]}*t, define(b2: t U0[region]  U11[region>state]) covariance(U0 U1, unstructured) resvariance(exponential t) nolog
 
 
 ```
 
 ### R
 
-As in stata, it has some convergence problem.  So the results can differ somewhat between R and stata.
+With centred time, R and Stata agree.
 
 ```{r}
 #| label: cem1
 
-lme_growth1<-lme(gsp ~ year, random = list(region=pdSymm(~year), state=pdIdent(~1)),data=data, method="ML")
-lme_growth2<-update(lme_growth1,weights=varExp( form = ~ year), method="ML", control = lmeControl(opt = "optim"))
+lme_growth1<-lme(gsp ~ t, random = list(region=pdSymm(~t), state=pdIdent(~1)),data=data, method="ML")
+lme_growth2<-update(lme_growth1,weights=varExp( form = ~ t), method="ML", control = lmeControl(opt = "optim"))
 summary(lme_growth2)
 delta1<-lme_growth2$modelStruct$varStruct
 delta1

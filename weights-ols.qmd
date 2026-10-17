@@ -29,9 +29,9 @@ $$ {#eq-weights-ols-2}
 This is basically the g-formula, or regression adjustment formula.  We compute the DIM (difference in means) between treated and control for each strata $X=x$, then the weighted average is the ATE, with $\hat P(X=x)$ as weights.
 
 If we have high dimensional $X$, we usually do
-$$ Y = \beta_0 + \beta_1 X + \delta_{reg} D + \epsilon $$ {#eq-weights-ols-3}
+$$ Y = \beta_0 + \beta_1 X + \tau_{reg} D + \epsilon $$ {#eq-weights-ols-3}
 
-We would hope $\delta_{reg}$ is close to $\delta_{ATE}$, but we are not sure.
+We would hope $\hat\tau_{reg}$ is close to $\tau_{ATE}$, but we are not sure.
 
 OLS coefficients are:
 
@@ -64,9 +64,9 @@ If these weights are the same as the IPW weights, then we'll get $\tau_{reg}=\ta
 
 Another way to write this as weighted difference in means:
 
-$$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i + \sum_{i:D=0} \tilde \omega_i  Y_i $$ {#eq-weights-ols-8}
+$$ \hat \tau_{wdim} = \sum \omega_i Y_i = \sum_{i:D=1} \tilde \omega_i Y_i - \sum_{i:D=0} \tilde \omega_i  Y_i $$ {#eq-weights-ols-8}
 
-where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = -\hat d(X_i)/c$ for control units ($D_i=0$)
+where, with $c = \sum (D_i - \hat d(X_i))^2$, the per-arm weights are $\tilde \omega_i = (1-\hat d(X_i))/c$ for treated units ($D_i=1$) and $\tilde \omega_i = \hat d(X_i)/c$ for control units ($D_i=0$), so each arm's weights sum to one
 
 Because $\hat d(X_i)$ is from a linear probability model, it's possible that it's not between 0 and 1.  In that case, we can have negative weights.  The negative weights are a sign that the fitted linear comparison extrapolates.  For example, $\hat d(X_i) > 1$ will cause the weight $(1-\hat d(X_i))/c$ to flip sign and become negative for a treated unit.  The linear probability model then predicts this unit to be treated with probability above one, which suggests it may have no close match among the controls.  It does not prove that: sampling noise and a misspecified linear model can also push $\hat d(X_i)$ outside $[0, 1]$, and conversely an in-range prediction does not establish common support.  The mirror image happens for a control unit with $\hat d(X_i) < 0$: its weight $-\hat d(X_i)/c$ flips to *positive*, so it enters the contrast on the same side as the treated.  Either way the unit contributes with the wrong sign.
 
@@ -78,7 +78,7 @@ The negative weights are invisible unless we examine $\hat d(X_i)$ directly — 
 
 $$ \hat \tau_{reg} = \frac{\sum_x \hat \tau_x \hat d(x) (1-\hat d(x)) \hat P(X=x)}{\sum_x  \hat d(x) (1-\hat d(x)) \hat P(X=x)} $$ {#eq-weights-ols-9}
 
-this shows that different from ATE, these weights are $\hat d(x) (1-\hat d(x)) \hat P(X=x)$.  The stratas are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.
+this shows that different from ATE, these weights are $\hat d(x) (1-\hat d(x)) \hat P(X=x)$.  The strata are weighted not only by $P(X_i=x)$, but also by the variance of treatment status.  When $\hat d(X_i)$ is close to .5, the weight is the largest.
 
 If there is no treatment effect heterogeneity, then it does not matter how you weight.  When there is treatment effect heterogeneity, this estimator could be very different from ATE.
 
