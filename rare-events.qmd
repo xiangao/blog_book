@@ -77,7 +77,7 @@ require(snowfall)
 set.seed(666)
 
 # initialize parallel cores.
-sfInit(parallel=TRUE, cpus=16)
+sfInit(parallel=TRUE, cpus=6)
 
 gen.sim <- function(df){
   x <- rnorm(df['nobs'], 0, 1)
@@ -95,7 +95,8 @@ gen.sim <- function(df){
   df = data.frame(y=y, x=x)
 
   # With small nobs and small p (e.g. nobs=10, p=.01), y can easily come out
-  # all-zero (>90% chance in that cell), which makes glm/logistf unable to
+  # all-zero (about 64% chance in that cell, since the marginal event rate is
+  # 0.044, not 0.01), which makes glm/logistf unable to
   # estimate a coefficient on x. Guard against that rather than letting a
   # single degenerate draw crash the whole parallel simulation loop.
   if (var(y) == 0) {
@@ -156,6 +157,16 @@ on $x \sim N(0,1)$, the marginal rate is roughly 0.044, 0.134 and 0.203 for
 to $n$ times those numbers than to $n p$, by a factor of about four at the rare
 end. What follows is stated in terms of the realized event count, which is the
 quantity that actually governs the behaviour.
+
+Many samples in the rare cells cannot be fit at all. Because observations are
+independent, the chance that a sample has no events is $(1-\bar p)^n$, where
+$\bar p$ is the marginal event rate. At $p = 0.01$ this is 0.64 for $n = 10$,
+0.26 for $n = 30$ and 0.10 for $n = 50$; at $p = 0.05$ and $n = 10$ it is 0.24.
+The code returns `NA` for those samples and for fits that fail, so bias and MSE
+are averages over the samples where estimation succeeded. They describe
+conditional performance and should be read alongside the failure rate, which the
+original summaries did not report. The thresholds of five and fifty events below
+describe this DGP and design, not a general rule.
 
 When the rarer of the two outcomes has only a handful of observations -- fewer
 than about five events in the sample -- none of these three models performs well.

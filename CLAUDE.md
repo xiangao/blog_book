@@ -700,3 +700,15 @@ stata-cate); partial-interference residual selection; SC placebo rank; TASC leve
 latent-signal band; proximal constant-A1 proposal removed; spatial comparison changes two
 things; incremental axis label; 49 chapters; stale conjoint note removed from references.
 Stata check clean (no r(4), no profile.do).
+
+## Codex continued review (2026-10-17, branch `continued-review-fixes`)
+
+Log `~/projects/books/_review6/VERIFY_CONTINUED_20261017.md`. T1 mundlak-device: E[eta|X_i]=0 is
+an assumption, not a property of a projection (counterexample c = X1*X2). T2 g-estimation:
+exchangeability is not testable; density positivity for continuous treatment. T3 more-cre:
+pooled probit and LPM AMEs now use vcov = ~state (SE 0.034 -> 0.043); the RE probit's state
+variance is essentially zero (singular), so its 0.033 SE is the conventional one. T4
+rare-events: all-zero probability is 0.64 at n = 10, p = 0.01 (marginal rate 0.044), summaries
+condition on successful fits, cpus 16 -> 6. T5 poisson-exposure: exposure is independent of age,
+so omitting it does not bias the age coefficient; weighted rate model = offset model score;
+NB with offset does not model a declining rate.

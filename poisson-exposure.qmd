@@ -38,7 +38,12 @@ it. (Writing it as $\lambda/t$ would make variance equal mean and quietly restor
 equidispersion, which is precisely what fails here.) So fitting `glm(rate ~ x, family = poisson)` is a quasi-likelihood
 *mean model* rather than a correct Poisson likelihood. If you use it, treat it
 as a workaround: weight by exposure (`weights = t`) so the implied variance is
-right, and/or use robust standard errors. The offset model (Model 1) avoids the
+right, and/or use robust standard errors. Write $X_i$ for unit $i$'s covariates,
+including the constant, and $\beta$ for their coefficients. With these weights
+the rate model's score is $\sum_i t_i X_i\{Y_i/t_i - \exp(X_i'\beta)\} = \sum_i X_i\{Y_i - t_i\exp(X_i'\beta)\}$,
+the offset model's score, so the two give identical coefficients. Robust
+standard errors do not reproduce this; they change the variance, not the
+estimating equations. The offset model (Model 1) avoids the
 issue entirely by keeping the integer count as the outcome.
 
 **Model 3 — Unconstrained log-exposure:**
@@ -87,8 +92,12 @@ is $-3$, the true age effect is 1.2, and the true exposure elasticity is
 $\gamma = 1$ by construction.
 
 The data has a wide range of exposure times --- 7 to 364 days, median 196, with
-counts from 0 to 71 and a mean of 19 --- so ignoring them would badly
-confound the comparison between age groups.
+counts from 0 to 71 and a mean of 19. Exposure is drawn independently of age,
+so $E[Y \mid \text{age\_old}] = E[t]\exp(\beta_0 + \beta_1 \text{age\_old})$:
+ignoring exposure would change the intercept and the variance, but it would not
+bias the age coefficient here. We use this design to compare the estimating
+equations and their precision. If older patients were followed longer, omitting
+exposure would change the age coefficient.
 
 ## Fitting the three models
 
@@ -202,7 +211,8 @@ poisson count age_old log_exposure
 | Counts grow proportionally with time | Model 1 (offset) |
 | Uncertain about proportionality | Model 3 (unconstrained), test $\hat\gamma = 1$ |
 | Rate is the natural estimand | Model 1 (offset) — it estimates a rate directly; Model 2 only as a weighted/robust quasi-model |
-| Long follow-up with declining event rate | Model 3 or negative binomial with offset |
+| Long follow-up with declining event rate | Model 3, or a flexible function of follow-up time; a negative binomial with offset still assumes counts proportional to $t$ |
+| Overdispersion | Negative binomial with offset, or Model 1 with robust standard errors |
 
 In most health and social-science applications, Model 1 (Poisson with offset)
 is the default. Model 3 is the diagnostic check: fit it, look at $\hat\gamma$,
