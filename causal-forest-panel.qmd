@@ -6,7 +6,7 @@ date: "2017-10-23"
 
 ## Introduction
 
-In this simulation exercise, we use Causal Forest (Now is implemented in Generalized Random Forest) (https://github.com/swager/grf) to calculated conditional average treatment effect (or heterogeneous treatment effect).  We assume three different data generating processes.  The first one is a linear interaction between a variable of interest and the treatment dummy.  The second one assumes a nonlinear function (a step function) of a variable of interest, say $X$,  and the treatment dummy $W$.  The third one is also nonlinear, assuming we have variable $X$, but the real DGP is the interaction of log of $X$ and $W$.
+In this simulation exercise, we use Causal Forest (Now is implemented in Generalized Random Forest) [@athey-tibshirani-wager-2019, <https://github.com/grf-labs/grf>] to calculate the conditional average treatment effect (or heterogeneous treatment effect).  We assume three different data generating processes.  The first one is a linear interaction between a variable of interest and the treatment dummy.  The second one assumes a nonlinear function (a step function) of a variable of interest, say $X$,  and the treatment dummy $W$.  The third one is also nonlinear, assuming we have variable $X$, but the real DGP is the interaction of log of $X$ and $W$.
 
 ## Linear effect
 
@@ -156,10 +156,16 @@ X <- as.matrix(bind_cols(data.train[,c(5,7:16)],a))
 Y <- data.train$y
 W <- data.train$W
 # causal forest is run on y against V1, to X10 and firm dummies.
+# mtry = ncol(X): grf's default mtry is min(ceiling(sqrt(p) + 20), p) = 41 of the
+# 411 columns, so the one effect modifier V1 is a split candidate in only about
+# 10% of splits and the CATE predictions shrink hard toward the mean (slope about
+# 0.14 on V1 against a true 1 in this design). Letting every split consider every
+# column removes that shrinkage.
 # clusters = firm makes honest splitting and the variance estimates respect
 # the panel structure (a firm's repeated rows are kept together, not treated
 # as independent observations).
-tau.forest = causal_forest(X, Y, W, clusters = as.integer(data.train$firm))
+tau.forest = causal_forest(X, Y, W, clusters = as.integer(data.train$firm),
+                           mtry = ncol(X))
 
 average_treatment_effect(tau.forest, target.sample = "all")
 average_treatment_effect(tau.forest, target.sample = "treated")
@@ -177,16 +183,20 @@ ggplot(data.test, aes(x=V1, y=pred)) + geom_point() + geom_abline(intercept = 1,
 
 ```
 
-The forest's doubly-robust ATE comes out at 0.9356 with a standard error of
-0.0823, and 0.9317 with 0.0816 for the second variant. The true ATE is
+The forest's doubly-robust ATE comes out at 0.9631 with a standard error of
+0.0556, and 0.9498 with 0.0582 for the second, `target.sample = "treated"`, which targets the ATT. Because $W$ is randomized, the ATT equals the ATE here. The true ATE is
 $E[1 + V1] = 1$, so both are within one standard error of it — the forest costs
 a little precision against the correctly specified linear models but is not
 biased.
 
 This graph is the predicted value of CATE on the test data, vs. the value of $V1$.
-The points should sit on the 45-degree line, and the error bars in the second
-panel show how much of the scatter is estimation noise rather than a failure to
-track the true $1 + V1$.
+The points should sit on the line $1 + V1$. They do over most of the range and
+flatten in the tails, where few observations fall and a forest cannot
+extrapolate. This depends on `mtry = ncol(X)`. With grf's default, which offers
+only 41 of the 411 columns at each split, the predictions shrink to a narrow
+band around the mean, with a slope of about 0.14 on $V1$ instead of 1. The error
+bars in the later plot show how much of the remaining scatter is estimation
+noise.
 
 Now we graph the predicted CATE against the true CATE.  The other nice feature of Causal Forest is that it returns variance for CATE for each observation.  We also graph the error bar here.
 
@@ -300,8 +310,8 @@ what the forest is for.
 
 Now we use Causal Forest.  The first graph is the predicted CATE against $V1$; the second graph is the predicted CATE against true CATE.  The third one adds in error bars.
 
-The forest's ATE is 0.3732 (SE 0.0533) and 0.3722 (SE 0.0529), against the true
-$0.3989$ — within half a standard error, and no better than the linear model's
+The forest's ATE is 0.3695 (SE 0.0521) and 0.3682 (SE 0.0530), against the true
+$0.3989$ — about half a standard error away, and no better than the linear model's
 $W$ coefficient at recovering the average. The gain is in the shape: the fitted
 CATE should flatten to zero for $V1 < 0$ and rise linearly above it, which is the
 kink the linear interaction smooths straight through.
@@ -328,7 +338,8 @@ X.test <- as.matrix(bind_cols(data.test[,c(5,7:16)],a))
 Y.test <- data.test$y
 W.test <- data.test$W
 
-tau.forest3 = causal_forest(X, Y, W, clusters = as.integer(data.train$firm))
+tau.forest3 = causal_forest(X, Y, W, clusters = as.integer(data.train$firm),
+                           mtry = ncol(X))
 
 average_treatment_effect(tau.forest3, target.sample = "all")
 average_treatment_effect(tau.forest3, target.sample = "treated")
@@ -457,10 +468,12 @@ linear model gets the average right and the heterogeneity completely wrong.
 
 Now we run Causal Forest.  Again, first graph is predicted CATE against $V1$, the second one is the predicted CATE against true CATE, the third one adds error bars.
 
-The forest's ATE is $-1.2049$ (SE 0.0813) and $-1.2024$ (SE 0.0798) for the two
+The forest's ATE is $-1.2563$ (SE 0.0699) and $-1.2414$ (SE 0.0839) for the two
 variants, against the true $-1.2704$. Like the linear models, it gets the average
 about right. The difference is in the plots: the forest's fitted CATE traces the
-U-shape of $\log(V1^2)$, which no linear interaction can represent.
+V-shape of $\log(V1^2)$ down to its minimum near $V1 = 0$, which no linear
+interaction can represent. It again flattens for $|V1| > 1.5$, where the data
+thin out.
 
 
 ```{r}
@@ -485,7 +498,8 @@ X.test <- as.matrix(bind_cols(data.test[,c(5,7:16)],a))
 Y.test <- data.test$y
 W.test <- data.test$W
 
-tau.forest4 = causal_forest(X, Y, W, clusters = as.integer(data.train$firm))
+tau.forest4 = causal_forest(X, Y, W, clusters = as.integer(data.train$firm),
+                           mtry = ncol(X))
 
 average_treatment_effect(tau.forest4, target.sample = "all")
 average_treatment_effect(tau.forest4, target.sample = "treated")
@@ -514,7 +528,7 @@ ggplot() + geom_errorbar(graph.data4, mapping=aes(x=cate,  ymin=lower,ymax=upper
 
 ##  Summary
 
-We see in these examples, Causal Forest performs fairly well, while other linear models will not work in the nonlinear DGP situations.
+In all three designs the causal forest recovers the ATE within about one standard error and traces the shape of the true CATE, except in the sparse tails, where it flattens. The linear models recover the average but cannot represent the nonlinear CATEs. With 400 firm dummies in $X$, the forest needs `mtry = ncol(X)`; at grf's default it rarely gets to split on the one effect modifier and its CATE predictions shrink toward the mean.
 
 ---
 

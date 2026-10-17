@@ -16,7 +16,7 @@ Bunching is closely related to regression discontinuity. RD assumes no manipulat
 
 ### A test of endogeneity
 
-@caetano-2015 showed that, if the distribution of $T_i$ has bunching at $T_i = \bar t$, it is
+@caetano-2015 showed that, if the distribution of $T_i$ has bunching at $T_i = \bar T$, it is
 possible to test the exogeneity of $T_i$ . When one compares the outcome of observations at
 the bunching point and those around it, the treatment itself is very similar. Therefore,
 there cannot be more than a marginal difference in the outcome that is due to treatment
@@ -40,7 +40,7 @@ The logic of the endogeneity test is that around the bunching point, the treatme
 
 ### Treatment effect estimation
 
-Caetano et al (2020) proposed a method to estimate the treatment effect when there is bunching.  It seems to me there is no reason that we cannot use it for the censoring situation.  There are a lot of situations that we have censored treatment variable, when we study continuous treatment variable.
+@caetano-2024 proposed a method to estimate the treatment effect when there is bunching.  It seems to me there is no reason that we cannot use it for the censoring situation.  There are a lot of situations that we have censored treatment variable, when we study continuous treatment variable.
 
 Suppose we have
 $$ Y = \beta T + Z \gamma + \delta \eta + \epsilon $$ {#eq-bunching-1}
@@ -146,7 +146,7 @@ alpha     <- -lin_pred / sigma_hat
 E_Tstar_below0 <- lin_pred - sigma_hat * dnorm(alpha) / pnorm(alpha)
 
 # here I create an extra term for the correction:
-# when T is 0, it is T (=0); otherwise it's the truncated-normal conditional
+# when T > 0, it is T; when T = 0, it is the truncated-normal conditional
 # mean of T* given T* <= 0 and Z, computed above.
 data <- data %>%
   mutate(extra = if_else(T > 0, T, E_Tstar_below0))
@@ -160,8 +160,13 @@ Under the normality assumption, this recovers $\beta$ (the true coefficient on $
 OLS's 3.150. The correction term itself enters with coefficient 1.363, which is
 the estimate of $\delta$, the effect of $\eta$ on $Y$; the DGP sets that path
 at $2/1.5 = 1.33$ once expressed per unit of $T^*$. Note the control
-coefficients also move, from $-0.296$ and $-1.141$ to $-0.825$ and $-2.311$,
-because they were absorbing part of the confounding too — this is much better — much better than a naive symmetric-mirroring heuristic that estimates the right-tail conditional mean by an unweighted linear regression of $T$ on $Z$ restricted to a somewhat arbitrary right-tail cutoff: that heuristic's accuracy turns out to be quite sensitive to the cutoff and sample used, because the true conditional mean of $T^*$ given $T^*$ beyond a cutoff is a nonlinear (inverse-Mills-ratio) function of $Z$, not linear — so a plain linear regression on the selected right-tail subsample is itself misspecified. The parametric (Tobit) route sidesteps that by modeling the untruncated latent distribution directly and using the exact conditional-mean formula.
+coefficients also move, from $-0.296$ and $-1.141$ to $-0.825$ and $-2.311$.
+These are not estimates of the structural $\gamma = (0.5, 0.5)$. By
+@eq-bunching-4, the coefficient on $Z$ is the composite $\gamma - \pi\delta$,
+which in this DGP is $(0.5 - 1 \times 4/3,\ 0.5 - 2 \times 4/3) = (-0.833, -2.167)$,
+and the estimates are close to it. To recover $\gamma$ itself, enter the
+generalized residual, `extra` minus the linear prediction $Z\hat\pi$, in place of
+`extra`. The parametric correction does much better than a naive symmetric-mirroring heuristic that estimates the right-tail conditional mean by an unweighted linear regression of $T$ on $Z$ restricted to a somewhat arbitrary right-tail cutoff: that heuristic's accuracy turns out to be quite sensitive to the cutoff and sample used, because the true conditional mean of $T^*$ given $T^*$ beyond a cutoff is a nonlinear (inverse-Mills-ratio) function of $Z$, not linear — so a plain linear regression on the selected right-tail subsample is itself misspecified. The parametric (Tobit) route sidesteps that by modeling the untruncated latent distribution directly and using the exact conditional-mean formula.
 
 ## Conclusion
 

@@ -36,7 +36,7 @@ Then this estimator is $\sqrt n$ consistent and asymptotically normal; and $\phi
 
 Consider the mean of the treated potential outcome, $\psi = E \{ E(Y | X, A=1) \} = E[Y^1]$.  Its efficient influence function is $$\phi_1 (Z; P) = \frac{A}{\pi (X)} \{ Y - \mu_1 (X) \} + \mu_1(X) - \psi$$ {#eq-npcausal-tools-2} where $\pi (X) = P(A=1 | X)$ the propensity score model, $\mu_1 (X) = E(Y |X, A=1)$, the outcome model.  The ATE $E[Y^1 - Y^0]$ has efficient influence function $\phi_1 - \phi_0$, where $\phi_0$ is the analogous control-arm term $\frac{1-A}{1-\pi(X)} \{ Y - \mu_0(X) \} + \mu_0(X) - E[Y^0]$ with $\mu_0(X) = E(Y|X,A=0)$.
 
-The idea of IF-based estimator is to use so called "one-step correction" to estimate the "plug-in" bias. The bias is approximated by first deriving the influence function; then based on the influence function, the bias can be estimated by using the influence function as a slope to the path from "plug-in" estimate" to true parameter. This path can be non-linear; therefore this one-step correction may not be perfect, but it should be closer to the truth than the original estimate.
+The idea of IF-based estimator is to use so called "one-step correction" to estimate the "plug-in" bias. The bias is approximated by first deriving the influence function; then based on the influence function, the bias can be estimated by using the influence function as a slope to the path from "plug-in" estimate to true parameter. This path can be non-linear; therefore this one-step correction may not be perfect, but it should be closer to the truth than the original estimate.
 
 For example, an IF-based bias-corrected estimator $$\hat \psi = P_n [ \frac{A}{\hat \pi (X)} \{ Y - \hat \mu (X) \} + \hat \mu(X) ]$$ {#eq-npcausal-tools-3} where $P_n$ means sample mean. This is the familiar AIPW estimator. It is known to be doubly robust. Since we know the influence function, we can calculate its variance. Under asymptotic linearity, $\hat\psi - \psi \approx \frac1n \sum_i \phi_1(Z_i)$, so the variance of the estimator is approximately $\text{Var}(\phi_1)/n$; the influence function and the estimator do not have the same variance. We estimate the nuisance parameters, form $\hat\psi$, and divide the sample variance of the estimated influence values by $n$. This estimator is the treated-arm mean $E[Y^1]$; the ATE subtracts the analogous control-arm estimator, and its influence function is $\phi_1 - \phi_0$.
 
@@ -116,7 +116,7 @@ We first include a few learners. "npcausal" has a set of default learners.
 SL.library <- c("SL.earth","SL.gam","SL.glm","SL.glmnet","SL.glm.interaction", "SL.mean","SL.ranger", "SL.xgboost")
 ```
 
-### plug-in estimator from outcome regression
+### Plug-in estimator from outcome regression
 
 ```{r}
 #| label: chunk4
@@ -224,10 +224,10 @@ The results from "npcausal" are almost the same as the manual results. Two clari
 #| message: false
 #| echo: true
 
-aipw2<- ate(y=Y, a=A, x=W, nsplits=10)
+aipw2<- ate(y=Y, a=A, x=W, nsplits=10, sl.lib=SL.library)
 ```
 
-With `nsplits=10` the cross-fitted estimate is essentially unchanged. That is
+With `nsplits=10` the cross-fitted estimate is essentially unchanged, 0.2146 against 0.2141. That is
 the reassuring case: cross-fitting is insurance against overfitting bias, and
 when the nuisance models are not badly overfitted it costs nothing.
 
@@ -255,7 +255,7 @@ influence-function equation and differ only in how.
 
 ### DoubleML
 
-The R package DoubleML implements the double/debiased machine learning framework of @chernozhukov-2018-dml. It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consist of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.
+The R package DoubleML implements the double/debiased machine learning framework of @chernozhukov-2018-dml. It provides functionalities to estimate parameters in causal models based on machine learning methods. The double machine learning framework consists of three key ingredients: Neyman orthogonality, High-quality machine learning estimation and Sample splitting.
 
 They consider a partially linear model:
 
@@ -269,11 +269,13 @@ The basic idea of doubleML is to use any machine learning algorithm to estimate 
 
 Then regress $\hat W$ on $\hat V$. Based on FWL theorem, you get $\hat \theta$.
 
-An important component here is to specify a Neyman-orthogonal score function. In the case of PLR, it can be the product of the two residuals:
+An important component here is to specify a Neyman-orthogonal score function. For the regression of $\hat W$ on $\hat V$ just described, it is the partialling-out score of @robinson-1988, the product of the outcome residual net of $\theta$ times the treatment residual and the treatment residual:
 
-$$\psi (W; \theta, \eta) = (Y-D\theta -g(X))(D-m(X)) $$ {#eq-npcausal-tools-6}
+$$\psi (W; \theta, l, m) = \bigl((Y - l(X)) - \theta (D - m(X))\bigr)(D-m(X)) $$ {#eq-npcausal-tools-6}
 
-The estimators $\hat \theta$ is to solve the equation that the sample mean of this score function being 0.
+This is `DoubleMLPLR`'s default, `score = "partialling out"`. The alternative `"IV-type"` score, $(Y - D\theta - g(X))(D - m(X))$, uses the nuisance $g_0(X) = E[Y - D\theta_0 \mid X]$ in place of $l_0(X)$.
+
+The estimator $\hat \theta$ is obtained by solving the equation that sets the sample mean of this score function to 0.
 
 And the variance of this score function is used as the variance of the doubleML estimator's variance.
 
@@ -354,7 +356,7 @@ W <- data %>%
   select(-Y,-A)
 ```
 
-### plug-in estimator from outcome regression
+### Plug-in estimator from outcome regression
 
 ```{r}
 #| label: chunk13
@@ -390,8 +392,8 @@ Q=data.frame(QAW=SL.outcome.obs, Q0W=SL.outcome.0,Q1W=SL.outcome.1)
 
 ```
 
-The plug-in gives 0.1325 against the recorded true risk difference of 0.1186 —
-about 0.014 high.
+The plug-in gives 0.1186 against the recorded true risk difference of 0.1325 —
+about 0.014 low.
 
 ### AIPW with machine learning
 
@@ -443,7 +445,7 @@ The results from "npcausal" are almost the same as the manual results. Two clari
 #| message: false
 #| echo: true
 
-aipw2<- ate(y=data$Y, a=data$A, x=W, nsplits=10)
+aipw2<- ate(y=data$Y, a=data$A, x=W, nsplits=10, sl.lib=SL.library)
 ```
 
 ### DoubleML
@@ -498,7 +500,7 @@ Note: as with the earlier PLR example, `A` and `Y` here are **binary** (this is 
 
 Identification turns a causal target, such as $E(Y^1 - Y^0)$, into a functional of the observed distribution. A plug-in estimate of that functional from machine-learning nuisance fits inherits their regularization bias and has no standard error. Influence-function estimators correct the bias with a one-step term. AIPW from `npcausal`, TMLE and DoubleML are all of this kind, and sample splitting keeps overfitting out of the correction. DoubleML's partially linear model assumes a constant effect, so with a binary treatment and outcome its interactive model is the better fit.
 
-In the simulation with a realized effect of 0.203, the plug-in gives 0.2050, AIPW 0.2123 by hand and 0.2141 from `npcausal`, and TMLE 0.2118, all within 0.003 of each other. Cross-fitting barely changes the estimate here. In the EAGeR trial data the plug-in gives 0.1325 against a true risk difference of 0.1186.
+In the simulation with a realized effect of 0.203, the plug-in gives 0.2050, AIPW 0.2123 by hand and 0.2141 from `npcausal`, and TMLE 0.2118, all within 0.003 of each other. Cross-fitting barely changes the estimate here. In the EAGeR trial data the plug-in gives 0.1186 against a true risk difference of 0.1325, and the one-step corrections move it toward the truth: 0.1310 by hand, 0.1297 from `npcausal` and 0.1296 with 10-fold cross-fitting.
 
 ---
 

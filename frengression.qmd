@@ -175,8 +175,11 @@ model <- frengression(x_dim = 1, y_dim = 1, z_dim = 4,
                       x_binary = TRUE, y_binary = TRUE,
                       z_binary_dims = 2, noise_dim = 10)
 
+# tol = 0 turns off train_y's default early stopping (tol = 0.01), which
+# otherwise halts as soon as the two energy-loss terms move by less than 0.01
+# between iterations -- after 67 iterations in this draw.
 model <- train_y(model, x_mat, z_mat, y_mat,
-                 num_iters = 1000, lr = 1e-3, print_every = 500)
+                 num_iters = 1000, lr = 1e-3, print_every = 500, tol = 0)
 model <- train_xz(model, x_mat, z_mat,
                    num_iters = 1000, lr = 1e-4, print_every = 500)
 ```
@@ -199,7 +202,7 @@ cat("Frengression ATE:", round(y1 - y0, 4), "\n")
 cat("True ATE:", round(true_ate, 4), "\n")
 ```
 
-The realized ATE in this draw is $0.1935$, and averaging the true probabilities over the sampled covariates gives $0.2024$. The gap between those two is outcome sampling noise, not model error, and it is worth keeping them apart: the realized figure is the ATE of the potential outcomes actually drawn, while the covariate-averaged figure is the smoother target the estimator is really chasing. Frengression's 0.1485 lands about 0.05 below either one.
+The realized ATE in this draw is $0.1935$, and averaging the true probabilities over the sampled covariates gives $0.2024$. The gap between those two is outcome sampling noise, not model error, and it is worth keeping them apart: the realized figure is the ATE of the potential outcomes actually drawn, while the covariate-averaged figure is the smoother target the estimator is really chasing. With early stopping turned off, frengression's 0.1895 lands 0.004 below the realized ATE and 0.013 below the covariate-averaged one.
 
 The training chunks carry `cache: false`, so they re-run on every render, and
 torch keeps a generator of its own that R's `set.seed()` does not reach. Seeding
@@ -255,10 +258,10 @@ cat(sprintf("Generator eta: mean %.3f, sd %.3f; implied ATE %.4f\n",
 The specified margin has an exact ATE of $\Phi(0.2) - 0.5 = 0.0793$, where $\Phi$ is
 the standard normal distribution function, and `predict()` with `trim = 0`
 reproduces it to Monte Carlo error. The population the generator actually draws
-uses the learned $\eta$, whose mean is 0.035 and standard deviation 1.018 rather
-than 0 and 1, and its ATE is 0.0743. We score the benchmark against the exact
-0.0793. The 0.005 gap is the generator's approximation error, small next to most
-of the biases below.
+uses the learned $\eta$, whose mean is 0.044 and standard deviation 0.946 rather
+than 0 and 1, and its ATE is 0.0785. We score the benchmark against the exact
+0.0793. The 0.0008 gap is the generator's approximation error, small next to the
+biases below.
 
 Now we can generate synthetic data and benchmark any method:
 
@@ -298,7 +301,9 @@ z_lal <- as.matrix(lalonde[, c("black", "hispan", "married", "nodegree",
                                 "age", "educ", "re74", "re75")])
 
 # Standardize for training
-z_sc <- scale(z_lal)
+# Standardize only the continuous columns; the first four must stay 0/1.
+z_sc <- z_lal
+z_sc[, 5:8] <- scale(z_lal[, 5:8])
 y_sc <- (y_lal - mean(y_lal)) / sd(y_lal)
 
 model_lal <- frengression(x_dim = 1, y_dim = 1, z_dim = 8,
@@ -344,7 +349,7 @@ Both packages use the same decomposition:
 | Can learn from real data | Limited (plasmode) | Yes — full joint |
 | Distributional flexibility | Limited by family choice | Arbitrary |
 
-The `causl` approach is more transparent because we know exactly what we specified. Frengression is more flexible because it can learn structure we did not write down. I would treat them as complements.
+The `causl` approach is more transparent because we know exactly what we specified. Frengression is more flexible because it can learn structure we did not write down. I would treat them as complements. Frengression is not the first neural generator for benchmarking: RealCause [@neal-huang-raghupathi-2020] fits flexible generative models to real data and then sets the treatment effect, to build benchmarks with known ground truth that look like real data. What the frugal parameterization adds is that the causal margin is specified directly and separately from the confounding, so the true effect is exact by construction.
 
 ## Benchmarking: Frengression vs Semiparametric Methods
 
@@ -352,7 +357,7 @@ Now compare frengression against standard semiparametric causal inference tools 
 
 - `npcausal`: AIPW estimator with SuperLearner nuisance models
 - `tmle`: targeted minimum loss-based estimation with SuperLearner
-- `DoubleML`: partially linear regression with `ranger`
+- `DoubleML`: the interactive regression model (`DoubleMLIRM`) with `ranger`, the doubly robust ATE estimator for a binary treatment
 
 These methods are built for ATE estimation. They should usually be better for this specific estimand. The comparison is still useful because frengression is trying to learn much more than the ATE.
 
@@ -424,11 +429,15 @@ dml_data <- DoubleMLData$new(data_obs,
                               y_col = "Y", d_cols = "A",
                               x_cols = c("w1", "w2", "w3", "w4"))
 
-learner_l <- lrn("regr.ranger", num.trees = 500, max.depth = 5, min.node.size = 2)
-learner_m <- learner_l$clone()
+# Binary treatment with heterogeneous effects: the interactive regression model
+# (IRM) targets the ATE; the partially linear model would target a
+# variance-weighted average of the effects instead.
+learner_g <- lrn("regr.ranger", num.trees = 500, max.depth = 5, min.node.size = 2)
+learner_m <- lrn("classif.ranger", num.trees = 500, max.depth = 5, min.node.size = 2,
+                 predict_type = "prob")
 
 set.seed(123)
-dml_plr <- DoubleMLPLR$new(dml_data, ml_l = learner_l, ml_m = learner_m)
+dml_plr <- DoubleMLIRM$new(dml_data, ml_g = learner_g, ml_m = learner_m)
 dml_plr$fit()
 
 ate_dml <- dml_plr$coef
@@ -465,7 +474,7 @@ cat("Monte Carlo integration error of the frengression ATE:", round(mc_error_fre
 #| cache: true
 #| message: false
 results <- data.frame(
-  Method = c("True ATE", "Frengression", "npcausal (AIPW)", "TMLE", "DoubleML (PLR)"),
+  Method = c("True ATE", "Frengression", "npcausal (AIPW)", "TMLE", "DoubleML (IRM)"),
   ATE = c(true_ate, ate_freng, ate_npcausal, ate_tmle, ate_dml),
   SE = c(NA, NA, se_npcausal, se_tmle, se_dml),       # no SE for frengression
   CI_lower = c(NA, NA, ci_npcausal[1], ci_tmle[1], ci_dml[1]),
@@ -480,11 +489,11 @@ kable(results, digits = 4,
       caption = "ATE Estimation: Frengression vs Semiparametric Methods")
 ```
 
-On this single dataset the ranking is what one would expect. TMLE gives 0.1916,
-npcausal 0.1911 and DoubleML 0.1872, all within 0.007 of the true 0.1935;
-frengression gives 0.1485, a bias of $-0.0450$, about seven times larger. We
-report no standard error for it. The spread of repeated predictions from the one
-fitted network, 0.0285, measures only the Monte Carlo error of the integration in
+On this single dataset all four are close. TMLE gives 0.1916 and npcausal
+0.1911, within 0.003 of the true 0.1935; DoubleML's interactive model gives
+0.1806, 0.013 below; frengression gives 0.1895, 0.004 below. We report no
+standard error for frengression. The spread of repeated predictions from the one
+fitted network, 0.0278, measures only the Monte Carlo error of the integration in
 `predict()`: it does not resample the data or refit the network. The three
 reported intervals all cover the truth.
 
@@ -525,8 +534,10 @@ for (b in seq_len(B)) {
 
   # --- Frengression ---
   tryCatch({
+    torch::torch_manual_seed(1000 + b)  # torch's own generator; set.seed() does not reach it
     mod_f <- frengression(x_dim = 1, y_dim = 1, z_dim = ncol(z_syn),
                           x_binary = TRUE, y_binary = TRUE,
+                          z_binary_dims = model_bench$z_binary_dims,
                           noise_dim = 10, hidden_dim = 100, num_layer = 3)
     mod_f <- train_y(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
                      matrix(y_syn, ncol=1),
@@ -564,9 +575,10 @@ for (b in seq_len(B)) {
   tryCatch({
     dml_d <- DoubleMLData$new(df_syn, y_col = "Y", d_cols = "A",
                                x_cols = colnames(z_syn))
-    lr_l <- lrn("regr.ranger", num.trees = 300, max.depth = 5, min.node.size = 2)
-    lr_m <- lr_l$clone()
-    dml_obj <- DoubleMLPLR$new(dml_d, ml_l = lr_l, ml_m = lr_m)
+    lr_g <- lrn("regr.ranger", num.trees = 300, max.depth = 5, min.node.size = 2)
+    lr_m <- lrn("classif.ranger", num.trees = 300, max.depth = 5, min.node.size = 2,
+                predict_type = "prob")
+    dml_obj <- DoubleMLIRM$new(dml_d, ml_g = lr_g, ml_m = lr_m)
     dml_obj$fit()
     ate_mat[b, "DoubleML"] <- dml_obj$coef
     se_mat[b, "DoubleML"]  <- dml_obj$se
@@ -668,8 +680,10 @@ for (b in seq_len(B_lal)) {
 
   # --- Frengression ---
   tryCatch({
+    torch::torch_manual_seed(2000 + b)
     mod_f <- frengression(x_dim = 1, y_dim = 1, z_dim = ncol(z_syn),
                           x_binary = TRUE, y_binary = FALSE,
+                          z_binary_dims = 4,
                           noise_dim = 10, hidden_dim = 100, num_layer = 3)
     mod_f <- train_y(mod_f, matrix(x_syn, ncol=1), as.matrix(z_syn),
                      matrix(y_syn, ncol=1),
@@ -708,9 +722,10 @@ for (b in seq_len(B_lal)) {
   tryCatch({
     dml_d <- DoubleMLData$new(df_syn, y_col = "Y", d_cols = "A",
                                x_cols = colnames(z_syn))
-    lr_l <- lrn("regr.ranger", num.trees = 300, max.depth = 5, min.node.size = 2)
-    lr_m <- lr_l$clone()
-    dml_obj <- DoubleMLPLR$new(dml_d, ml_l = lr_l, ml_m = lr_m)
+    lr_g <- lrn("regr.ranger", num.trees = 300, max.depth = 5, min.node.size = 2)
+    lr_m <- lrn("classif.ranger", num.trees = 300, max.depth = 5, min.node.size = 2,
+                predict_type = "prob")
+    dml_obj <- DoubleMLIRM$new(dml_d, ml_g = lr_g, ml_m = lr_m)
     dml_obj$fit()
     ate_mat_lal[b, "DoubleML"] <- dml_obj$coef
     se_mat_lal[b, "DoubleML"]  <- dml_obj$se
@@ -768,34 +783,41 @@ ggplot(ate_long_lal_trim, aes(x = Method, y = ATE, fill = Method)) +
            hjust = 0, vjust = -0.5, color = "red") +
   labs(title = "ATE Estimates: LaLonde-Based Frengression DGP",
        subtitle = paste0("B=", B_lal, " replications, n=", n_syn_lal,
-                         " per dataset (confounding learned from real data)"),
+                         " per dataset\n(confounding learned from real data)"),
        y = "Estimated ATE (standardized)") +
   theme_minimal() +
   theme(legend.position = "none")
 ```
 
-On the hand-written DGP (true ATE 0.0793), DoubleML does best, with a bias of
-$-0.0100$, an RMSE of 0.0263 and 100% coverage. Frengression has a bias of
-$-0.0281$ and an RMSE of 0.0389. TMLE's average bias, 0.0212, is smaller than
-that and npcausal's, 0.0432, larger, but both are far noisier, with RMSEs of
-0.1626 for npcausal and 0.1153 for TMLE and coverage of 80% and 20%. On the LaLonde-generated data (true ATE 0.3, or \$2,241),
-TMLE has the smallest bias, 0.0284, but an RMSE of 0.3556 and 10% coverage.
-Frengression's bias is $-0.1779$ with an RMSE of 0.2099; npcausal and DoubleML are
-off by $-0.5445$ and $-0.4474$, both with **0%** coverage. Frengression has no
-coverage entry because we have no valid standard error for it.
+On the hand-written DGP (true ATE 0.0793), frengression does best, with a bias of
+0.0027 and an RMSE of 0.0370. TMLE has a bias of 0.0434 and an RMSE of 0.0914,
+DoubleML's interactive model 0.0922 and 0.1001, and npcausal 0.2004 and 0.2487,
+with coverage of 50%, 40% and 20%. The generated data treat 90% of units, so
+some propensity scores are close to one and the inverse-propensity terms in the
+three doubly robust estimators are unstable. On the LaLonde-generated data (true
+ATE 0.3, or \$2,241), only 3.2% of units are treated, about 64 of 2,000, against 30% in
+the real LaLonde sample: the learned treatment model badly understates
+treatment, and every method struggles. Frengression's bias is $-0.3487$ with an RMSE of 0.3917; TMLE's
+is 0.2203 with an RMSE of 0.6867 and 0% coverage; npcausal and DoubleML are off by
+$-0.7664$ and $-0.8070$, with 10% coverage. Frengression has no coverage entry
+because we have no valid standard error for it.
 
 The coverage column shows where reported standard errors fail. A method whose
 interval covers the truth in 0 or 1 of 10 replications is not merely imprecise;
 its reported standard error is wrong. TMLE's mean SE on the simulated benchmark is
-0.0220 against an actual sampling SD of 0.1195, understating the uncertainty by a
-factor of more than five.
+0.0273 against an actual sampling SD of 0.0848, understating the uncertainty by a
+factor of about three.
 
 One caveat before drawing conclusions: $B = 10$ replications is a very small
 Monte Carlo, so these coverage rates carry a standard error of about 0.15
-themselves. The qualitative ordering is clear; the individual percentages are
-not precise.
+themselves, and the ranking of the methods can change from one run of ten to
+the next. An earlier run of this chapter, which used the partially linear
+DoubleML model, scaled the binary covariates and stopped training early, ranked
+DoubleML first on the hand-written DGP. What is stable across runs is that weak
+overlap, 90% treated in one design and 3% in the other, makes the reported
+standard errors of the doubly robust estimators far too small.
 
-The semiparametric methods show more bias on the LaLonde-generated data than on the hand-written simulation. That is the point of this exercise. The synthetic data has a more realistic propensity surface and prior-earnings distribution, so it is harder than the usual clean simulation.
+All methods show more bias on the LaLonde-generated data than on the hand-written simulation. That is the point of this exercise. The synthetic data has the real data's skewed prior-earnings distribution, and, because the learned treatment model understates treatment, far worse overlap than the real data. Before using such a generator as a benchmark, its treatment and covariate margins should be checked against the real data; here the treatment margin fails that check.
 
 ## Summary
 

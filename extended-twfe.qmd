@@ -146,6 +146,18 @@ p.twfe
 
 ```
 
+The event study and every estimator below use `df.use`, which drops the 283
+always-treated municipalities. The static TWFE above used the full panel, where
+"later vs always treated" comparisons carry 31% of the weight. On the same
+restricted sample, static TWFE gives:
+
+```{r}
+#| label: twfe-same-sample
+model_twfe_use <- fixest::feols(nat_rate_ord ~ indirect | bfs + year,
+                                data = df.use, cluster = "bfs")
+summary(model_twfe_use)
+```
+
 ### Sun and Abraham
 
 The @sun-abraham-2021 estimator is a weighted average of the average treatment effect (ATT) estimates for each cohort, obtained from a TWFE regression that includes cohort dummies fully interacted with indicators of relative time to the treatment’s onset. The iw estimator is robust to heterogeneous treatment effects (HTE) and can be implemented using the command sunab in the package fixest.
@@ -287,7 +299,7 @@ p.fect
 
 ### Wooldridge
 
-Wooldridge 2021, also called extended TWFE (ETWFE), is to allow more flexibility to make TWFE work properly.  The problem with TWFE is that we do not specify it flexibly enough.  If we allow heterogeneous treatment effect, then we cannot expect the canonical TWFE to work properly.
+@wooldridge-2021-etwfe, also called extended TWFE (ETWFE), is to allow more flexibility to make TWFE work properly.  The problem with TWFE is that we do not specify it flexibly enough.  If we allow heterogeneous treatment effect, then we cannot expect the canonical TWFE to work properly.
 
 ```{r}
 #| message: false
@@ -364,7 +376,8 @@ It is worth collecting what all of these produced on the same data:
 
 | estimator | ATT | s.e. |
 |---|---:|---:|
-| TWFE | 1.339 | 0.187 |
+| TWFE (full panel) | 1.339 | 0.187 |
+| TWFE (without always-treated) | 1.609 | 0.195 |
 | Sun and Abraham | 1.331 | 0.288 |
 | Callaway and Sant'Anna (simple) | 1.331 | 0.302 |
 | Callaway and Sant'Anna (dynamic) | 1.221 | 0.631 |
@@ -374,20 +387,25 @@ It is worth collecting what all of these produced on the same data:
 
 Three things stand out. Sun-Abraham, Callaway-Sant'Anna and ETWFE agree to three
 digits at 1.33 — they are different routes to the same never-treated-control
-estimand, and they land on the same number. The spread across all seven, 1.18 to
-1.51, is smaller than the standard errors, so on this data the estimator choice
-does not change the conclusion.
+estimand, and they land on the same number. The spread across the six heterogeneity-robust estimators, 1.18 to 1.51, is
+smaller than their standard errors, so on this data the choice among them does
+not change the conclusion.
 
-And TWFE at 1.339 is not far off any of them, despite the forbidden comparisons
-the Bacon decomposition exposed. That is worth saying plainly: the decomposition
-shows TWFE *is* contaminated here, but the contamination happens to be small
-enough that the answer survives. It would not have to be.
+TWFE needs more care, because the two TWFE rows use different samples. On the
+full panel it gives 1.339, close to the robust estimators. But those estimators
+all use `df.use`, which drops the 283 always-treated municipalities. On that same
+sample TWFE gives 1.609, about 0.28 above Sun-Abraham, Callaway-Sant'Anna and
+ETWFE, or about 1.4 of its standard errors. The full-panel TWFE lands near 1.33
+because its "later vs always treated" comparisons, 31% of the weight with an
+average of 0.75, pull it down. So the closeness says nothing
+about how small the contamination is. Compared on the same sample, TWFE is the
+outlier.
 
 ## Staggered DiD with treatment reversal
 
 With treatment reversal (ie., the treated units go back to control), Wooldridge's method still works.  However, I don't think package "etwfe" has it implemented.
 
-So far, packages "fect", "PanelMatch" can handle treatment reversal.
+Several packages handle treatment reversal. Besides `fect` and `PanelMatch`, the estimator of @dechaisemartin-dhaultfoeuille-2020, implemented in `DIDmultiplegt` and its successor `did_multiplegt_dyn` (R and Stata), was designed for treatments that switch on and off. It compares units whose treatment changes between two periods with units whose treatment does not, so it never uses a switching unit as a control.
 
 We can probably manually do ETWFE with treatment reversal.  See Wooldridge's dropbox for the code in Stata.  The basic idea is to treat cohorts as different treatment beginning time and exit time combinations.  Then do the same regression with interactions of cohort dummies with the time dummies.  It is very flexible.  The tricky part is to get the marginal effect and its standard error right.
 
@@ -395,7 +413,7 @@ We can probably manually do ETWFE with treatment reversal.  See Wooldridge's dro
 
 With staggered adoption and effects that vary across cohorts, a single TWFE coefficient mixes clean comparisons with forbidden ones that use already-treated units as controls. The Goodman-Bacon decomposition shows the mix. Sun-Abraham, Callaway-Sant'Anna, imputation (Borusyak et al., Liu-Wang-Xu), PanelMatch and Wooldridge's ETWFE all avoid the forbidden comparisons in different ways. ETWFE is the simplest: a TWFE regression flexible enough to give each cohort its own effect in each period.
 
-On the Swiss naturalization data, TWFE gives 1.339. The decomposition shows 37% of the weight on forbidden comparisons, which pull the estimate down from the clean comparisons' 1.61. Sun-Abraham, Callaway-Sant'Anna and ETWFE agree at 1.33, and all seven estimators fall between 1.18 and 1.51, within their standard errors. So here the contamination is real but small. Treatment reversal needs `fect` or PanelMatch, or ETWFE built by hand with exit cohorts.
+On the Swiss naturalization data, TWFE on the full panel gives 1.339. The decomposition shows 37% of the weight on forbidden comparisons, which pull the estimate down from the clean comparisons' 1.61. Sun-Abraham, Callaway-Sant'Anna and ETWFE agree at 1.33, and the six robust estimators fall between 1.18 and 1.51. They drop the always-treated municipalities, and on that sample TWFE gives 1.609, so the full-panel agreement is a coincidence of samples. Treatment reversal needs `fect`, PanelMatch or `did_multiplegt_dyn`, or ETWFE built by hand with exit cohorts.
 
 ---
 

@@ -73,7 +73,8 @@ summary(sensitivity)
 #| results: 'asis'
 
 # minimal reporting
-ovb_minimal_reporting(sensitivity, format = "html")
+ovb_minimal_reporting(sensitivity,
+                      format = if (knitr::is_latex_output()) "latex" else "html")
 
 ```
 
@@ -86,7 +87,7 @@ The robustness value for testing the null hypothesis that the coefficient of "di
  
 The partial $R^2$ of `directlyharmed` with `peacefactor` is 2.2%. This means that, in an extreme scenario in which we assume that unobserved confounders explain all of the left-out variance of the outcome, these unobserved confounders would need to explain at least 2.2% of the residual variance of the treatment to fully explain away the observed effect.
 
-The above numbers are for the absolute strength the confounder needs to be to explain away the treatment effect.   The authors believe in this context, "female" is an important factor.  Suppose the confounder is as important as "female", what the partial $R^2$ would be?  It is shown that $R^2_{Y \sim Z|X,D} = 12.5 \%$ and $R^2_{D \sim Z|X} = 0.9 \%$, so a confounder as strong as "female" is not strong enough to explain away the treatment effect.
+The above numbers are for the absolute strength the confounder needs to be to explain away the treatment effect.   The authors believe in this context, "female" is an important factor.  Suppose the confounder is as important as "female", what would the partial $R^2$ be?  It is shown that $R^2_{Y \sim Z|X,D} = 12.5 \%$ and $R^2_{D \sim Z|X} = 0.9 \%$, so a confounder as strong as "female" is not strong enough to explain away the treatment effect.
 
 It is worth being careful about *why*, because comparing each number to $RV_{q=1} = 13.9\%$ one at a time invites the wrong reading. The $RV$ is defined for a confounder of *equal* strength on both sides, so it is not a threshold that each partial $R^2$ must separately clear. Here the outcome-side association (12.5%) is in fact close to the $RV$, which on its own might look like a near miss --- but the treatment-side association is only 0.9%, more than an order of magnitude short. It is the treatment side that does the work: "female" predicts the outcome nearly well enough to matter, and barely predicts the treatment at all. The contour plot below is the honest check, since it evaluates the pair jointly rather than either coordinate alone.  
 
@@ -100,13 +101,13 @@ plot(sensitivity)
 
 This plot shows that even 3 times as strong as "female", the confounder is not strong enough to explain away the treatment effect.  
 
-## sensitivity analysis for IV
+## Sensitivity analysis for IV
 
 Even with an IV model, we need sensitivity analysis.  The worry would be there could be an unobserved confounder that affects both the instrument and the outcome.  
 
 Cinelli and Hazlett have a package "iv.sensemakr" for this.  The usage is similar to "sensemakr".
 
-The example is Card's returns-to-schooling data, 3,010 men from the 1976 NLS.
+The example is the returns-to-schooling data of @card-1995, 3,010 men from the 1976 NLS.
 The outcome is log wage, the treatment is years of education, and the instrument
 is `nearc4`, an indicator for growing up near a four-year college. The covariates
 are experience and its square, race, region, and urban indicators. The concern
@@ -161,10 +162,14 @@ giving $[-0.019, 0.396]$. **Both intervals contain zero.** A confounder no
 stronger than either benchmark covariate is enough to remove the significance of
 the estimate.
 
-That `smsa` number is worth a second look on its own terms: its instrument-side
-partial $R^2$ of 0.00639 sits just under the Robustness Value of 0.00667, so a
-confounder of that strength lands essentially exactly on the tipping point. The
-two diagnostics agree.
+The `smsa` bound should not be read against the Robustness Value one coordinate at
+a time. The RV of 0.00667 is an equal-strength threshold: a confounder explaining
+0.667% of the residual variance of *both* the instrument and the untreated
+potential outcome brings the interval bound to zero. The `smsa` benchmark has an
+instrument-side partial $R^2$ of 0.00639, just under the RV, but an outcome-side
+partial $R^2$ of 0.0202, three times above it. The bias depends on both jointly,
+so the benchmark lies well past the critical contour, which is why its adjusted
+interval, $[-0.019, 0.396]$, contains zero.
 
 None of this says the Card estimate is wrong. It says the identification rests on
 the instrument being cleaner than `black` or `smsa` are as predictors, which is

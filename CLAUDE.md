@@ -712,3 +712,19 @@ rare-events: all-zero probability is 0.64 at n = 10, p = 0.01 (marginal rate 0.0
 condition on successful fits, cpus 16 -> 6. T5 poisson-exposure: exposure is independent of age,
 so omitting it does not bias the age coefficient; weighted rate model = offset model score;
 NB with offset does not model a declining rate.
+
+## Google review fixes (2026-10-17, branch `google-review-fixes`, on top of PR #12)
+
+Log `~/projects/books/_review6/VERIFY_GOOGLE_BLOG_20261017.md` (27 confirmed, 5 partial, 2 refuted).
+Code changes: ch8 x1 generated before `expand` + stable sort, egen double; ch3 tenure coded 0
+with no tenure2, stata5-7 collectcode false; ch17 causal_forest mtry = ncol(X) (default mtry
+shrank CATE slope to 0.14); ch18/27/30/31 seeded; ch20 period fixed effects throughout, beta not
+rounded (2SLS 0.951 = Rotemberg sum); ch21 same-sample TWFE (1.609 vs full-panel 1.339); ch26
+fepois vcov = "hetero"; ch32 sl.lib in nsplits=10 calls, partialling-out score; ch37 time
+centred at 1970 + unstructured covariance in menl (R and Stata now agree: LL 888.824, CEM 908.408);
+ch40 W built from as.data.frame(data) (setDT made data[, cols] return names), i. factor prefix
+in rforest/aipw, ranger num.threads 1; ch41 WX lags the transformed X; ch43 DoubleMLIRM, torch
+seeded per rep, z_binary_dims in loops, binary columns not scaled, tol = 0; ch46 NDE/NIE
+printed, medoutcon via summary(). PDF: mainfont fallback DejaVu Serif + DejaVu Sans Mono.
+32 bib entries added, 7 completed. Prose numbers for re-executed chapters 26-46 still pending
+when first committed; filled in after the full render (101 min). Ch3: Statamarkdown collects code for any non-NULL collectcode, so `collectcode: false` still collected; the line is removed instead.
